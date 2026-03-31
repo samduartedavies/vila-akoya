@@ -23,13 +23,28 @@
 			<!-- wp:paragraph {"style":{"typography":{"fontSize":"var:preset|font-size|large","fontWeight":"300","lineHeight":"1.6"}},"textColor":"on-primary"} -->
 			<p class="has-on-primary-color has-text-color" style="font-size:var(--wp--preset--font-size--large);font-weight:300;line-height:1.6">Join our circle for seasonal updates, workshop announcements, and stories from the land. No noise, just soul.</p>
 			<!-- /wp:paragraph -->
-			<!-- wp:buttons -->
-			<div class="wp-block-buttons">
-				<!-- wp:button {"backgroundColor":"surface","textColor":"primary"} -->
-				<div class="wp-block-button"><a class="wp-block-button__link has-surface-background-color has-primary-color has-text-color has-background wp-element-button" href="/contact/">Subscribe via contact</a></div>
-				<!-- /wp:button -->
+			<!-- wp:columns {"style":{"spacing":{"blockGap":{"left":"var:preset|spacing|50"}}}} -->
+			<div class="wp-block-columns">
+				<!-- wp:column {"width":"65%"} -->
+				<div class="wp-block-column" style="flex-basis:65%">
+					<!-- wp:paragraph {"placeholder":"you@email.com","style":{"spacing":{"padding":{"top":"0.9rem","bottom":"0.9rem","left":"1rem","right":"1rem"}},"color":{"background":"rgba(255,255,255,0.16)"},"border":{"radius":"0.75rem"}},"textColor":"on-primary"} -->
+					<p class="has-on-primary-color has-text-color has-background" style="border-radius:0.75rem;background-color:rgba(255,255,255,0.16);padding-top:0.9rem;padding-right:1rem;padding-bottom:0.9rem;padding-left:1rem">your@email.com</p>
+					<!-- /wp:paragraph -->
+				</div>
+				<!-- /wp:column -->
+				<!-- wp:column {"width":"35%"} -->
+				<div class="wp-block-column" style="flex-basis:35%">
+					<!-- wp:buttons -->
+					<div class="wp-block-buttons">
+						<!-- wp:button {"backgroundColor":"surface","textColor":"primary"} -->
+						<div class="wp-block-button"><a class="wp-block-button__link has-surface-background-color has-primary-color has-text-color has-background wp-element-button" href="/contact/">Subscribe</a></div>
+						<!-- /wp:button -->
+					</div>
+					<!-- /wp:buttons -->
+				</div>
+				<!-- /wp:column -->
 			</div>
-			<!-- /wp:buttons -->
+			<!-- /wp:columns -->
 		</div>
 		<!-- /wp:group -->
 	</div>

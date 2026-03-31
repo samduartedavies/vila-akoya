@@ -19,13 +19,28 @@
 		<!-- wp:paragraph {"align":"center","style":{"typography":{"fontSize":"var:preset|font-size|x-large","fontStyle":"italic"}},"textColor":"tertiary"} -->
 		<p class="has-text-align-center has-tertiary-color has-text-color" style="font-size:var(--wp--preset--font-size--x-large);font-style:italic">Join our waitlist for the next phase of Village development.</p>
 		<!-- /wp:paragraph -->
-		<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center"}} -->
-		<div class="wp-block-buttons">
-			<!-- wp:button {"backgroundColor":"primary","textColor":"on-primary"} -->
-			<div class="wp-block-button"><a class="wp-block-button__link has-primary-background-color has-on-primary-color has-text-color has-background wp-element-button" href="/book/">Join the waitlist</a></div>
-			<!-- /wp:button -->
+		<!-- wp:columns {"style":{"spacing":{"blockGap":{"left":"var:preset|spacing|50"}}}} -->
+		<div class="wp-block-columns">
+			<!-- wp:column {"width":"62%"} -->
+			<div class="wp-block-column" style="flex-basis:62%">
+				<!-- wp:paragraph {"placeholder":"your@email.com","style":{"spacing":{"padding":{"top":"0.95rem","bottom":"0.95rem","left":"1rem","right":"1rem"}},"color":{"background":"var:preset|color|surface"},"border":{"radius":"9999px"}}} -->
+				<p class="has-background" style="border-radius:9999px;background-color:var(--wp--preset--color--surface);padding-top:0.95rem;padding-right:1rem;padding-bottom:0.95rem;padding-left:1rem">Your email address</p>
+				<!-- /wp:paragraph -->
+			</div>
+			<!-- /wp:column -->
+			<!-- wp:column {"width":"38%"} -->
+			<div class="wp-block-column" style="flex-basis:38%">
+				<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"left"}} -->
+				<div class="wp-block-buttons">
+					<!-- wp:button {"backgroundColor":"primary","textColor":"on-primary"} -->
+					<div class="wp-block-button"><a class="wp-block-button__link has-primary-background-color has-on-primary-color has-text-color has-background wp-element-button" href="/book/">Join the waitlist</a></div>
+					<!-- /wp:button -->
+				</div>
+				<!-- /wp:buttons -->
+			</div>
+			<!-- /wp:column -->
 		</div>
-		<!-- /wp:buttons -->
+		<!-- /wp:columns -->
 	</div>
 	<!-- /wp:group -->
 </div>

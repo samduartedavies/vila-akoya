@@ -1,10 +1,14 @@
 /**
- * Vila Akoya — layout & design tokens not covered by theme.json alone.
+ * Vila Akoya — clean visual fidelity layer for block patterns.
+ * The patterns hold editable content; this file controls parity styling.
  */
 
-/* -------------------------------------------------------------------------
-   Base & smooth rendering
-   ------------------------------------------------------------------------- */
+:root {
+	--va-canvas-max: 1536px;
+	--va-section-max: 1280px;
+	--va-copy-max: 940px;
+}
+
 html {
 	scroll-behavior: smooth;
 }
@@ -15,122 +19,53 @@ body {
 	overflow-x: clip;
 }
 
-/* -------------------------------------------------------------------------
-   Block wrapper — works with theme files AND Site Editor–customized templates
-   (custom templates often omit <main class="va-main">; header is fixed.)
-   ------------------------------------------------------------------------- */
-
-/* theme.json adds a gap between every direct child of .wp-site-blocks; kill the
-   extra band under the fixed header so the title / hero isn’t pushed down twice. */
-.wp-site-blocks > main,
-.wp-site-blocks > .wp-block-post-title,
-.wp-site-blocks > .entry-content {
-	margin-block-start: 0 !important;
+/* Type system */
+body :where(p, li, label, input, textarea, select, figcaption) {
+	font-family: "Josefin Sans", var(--wp--preset--font-family--josefin), sans-serif;
 }
 
-/* First block after the header: clear the fixed bar + optional bottom padding for page shell */
+body :where(h1, h2, h3, h4, h5, h6) {
+	font-family: "Marcellus", var(--wp--preset--font-family--marcellus), serif;
+}
+
+/* Branded display heading exceptions */
+.va-wordmark__text,
+.va-wordmark__text a,
+.va-footer-wordmark,
+.va-hero-cover h1,
+body.page-the-village .entry-content > .wp-block-group:first-child h1,
+body.page-the-campus .entry-content > .wp-block-group:first-child h1,
+body.page-homeschooling-collective .entry-content > .wp-block-group:first-child h1 {
+	font-family: var(--wp--preset--font-family--barrio), "Barrio", cursive !important;
+}
+
+/* Header offset */
+.wp-site-blocks > main,
+.wp-site-blocks > .entry-content,
+.wp-site-blocks > .wp-block-post-title {
+	margin-block-start: 0;
+}
+
 .wp-site-blocks > header + * {
-	padding-top: clamp(4.5rem, 12vw, 6rem);
+	padding-top: clamp(4.5rem, 9vw, 6rem);
 }
 
 body.admin-bar .wp-site-blocks > header + * {
-	padding-top: calc(clamp(4.5rem, 12vw, 6rem) + 32px);
+	padding-top: calc(clamp(4.5rem, 9vw, 6rem) + 32px);
 }
 
-.wp-site-blocks > header ~ :last-child {
-	margin-block-end: 0;
+/* Hide duplicate WP title where brochure hero exists */
+body.page-the-village .wp-site-blocks > .wp-block-post-title,
+body.page-the-campsite .wp-site-blocks > .wp-block-post-title,
+body.page-the-campus .wp-site-blocks > .wp-block-post-title,
+body.page-homeschooling-collective .wp-site-blocks > .wp-block-post-title,
+body.page-about .wp-site-blocks > .wp-block-post-title,
+body.page-contact .wp-site-blocks > .wp-block-post-title,
+body.page-book .wp-site-blocks > .wp-block-post-title {
+	display: none;
 }
 
-/* Inner pages: standalone post title (when template isn’t theme page.html) */
-.wp-site-blocks > header + .wp-block-post-title {
-	max-width: var(--wp--style--global--wide-size, 1280px);
-	width: 100%;
-	margin-left: auto;
-	margin-right: auto;
-	padding-left: var(--wp--preset--spacing--60);
-	padding-right: var(--wp--preset--spacing--60);
-	padding-bottom: var(--wp--preset--spacing--60);
-	border-bottom: 1px solid rgba(181, 173, 150, 0.28);
-	box-sizing: border-box;
-	letter-spacing: -0.02em;
-}
-
-/* Shared fallback for DB-customized Page templates: keep body content readable,
-   while preserving alignwide/alignfull authored sections. */
-.wp-site-blocks > .wp-block-post-title + .entry-content {
-	padding-top: clamp(1.5rem, 3vw, 2.25rem);
-	padding-bottom: var(--wp--preset--spacing--90);
-}
-
-.wp-site-blocks > .wp-block-post-title + .entry-content > :not(.alignwide):not(.alignfull) {
-	max-width: var(--wp--style--global--content-size, 740px);
-	margin-left: auto;
-	margin-right: auto;
-	padding-left: var(--wp--preset--spacing--60);
-	padding-right: var(--wp--preset--spacing--60);
-	box-sizing: border-box;
-}
-
-/* Theme file template: main wrapper */
-.va-main {
-	padding-top: 0;
-	padding-bottom: var(--wp--preset--spacing--90);
-}
-
-/* -------------------------------------------------------------------------
-   Inner pages — match homepage full-bleed sections + editorial title band
-   ------------------------------------------------------------------------- */
-.va-page-title-bar {
-	max-width: var(--wp--style--global--wide-size, 1280px);
-	margin-left: auto;
-	margin-right: auto;
-	padding-left: var(--wp--style--root--padding-left, var(--wp--preset--spacing--60));
-	padding-right: var(--wp--style--root--padding-right, var(--wp--preset--spacing--60));
-	border-bottom: 1px solid rgba(181, 173, 150, 0.28);
-}
-
-.va-page-title-bar .wp-block-post-title {
-	margin-top: 0;
-	margin-bottom: var(--wp--preset--spacing--40);
-	letter-spacing: -0.02em;
-}
-
-.va-page-title-bar .wp-block-post-title:last-child {
-	margin-bottom: 0;
-}
-
-.va-page-title-bar p {
-	margin-top: 0;
-	margin-bottom: 0;
-	max-width: 52ch;
-}
-
-/* Post content: full-width rows (alignfull covers) like the home template */
-.va-page .wp-block-post-content {
-	width: 100%;
-}
-
-/* Tight stack: blockGap from template + no accidental doubled margins */
-.va-page .wp-block-post-content.is-layout-flow > :first-child.alignfull {
-	margin-top: 0;
-}
-
-/* Pull quote / contact strip breathing room at section boundaries */
-.va-page .wp-block-post-content .alignwide {
-	margin-left: auto;
-	margin-right: auto;
-}
-
-.va-booking-fallback {
-	background: var(--wp--preset--color--surface-container-low);
-	border: 1px solid rgba(181, 173, 150, 0.28);
-	border-radius: 1rem;
-	padding: var(--wp--preset--spacing--60);
-}
-
-/* -------------------------------------------------------------------------
-   Header shell
-   ------------------------------------------------------------------------- */
+/* Header chrome */
 .va-header {
 	position: fixed;
 	top: 0;
@@ -148,20 +83,14 @@ body.admin-bar .va-header {
 }
 
 .va-header__inner {
-	max-width: 1280px;
-	margin-left: auto;
-	margin-right: auto;
-	padding-left: var(--wp--preset--spacing--60);
-	padding-right: var(--wp--preset--spacing--60);
-	padding-top: var(--wp--preset--spacing--50);
-	padding-bottom: var(--wp--preset--spacing--50);
+	max-width: var(--va-canvas-max);
+	margin: 0 auto;
+	padding: var(--wp--preset--spacing--50) var(--wp--preset--spacing--60);
 }
 
-/* Site title as wordmark */
-.va-wordmark {
-	font-family: var(--wp--preset--font-family--barrio);
+.va-wordmark__text {
+	margin: 0;
 	font-size: clamp(1.75rem, 4vw, 2rem);
-	font-weight: 400;
 	line-height: 1;
 }
 
@@ -170,271 +99,103 @@ body.admin-bar .va-header {
 	color: var(--wp--preset--color--primary);
 }
 
-/* Nav links row */
 .va-nav .wp-block-navigation-item a {
-	font-family: var(--wp--preset--font-family--newsreader);
+	font-family: var(--wp--preset--font-family--newsreader), serif;
 	font-size: var(--wp--preset--font-size--small);
 	font-weight: 500;
+	color: var(--wp--preset--color--on-surface-variant);
+	text-decoration: none;
+	padding-bottom: 0.2rem;
+	border-bottom: 2px solid transparent;
+	transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .va-nav .wp-block-navigation-item a:hover {
 	color: var(--wp--preset--color--tertiary);
 }
 
-/* -------------------------------------------------------------------------
-   Footer
-   ------------------------------------------------------------------------- */
-.alignfull.has-surface-container-background-color {
-	border-top: 1px solid rgba(181, 173, 150, 0.35);
+.va-nav .current-menu-item > a,
+.va-nav .current_page_item > a {
+	color: var(--wp--preset--color--primary);
+	border-bottom-color: color-mix(in srgb, var(--wp--preset--color--primary) 40%, transparent);
 }
 
-/* -------------------------------------------------------------------------
-   Covers & heroes
-   ------------------------------------------------------------------------- */
+.va-header__book .wp-block-button__link {
+	border-radius: 9999px;
+	padding: 0.62rem 1rem;
+	font-family: var(--wp--preset--font-family--plus-jakarta), sans-serif;
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	background: var(--wp--preset--color--primary);
+	color: var(--wp--preset--color--on-primary);
+}
+
+/* Footer chrome: homepage style used globally */
+.va-footer-home {
+	max-width: var(--va-canvas-max);
+	margin: 0 auto;
+	background: #0b5a49 !important;
+	color: #f6ead0 !important;
+	border-top: 0 !important;
+}
+
+.va-footer-home-nav .wp-block-navigation-item a {
+	font-family: var(--wp--preset--font-family--newsreader), serif;
+	color: rgba(246, 234, 208, 0.86);
+	text-decoration: none;
+}
+
+.va-footer-home-nav .wp-block-navigation-item a:hover {
+	color: #f6ead0;
+}
+
+/* Content canvas */
+.va-main {
+	padding-bottom: var(--wp--preset--spacing--90);
+}
+
+.va-main .wp-block-post-content,
+.va-main .entry-content {
+	max-width: var(--va-canvas-max);
+	margin: 0 auto;
+}
+
+.va-main .wp-block-post-content > * + * {
+	margin-top: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.va-main .wp-block-post-content > :not(.alignfull) {
+	max-width: var(--va-section-max);
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.va-main .wp-block-post-content > :not(.alignwide):not(.alignfull) {
+	max-width: var(--va-copy-max);
+}
+
+.va-main .wp-block-post-content > .alignfull {
+	max-width: 100%;
+}
+
+/* Shared media and cards */
 .wp-block-cover .wp-block-cover__image-background {
 	object-fit: cover;
 }
 
-.wp-block-cover .wp-block-heading {
-	text-shadow: 0 2px 24px rgba(51, 46, 30, 0.25);
-}
-
-/* Editorial card shadow */
 .va-editorial-shadow {
 	box-shadow: 0 20px 40px rgba(51, 46, 30, 0.06);
 }
 
-/* Hero min height */
-.va-hero-cover {
-	min-height: min(85vh, 920px);
-}
-
-/* Slight rotation for “spiritual call-outs” (optional class on group) */
-.va-callout-tilt {
-	transform: rotate(-2deg);
-	transform-origin: left center;
-}
-
-/* Split panels */
-.va-split-panel {
-	min-height: 70vh;
-}
-
-/* -------------------------------------------------------------------------
-   Columns & grids (patterns)
-   ------------------------------------------------------------------------- */
-.wp-block-columns.alignwide,
-.wp-block-columns.alignfull {
-	gap: var(--wp--preset--spacing--70);
-}
-
-@media (max-width: 781px) {
-	.wp-block-columns {
-		flex-wrap: wrap;
-	}
-}
-
-/* -------------------------------------------------------------------------
-   Live DOM matched overrides (ensures visible effect on current markup)
-   ------------------------------------------------------------------------- */
-
-/* Global page rhythm closer to design comps. */
-.entry-content > * + * {
-	margin-top: clamp(2.5rem, 5vw, 4rem) !important;
-}
-
-/* Home: contained hero + contained newsletter and softer cards. */
-body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover {
-	max-width: 1240px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	border-radius: 1.25rem !important;
-	overflow: hidden !important;
-	min-height: min(78vh, 860px) !important;
-}
-
-body.home .entry-content > .wp-block-group.alignfull {
-	max-width: 1240px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	border-radius: 1.15rem !important;
-	overflow: hidden;
-}
-
-body.home .entry-content .wp-block-columns.alignwide > .wp-block-column.has-background {
-	border-radius: 1rem !important;
-}
-
-/* Village / Campsite / Campus / Homeschool: section cards and constrained canvas. */
-body.page-id-8 .entry-content > .wp-block-group.alignwide,
-body.page-id-8 .entry-content > .wp-block-group.alignfull,
-body.page-id-9 .entry-content > .wp-block-group.alignwide,
-body.page-id-9 .entry-content > .wp-block-group.alignfull,
-body.page-id-13 .entry-content > .wp-block-group.alignwide,
-body.page-id-13 .entry-content > .wp-block-group.alignfull,
-body.page-id-14 .entry-content > .wp-block-group.alignwide,
-body.page-id-14 .entry-content > .wp-block-group.alignfull {
-	max-width: 1200px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	border-radius: 1.2rem !important;
-	overflow: hidden;
-}
-
-body.page-id-8 .entry-content h1,
-body.page-id-9 .entry-content h1,
-body.page-id-13 .entry-content h1,
-body.page-id-14 .entry-content h1 {
-	font-size: clamp(2.5rem, 5.8vw, 5rem) !important;
-	line-height: 1.02 !important;
-	letter-spacing: -0.02em !important;
-}
-
-body.page-id-8 .entry-content .wp-block-columns,
-body.page-id-9 .entry-content .wp-block-columns,
-body.page-id-13 .entry-content .wp-block-columns,
-body.page-id-14 .entry-content .wp-block-columns {
-	gap: clamp(1rem, 2.2vw, 1.6rem) !important;
-}
-
-/* Booking/About/Contact tighten oversized whitespace and match cleaner reference. */
-body.page-id-10 .entry-content,
-body.page-id-11 .entry-content,
-body.page-id-12 .entry-content {
-	max-width: 1020px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	padding-bottom: clamp(3rem, 7vw, 5rem) !important;
-}
-
-body.page-id-10 .entry-content > :not(.alignwide):not(.alignfull),
-body.page-id-11 .entry-content > :not(.alignwide):not(.alignfull),
-body.page-id-12 .entry-content > :not(.alignwide):not(.alignfull) {
-	max-width: 860px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-}
-
-@media (max-width: 781px) {
-	.entry-content > * + * {
-		margin-top: clamp(1.8rem, 6vw, 2.6rem) !important;
-	}
-
-	body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover,
-	body.home .entry-content > .wp-block-group.alignfull,
-	body.page-id-8 .entry-content > .wp-block-group.alignwide,
-	body.page-id-8 .entry-content > .wp-block-group.alignfull,
-	body.page-id-9 .entry-content > .wp-block-group.alignwide,
-	body.page-id-9 .entry-content > .wp-block-group.alignfull,
-	body.page-id-13 .entry-content > .wp-block-group.alignwide,
-	body.page-id-13 .entry-content > .wp-block-group.alignfull,
-	body.page-id-14 .entry-content > .wp-block-group.alignwide,
-	body.page-id-14 .entry-content > .wp-block-group.alignfull {
-		max-width: 100% !important;
-		border-radius: 0.85rem !important;
-	}
-}
-
-/* -------------------------------------------------------------------------
-   Homepage design match (strong pass)
-   ------------------------------------------------------------------------- */
-body.home .entry-content {
-	max-width: 100%;
-}
-
-body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover {
-	max-width: 1280px !important;
-	margin: clamp(1rem, 3vw, 2rem) auto 0 !important;
-	border-radius: 1.4rem !important;
-	min-height: min(82vh, 920px) !important;
-}
-
-body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover .wp-block-cover__inner-container {
-	max-width: 1120px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-}
-
-body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover h1 {
-	font-size: clamp(3rem, 7.2vw, 6.25rem) !important;
-	line-height: 0.98 !important;
-	letter-spacing: -0.02em !important;
-	max-width: 14ch;
-}
-
-body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover p {
-	max-width: 60ch;
-}
-
-body.home .entry-content > .wp-block-group.alignfull {
-	max-width: 1280px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-}
-
-/* Split cards become distinct panels like design screenshot. */
-body.home .entry-content .wp-block-columns.alignwide > .wp-block-column.has-background {
-	border-radius: 0 !important;
-	padding-left: clamp(1.5rem, 3vw, 2.5rem) !important;
-	padding-right: clamp(1.5rem, 3vw, 2.5rem) !important;
-}
-
-body.home .entry-content .wp-block-columns.alignwide > .wp-block-column h2 {
-	font-size: clamp(2rem, 4.2vw, 3.6rem) !important;
-	line-height: 1 !important;
-}
-
-/* Deeply rooted section: stronger editorial contrast/spacing. */
-body.home .entry-content > .wp-block-group.alignwide h3.wp-block-heading {
-	font-size: clamp(2rem, 4.1vw, 4rem) !important;
-	line-height: 1.1 !important;
-}
-
-/* Sacred four cards: compact card width + centered icon/title rhythm. */
-body.home .entry-content .alignfull.has-surface-container-background-color .wp-block-columns.alignwide {
-	gap: clamp(0.8rem, 1.6vw, 1.25rem) !important;
-}
-
-body.home .entry-content .alignfull.has-surface-container-background-color .wp-block-columns.alignwide > .wp-block-column > .wp-block-group {
-	border-radius: 1rem !important;
-	padding: clamp(1rem, 2vw, 1.25rem) !important;
-	min-height: 100%;
-}
-
-/* Newsletter band as contained rounded slab instead of full-width strip. */
-body.home .entry-content > .wp-block-cover.alignfull.va-editorial-shadow:last-of-type {
-	max-width: 1120px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	border-radius: 1.25rem !important;
-	overflow: hidden !important;
-	min-height: 42vh !important;
-}
-
-body.home .entry-content > .wp-block-cover.alignfull.va-editorial-shadow:last-of-type h2 {
-	font-size: clamp(2.2rem, 5vw, 4.5rem) !important;
-	line-height: 1.04 !important;
-}
-
-/* -------------------------------------------------------------------------
-   Images & figures
-   ------------------------------------------------------------------------- */
 .wp-block-image img,
-.wp-block-media-text__media img {
+.wp-block-media-text__media img,
+.wp-block-column.has-background,
+.wp-block-group.has-background {
 	border-radius: 1rem;
 }
 
-.wp-block-image figcaption {
-	font-family: var(--wp--preset--font-family--plus-jakarta);
-	font-size: var(--wp--preset--font-size--small);
-	color: var(--wp--preset--color--on-surface-variant);
-	margin-top: var(--wp--preset--spacing--40);
-	text-align: center;
-}
-
-/* -------------------------------------------------------------------------
-   Buttons (global polish)
-   ------------------------------------------------------------------------- */
 .wp-block-button .wp-block-button__link {
 	transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
@@ -443,421 +204,94 @@ body.home .entry-content > .wp-block-cover.alignfull.va-editorial-shadow:last-of
 	transform: translateY(-1px);
 }
 
-/* -------------------------------------------------------------------------
-   Blog index
-   ------------------------------------------------------------------------- */
-.va-blog-index .wp-block-query .wp-block-post {
-	padding-bottom: var(--wp--preset--spacing--90);
-	border-bottom: 1px solid rgba(181, 173, 150, 0.35);
-	margin-bottom: var(--wp--preset--spacing--90);
+/* Home page fidelity */
+body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover {
+	max-width: 1280px;
+	margin: clamp(1rem, 2.6vw, 2rem) auto 0;
+	border-radius: 1.5rem;
+	overflow: hidden;
+	min-height: min(84vh, 920px);
 }
 
-.va-blog-index .wp-block-query .wp-block-post:last-child {
-	border-bottom: none;
-	margin-bottom: 0;
+body.home .entry-content > .wp-block-group.alignfull,
+body.home .entry-content > .wp-block-cover.alignfull:not(.va-hero-cover) {
+	max-width: 1280px;
+	margin-left: auto;
+	margin-right: auto;
 }
 
-.va-blog-index .wp-block-post-title a {
-	text-decoration: none;
-	color: var(--wp--preset--color--on-surface);
-	font-family: var(--wp--preset--font-family--barrio);
-	font-size: var(--wp--preset--font-size--xx-large);
+/* Brochure pages: section blocks are broad and airy */
+body.page-the-village .entry-content > .wp-block-group.alignwide,
+body.page-the-campsite .entry-content > .wp-block-group.alignwide,
+body.page-the-campus .entry-content > .wp-block-group.alignwide,
+body.page-homeschooling-collective .entry-content > .wp-block-group.alignwide {
+	max-width: 1240px;
+	border-radius: 1.2rem;
 }
 
-.va-blog-index .wp-block-post-title a:hover {
-	color: var(--wp--preset--color--primary);
+body.page-the-campsite .entry-content > .wp-block-cover.alignfull {
+	min-height: min(86vh, 930px);
 }
 
-.va-blog-index .wp-block-post-excerpt {
-	font-size: var(--wp--preset--font-size--large);
-	color: var(--wp--preset--color--on-surface-variant);
-	line-height: 1.65;
+/* Utility pages keep cleaner readable measure */
+body.page-about .entry-content > :not(.alignwide):not(.alignfull),
+body.page-contact .entry-content > :not(.alignwide):not(.alignfull),
+body.page-book .entry-content > :not(.alignwide):not(.alignfull) {
+	max-width: 980px;
 }
 
-.va-blog-index .wp-block-query-pagination {
-	margin-top: var(--wp--preset--spacing--90);
-	font-family: var(--wp--preset--font-family--plus-jakarta);
-	font-size: var(--wp--preset--font-size--small);
-}
-
-/* -------------------------------------------------------------------------
-   Single page / post content rhythm
-   ------------------------------------------------------------------------- */
-.va-main .wp-block-post-content > * + *,
-.va-main .entry-content > * + * {
-	margin-top: 0;
-}
-
-/* -------------------------------------------------------------------------
-   Forms — CF7 + block forms
-   ------------------------------------------------------------------------- */
+/* Booking form */
 .va-booking-form input[type="text"],
 .va-booking-form input[type="email"],
 .va-booking-form input[type="tel"],
 .va-booking-form input[type="date"],
 .va-booking-form select,
 .va-booking-form textarea {
-	border-radius: 1rem;
-	border: 1px solid rgba(181, 173, 150, 0.35);
-	background-color: var(--wp--preset--color--surface-container-high);
-	padding: 0.75rem 1rem;
 	width: 100%;
-	max-width: 100%;
-	font-family: var(--wp--preset--font-family--plus-jakarta);
-	font-size: var(--wp--preset--font-size--medium);
+	border: 1px solid rgba(181, 173, 150, 0.35);
+	border-radius: 0.9rem;
+	background: var(--wp--preset--color--surface-container-high);
+	padding: 0.75rem 1rem;
+	font-family: "Josefin Sans", var(--wp--preset--font-family--josefin), sans-serif;
 }
 
 .va-booking-form textarea {
 	min-height: 10rem;
 }
 
-.va-booking-form label {
-	font-family: var(--wp--preset--font-family--plus-jakarta);
-	font-size: var(--wp--preset--font-size--small);
-	font-weight: 500;
-	display: block;
-	margin-bottom: var(--wp--preset--spacing--30);
-	margin-top: var(--wp--preset--spacing--50);
-}
-
-.va-booking-form label:first-of-type {
-	margin-top: 0;
-}
-
-.va-booking-form input[type="submit"],
-.va-booking-form .wpcf7-submit {
-	cursor: pointer;
+.va-booking-form .wpcf7-submit,
+.va-booking-form input[type="submit"] {
+	border: 0;
 	border-radius: 1.5rem;
-	border: none;
 	background: var(--wp--preset--color--primary);
 	color: var(--wp--preset--color--on-primary);
-	font-family: var(--wp--preset--font-family--plus-jakarta);
-	font-weight: 600;
 	padding: 0.85rem 1.75rem;
-	margin-top: var(--wp--preset--spacing--60);
-	transition: background 0.2s ease;
+	font-family: var(--wp--preset--font-family--plus-jakarta), sans-serif;
+	font-weight: 600;
 }
 
-.va-booking-form input[type="submit"]:hover,
-.va-booking-form .wpcf7-submit:hover {
-	background: var(--wp--preset--color--primary-container);
+/* Responsive */
+@media (max-width: 1024px) {
+	.va-header__actions {
+		display: none;
+	}
 }
 
-.wpcf7 form .wpcf7-response-output {
-	border-radius: 1rem;
-	margin: var(--wp--preset--spacing--60) 0 0;
-	padding: var(--wp--preset--spacing--50);
-	font-family: var(--wp--preset--font-family--plus-jakarta);
-	font-size: var(--wp--preset--font-size--small);
-}
-
-/* -------------------------------------------------------------------------
-   Lists & quotes in patterns
-   ------------------------------------------------------------------------- */
-.va-main ul,
-.va-main ol {
-	padding-left: 1.25rem;
-}
-
-.va-main li {
-	margin-bottom: var(--wp--preset--spacing--40);
-}
-
-/* -------------------------------------------------------------------------
-   Mobile nav wrap
-   ------------------------------------------------------------------------- */
 @media (max-width: 781px) {
 	body.admin-bar .va-header {
 		top: 46px;
 	}
 
 	body.admin-bar .wp-site-blocks > header + * {
-		padding-top: calc(clamp(4.5rem, 12vw, 6rem) + 46px);
+		padding-top: calc(clamp(4.5rem, 9vw, 6rem) + 46px);
 	}
 
-	.va-header__inner .wp-block-group.is-layout-flex {
-		flex-wrap: wrap;
-		gap: var(--wp--preset--spacing--40);
+	.va-main .wp-block-post-content > * + * {
+		margin-top: clamp(1.8rem, 6vw, 2.8rem);
 	}
 
-	.va-nav {
-		width: 100%;
-		justify-content: flex-start;
-	}
-}
-
-@media (max-width: 1024px) {
-	.va-nav .wp-block-navigation__responsive-container-open {
-		display: flex;
-	}
-
-	.va-nav .wp-block-navigation__container {
-		display: none;
-	}
-
-	.va-nav .wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__container {
-		display: flex;
-	}
-}
-
-/* Navigation overlay above hero covers */
-.wp-block-navigation__responsive-container:not(.hidden-by-default) {
-	z-index: 250;
-}
-
-.has-modal-open .wp-block-navigation__responsive-close {
-	z-index: 260;
-}
-
-/* Paragraph rhythm inside pattern groups (editorial body) */
-.va-main .wp-block-group.is-layout-constrained p {
-	line-height: 1.7;
-}
-
-/* Separator spacing in long brochure pages */
-.va-main .wp-block-separator {
-	margin-top: var(--wp--preset--spacing--90);
-	margin-bottom: var(--wp--preset--spacing--90);
-}
-
-/* -------------------------------------------------------------------------
-   Design fidelity refinements (page-specific)
-   ------------------------------------------------------------------------- */
-
-/* Brochure pages already carry their own hero/title blocks; hide duplicate WP page title. */
-body.page-id-8 .wp-site-blocks > header + .wp-block-post-title,
-body.page-id-9 .wp-site-blocks > header + .wp-block-post-title,
-body.page-id-13 .wp-site-blocks > header + .wp-block-post-title,
-body.page-id-14 .wp-site-blocks > header + .wp-block-post-title,
-body.page-id-8 .wp-site-blocks > .wp-block-post-title,
-body.page-id-9 .wp-site-blocks > .wp-block-post-title,
-body.page-id-13 .wp-site-blocks > .wp-block-post-title,
-body.page-id-14 .wp-site-blocks > .wp-block-post-title {
-	display: none;
-}
-
-body.page-id-8 .wp-site-blocks > header + .wp-block-post-title + .entry-content,
-body.page-id-9 .wp-site-blocks > header + .wp-block-post-title + .entry-content,
-body.page-id-13 .wp-site-blocks > header + .wp-block-post-title + .entry-content,
-body.page-id-14 .wp-site-blocks > header + .wp-block-post-title + .entry-content {
-	padding-top: clamp(2rem, 5vw, 3.25rem);
-}
-
-body.page-id-8 .wp-site-blocks > .entry-content,
-body.page-id-9 .wp-site-blocks > .entry-content,
-body.page-id-13 .wp-site-blocks > .entry-content,
-body.page-id-14 .wp-site-blocks > .entry-content {
-	padding-top: clamp(2rem, 5vw, 3.25rem) !important;
-}
-
-/* Shared brochure rhythm: softer, card-like sections similar to design comps. */
-body.page-id-8 .entry-content > .wp-block-group.alignwide,
-body.page-id-9 .entry-content > .wp-block-group.alignwide,
-body.page-id-13 .entry-content > .wp-block-group.alignwide,
-body.page-id-14 .entry-content > .wp-block-group.alignwide {
-	max-width: 1160px;
-	margin-left: auto;
-	margin-right: auto;
-	border-radius: 1.25rem;
-}
-
-body.page-id-8 .entry-content > * + *,
-body.page-id-9 .entry-content > * + *,
-body.page-id-13 .entry-content > * + *,
-body.page-id-14 .entry-content > * + * {
-	margin-top: clamp(2.75rem, 5vw, 4rem);
-}
-
-/* Home: match design's contained rounded hero and newsletter cards. */
-body.home .entry-content > .wp-block-cover.va-hero-cover.alignfull {
-	max-width: 1240px;
-	margin-left: auto;
-	margin-right: auto;
-	border-radius: 1.5rem;
-	overflow: hidden;
-	min-height: min(72vh, 780px);
-}
-
-body.home .entry-content > .wp-block-cover.alignfull:not(.va-hero-cover) {
-	max-width: 1240px;
-	margin-left: auto;
-	margin-right: auto;
-	border-radius: 1.25rem;
-	overflow: hidden;
-}
-
-body.home .entry-content > .wp-block-group.alignfull {
-	padding-left: clamp(1rem, 2vw, 1.5rem);
-	padding-right: clamp(1rem, 2vw, 1.5rem);
-}
-
-/* Campsite + Campus: make workshop cards/readability closer to mockups. */
-body.page-id-9 .entry-content .wp-block-columns.alignwide,
-body.page-id-14 .entry-content .wp-block-columns.alignwide {
-	gap: clamp(1rem, 2.5vw, 1.5rem);
-}
-
-body.page-id-9 .entry-content .wp-block-column.has-background,
-body.page-id-14 .entry-content .wp-block-column.has-background {
-	border-radius: 0.95rem;
-}
-
-/* Homeschooling cards: unify card heights and spacing with design rhythm. */
-body.page-id-13 .entry-content .wp-block-column.has-background {
-	border-radius: 0.9rem;
-	min-height: 100%;
-}
-
-/* Dark footer variant on pages where designs use deep green footer. */
-body.home .alignfull.has-surface-container-background-color,
-body.page-id-8 .alignfull.has-surface-container-background-color,
-body.page-id-9 .alignfull.has-surface-container-background-color,
-body.page-id-13 .alignfull.has-surface-container-background-color,
-body.page-id-14 .alignfull.has-surface-container-background-color {
-	background-color: #0b5a49 !important;
-	color: #f6ead0;
-	border-top: none;
-}
-
-body.home .alignfull.has-surface-container-background-color a,
-body.page-id-8 .alignfull.has-surface-container-background-color a,
-body.page-id-9 .alignfull.has-surface-container-background-color a,
-body.page-id-13 .alignfull.has-surface-container-background-color a,
-body.page-id-14 .alignfull.has-surface-container-background-color a {
-	color: #f6ead0;
-}
-
-body.home .alignfull.has-surface-container-background-color .has-on-surface-variant-color,
-body.page-id-8 .alignfull.has-surface-container-background-color .has-on-surface-variant-color,
-body.page-id-9 .alignfull.has-surface-container-background-color .has-on-surface-variant-color,
-body.page-id-13 .alignfull.has-surface-container-background-color .has-on-surface-variant-color,
-body.page-id-14 .alignfull.has-surface-container-background-color .has-on-surface-variant-color {
-	color: rgba(246, 234, 208, 0.82) !important;
-}
-
-/* -------------------------------------------------------------------------
-   Design parity strict overrides (mapped from designs/*.html)
-   ------------------------------------------------------------------------- */
-
-/* Shared content canvas width from design HTML files. */
-body.home .entry-content,
-body.page-id-8 .entry-content,
-body.page-id-9 .entry-content,
-body.page-id-13 .entry-content,
-body.page-id-10 .entry-content,
-body.page-id-11 .entry-content,
-body.page-id-12 .entry-content {
-	max-width: 1440px;
-	margin-left: auto;
-	margin-right: auto;
-}
-
-/* Home page mirrors designs/home.html: contained rounded hero and clear section rhythm. */
-body.home .entry-content > .wp-block-cover.alignfull {
-	max-width: 1280px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	border-radius: 1.5rem !important;
-	overflow: hidden !important;
-}
-
-body.home .entry-content > .alignfull + .alignfull {
-	margin-top: clamp(3rem, 6vw, 5rem) !important;
-}
-
-body.home .entry-content .wp-block-columns.alignwide > .wp-block-column.has-background {
-	border-radius: 1rem !important;
-	padding-top: clamp(2.25rem, 4vw, 3.5rem) !important;
-	padding-bottom: clamp(2.25rem, 4vw, 3.5rem) !important;
-}
-
-/* Village page mirrors designs/village.html: bold hero headline and card-like sections. */
-body.page-id-8 .entry-content > .wp-block-group.alignwide,
-body.page-id-8 .entry-content > .wp-block-group.alignfull {
-	max-width: 1240px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	border-radius: 1.25rem !important;
-	overflow: hidden;
-}
-
-body.page-id-8 .entry-content h1,
-body.page-id-8 .entry-content h2 {
-	letter-spacing: -0.02em;
-	line-height: 1.05 !important;
-}
-
-body.page-id-8 .entry-content .wp-block-columns > .wp-block-column.has-background {
-	border-radius: 1rem !important;
-}
-
-/* Campsite page mirrors designs/campsite.html: taller hero and stronger bento cards. */
-body.page-id-9 .entry-content > .wp-block-cover.alignfull {
-	min-height: min(86vh, 930px) !important;
-}
-
-body.page-id-9 .entry-content .wp-block-columns.alignwide,
-body.page-id-9 .entry-content .wp-block-columns.alignfull {
-	gap: clamp(1rem, 2vw, 1.5rem) !important;
-}
-
-body.page-id-9 .entry-content .wp-block-column.has-background {
-	border-radius: 1rem !important;
-	padding: clamp(1.2rem, 2vw, 1.8rem) !important;
-}
-
-/* Forest School (homeschooling) mirrors designs/forest_school.html. */
-body.page-id-13 .entry-content > .wp-block-group.alignwide,
-body.page-id-13 .entry-content > .wp-block-group.alignfull {
-	max-width: 1180px !important;
-	margin-left: auto !important;
-	margin-right: auto !important;
-	border-radius: 1.25rem !important;
-}
-
-body.page-id-13 .entry-content .wp-block-columns > .wp-block-column.has-background {
-	border-radius: 1rem !important;
-	padding: clamp(1rem, 2vw, 1.5rem) !important;
-}
-
-/* About / Contact / Booking are cleaner and narrower in the design HTML set. */
-body.page-id-10 .entry-content > :not(.alignwide):not(.alignfull),
-body.page-id-11 .entry-content > :not(.alignwide):not(.alignfull),
-body.page-id-12 .entry-content > :not(.alignwide):not(.alignfull) {
-	max-width: 900px !important;
-}
-
-body.page-id-10 .entry-content,
-body.page-id-11 .entry-content,
-body.page-id-12 .entry-content {
-	padding-bottom: clamp(4rem, 8vw, 6rem);
-}
-
-/* Reduce overly airy footer on utility pages, keep brochure pages richer. */
-body.page-id-10 .alignfull.has-surface-container-background-color,
-body.page-id-11 .alignfull.has-surface-container-background-color,
-body.page-id-12 .alignfull.has-surface-container-background-color {
-	padding-top: clamp(2rem, 3vw, 3rem) !important;
-	padding-bottom: clamp(2rem, 3vw, 3rem) !important;
-}
-
-/* Mobile parity with design screenshots: bigger editorial headings, tighter cards. */
-@media (max-width: 781px) {
-	body.home .entry-content > .wp-block-cover.alignfull {
-		border-radius: 0 !important;
-		max-width: 100% !important;
-	}
-
-	body.page-id-8 .entry-content h1,
-	body.page-id-9 .entry-content h1,
-	body.page-id-13 .entry-content h1 {
-		font-size: clamp(2.15rem, 9vw, 3rem) !important;
-		line-height: 1.02 !important;
-	}
-
-	body.page-id-8 .entry-content > .wp-block-group.alignwide,
-	body.page-id-9 .entry-content > .wp-block-group.alignwide,
-	body.page-id-13 .entry-content > .wp-block-group.alignwide {
-		border-radius: 0.9rem !important;
+	body.home .entry-content > .wp-block-cover.alignfull.va-hero-cover {
+		border-radius: 0;
+		max-width: 100%;
 	}
 }

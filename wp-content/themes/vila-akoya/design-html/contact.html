@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-tertiary-container": "#fffbff",
+              "on-surface-variant": "#56423c",
+              "tertiary-fixed": "#f5e0bd",
+              "on-primary-container": "#fffbff",
+              "on-secondary-fixed-variant": "#2e4d3c",
+              "on-error-container": "#93000a",
+              "inverse-primary": "#ffb59e",
+              "on-secondary-fixed": "#012113",
+              "secondary-fixed-dim": "#accfb8",
+              "on-primary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "inverse-on-surface": "#f4f1e7",
+              "outline": "#89726b",
+              "surface-dim": "#dddad0",
+              "on-tertiary-fixed-variant": "#52452b",
+              "error": "#ba1a1a",
+              "background": "#fcf9ef",
+              "primary-fixed-dim": "#ffb59e",
+              "surface": "#fcf9ef",
+              "tertiary-container": "#837255",
+              "surface-container-low": "#f7f4e9",
+              "on-background": "#1c1c16",
+              "on-surface": "#1c1c16",
+              "primary": "#9a4021",
+              "on-error": "#ffffff",
+              "tertiary-fixed-dim": "#d8c4a2",
+              "error-container": "#ffdad6",
+              "surface-bright": "#fcf9ef",
+              "primary-fixed": "#ffdbd0",
+              "surface-container": "#f1eee4",
+              "secondary": "#466553",
+              "surface-container-highest": "#e5e2d9",
+              "on-tertiary": "#ffffff",
+              "on-secondary": "#ffffff",
+              "outline-variant": "#dcc1b9",
+              "secondary-container": "#c7ebd4",
+              "surface-tint": "#9d4223",
+              "surface-container-high": "#ebe8de",
+              "inverse-surface": "#31312a",
+              "on-primary-fixed": "#3a0b00",
+              "on-tertiary-fixed": "#241a05",
+              "surface-variant": "#e5e2d9",
+              "on-primary-fixed-variant": "#7e2b0e",
+              "on-secondary-container": "#4b6b59",
+              "secondary-fixed": "#c7ebd4",
+              "primary-container": "#ba5737",
+              "tertiary": "#695a3e"
+            },
+            fontFamily: {
+              "headline": ["Newsreader", "serif"],
+              "body": ["Plus Jakarta Sans", "sans-serif"],
+              "label": ["Plus Jakarta Sans", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #fcf9ef;
+            color: #1c1c16;
+        }
+        .serif-headline {
+            font-family: 'Newsreader', serif;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#fcf9ef]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
+<div class="flex justify-between items-center px-8 py-6 max-w-screen-2xl mx-auto">
+<div class="text-3xl font-serif italic text-[#9a4021] dark:text-[#ba5737]">Barrio</div>
+<div class="hidden md:flex items-center space-x-8 font-['Newsreader'] text-lg tracking-wide">
+<a class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors" href="#">Village</a>
+<a class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors" href="#">Campsite</a>
+<a class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors" href="#">Booking</a>
+<a class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors" href="#">The Campus</a>
+<a class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors" href="#">Forest School</a>
+<a class="text-[#9a4021] dark:text-[#ba5737] border-b-2 border-[#9a4021] pb-1 font-medium" href="#">Contact</a>
+</div>
+<div class="flex items-center space-x-6">
+<button class="text-stone-600 hover:text-[#9a4021] transition-all">
+<span class="material-symbols-outlined">language</span>
+</button>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-xl font-medium scale-95 active:scale-90 transition-transform hover:bg-primary-container">
+                    Book Now
+                </button>
+</div>
+</div>
+</nav>
+<main class="pt-32 pb-20">
+<!-- Hero Section: Editorial Style -->
+<section class="max-w-screen-2xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+<div class="lg:col-span-5 z-10">
+<span class="font-label text-primary tracking-[0.2em] uppercase text-sm mb-4 block">Get in Touch</span>
+<h1 class="serif-headline text-6xl md:text-8xl text-on-surface leading-tight mb-8">
+                    Let’s start <br/><span class="italic text-primary">your journey.</span>
+</h1>
+<p class="text-body text-xl text-on-surface-variant max-w-md leading-relaxed mb-12">
+                    Vila Akoya, named after our children, is a labor of love tucked into the heart of the Alentejo. We’d love to welcome you to our community.
+                </p>
+</div>
+<div class="lg:col-span-7 relative">
+<div class="rounded-xl overflow-hidden aspect-[4/5] md:aspect-[16/10] shadow-2xl">
+<img alt="Scenic Alentejo landscape" class="w-full h-full object-cover" data-alt="Golden hour landscape of Alentejo Portugal with rolling hills, scattered cork oak trees, and a warm rustic sunset glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZfnr1xRx1RVyv9IeVK7WUmBGmSgMG4Z_4p7ZhF-_LqO5bgvPMyCEJNodKlsea8Mo046UQAKcoYl2GyOePjAYQXuAqACbw1QLLaT0tYWCIbLHf_XJaDzh3FN4vHPuvImT2b6RVdNmaQNDImYTbj71iTcQcOw50oxUD31JzqpSzLhNRe_AMam4Uz4e5EHp8HY70jF-pZW48MVbaiUzhsQ4O9G79o4_44hYzKkYHGaTtxcr-i68Ump17z6KNWvgQ5oeSkIj_vbO-8VRQ"/>
+</div>
+<!-- Floating Info Card -->
+<div class="absolute -bottom-10 -left-10 md:left-20 bg-surface-container-lowest/90 backdrop-blur-xl p-10 rounded-lg shadow-xl max-w-sm hidden md:block">
+<div class="flex items-start gap-4 mb-6">
+<span class="material-symbols-outlined text-primary text-3xl">location_on</span>
+<div>
+<p class="font-label text-xs uppercase tracking-widest text-secondary mb-1">Visit Us</p>
+<p class="font-headline text-lg italic">Alentejo, Portugal</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Contact Bento Grid -->
+<section class="max-w-screen-2xl mx-auto px-8 mt-40">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Email Card -->
+<div class="bg-surface-container-low p-12 rounded-lg flex flex-col justify-between hover:bg-surface-container transition-colors duration-500 min-h-[320px]">
+<div>
+<div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-primary">mail</span>
+</div>
+<h3 class="font-headline text-3xl mb-4">Email</h3>
+<p class="text-on-surface-variant leading-relaxed">For general inquiries and booking details, reach out to us anytime.</p>
+</div>
+<a class="text-primary text-2xl font-body font-semibold mt-8 break-all" href="mailto:Info@vila-akoya.com">Info@vila-akoya.com</a>
+</div>
+<!-- WhatsApp Card -->
+<div class="bg-secondary text-on-secondary p-12 rounded-lg flex flex-col justify-between min-h-[320px]">
+<div>
+<div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-on-secondary">chat</span>
+</div>
+<h3 class="font-headline text-3xl mb-4">WhatsApp</h3>
+<p class="text-on-secondary/80 leading-relaxed">Quick questions or immediate assistance while traveling.</p>
+</div>
+<a class="text-on-secondary text-2xl font-body font-semibold mt-8" href="https://wa.me/351960446285">+351 960 446 285</a>
+</div>
+<!-- Call Card -->
+<div class="bg-surface-container-highest p-12 rounded-lg flex flex-col justify-between min-h-[320px]">
+<div>
+<div class="w-12 h-12 bg-on-surface/5 rounded-full flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-on-surface">call</span>
+</div>
+<h3 class="font-headline text-3xl mb-4">Phone</h3>
+<p class="text-on-surface-variant leading-relaxed">Speak directly with our team for personalized campus tours.</p>
+</div>
+<a class="text-on-surface text-2xl font-body font-semibold mt-8" href="tel:+351960446285">+351 960 446 285</a>
+</div>
+</div>
+</section>
+<!-- Interactive Connection Section -->
+<section class="max-w-screen-2xl mx-auto px-8 mt-24">
+<div class="bg-surface-container-low rounded-xl overflow-hidden grid grid-cols-1 lg:grid-cols-2">
+<div class="p-12 lg:p-20 flex flex-col justify-center">
+<h2 class="serif-headline text-4xl mb-6 italic">A place built for family.</h2>
+<p class="text-on-surface-variant text-lg leading-relaxed mb-8">
+                        We started Vila Akoya to create a legacy for our children and a haven for the creative community. Whether you're interested in the Forest School, our campsites, or the village campus, we are here to help you find your spot in our ecosystem.
+                    </p>
+<div class="flex items-center gap-6">
+<div class="flex -space-x-4">
+<div class="w-14 h-14 rounded-full border-4 border-surface overflow-hidden">
+<img alt="Team member" data-alt="Portrait of a smiling friendly man in casual linen clothing against a blurred garden background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVi-B2QTwrMbYExp58yEaSwatsuiVPGThidGzH_Hgfzy8okb0RSw1OgUwzQo6MhdIiBYR1sAGY2T-itEW2x9n8lPyAqatWgeKwWMvd-nIQYOWjrebRsqDZOl6kby4ouOxmqJwGPvGGg8XNatNDDDStnvai0r685M-kok4aDdXwjhkQDOvp1Az7lAA-yjknmOP1fagRU7Sl3fUOh9JJouZul5qI-UB2FVsNRlhCQtfnfYOQltVRJ5aTkrDYHS806ny-pw6CtFHvVjX_"/>
+</div>
+<div class="w-14 h-14 rounded-full border-4 border-surface overflow-hidden">
+<img alt="Team member" data-alt="Portrait of a warm smiling woman with natural hair and earthy-toned outfit in soft outdoor lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrzqKHOG9yNMcTvL2opS9zOdqwmsoDb38I6rsGj3MKqGTIZk_17LQtXH5BjSLTLIWK3fktItK_zEwOprV8KKYqvYxRIfpZBXnXGqDrabUh7YJU7E0tni7xEEQaTT2YjQxG0cwZ2ioNhRfYYLFC9GuOvHRh_tsrxXOjtKAvW2Y3rdfGOP0tN1B5pZgrKWcHpdIvPNPUM5Sm8NF9Vs7t-0XKAForYezYWZX0Y8BEPh-st2-_htsP03TMdILoLe8b3DPVAyvrVEBflAQg"/>
+</div>
+</div>
+<p class="font-label text-sm text-on-surface-variant italic">The Akoya Founders</p>
+</div>
+</div>
+<div class="h-[400px] lg:h-auto">
+<img alt="Alentejo Fields" class="w-full h-full object-cover" data-alt="Wide panoramic shot of sprawling green wheat fields in Alentejo under a soft morning haze with lone cork oak trees on the horizon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzANp2j1ZfB_2xUj0I_XqB7NY5G0Xa3o_fTxRO6kCDU9xotu1tVM-k54s3yjn6EFozvNNkfupJCCdW9KzhL2erg23hOVvyL0K9TDMR3MpNx-SVM8OXtw8J3ZNtftD7cDYYrV3iKOcKTGPs7MYqd2z-CRaDZrICte1Aix9sgp4la8NFN13tcbORWiADgolM0MbbkO3I9CTvYpyFpR7hyWLTZe5IviVCN_7CIlAA9wnd9M4rd_CSc0kS6PgLpfFLgnUmvYAznP30MRIb"/>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full rounded-t-[3rem] mt-20 bg-[#466553] dark:bg-stone-950 text-[#fcf9ef]">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-12 px-12 py-20 w-full max-w-screen-2xl mx-auto">
+<div class="space-y-6">
+<div class="font-serif text-2xl">Vila Akoya</div>
+<p class="font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest opacity-70 leading-loose">
+                    An intentional community <br/>in the heart of Alentejo.
+                </p>
+</div>
+<div class="space-y-6">
+<h4 class="font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest font-bold">Explore</h4>
+<ul class="space-y-4">
+<li><a class="text-[#fcf9ef]/70 hover:text-white transition-opacity font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest" href="#">Village</a></li>
+<li><a class="text-[#fcf9ef]/70 hover:text-white transition-opacity font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest" href="#">Campsite</a></li>
+<li><a class="text-[#fcf9ef]/70 hover:text-white transition-opacity font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest" href="#">The Campus</a></li>
+</ul>
+</div>
+<div class="space-y-6">
+<h4 class="font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest font-bold">Connect</h4>
+<div class="flex flex-wrap gap-6">
+<a class="text-[#fcf9ef]/70 hover:text-white transition-opacity font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest" href="#">Instagram</a>
+<a class="text-[#fcf9ef]/70 hover:text-white transition-opacity font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest" href="#">WhatsApp</a>
+<a class="text-[#fcf9ef]/70 hover:text-white transition-opacity font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest" href="#">Email</a>
+<a class="text-[#fcf9ef]/70 hover:text-white transition-opacity font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest" href="#">Privacy Policy</a>
+</div>
+</div>
+</div>
+<div class="px-12 pb-12 opacity-50 text-center">
+<p class="font-['Plus_Jakarta_Sans'] text-sm uppercase tracking-widest">© 2024 Vila Akoya. Handcrafted in Alentejo.</p>
+</div>
+</footer>
+</body></html>

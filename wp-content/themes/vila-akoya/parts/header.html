@@ -4,20 +4,32 @@
 	<div class="wp-block-group va-header__inner is-layout-flex">
 		<!-- wp:group {"className":"va-wordmark","layout":{"type":"constrained"}} -->
 		<div class="wp-block-group va-wordmark">
-			<!-- wp:site-title {"level":0,"isLink":true} /-->
+			<!-- wp:paragraph {"className":"va-wordmark__text"} -->
+			<p class="va-wordmark__text"><a href="/">Vila Akoya</a></p>
+			<!-- /wp:paragraph -->
 		</div>
 		<!-- /wp:group -->
 
-		<!-- wp:navigation {"overlayMenu":"mobile","layout":{"type":"flex","setCascadingProperties":true,"justifyContent":"right","flexWrap":"wrap"},"className":"va-nav","style":{"spacing":{"blockGap":"1.25rem"}}} -->
-			<!-- wp:navigation-link {"label":"Home","url":"/"} /-->
-			<!-- wp:navigation-link {"label":"The Village","url":"/the-village/"} /-->
-			<!-- wp:navigation-link {"label":"The Campsite","url":"/the-campsite/"} /-->
-			<!-- wp:navigation-link {"label":"Book","url":"/book/"} /-->
-			<!-- wp:navigation-link {"label":"The Campus","url":"/the-campus/"} /-->
-			<!-- wp:navigation-link {"label":"Homeschooling","url":"/homeschooling-collective/"} /-->
-			<!-- wp:navigation-link {"label":"About","url":"/about/"} /-->
-			<!-- wp:navigation-link {"label":"Contact","url":"/contact/"} /-->
-		<!-- /wp:navigation -->
+		<!-- wp:group {"className":"va-header__nav-wrap","layout":{"type":"flex","justifyContent":"right","verticalAlignment":"center"}} -->
+		<div class="wp-block-group va-header__nav-wrap">
+			<!-- wp:navigation {"overlayMenu":"mobile","layout":{"type":"flex","setCascadingProperties":true,"justifyContent":"right","flexWrap":"wrap"},"className":"va-nav","style":{"spacing":{"blockGap":"1.25rem"}}} -->
+				<!-- wp:navigation-link {"label":"Village","url":"/the-village/"} /-->
+				<!-- wp:navigation-link {"label":"Campsite","url":"/the-campsite/"} /-->
+				<!-- wp:navigation-link {"label":"Booking","url":"/book/"} /-->
+				<!-- wp:navigation-link {"label":"The Campus","url":"/the-campus/"} /-->
+				<!-- wp:navigation-link {"label":"Forest School","url":"/homeschooling-collective/"} /-->
+				<!-- wp:navigation-link {"label":"Contact","url":"/contact/"} /-->
+			<!-- /wp:navigation -->
+
+			<!-- wp:buttons {"className":"va-header__actions"} -->
+			<div class="wp-block-buttons va-header__actions">
+				<!-- wp:button {"className":"is-style-fill va-header__book"} -->
+				<div class="wp-block-button is-style-fill va-header__book"><a class="wp-block-button__link wp-element-button" href="/book/">Book Now</a></div>
+				<!-- /wp:button -->
+			</div>
+			<!-- /wp:buttons -->
+		</div>
+		<!-- /wp:group -->
 	</div>
 	<!-- /wp:group -->
 </div>
