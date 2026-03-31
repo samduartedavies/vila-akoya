@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# wp-env
+.wp-env.override.json
+
+# WordPress / local (if core is ever checked out here)
+wp/
+wordpress/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Debug
+wp-content/debug.log

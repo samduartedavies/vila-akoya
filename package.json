@@ -1,0 +1,17 @@
+{
+  "name": "vila-akoya",
+  "private": true,
+  "description": "Local WordPress environment for Vila Akoya",
+  "scripts": {
+    "wp-env": "wp-env",
+    "start": "wp-env start",
+    "stop": "wp-env stop",
+    "clean": "wp-env clean all",
+    "theme:sync": "bash scripts/sync-theme-to-wp-env.sh",
+    "wp:seed": "wp-env run cli wp eval-file wp-content/themes/vila-akoya/scripts/seed-vila-akoya.php",
+    "setup:local": "npm run theme:sync && wp-env run cli wp theme activate vila-akoya && npm run wp:seed"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^10.0.0"
+  }
+}

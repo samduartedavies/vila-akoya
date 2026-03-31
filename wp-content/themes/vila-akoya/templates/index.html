@@ -1,0 +1,27 @@
+<!-- wp:template-part {"slug":"header","tagName":"header"} /-->
+
+<!-- wp:group {"tagName":"main","className":"va-main va-blog-index","layout":{"type":"constrained"}} -->
+<!-- wp:heading {"level":1,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|display"}}} -->
+<h1 class="wp-block-heading" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--display)">Journal</h1>
+<!-- /wp:heading -->
+<!-- wp:query {"queryId":0,"query":{"perPage":10,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true}} -->
+<div class="wp-block-query">
+	<!-- wp:post-template -->
+		<!-- wp:post-title {"isLink":true} /-->
+		<!-- wp:post-excerpt /-->
+	<!-- /wp:post-template -->
+	<!-- wp:query-pagination -->
+		<!-- wp:query-pagination-previous /-->
+		<!-- wp:query-pagination-numbers /-->
+		<!-- wp:query-pagination-next /-->
+	<!-- /wp:query-pagination -->
+	<!-- wp:query-no-results -->
+		<!-- wp:paragraph -->
+		<p>No posts yet.</p>
+		<!-- /wp:paragraph -->
+	<!-- /wp:query-no-results -->
+</div>
+<!-- /wp:query -->
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","tagName":"footer"} /-->
