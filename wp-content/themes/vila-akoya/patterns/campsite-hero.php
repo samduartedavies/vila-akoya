@@ -9,8 +9,8 @@
  */
 
 ?>
-<!-- wp:cover {"url":"https://lh3.googleusercontent.com/aida-public/AB6AXuBQvQ9PtYWtkqOOcyDcN-HxChhLIXTOmfVZekjILz_kFMUXEHx8KhFKRo_guuswKjvutj5EG_sXUbQdfLrs9QOeBvCPiKLVj5nRUnIlKzNK8kWY-rVCSNcEdkCTF_wcHew6B696_Xeh-78YNCUhOcoBVaysQ_eeV43v1aSrJ2ZeBgO5lRRYUbVJUXtfKU31yU6KGjiL_LiIvwpHsj2XoyiSQXu7ogT7-CrWYZVVTB_ZCIk9eOxGQtlwHKCevyLoQFlPUMbHqtCvTn2l","dimRatio":40,"overlayColor":"primary","minHeight":75,"minHeightUnit":"vh","align":"full","className":"va-hero-cover"} -->
-<div class="wp-block-cover alignfull is-light va-hero-cover">
+<!-- wp:cover {"url":"https://lh3.googleusercontent.com/aida-public/AB6AXuBQvQ9PtYWtkqOOcyDcN-HxChhLIXTOmfVZekjILz_kFMUXEHx8KhFKRo_guuswKjvutj5EG_sXUbQdfLrs9QOeBvCPiKLVj5nRUnIlKzNK8kWY-rVCSNcEdkCTF_wcHew6B696_Xeh-78YNCUhOcoBVaysQ_eeV43v1aSrJ2ZeBgO5lRRYUbVJUXtfKU31yU6KGjiL_LiIvwpHsj2XoyiSQXu7ogT7-CrWYZVVTB_ZCIk9eOxGQtlwHKCevyLoQFlPUMbHqtCvTn2l","dimRatio":40,"overlayColor":"primary","minHeight":75,"minHeightUnit":"vh","align":"full","className":"va-hero-cover va-campsite-hero"} -->
+<div class="wp-block-cover alignfull is-light va-hero-cover va-campsite-hero">
 	<span aria-hidden="true" class="wp-block-cover__background has-primary-background-color has-background-dim"></span>
 	<img class="wp-block-cover__image-background wp-image-0" alt="Outdoor workshop in Alentejo at sunset" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQvQ9PtYWtkqOOcyDcN-HxChhLIXTOmfVZekjILz_kFMUXEHx8KhFKRo_guuswKjvutj5EG_sXUbQdfLrs9QOeBvCPiKLVj5nRUnIlKzNK8kWY-rVCSNcEdkCTF_wcHew6B696_Xeh-78YNCUhOcoBVaysQ_eeV43v1aSrJ2ZeBgO5lRRYUbVJUXtfKU31yU6KGjiL_LiIvwpHsj2XoyiSQXu7ogT7-CrWYZVVTB_ZCIk9eOxGQtlwHKCevyLoQFlPUMbHqtCvTn2l" data-object-fit="cover"/>
 	<div class="wp-block-cover__inner-container is-layout-flow wp-block-cover-is-layout-flow">

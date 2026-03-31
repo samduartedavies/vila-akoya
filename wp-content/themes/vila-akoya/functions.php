@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'VILA_AKOYA_VERSION', '1.2.26' );
+define( 'VILA_AKOYA_VERSION', '1.2.29' );
 
 require_once get_template_directory() . '/inc/design-assets.php';
 require_once get_template_directory() . '/inc/media-import.php';

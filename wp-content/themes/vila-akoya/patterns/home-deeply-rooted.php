@@ -10,8 +10,8 @@
  */
 
 ?>
-<!-- wp:group {"align":"wide","style":{"spacing":{"padding":{"top":"var:preset|spacing|90","bottom":"var:preset|spacing|90"}}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group alignwide" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
+<!-- wp:group {"align":"wide","className":"va-home-roots","style":{"spacing":{"padding":{"top":"var:preset|spacing|90","bottom":"var:preset|spacing|90"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group alignwide va-home-roots" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
 	<!-- wp:columns {"verticalAlignment":"center","style":{"spacing":{"blockGap":{"left":"var:preset|spacing|80","top":"var:preset|spacing|70"}}}} -->
 	<div class="wp-block-columns are-vertically-aligned-center">
 		<!-- wp:column {"verticalAlignment":"center","width":"45%"} -->
@@ -21,9 +21,7 @@
 			<!-- /wp:image -->
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1.5rem"},"shadow":"var:preset|shadow|editorial"},"className":"va-editorial-shadow"} -->
 			<div class="wp-block-group va-editorial-shadow has-surface-bright-background-color has-background" style="border-radius:1.5rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
-				<!-- wp:paragraph {"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|small","lineHeight":"1.4"}}} -->
-				<p style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--small);line-height:1.4">A little village with a big heart.</p>
-				<!-- /wp:paragraph -->
+				<p style="font-size:var(--wp--preset--font-size--small);line-height:1.4">A little village with a big heart.</p>
 			</div>
 			<!-- /wp:group -->
 		</div>

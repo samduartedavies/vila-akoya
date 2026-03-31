@@ -9,8 +9,8 @@
  */
 
 ?>
-<!-- wp:group {"align":"full","style":{"spacing":{"padding":{"top":"var:preset|spacing|90","bottom":"var:preset|spacing|90"}},"color":{"background":"var:preset|color|surface-container-low"}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group alignfull has-surface-container-low-background-color has-background" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
+<!-- wp:group {"align":"full","className":"va-campsite-workshops","style":{"spacing":{"padding":{"top":"var:preset|spacing|90","bottom":"var:preset|spacing|90"}},"color":{"background":"var:preset|color|surface-container-low"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group alignfull va-campsite-workshops has-surface-container-low-background-color has-background" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
 	<!-- wp:group {"layout":{"type":"constrained"},"style":{"spacing":{"margin":{"bottom":"var:preset|spacing|70"}}}} -->
 	<div class="wp-block-group" style="margin-bottom:var(--wp--preset--spacing--70)">
 		<!-- wp:heading {"level":2,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|display"}},"textColor":"secondary"} -->

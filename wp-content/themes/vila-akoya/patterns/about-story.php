@@ -9,8 +9,8 @@
  */
 
 ?>
-<!-- wp:group {"align":"wide","style":{"spacing":{"padding":{"bottom":"var:preset|spacing|80"}}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group alignwide" style="padding-bottom:var(--wp--preset--spacing--80)">
+<!-- wp:group {"align":"wide","className":"va-about-story","style":{"spacing":{"padding":{"bottom":"var:preset|spacing|80"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group alignwide va-about-story" style="padding-bottom:var(--wp--preset--spacing--80)">
 	<!-- wp:paragraph {"style":{"typography":{"fontSize":"var:preset|font-size|large","lineHeight":"1.75"}},"textColor":"on-surface-variant"} -->
 	<p class="has-on-surface-variant-color has-text-color" style="font-size:var(--wp--preset--font-size--large);line-height:1.75">Vila Akoya is an experiment in living: community, creativity, and the earth beneath our feet. We’re building slowly, with hands in the soil and neighbors at the table — artists, families, and land stewards weaving one shared story in the Alentejo.</p>
 	<!-- /wp:paragraph -->

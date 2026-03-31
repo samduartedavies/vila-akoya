@@ -10,8 +10,8 @@
  */
 
 ?>
-<!-- wp:group {"align":"full","style":{"spacing":{"padding":{"top":"var:preset|spacing|90","bottom":"var:preset|spacing|90"}},"color":{"background":"var:preset|color|surface-container"}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group alignfull has-surface-container-background-color has-background" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
+<!-- wp:group {"align":"full","className":"va-home-pillars","style":{"spacing":{"padding":{"top":"var:preset|spacing|90","bottom":"var:preset|spacing|90"}},"color":{"background":"var:preset|color|surface-container"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group alignfull va-home-pillars has-surface-container-background-color has-background" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
 	<!-- wp:group {"layout":{"type":"constrained"},"style":{"spacing":{"blockGap":"var:preset|spacing|50","margin":{"bottom":"var:preset|spacing|80"}}}} -->
 	<div class="wp-block-group">
 		<!-- wp:paragraph {"align":"center","style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"tertiary"} -->

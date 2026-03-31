@@ -5,8 +5,8 @@
     "appearanceTools": true,
     "useRootPaddingAwareAlignments": true,
     "layout": {
-      "contentSize": "900px",
-      "wideSize": "1320px"
+      "contentSize": "1080px",
+      "wideSize": "1440px"
     },
     "color": {
       "defaultPalette": false,
@@ -277,7 +277,7 @@
           "text": "var(--wp--preset--color--on-primary)"
         },
         "typography": {
-          "fontFamily": "var(--wp--preset--font-family--plus-jakarta)",
+          "fontFamily": "var(--wp--preset--font-family--josefin)",
           "fontSize": "var(--wp--preset--font-size--medium)",
           "fontWeight": "600"
         },
