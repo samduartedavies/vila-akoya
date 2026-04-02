@@ -4,8 +4,21 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>The Village | Vila Akoya</title>
+<meta name="description" content="Tiny-house living at the edge of the forest—curated plots, natural swimming, and community life where Alentejo soil meets architectural soul."/>
+<link rel="canonical" href="https://vilaakoya.pt/village"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Vila Akoya"/>
+<meta property="og:title" content="The Village | Vila Akoya"/>
+<meta property="og:description" content="Tiny-house living at the edge of the forest—curated plots, natural swimming, and community life where Alentejo soil meets architectural soul."/>
+<meta property="og:url" content="https://vilaakoya.pt/village"/>
+<meta property="og:image" content="https://lh3.googleusercontent.com/aida-public/AB6AXuDyzk4TOL5610Gk-U9uxmuFiuXWf0EEG15Xw-iX2hqh5Wep3o1hqVyMKj_ZT17nNOFIgwyWf-2oQmedvlBi0zNL-SKi_13lSiT4M7536GetnixyRDlkzIPSDe0w6F49hwZo0Z1y7KpbygeWSvYkCC1Qhar3gyjBM8ueVsGSMsbbda3U7zXOMeEk1Al_7esbqRzHTDrGSzknOhJYJCac_VO7CKQBSX315KFjwpxUZnyY9Q5nIW7HqDlWihvAI8FYUEk7bvKwbVeSLGy1"/>
+<meta property="og:locale" content="en_GB"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="The Village | Vila Akoya"/>
+<meta name="twitter:description" content="Tiny-house living at the edge of the forest—curated plots, natural swimming, and community life where Alentejo soil meets architectural soul."/>
+<meta name="twitter:image" content="https://lh3.googleusercontent.com/aida-public/AB6AXuDyzk4TOL5610Gk-U9uxmuFiuXWf0EEG15Xw-iX2hqh5Wep3o1hqVyMKj_ZT17nNOFIgwyWf-2oQmedvlBi0zNL-SKi_13lSiT4M7536GetnixyRDlkzIPSDe0w6F49hwZo0Z1y7KpbygeWSvYkCC1Qhar3gyjBM8ueVsGSMsbbda3U7zXOMeEk1Al_7esbqRzHTDrGSzknOhJYJCac_VO7CKQBSX315KFjwpxUZnyY9Q5nIW7HqDlWihvAI8FYUEk7bvKwbVeSLGy1"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Barrio&amp;family=Newsreader:ital,wght@0,300;0,400;0,600;0,700;1,400&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barrio&amp;family=Marcellus&amp;family=Josefin+Sans:ital,wght@0,100..700;1,100..700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -66,13 +79,13 @@
                 "primary": "#9a3f21",
                 "on-tertiary-fixed": "#271300"
               },
-              fontFamily: {
-                "headline": ["Newsreader"],
-                "body": ["Newsreader"],
-                "label": ["Plus Jakarta Sans"],
-                "brand": ["Barrio"]
-              },
-              borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+            fontFamily: {
+              "headline": ["Marcellus", "serif"],
+              "body": ["Josefin Sans", "sans-serif"],
+              "label": ["Josefin Sans", "sans-serif"],
+              "barrio": ["Barrio", "system-ui"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
             },
           },
         }
@@ -94,30 +107,49 @@
     </style>
 </head>
 <body class="bg-background text-on-surface font-body selection:bg-secondary-container selection:text-on-secondary-container">
-<!-- TopAppBar -->
-<nav class="fixed top-0 w-full z-50 bg-[#fff6e1]/80 dark:bg-[#332e1e]/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(51,46,30,0.06)]">
-<div class="flex justify-between items-center px-8 py-6 max-w-none mx-auto">
-<div class="flex items-center gap-8">
-<span class="font-['Barrio'] text-3xl text-[#9a3f21] dark:text-[#fb8965] tracking-tight">Vila Akoya</span>
-<div class="hidden md:flex gap-6 items-center">
-<a class="font-['Newsreader'] italic text-lg text-[#9a3f21] border-b-2 border-[#7a532a] pb-1 transition-all duration-300" href="#">Village</a>
-<a class="font-['Newsreader'] italic text-lg text-[#332e1e] dark:text-[#fff6e1] opacity-80 hover:opacity-100 hover:text-[#7a532a] transition-all duration-300" href="#">Campsite</a>
-<a class="font-['Newsreader'] italic text-lg text-[#332e1e] dark:text-[#fff6e1] opacity-80 hover:opacity-100 hover:text-[#7a532a] transition-all duration-300" href="#">The Campus</a>
-<a class="font-['Newsreader'] italic text-lg text-[#332e1e] dark:text-[#fff6e1] opacity-80 hover:opacity-100 hover:text-[#7a532a] transition-all duration-300" href="#">Forest School</a>
+<!-- TopNavBar (shared) -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
+<div class="flex justify-between items-center px-8 py-6 max-w-screen-2xl mx-auto">
+<a class="text-3xl font-normal text-orange-800 dark:text-orange-100 font-barrio shrink-0" href="/">Vila Akoya</a>
+<div id="site-nav-desktop-links" class="hidden md:flex items-center space-x-8 font-body text-lg tracking-wide">
+<a data-nav="village" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/village">Village</a>
+<a data-nav="campsite" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/campsite">Campsite</a>
+<a data-nav="booking" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/booking">Booking</a>
+<a data-nav="campus" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/campus">The Campus</a>
+<a data-nav="forest-school" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/forest-school">Forest School</a>
+<a data-nav="about" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/about">About</a>
+<a data-nav="contact" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/contact">Contact</a>
+</div>
+<div class="flex items-center gap-2">
+<button type="button" id="site-nav-toggle" class="md:hidden inline-flex rounded-lg p-2 text-[#9a4021] hover:bg-[#9a4021]/10 dark:hover:bg-[#ba5737]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Open menu">
+<span class="material-symbols-outlined text-3xl" aria-hidden="true">menu</span>
+</button>
+<a class="hidden md:inline-block bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] scale-95 active:scale-90 transition-all duration-300 text-center" href="/booking">Book Now</a>
 </div>
 </div>
-<div class="flex items-center gap-4">
-<button class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-8 py-3 rounded-xl font-label font-semibold scale-95 hover:scale-100 transition-all duration-300">Booking</button>
-<span class="material-symbols-outlined text-on-surface cursor-pointer text-3xl" data-icon="menu">menu</span>
+<div id="site-mobile-nav" class="hidden md:hidden border-t border-stone-200/80 dark:border-stone-700/50 bg-[#fcf9ef]/95 dark:bg-stone-900/95 backdrop-blur-xl">
+<div class="max-w-screen-2xl mx-auto px-8">
+<div id="site-nav-mobile-links" class="flex flex-col space-y-0.5 font-body text-lg tracking-wide py-1">
+<a data-nav="village" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/village">Village</a>
+<a data-nav="campsite" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/campsite">Campsite</a>
+<a data-nav="booking" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/booking">Booking</a>
+<a data-nav="campus" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/campus">The Campus</a>
+<a data-nav="forest-school" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/forest-school">Forest School</a>
+<a data-nav="about" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/about">About</a>
+<a data-nav="contact" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/contact">Contact</a>
+</div>
+<a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="/booking">Book Now</a>
 </div>
 </div>
 </nav>
+<script src="/js/site-nav.js" defer></script>
+<script src="/js/formsubmit-loading.js" defer></script>
 <main class="pt-24">
 <!-- Hero Section -->
-<section class="px-6 md:px-20 mb-20 relative">
-<div class="grid grid-cols-12 gap-6 items-end">
+<section class="min-h-[calc(100vh-6rem)] flex flex-col justify-center px-6 md:px-20 mb-20 relative pb-12 md:pb-0">
+<div class="grid grid-cols-12 gap-6 items-end md:items-center">
 <div class="col-span-12 md:col-span-7">
-<h1 class="font-brand text-6xl md:text-8xl text-primary leading-none mb-8 -rotate-1 origin-left">
+<h1 class="font-barrio text-6xl md:text-8xl text-primary leading-none mb-8 -rotate-1 origin-left">
                         Life at the Edge <br/> of the Forest
                     </h1>
 <p class="font-headline text-2xl md:text-3xl italic text-tertiary max-w-xl mb-12">
@@ -125,7 +157,7 @@
                     </p>
 </div>
 <div class="col-span-12 md:col-span-5 relative">
-<div class="aspect-[4/5] rounded-xl overflow-hidden editorial-shadow transform md:translate-y-20">
+<div class="aspect-[4/5] rounded-xl overflow-hidden editorial-shadow">
 <img alt="Modern tiny house with wooden cladding nestled in a cork oak forest under warm golden hour light" class="w-full h-full object-cover" data-alt="Modern tiny house with wooden cladding nestled in a cork oak forest under warm golden hour light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyzk4TOL5610Gk-U9uxmuFiuXWf0EEG15Xw-iX2hqh5Wep3o1hqVyMKj_ZT17nNOFIgwyWf-2oQmedvlBi0zNL-SKi_13lSiT4M7536GetnixyRDlkzIPSDe0w6F49hwZo0Z1y7KpbygeWSvYkCC1Qhar3gyjBM8ueVsGSMsbbda3U7zXOMeEk1Al_7esbqRzHTDrGSzknOhJYJCac_VO7CKQBSX315KFjwpxUZnyY9Q5nIW7HqDlWihvAI8FYUEk7bvKwbVeSLGy1"/>
 </div>
 </div>
@@ -135,7 +167,7 @@
 <section class="bg-surface-container-low py-32 px-6 md:px-20 overflow-hidden">
 <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-20 items-center">
 <div class="w-full md:w-1/2 relative">
-<div class="absolute -top-10 -left-10 font-brand text-secondary text-9xl opacity-10 rotate-12">Akoya</div>
+<div class="absolute -top-10 -left-10 font-barrio text-secondary text-9xl opacity-10 rotate-12">Akoya</div>
 <div class="relative z-10 aspect-square rounded-full border-[1.5rem] border-surface-container-high overflow-hidden">
 <img alt="Aerial view of rolling Alentejo hills with scattered olive trees and a dusty path winding through the landscape" class="w-full h-full object-cover" data-alt="Aerial view of rolling Alentejo hills with scattered olive trees and a dusty path winding through the landscape" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEBHrSb4spUHw1i-f7nPPcWQDGSbnyAKOn2b0224qI095KNqefGLTPosmfCCBHO0hc7XWAo4cZkNYft5B44FEGUGcvvtt5jWe3H6C7hcSlmCn2k1KsDtE-9XAQn6P-8UbbzlYZWrKdIgr75EbGFLmwpxjOLlKGL2tYqpdiOD8opeU1KK5-IhIMdbJTpdu1b5-O0U7D9CozRT9WGE_ycI19guCTSyCKmxIUfNGzRVdiropccb_huEkN3RiwZZMug6W_RPkd0tYQ0nr9"/>
 </div>
@@ -153,7 +185,7 @@
 <!-- Three Paths Section (Bento Grid) -->
 <section class="py-32 px-6 md:px-20">
 <div class="text-center mb-20">
-<h2 class="font-brand text-5xl text-primary mb-4">Three Paths to Joining</h2>
+<h2 class="font-headline text-5xl text-primary mb-4">Three Paths to Joining</h2>
 <p class="font-headline italic text-2xl text-tertiary">Choose how you weave your story into ours.</p>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
@@ -167,9 +199,9 @@
 <div class="aspect-video rounded-lg overflow-hidden mb-8">
 <img alt="A cleared grassy plot surrounded by wild flowers and ancient trees, prepared for a eco-friendly tiny home" class="w-full h-full object-cover" data-alt="A cleared grassy plot surrounded by wild flowers and ancient trees, prepared for a eco-friendly tiny home" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAE7Raea_JCeM9mXfbdxfcQMUGi6Qwzx7THGg5g-2ToE_T90uBDkGQfQzXeiW04psPudyIRFpjdX6tVDTMiHdwrKrGXwM3LPucEGjGkrOBEOkaBFxY1m2FhSIsYAkUPbKakcHrO1oHHmcfEqTAODgzKMdYtjFjN8Zi9tSlrWsZzRMq3wj6_v50Y6CRLxu6yDveT4sVJBlPAFFrBD6zOktYVYNw-q8hW_5Ec19LGZYcdfYf9mh1PfUebKrAduNCqZrtH7z4vOuaz9OAt"/>
 </div>
-<button class="text-primary font-headline font-bold text-xl flex items-center gap-2 group-hover:translate-x-2 transition-transform duration-300">
+<a class="text-primary font-headline font-bold text-xl flex items-center gap-2 group-hover:translate-x-2 transition-transform duration-300" href="/contact">
                         Inquire Now <span class="material-symbols-outlined" data-icon="arrow_right_alt">arrow_right_alt</span>
-</button>
+</a>
 </div>
 <!-- Path 2: Tiny House Rental -->
 <div class="bg-surface-container rounded-xl p-8 editorial-shadow flex flex-col group hover:bg-surface-bright transition-colors duration-500 md:scale-105 z-10">
@@ -181,7 +213,7 @@
 <div class="aspect-video rounded-lg overflow-hidden mb-8">
 <img alt="Interior of a cozy minimalist tiny house with large windows overlooking a forest, warm wood finishes and neutral textiles" class="w-full h-full object-cover" data-alt="Interior of a cozy minimalist tiny house with large windows overlooking a forest, warm wood finishes and neutral textiles" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCh5TiCLIclVaglb-Kg9GQNZ-qOaaoZDH2GJMNEQq6X37KEmQnWIp17Dm253ScZBuOVHYLxwgeWd5ZQ2OC4qNymU2sIUbGXeMC3-uSFYaRcfsGNYZsYnXgEqpwz15fhfQLBkfo2J-gqxU1_MFIGozXORZvTearEywfknEdlGsK9XHSTjUIMqquw6aVmFy3_AjRdzEhm7ai6H_oVsHPy91j7rLvP1vyfDE6a9wpRDEy95yTe7apPnAmeSIsFH2l8ZwZK5NpstKH1Wtg6"/>
 </div>
-<button class="bg-primary text-on-primary px-8 py-3 rounded-full font-label font-semibold w-full">Explore Rentals</button>
+<a class="bg-primary text-on-primary px-8 py-3 rounded-full font-label font-semibold w-full inline-block text-center" href="/booking">Explore Rentals</a>
 </div>
 <!-- Path 3: Ownership -->
 <div class="bg-surface-container rounded-xl p-8 editorial-shadow flex flex-col group hover:bg-surface-bright transition-colors duration-500">
@@ -193,9 +225,9 @@
 <div class="aspect-video rounded-lg overflow-hidden mb-8">
 <img alt="Elegant clay-colored villa with organic architecture and a stone terrace overlooking a valley at sunset" class="w-full h-full object-cover" data-alt="Elegant clay-colored villa with organic architecture and a stone terrace overlooking a valley at sunset" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQLMbLru5EUusoLtPnGH56PjlEJWhHe9GGeLuucLGxd6GVp1inhjYaO_ifJSU7UoWp90XDsdTXWdfo4OD99N0wHp21iRvkmHLIGTXTVUw3eFxUwO49qqYiTmaqrxBH36huLbD9MXmBUYTVzfexcLWaDUT6zWL9dYWZKnOtluos-6KbXJuaV0Lpsk1TvoE1xvb1gSHOakvhB0vrIFWHC7HH9UdRLHC1Mx-aw-cyy6mTclmGgNFZwTtjA5EZXs9LBtpyXx20WIQr675s"/>
 </div>
-<button class="text-primary font-headline font-bold text-xl flex items-center gap-2 group-hover:translate-x-2 transition-transform duration-300">
+<a class="text-primary font-headline font-bold text-xl flex items-center gap-2 group-hover:translate-x-2 transition-transform duration-300" href="/contact">
                         View Properties <span class="material-symbols-outlined" data-icon="arrow_right_alt">arrow_right_alt</span>
-</button>
+</a>
 </div>
 </div>
 </section>
@@ -214,7 +246,7 @@
 </div>
 <div class="col-span-12 md:col-span-8 order-1 md:order-2">
 <div class="md:pl-12">
-<h2 class="font-brand text-6xl text-on-surface mb-8">The Landscape is <br/> our living room.</h2>
+<h2 class="font-headline text-6xl text-on-surface mb-8">The Landscape is <br/> our living room.</h2>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 <div class="relative group">
 <div class="aspect-[3/2] rounded-xl overflow-hidden mb-4 editorial-shadow">
@@ -238,33 +270,56 @@
 <div class="max-w-4xl mx-auto bg-surface-container-high rounded-[4rem] p-12 md:p-24 relative overflow-hidden">
 <div class="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
 <div class="relative z-10">
-<h2 class="font-brand text-5xl md:text-7xl text-primary mb-8">Ready to come home?</h2>
-<p class="font-headline text-2xl italic text-tertiary mb-12">Join our waitlist for the next phase of Village development.</p>
-<div class="flex flex-col md:flex-row gap-4 justify-center">
-<input class="bg-surface border-none rounded-full px-8 py-4 w-full md:w-80 font-label text-on-surface focus:ring-2 focus:ring-primary shadow-sm" placeholder="Your email address" type="email"/>
-<button class="bg-primary text-on-primary px-10 py-4 rounded-full font-label font-bold hover:bg-primary-dim transition-colors">Join the Waitlist</button>
-</div>
+<h2 class="font-headline text-5xl md:text-7xl text-primary mb-8">Ready to come home?</h2>
+<p class="font-body text-2xl italic text-tertiary mb-12">Join our waitlist for the next phase of Village development.</p>
+<form action="https://formsubmit.co/samduarte-davies@hotmail.com" method="POST" class="flex flex-col md:flex-row gap-4 justify-center items-stretch md:items-center max-w-2xl mx-auto">
+<input type="hidden" name="_subject" value="Vila Akoya — Village mailing list signup"/>
+<input type="hidden" name="_captcha" value="false"/>
+<input type="hidden" name="_replyto" value="email"/>
+<input type="hidden" name="_template" value="table"/>
+<input type="hidden" name="_next" id="village-newsletter-next" value=""/>
+<input type="hidden" name="messaging_from_page" id="village-newsletter-page" value=""/>
+<script>
+      (function () {
+        var next = document.getElementById("village-newsletter-next");
+        if (next) next.value = window.location.origin + "/thank-you";
+        var page = document.getElementById("village-newsletter-page");
+        if (page) page.value = window.location.pathname + " — " + window.location.href;
+      })();
+    </script>
+<input type="text" name="_gotcha" class="hidden" tabindex="-1" autocomplete="off" aria-hidden="true"/>
+<input type="hidden" name="message" value="Please add this email address to the mailing list. Signup: Village page waitlist."/>
+<label class="sr-only" for="village-waitlist-email">Email address</label>
+<input id="village-waitlist-email" name="email" required class="bg-surface border-none rounded-full px-8 py-4 w-full md:w-80 font-label text-on-surface focus:ring-2 focus:ring-primary shadow-sm" placeholder="Your email address" type="email" autocomplete="email"/>
+<button type="submit" class="bg-primary text-on-primary px-10 py-4 rounded-full font-label font-bold hover:bg-primary-dim transition-colors text-center shrink-0">Join the Waitlist</button>
+</form>
 </div>
 </div>
 </section>
 </main>
-<!-- Footer -->
-<footer class="bg-[#fbf0d5] dark:bg-[#2a2619] w-full rounded-t-[3rem] mt-20">
-<div class="flex flex-col items-center py-20 px-10 text-center w-full">
-<span class="font-['Barrio'] text-4xl mb-6 text-[#9a3f21]">Vila Akoya</span>
-<div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12 max-w-4xl w-full">
-<a class="font-['Newsreader'] text-base text-[#7a532a] dark:text-[#e0d4b2] hover:text-[#436250] transition-colors duration-300" href="#">Village</a>
-<a class="font-['Newsreader'] text-base text-[#7a532a] dark:text-[#e0d4b2] hover:text-[#436250] transition-colors duration-300" href="#">Campsite</a>
-<a class="font-['Newsreader'] text-base text-[#7a532a] dark:text-[#e0d4b2] hover:text-[#436250] transition-colors duration-300" href="#">Booking</a>
-<a class="font-['Newsreader'] text-base text-[#7a532a] dark:text-[#e0d4b2] hover:text-[#436250] transition-colors duration-300" href="#">The Campus</a>
-<a class="font-['Newsreader'] text-base text-[#7a532a] dark:text-[#e0d4b2] hover:text-[#436250] transition-colors duration-300" href="#">Forest School</a>
-<a class="font-['Newsreader'] text-base text-[#7a532a] dark:text-[#e0d4b2] hover:text-[#436250] transition-colors duration-300" href="#">Contact</a>
+<!-- Footer (shared) -->
+<footer class="w-full rounded-t-[3rem] mt-20 bg-emerald-900 dark:bg-emerald-950 text-orange-50 dark:text-orange-100">
+<div class="flex flex-col md:flex-row justify-between items-center w-full px-12 py-16 gap-8 text-center md:text-left">
+<div class="space-y-4">
+<a class="text-2xl font-normal text-orange-50 font-barrio block hover:opacity-90" href="/">Vila Akoya</a>
+<p class="text-sm font-medium font-body text-orange-50/60 uppercase tracking-widest">Handcrafted with love in Alentejo</p>
 </div>
-<p class="font-['Newsreader'] text-base text-[#332e1e] dark:text-[#fff6e1] opacity-80">© Vila Akoya. Deeply rooted in the Alentejo earth.</p>
+<div class="flex flex-wrap justify-center md:justify-end gap-x-8 gap-y-4">
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/village">Village</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/campsite">Campsite</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/booking">Booking</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/campus">The Campus</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/forest-school">Forest School</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/about">About</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/contact">Contact</a>
 </div>
+</div>
+<div class="w-full px-12 py-8 border-t border-white/5 text-center text-xs font-medium font-body opacity-40">
+            © 2026 Vila Akoya. All rights reserved. Registered Organic Enterprise.
+        </div>
 </footer>
 <!-- Floating Action Button - Contextual for Booking -->
-<button class="fixed bottom-8 right-8 bg-primary text-on-primary w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform duration-300 md:hidden z-50">
+<a class="fixed bottom-8 right-8 bg-primary text-on-primary w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform duration-300 md:hidden z-50" href="/booking" aria-label="Book now">
 <span class="material-symbols-outlined" data-icon="event">event</span>
-</button>
+</a>
 </body></html>

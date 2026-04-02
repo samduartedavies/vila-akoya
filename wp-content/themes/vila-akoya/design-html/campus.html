@@ -3,7 +3,21 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<link href="https://fonts.googleapis.com/css2?family=Barrio&amp;family=Newsreader:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<title>The Campus | Workshops &amp; Learning | Vila Akoya</title>
+<meta name="description" content="Open-air workshops in the Alentejo—pottery, woodwork, weaving, and mindful practice at the heart of Vila Akoya. Explore upcoming journeys and daily craft."/>
+<link rel="canonical" href="https://vilaakoya.pt/campus"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Vila Akoya"/>
+<meta property="og:title" content="The Campus | Workshops &amp; Learning | Vila Akoya"/>
+<meta property="og:description" content="Open-air workshops in the Alentejo—pottery, woodwork, weaving, and mindful practice at the heart of Vila Akoya. Explore upcoming journeys and daily craft."/>
+<meta property="og:url" content="https://vilaakoya.pt/campus"/>
+<meta property="og:image" content="https://lh3.googleusercontent.com/aida-public/AB6AXuDkeVBlzSRkYoA2PRW_04xDyX_sT3yS2p7Q2H4WgzWz3v9vxxFRl-8_lpuXAl-LoekYqmgmBY6fpMdKa25aZc0vzIQf1nT6GGWzU2tmHdNjgplbIKyDCZiXPFwNBxo-zr62PpHoZPVpilp5SmfKTwY9LCljy451rK6Al36LlrhEnBbM0QdnaPSrS6K_SxNmSTkc17Drgx7lvosGNSW-L6Ko5ZwZNUBoW4vs6kyfEVtDgwl9sImnC8O0OHrjiLhjPdp4vC6kUgPFlQyo"/>
+<meta property="og:locale" content="en_GB"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="The Campus | Workshops &amp; Learning | Vila Akoya"/>
+<meta name="twitter:description" content="Open-air workshops in the Alentejo—pottery, woodwork, weaving, and mindful practice at the heart of Vila Akoya. Explore upcoming journeys and daily craft."/>
+<meta name="twitter:image" content="https://lh3.googleusercontent.com/aida-public/AB6AXuDkeVBlzSRkYoA2PRW_04xDyX_sT3yS2p7Q2H4WgzWz3v9vxxFRl-8_lpuXAl-LoekYqmgmBY6fpMdKa25aZc0vzIQf1nT6GGWzU2tmHdNjgplbIKyDCZiXPFwNBxo-zr62PpHoZPVpilp5SmfKTwY9LCljy451rK6Al36LlrhEnBbM0QdnaPSrS6K_SxNmSTkc17Drgx7lvosGNSW-L6Ko5ZwZNUBoW4vs6kyfEVtDgwl9sImnC8O0OHrjiLhjPdp4vC6kUgPFlQyo"/>
+<link href="https://fonts.googleapis.com/css2?family=Barrio&amp;family=Marcellus&amp;family=Josefin+Sans:ital,wght@0,100..700;1,100..700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -66,9 +80,10 @@
               "secondary-dim": "#375645"
             },
             fontFamily: {
-              "headline": ["Newsreader"],
-              "body": ["Newsreader"],
-              "label": ["Plus Jakarta Sans"]
+              "headline": ["Marcellus", "serif"],
+              "body": ["Josefin Sans", "sans-serif"],
+              "label": ["Josefin Sans", "sans-serif"],
+              "barrio": ["Barrio", "system-ui"]
             },
             borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
           },
@@ -86,49 +101,64 @@
     </style>
 </head>
 <body class="bg-background text-on-background font-body textured-bg selection:bg-primary-container selection:text-on-primary-container">
-<!-- TopNavBar -->
-<nav class="fixed top-0 w-full z-50 bg-orange-50/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(51,46,30,0.06)]">
-<div class="flex justify-between items-center w-full px-8 py-6 max-w-screen-2xl mx-auto">
-<a class="text-3xl font-normal text-orange-800 dark:text-orange-100 font-['Barrio']" href="#">Vila Akoya</a>
-<div class="hidden md:flex items-center gap-8">
-<a class="text-stone-600 dark:text-stone-400 hover:text-orange-800 transition-colors text-sm font-medium" href="#">Village</a>
-<a class="text-stone-600 dark:text-stone-400 hover:text-orange-800 transition-colors text-sm font-medium" href="#">Campsite</a>
-<a class="text-stone-600 dark:text-stone-400 hover:text-orange-800 transition-colors text-sm font-medium" href="#">Booking</a>
-<a class="text-orange-700 dark:text-orange-300 border-b-2 border-orange-700/30 pb-1 text-sm font-medium" href="#">The Campus</a>
-<a class="text-stone-600 dark:text-stone-400 hover:text-orange-800 transition-colors text-sm font-medium" href="#">Forest School</a>
-<a class="text-stone-600 dark:text-stone-400 hover:text-orange-800 transition-colors text-sm font-medium" href="#">Contact</a>
+<!-- TopNavBar (shared) -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
+<div class="flex justify-between items-center px-8 py-6 max-w-screen-2xl mx-auto">
+<a class="text-3xl font-normal text-orange-800 dark:text-orange-100 font-barrio shrink-0" href="/">Vila Akoya</a>
+<div id="site-nav-desktop-links" class="hidden md:flex items-center space-x-8 font-body text-lg tracking-wide">
+<a data-nav="village" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/village">Village</a>
+<a data-nav="campsite" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/campsite">Campsite</a>
+<a data-nav="booking" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/booking">Booking</a>
+<a data-nav="campus" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/campus">The Campus</a>
+<a data-nav="forest-school" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/forest-school">Forest School</a>
+<a data-nav="about" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/about">About</a>
+<a data-nav="contact" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/contact">Contact</a>
 </div>
-<div class="flex items-center gap-4">
-<button class="p-2 hover:bg-orange-100/50 dark:hover:bg-stone-800/50 rounded-full transition-all active:scale-95 duration-200 ease-in-out">
-<span class="material-symbols-outlined text-orange-900 dark:text-orange-200">account_circle</span>
+<div class="flex items-center gap-2">
+<button type="button" id="site-nav-toggle" class="md:hidden inline-flex rounded-lg p-2 text-[#9a4021] hover:bg-[#9a4021]/10 dark:hover:bg-[#ba5737]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Open menu">
+<span class="material-symbols-outlined text-3xl" aria-hidden="true">menu</span>
 </button>
-<button class="md:hidden p-2">
-<span class="material-symbols-outlined">menu</span>
-</button>
+<a class="hidden md:inline-block bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] scale-95 active:scale-90 transition-all duration-300 text-center" href="/booking">Book Now</a>
+</div>
+</div>
+<div id="site-mobile-nav" class="hidden md:hidden border-t border-stone-200/80 dark:border-stone-700/50 bg-[#fcf9ef]/95 dark:bg-stone-900/95 backdrop-blur-xl">
+<div class="max-w-screen-2xl mx-auto px-8">
+<div id="site-nav-mobile-links" class="flex flex-col space-y-0.5 font-body text-lg tracking-wide py-1">
+<a data-nav="village" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/village">Village</a>
+<a data-nav="campsite" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/campsite">Campsite</a>
+<a data-nav="booking" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/booking">Booking</a>
+<a data-nav="campus" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/campus">The Campus</a>
+<a data-nav="forest-school" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/forest-school">Forest School</a>
+<a data-nav="about" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/about">About</a>
+<a data-nav="contact" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/contact">Contact</a>
+</div>
+<a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="/booking">Book Now</a>
 </div>
 </div>
 </nav>
-<main class="pt-28">
+<script src="/js/site-nav.js" defer></script>
+<script src="/js/formsubmit-loading.js" defer></script>
+<main class="pt-24">
 <!-- Hero Section: The Heart of the Campus -->
-<section class="relative px-6 md:px-12 py-20 max-w-screen-2xl mx-auto overflow-hidden">
+<section class="relative min-h-[calc(100vh-6rem)] flex flex-col justify-center px-6 md:px-12 py-12 md:py-0 max-w-screen-2xl mx-auto overflow-hidden">
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 <div class="lg:col-span-7 z-10">
 <div class="inline-block px-4 py-1 rounded-full bg-secondary-container text-on-secondary-container text-sm font-label mb-6">
                         Creative Sanctuaries
                     </div>
-<h1 class="text-6xl md:text-8xl font-normal font-['Barrio'] text-primary leading-none mb-8">
+<h1 class="text-6xl md:text-8xl font-normal font-barrio text-primary leading-none mb-8">
                         The Heart of <br/>The Campus
                     </h1>
 <p class="text-xl md:text-2xl font-light text-on-surface-variant max-w-xl leading-relaxed mb-12 italic">
                         "An inviting workshop space where the scent of sawdust meets the cool touch of wet clay. Here, we don't just teach; we remember."
                     </p>
 <div class="flex flex-wrap gap-6">
-<button class="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-medium shadow-lg hover:shadow-xl transition-all">
+<a class="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-medium shadow-lg hover:shadow-xl transition-all inline-block text-center" href="#upcoming-journeys">
                             Explore Workshops
-                        </button>
-<button class="px-8 py-4 font-headline font-bold text-tertiary underline decoration-tertiary/30 hover:decoration-tertiary transition-all">
+                        </a>
+<a class="px-8 py-4 font-headline font-bold text-tertiary underline decoration-tertiary/30 hover:decoration-tertiary transition-all inline-block" href="#upcoming-journeys">
                             View Schedule
-                        </button>
+                        </a>
 </div>
 </div>
 <div class="lg:col-span-5 relative">
@@ -138,7 +168,7 @@
 </div>
 <!-- Spiritual Call-out -->
 <div class="absolute -bottom-8 -left-8 p-8 bg-white/40 backdrop-blur-xl rounded-xl -rotate-3 border border-white/20 shadow-xl hidden md:block">
-<span class="font-['Barrio'] text-2xl text-secondary">Sacred Space</span>
+<span class="font-headline text-2xl text-secondary">Sacred Space</span>
 </div>
 </div>
 </div>
@@ -147,7 +177,7 @@
 <section class="py-24 bg-surface-container-low textured-bg">
 <div class="max-w-screen-2xl mx-auto px-6 md:px-12">
 <div class="text-center mb-20">
-<h2 class="text-5xl font-normal font-['Barrio'] text-tertiary mb-4">Nurture Every Aspect</h2>
+<h2 class="text-5xl font-normal font-headline text-tertiary mb-4">Nurture Every Aspect</h2>
 <div class="h-1 w-24 bg-primary/20 mx-auto rounded-full"></div>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -155,7 +185,7 @@
 <div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mb-8">
 <span class="material-symbols-outlined text-secondary text-3xl">eco</span>
 </div>
-<h3 class="text-3xl font-normal font-['Barrio'] text-on-surface">The Earth</h3>
+<h3 class="text-3xl font-normal font-headline text-on-surface">The Earth</h3>
 <p class="text-on-surface-variant leading-relaxed text-lg">
                             Pottery, soil health, and natural pigments. Working with the Alentejo clay is a meditative journey back to the roots of the peninsula.
                         </p>
@@ -164,7 +194,7 @@
 <div class="w-16 h-16 rounded-full bg-primary-container/30 flex items-center justify-center mb-8">
 <span class="material-symbols-outlined text-primary text-3xl">hand_gesture</span>
 </div>
-<h3 class="text-3xl font-normal font-['Barrio'] text-on-surface">The Craft</h3>
+<h3 class="text-3xl font-normal font-headline text-on-surface">The Craft</h3>
 <p class="text-on-surface-variant leading-relaxed text-lg">
                             Woodwork, weaving, and metalwork. We value the patience of the hand and the honesty of raw, sustainably sourced materials.
                         </p>
@@ -173,7 +203,7 @@
 <div class="w-16 h-16 rounded-full bg-tertiary-container/30 flex items-center justify-center mb-8">
 <span class="material-symbols-outlined text-tertiary text-3xl">self_improvement</span>
 </div>
-<h3 class="text-3xl font-normal font-['Barrio'] text-on-surface">The Spirit</h3>
+<h3 class="text-3xl font-normal font-headline text-on-surface">The Spirit</h3>
 <p class="text-on-surface-variant leading-relaxed text-lg">
                             Movement, meditation, and storytelling. Aligning the creative body with the rhythm of the seasons and the cycle of the moon.
                         </p>
@@ -182,7 +212,7 @@
 </div>
 </section>
 <!-- Upcoming at The Campus: Bento-ish Grid -->
-<section class="py-24 px-6 md:px-12 max-w-screen-2xl mx-auto">
+<section class="py-24 px-6 md:px-12 max-w-screen-2xl mx-auto" id="upcoming-journeys">
 <h2 class="text-4xl md:text-5xl font-headline font-bold mb-16 text-center text-on-surface">Upcoming Journeys</h2>
 <div class="grid grid-cols-1 md:grid-cols-12 gap-8">
 <!-- Large Card -->
@@ -206,7 +236,7 @@
 <p class="text-on-surface-variant">A somatic exploration pairing dance with large-scale charcoal drawing.</p>
 </div>
 <div class="mt-8">
-<span class="text-tertiary font-semibold underline">Learn more</span>
+<a class="text-tertiary font-semibold underline" href="/booking">Learn more</a>
 </div>
 </div>
 </div>
@@ -241,14 +271,14 @@
 <div class="max-w-screen-xl mx-auto px-6 md:px-12 relative z-10">
 <div class="bg-surface-container-low rounded-xl p-12 md:p-20 shadow-2xl flex flex-col md:flex-row items-center gap-16">
 <div class="flex-1">
-<h2 class="text-4xl md:text-5xl font-['Barrio'] text-primary mb-8">Earn Your Stay</h2>
+<h2 class="text-4xl md:text-5xl font-headline text-primary mb-8">Earn Your Stay</h2>
 <div class="space-y-6 text-xl text-on-surface-variant font-light italic">
 <p>Are you a master of a craft, a keeper of ancient seeds, or a guide for the soul? Our community thrives on the circular exchange of wisdom.</p>
 <p>Join our <strong>Skillshare Exchange</strong>. In exchange for hosting daily workshops or maintaining our gardens, residents can enjoy a reduced stay or full scholarship at Vila Akoya.</p>
 </div>
-<button class="mt-10 px-10 py-5 bg-tertiary text-on-tertiary rounded-xl font-bold hover:bg-tertiary-dim transition-all shadow-md">
+<a class="mt-10 px-10 py-5 bg-tertiary text-on-tertiary rounded-xl font-bold hover:bg-tertiary-dim transition-all shadow-md inline-block text-center" href="/contact">
                             Propose an Exchange
-                        </button>
+                        </a>
 </div>
 <div class="w-full md:w-1/3 flex justify-center">
 <div class="relative">
@@ -256,7 +286,7 @@
 <img class="w-full h-full object-cover" data-alt="Artistic profile of a young creative person with thoughtful expression in a sun-drenched workshop environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjiHintXKg8g-xsSKCjtKKPn_FSZ6ZOt8B5jNPdyHQAWDBf62tkQCQ6sZmMHWIgYamd7Yk1_tt4QXwKGQVnWog3YmI8f5YbT4P6H9KDA8bBTUtWb3Z3IwVozRrkGbUI_GGocbbK2BTCDkqMegRpfdgnzu20-HByILByIUOJwjCSrxpfFD50DqFOuRiNiopUFu4HZueiHPW2zJgxDIvryzGKijBIvPfPObwLNOmoYdxFwyb8xnx_n-WMX9y8g2FmzQoDXQu7L3T5Chj"/>
 </div>
 <div class="absolute -top-4 -right-4 w-24 h-24 bg-secondary-container rounded-full flex items-center justify-center -rotate-12 border-4 border-white">
-<span class="font-['Barrio'] text-secondary text-sm">Join Us</span>
+<span class="font-label text-secondary text-sm">Join Us</span>
 </div>
 </div>
 </div>
@@ -268,27 +298,42 @@
 <!-- Host Your Own: Form Section -->
 <section class="py-24 px-6 md:px-12 max-w-screen-xl mx-auto">
 <div class="text-center mb-16">
-<h2 class="text-5xl font-['Barrio'] text-on-surface mb-6">Host Your Own</h2>
+<h2 class="text-5xl font-headline text-on-surface mb-6">Host Your Own</h2>
 <p class="text-on-surface-variant max-w-2xl mx-auto text-lg">Looking for a sanctuary to host your retreat? The Campus is open to outside facilitators who share our ethos of connection and creation.</p>
 </div>
-<form class="max-w-3xl mx-auto bg-surface-container rounded-xl p-8 md:p-12 shadow-sm">
+<form action="https://formsubmit.co/samduarte-davies@hotmail.com" method="POST" class="max-w-3xl mx-auto bg-surface-container rounded-xl p-8 md:p-12 shadow-sm">
+<input type="hidden" name="_subject" value="Vila Akoya — Campus: host your own"/>
+<input type="hidden" name="_captcha" value="false"/>
+<input type="hidden" name="_replyto" value="email"/>
+<input type="hidden" name="_template" value="table"/>
+<input type="hidden" name="_next" id="campus-form-next" value=""/>
+<input type="hidden" name="messaging_from_page" id="campus-form-page" value=""/>
+<script>
+      (function () {
+        var next = document.getElementById("campus-form-next");
+        if (next) next.value = window.location.origin + "/thank-you";
+        var page = document.getElementById("campus-form-page");
+        if (page) page.value = window.location.pathname + " — " + window.location.href;
+      })();
+    </script>
+<input type="text" name="_gotcha" class="hidden" tabindex="-1" autocomplete="off" aria-hidden="true"/>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
 <div class="space-y-2">
-<label class="font-label text-sm text-on-surface-variant px-1">Your Name</label>
-<input class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/40" placeholder="e.g. Elena Santos" type="text"/>
+<label class="font-label text-sm text-on-surface-variant px-1" for="campus-host-name">Your Name</label>
+<input id="campus-host-name" name="name" required class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/40" placeholder="e.g. Elena Santos" type="text" autocomplete="name"/>
 </div>
 <div class="space-y-2">
-<label class="font-label text-sm text-on-surface-variant px-1">Email Address</label>
-<input class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/40" placeholder="hello@flow.com" type="email"/>
+<label class="font-label text-sm text-on-surface-variant px-1" for="campus-host-email">Email Address</label>
+<input id="campus-host-email" name="email" required class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/40" placeholder="hello@flow.com" type="email" autocomplete="email"/>
 </div>
 </div>
 <div class="space-y-2 mb-8">
-<label class="font-label text-sm text-on-surface-variant px-1">Tell us about your workshop or retreat</label>
-<textarea class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/40" placeholder="What is the intention? Which materials will you need?" rows="4"></textarea>
+<label class="font-label text-sm text-on-surface-variant px-1" for="campus-host-message">Tell us about your workshop or retreat</label>
+<textarea id="campus-host-message" name="message" required class="w-full bg-surface-container-high border-none rounded-lg p-4 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/40" placeholder="What is the intention? Which materials will you need?" rows="4"></textarea>
 </div>
 <div class="flex items-center gap-4 mb-10">
-<input class="rounded border-outline-variant text-primary focus:ring-primary" id="newsletter" type="checkbox"/>
-<label class="text-on-surface-variant text-sm italic" for="newsletter">Keep me updated on guest facilitator openings.</label>
+<input class="rounded border-outline-variant text-primary focus:ring-primary" id="campus-newsletter" name="guest_facilitator_updates" type="checkbox" value="yes"/>
+<label class="text-on-surface-variant text-sm italic" for="campus-newsletter">Keep me updated on guest facilitator openings.</label>
 </div>
 <button class="w-full py-5 bg-primary text-on-primary rounded-xl font-headline font-bold text-xl hover:shadow-lg transition-all transform active:scale-[0.98]" type="submit">
                     Send Inquiry
@@ -297,23 +342,24 @@
 </section>
 </main>
 <!-- Footer -->
-<footer class="w-full rounded-t-[3rem] mt-20 bg-emerald-900 dark:bg-emerald-950 text-orange-50 dark:text-orange-100 px-12 py-16">
-<div class="flex flex-col md:flex-row justify-between items-center w-full gap-8 text-center md:text-left max-w-screen-2xl mx-auto">
+<footer class="w-full rounded-t-[3rem] mt-20 bg-emerald-900 dark:bg-emerald-950 text-orange-50 dark:text-orange-100">
+<div class="flex flex-col md:flex-row justify-between items-center w-full px-12 py-16 gap-8 text-center md:text-left">
 <div class="space-y-4">
-<span class="text-2xl font-normal text-orange-50 font-['Barrio']">Vila Akoya</span>
-<p class="text-sm font-medium Plus-Jakarta-Sans text-orange-50/60 uppercase tracking-widest">Handcrafted with love in Alentejo</p>
+<a class="text-2xl font-normal text-orange-50 font-barrio block hover:opacity-90" href="/">Vila Akoya</a>
+<p class="text-sm font-medium font-body text-orange-50/60 uppercase tracking-widest">Handcrafted with love in Alentejo</p>
 </div>
-<div class="flex flex-wrap justify-center md:justify-end gap-x-12 gap-y-4">
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light Newsreader hover:translate-y-[-2px] transition-transform duration-300" href="#">Village</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light Newsreader hover:translate-y-[-2px] transition-transform duration-300" href="#">Campsite</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light Newsreader hover:translate-y-[-2px] transition-transform duration-300" href="#">Booking</a>
-<a class="text-orange-200 font-bold underline decoration-orange-200/50 text-base Newsreader hover:translate-y-[-2px] transition-transform duration-300" href="#">The Campus</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light Newsreader hover:translate-y-[-2px] transition-transform duration-300" href="#">Forest School</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light Newsreader hover:translate-y-[-2px] transition-transform duration-300" href="#">Contact</a>
+<div class="flex flex-wrap justify-center md:justify-end gap-x-8 gap-y-4">
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/village">Village</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/campsite">Campsite</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/booking">Booking</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/campus">The Campus</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/forest-school">Forest School</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/about">About</a>
+<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="/contact">Contact</a>
 </div>
 </div>
-<div class="mt-16 pt-8 border-t border-white/5 text-center text-orange-50/30 text-xs tracking-[0.2em] uppercase">
-            © 2024 Vila Akoya. All Rights Reserved.
+<div class="w-full px-12 py-8 border-t border-white/5 text-center text-xs font-medium font-body opacity-40">
+            © 2026 Vila Akoya. All rights reserved. Registered Organic Enterprise.
         </div>
 </footer>
 </body></html>
