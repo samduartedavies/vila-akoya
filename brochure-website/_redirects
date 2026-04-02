@@ -1,0 +1,22 @@
+# Pretty URLs: serve *.html at clean paths (200 = rewrite, address bar stays without .html)
+/                /home.html            200
+/home            /home.html            200
+/about           /about.html           200
+/village         /village.html         200
+/campsite        /campsite.html        200
+/booking         /booking.html         200
+/campus          /campus.html          200
+/forest-school   /forest_school.html   200
+/contact         /contact.html         200
+/thank-you       /thank-you.html       200
+
+# Optional: old *.html bookmarks → clean URLs (301)
+/home.html           /home        301
+/about.html          /about       301
+/village.html        /village     301
+/campsite.html       /campsite    301
+/booking.html        /booking     301
+/campus.html         /campus      301
+/forest_school.html  /forest-school 301
+/contact.html        /contact     301
+/thank-you.html      /thank-you   301

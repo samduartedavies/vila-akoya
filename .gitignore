@@ -16,3 +16,6 @@ wordpress/
 
 # Debug
 wp-content/debug.log
+
+# Local Netlify folder
+.netlify

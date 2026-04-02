@@ -1,0 +1,49 @@
+# Netlify: publish the brochure static site from this folder
+[build]
+  publish = "brochure-website"
+
+# Optional: normalize /about/ → /about (avoids duplicate URLs)
+[[redirects]]
+  from = "/about/"
+  to = "/about"
+  status = 301
+
+[[redirects]]
+  from = "/village/"
+  to = "/village"
+  status = 301
+
+[[redirects]]
+  from = "/campsite/"
+  to = "/campsite"
+  status = 301
+
+[[redirects]]
+  from = "/booking/"
+  to = "/booking"
+  status = 301
+
+[[redirects]]
+  from = "/campus/"
+  to = "/campus"
+  status = 301
+
+[[redirects]]
+  from = "/forest-school/"
+  to = "/forest-school"
+  status = 301
+
+[[redirects]]
+  from = "/contact/"
+  to = "/contact"
+  status = 301
+
+[[redirects]]
+  from = "/thank-you/"
+  to = "/thank-you"
+  status = 301
+
+[[redirects]]
+  from = "/home/"
+  to = "/home"
+  status = 301
