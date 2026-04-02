@@ -48,6 +48,11 @@
           "name": "Warm sand"
         },
         {
+          "slug": "surface-bright",
+          "color": "#fff6e1",
+          "name": "Sand bright"
+        },
+        {
           "slug": "surface-container",
           "color": "#f2e8cb",
           "name": "Sand container"

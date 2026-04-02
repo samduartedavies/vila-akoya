@@ -24,6 +24,7 @@ function vila_akoya_page_slugs() {
 		'contact',
 		'homeschooling-collective',
 		'the-campus',
+		'thank-you',
 	);
 }
 

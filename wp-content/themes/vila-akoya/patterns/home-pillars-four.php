@@ -14,11 +14,11 @@
 <div class="wp-block-group alignfull va-home-pillars has-surface-container-background-color has-background" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
 	<!-- wp:group {"layout":{"type":"constrained"},"style":{"spacing":{"blockGap":"var:preset|spacing|50","margin":{"bottom":"var:preset|spacing|80"}}}} -->
 	<div class="wp-block-group">
-		<!-- wp:paragraph {"align":"center","style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"tertiary"} -->
-		<p class="has-text-align-center has-tertiary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">The Sacred Four</p>
-		<!-- /wp:paragraph -->
-		<!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontFamily":"var:preset|font-family|newsreader","fontSize":"var:preset|font-size|xx-large"}}} -->
-		<h4 class="wp-block-heading has-text-align-center" style="font-family:var(--wp--preset--font-family--newsreader);font-size:var(--wp--preset--font-size--xx-large)">Pillars of our Existence</h4>
+		<!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontFamily":"var:preset|font-family|marcellus","fontSize":"var:preset|font-size|x-large"}},"textColor":"tertiary"} -->
+		<h4 class="wp-block-heading has-text-align-center has-tertiary-color has-text-color" style="font-family:var(--wp--preset--font-family--marcellus);font-size:var(--wp--preset--font-size--x-large)">The Sacred Four</h4>
+		<!-- /wp:heading -->
+		<!-- wp:heading {"textAlign":"center","level":4,"style":{"typography":{"fontFamily":"var:preset|font-family|marcellus","fontSize":"clamp(1.75rem,3vw,2.25rem)"}}} -->
+		<h4 class="wp-block-heading has-text-align-center" style="font-family:var(--wp--preset--font-family--marcellus);font-size:clamp(1.75rem,3vw,2.25rem)">Pillars of our Existence</h4>
 		<!-- /wp:heading -->
 	</div>
 	<!-- /wp:group -->
@@ -28,8 +28,11 @@
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
 			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
-				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}}} -->
-				<h5 class="wp-block-heading has-text-align-center" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Earth-bound</h5>
+				<!-- wp:paragraph {"align":"center","className":"va-pillar-icon"} -->
+				<p class="has-text-align-center va-pillar-icon"><span class="material-symbols-outlined" style="color:var(--wp--preset--color--primary)" aria-hidden="true">nature</span></p>
+				<!-- /wp:paragraph -->
+				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|marcellus","fontSize":"var:preset|font-size|x-large"}}} -->
+				<h5 class="wp-block-heading has-text-align-center" style="font-family:var(--wp--preset--font-family--marcellus);font-size:var(--wp--preset--font-size--x-large)">Earth-bound</h5>
 				<!-- /wp:heading -->
 				<!-- wp:paragraph {"align":"center","textColor":"on-surface-variant","fontSize":"small"} -->
 				<p class="has-text-align-center has-on-surface-variant-color has-text-color has-small-font-size">Sustainable living practices and permaculture principles in every structure.</p>
@@ -42,8 +45,11 @@
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
 			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
-				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"secondary"} -->
-				<h5 class="wp-block-heading has-text-align-center has-secondary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Kinsfolk</h5>
+				<!-- wp:paragraph {"align":"center","className":"va-pillar-icon"} -->
+				<p class="has-text-align-center va-pillar-icon"><span class="material-symbols-outlined" style="color:var(--wp--preset--color--secondary)" aria-hidden="true">group</span></p>
+				<!-- /wp:paragraph -->
+				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|marcellus","fontSize":"var:preset|font-size|x-large"}},"textColor":"secondary"} -->
+				<h5 class="wp-block-heading has-text-align-center has-secondary-color has-text-color" style="font-family:var(--wp--preset--font-family--marcellus);font-size:var(--wp--preset--font-size--x-large)">Kinsfolk</h5>
 				<!-- /wp:heading -->
 				<!-- wp:paragraph {"align":"center","textColor":"on-surface-variant","fontSize":"small"} -->
 				<p class="has-text-align-center has-on-surface-variant-color has-text-color has-small-font-size">Shared meals, collective wisdom, and the warmth of true belonging.</p>
@@ -56,8 +62,11 @@
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
 			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
-				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"tertiary"} -->
-				<h5 class="wp-block-heading has-text-align-center has-tertiary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Creativity</h5>
+				<!-- wp:paragraph {"align":"center","className":"va-pillar-icon"} -->
+				<p class="has-text-align-center va-pillar-icon"><span class="material-symbols-outlined" style="color:var(--wp--preset--color--tertiary)" aria-hidden="true">brush</span></p>
+				<!-- /wp:paragraph -->
+				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|marcellus","fontSize":"var:preset|font-size|x-large"}},"textColor":"tertiary"} -->
+				<h5 class="wp-block-heading has-text-align-center has-tertiary-color has-text-color" style="font-family:var(--wp--preset--font-family--marcellus);font-size:var(--wp--preset--font-size--x-large)">Creativity</h5>
 				<!-- /wp:heading -->
 				<!-- wp:paragraph {"align":"center","textColor":"on-surface-variant","fontSize":"small"} -->
 				<p class="has-text-align-center has-on-surface-variant-color has-text-color has-small-font-size">A blank canvas for your art, your craft, and your wildest dreams.</p>
@@ -70,8 +79,11 @@
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
 			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
-				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"primary-container"} -->
-				<h5 class="wp-block-heading has-text-align-center has-primary-container-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Soul Space</h5>
+				<!-- wp:paragraph {"align":"center","className":"va-pillar-icon"} -->
+				<p class="has-text-align-center va-pillar-icon"><span class="material-symbols-outlined" style="color:var(--wp--preset--color--primary-container)" aria-hidden="true">stars</span></p>
+				<!-- /wp:paragraph -->
+				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|marcellus","fontSize":"var:preset|font-size|x-large"}},"textColor":"primary-container"} -->
+				<h5 class="wp-block-heading has-text-align-center has-primary-container-color has-text-color" style="font-family:var(--wp--preset--font-family--marcellus);font-size:var(--wp--preset--font-size--x-large)">Soul Space</h5>
 				<!-- /wp:heading -->
 				<!-- wp:paragraph {"align":"center","textColor":"on-surface-variant","fontSize":"small"} -->
 				<p class="has-text-align-center has-on-surface-variant-color has-text-color has-small-font-size">Quiet corners for meditation and loud fields for celebration.</p>

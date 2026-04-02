@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'VILA_AKOYA_VERSION', '1.2.29' );
+define( 'VILA_AKOYA_VERSION', '1.2.30' );
 
 require_once get_template_directory() . '/inc/design-assets.php';
 require_once get_template_directory() . '/inc/media-import.php';
@@ -43,9 +43,15 @@ function vila_akoya_enqueue() {
 		null
 	);
 	wp_enqueue_style(
+		'vila-akoya-material-symbols',
+		'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap',
+		array(),
+		null
+	);
+	wp_enqueue_style(
 		'vila-akoya',
 		get_stylesheet_uri(),
-		array( 'vila-akoya-fonts' ),
+		array( 'vila-akoya-fonts', 'vila-akoya-material-symbols' ),
 		VILA_AKOYA_VERSION
 	);
 	wp_enqueue_style(
@@ -53,6 +59,13 @@ function vila_akoya_enqueue() {
 		get_template_directory_uri() . '/assets/css/style.css',
 		array( 'vila-akoya' ),
 		VILA_AKOYA_VERSION
+	);
+	wp_enqueue_script(
+		'vila-akoya-formsubmit',
+		get_template_directory_uri() . '/assets/js/formsubmit-loading.js',
+		array(),
+		VILA_AKOYA_VERSION,
+		true
 	);
 }
 add_action( 'wp_enqueue_scripts', 'vila_akoya_enqueue' );
@@ -68,9 +81,15 @@ function vila_akoya_enqueue_block_editor_assets() {
 		null
 	);
 	wp_enqueue_style(
+		'vila-akoya-material-symbols',
+		'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap',
+		array(),
+		null
+	);
+	wp_enqueue_style(
 		'vila-akoya-editor',
 		get_template_directory_uri() . '/assets/css/style.css',
-		array( 'wp-edit-blocks' ),
+		array( 'wp-edit-blocks', 'vila-akoya-material-symbols' ),
 		VILA_AKOYA_VERSION
 	);
 }

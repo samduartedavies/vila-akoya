@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'VILA_AKOYA_SEED_VERSION', 10 );
+define( 'VILA_AKOYA_SEED_VERSION', 11 );
 
 /**
  * Create or update core pages when the seed version increases.
@@ -83,6 +83,10 @@ function vila_akoya_maybe_seed_pages() {
 		'the-campus'               => array(
 			'title'   => 'The Campus',
 			'content' => vila_akoya_campus_content(),
+		),
+		'thank-you'                => array(
+			'title'   => 'Thank you',
+			'content' => vila_akoya_thank_you_content(),
 		),
 	);
 
@@ -467,5 +471,47 @@ function vila_akoya_campus_content() {
 <!-- wp:pattern {"slug":"vila-akoya/campus-host-form"} /-->
 
 <!-- wp:pattern {"slug":"vila-akoya/contact-strip"} /-->'
+	);
+}
+
+/**
+ * Thank you — FormSubmit redirect target (brochure thank-you.html).
+ *
+ * @return string
+ */
+function vila_akoya_thank_you_content() {
+	return trim(
+		<<<'HTML'
+<!-- wp:group {"align":"wide","className":"va-thank-you","style":{"spacing":{"padding":{"top":"var:preset|spacing|90","bottom":"var:preset|spacing|90"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group alignwide va-thank-you" style="padding-top:var(--wp--preset--spacing--90);padding-bottom:var(--wp--preset--spacing--90)">
+	<!-- wp:group {"layout":{"type":"constrained"},"style":{"spacing":{"blockGap":"var:preset|spacing|70"}}} -->
+	<div class="wp-block-group">
+		<!-- wp:paragraph {"align":"center"} -->
+		<p class="has-text-align-center"><span class="material-symbols-outlined va-thank-you__icon" aria-hidden="true">mark_email_read</span></p>
+		<!-- /wp:paragraph -->
+		<!-- wp:paragraph {"align":"center","style":{"typography":{"fontFamily":"var:preset|font-family|plus-jakarta","fontSize":"var:preset|font-size|small","fontWeight":"600","letterSpacing":"0.2em","textTransform":"uppercase"}},"textColor":"primary"} -->
+		<p class="has-text-align-center has-primary-color has-text-color" style="font-family:var(--wp--preset--font-family--plus-jakarta);font-size:var(--wp--preset--font-size--small);font-weight:600;letter-spacing:0.2em;text-transform:uppercase">Thank you</p>
+		<!-- /wp:paragraph -->
+		<!-- wp:heading {"textAlign":"center","level":1,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"clamp(2rem,4vw,3rem)","lineHeight":"1.15"}}} -->
+		<h1 class="wp-block-heading has-text-align-center" style="font-family:var(--wp--preset--font-family--barrio);font-size:clamp(2rem,4vw,3rem);line-height:1.15">We received your <em>inquiry</em></h1>
+		<!-- /wp:heading -->
+		<!-- wp:paragraph {"align":"center","style":{"typography":{"fontSize":"var:preset|font-size|large","lineHeight":"1.65"}},"textColor":"on-surface-variant"} -->
+		<p class="has-text-align-center has-on-surface-variant-color has-text-color" style="font-size:var(--wp--preset--font-size--large);line-height:1.65">We will get back to you soon. If you need anything urgent, message us on WhatsApp or email <a href="mailto:Info@vila-akoya.com">Info@vila-akoya.com</a>.</p>
+		<!-- /wp:paragraph -->
+		<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center"},"style":{"spacing":{"blockGap":"var:preset|spacing|60"}}} -->
+		<div class="wp-block-buttons">
+			<!-- wp:button {"className":"is-style-fill"} -->
+			<div class="wp-block-button is-style-fill"><a class="wp-block-button__link wp-element-button" href="/">Back to home</a></div>
+			<!-- /wp:button -->
+			<!-- wp:button {"className":"is-style-outline"} -->
+			<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/book/">Send another message</a></div>
+			<!-- /wp:button -->
+		</div>
+		<!-- /wp:buttons -->
+	</div>
+	<!-- /wp:group -->
+</div>
+<!-- /wp:group -->
+HTML
 	);
 }

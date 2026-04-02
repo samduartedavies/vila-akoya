@@ -16,7 +16,7 @@
 		<!-- wp:column {"verticalAlignment":"bottom","width":"58%"} -->
 		<div class="wp-block-column is-vertically-aligned-bottom" style="flex-basis:58%">
 			<!-- wp:heading {"level":1,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|display-xl","lineHeight":"1"}},"textColor":"primary"} -->
-			<h1 class="wp-block-heading has-primary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--display-xl);line-height:1">Life at the Edge of the Forest</h1>
+			<h1 class="wp-block-heading has-primary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--display-xl);line-height:1">Life at the Edge <br />of the Forest</h1>
 			<!-- /wp:heading -->
 			<!-- wp:paragraph {"style":{"typography":{"fontSize":"var:preset|font-size|x-large","fontStyle":"italic","lineHeight":"1.5"}},"textColor":"tertiary"} -->
 			<p class="has-tertiary-color has-text-color" style="font-size:var(--wp--preset--font-size--x-large);font-style:italic;line-height:1.5">A curated community where the Alentejo soil meets architectural soul.</p>
