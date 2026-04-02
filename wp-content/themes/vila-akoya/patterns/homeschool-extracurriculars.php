@@ -19,7 +19,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}},"color":{"background":"var:preset|color|surface-container"},"border":{"radius":"1rem"}},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
+			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
 				<!-- wp:heading {"level":3,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio"}},"textColor":"primary"} -->
 				<h3 class="wp-block-heading has-primary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio)">Manual Crafts</h3>
 				<!-- /wp:heading -->
@@ -36,7 +36,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}},"color":{"background":"var:preset|color|secondary-container"},"border":{"radius":"1rem"}},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-secondary-container-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
+			<div class="wp-block-group has-secondary-container-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
 				<!-- wp:heading {"level":3,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio"}},"textColor":"secondary"} -->
 				<h3 class="wp-block-heading has-secondary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio)">Eco-Tracking</h3>
 				<!-- /wp:heading -->
@@ -53,7 +53,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}},"color":{"background":"var:preset|color|tertiary-container"},"border":{"radius":"1rem"}},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-tertiary-container-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
+			<div class="wp-block-group has-tertiary-container-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
 				<!-- wp:heading {"level":3,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio"}},"textColor":"on-tertiary-container"} -->
 				<h3 class="wp-block-heading has-on-tertiary-container-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio)">Garden-to-Table</h3>
 				<!-- /wp:heading -->

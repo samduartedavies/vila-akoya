@@ -235,8 +235,8 @@ function vila_akoya_book_content() {
 		<!-- /wp:column -->
 		<!-- wp:column {"width":"42%"} -->
 		<div class="wp-block-column" style="flex-basis:42%">
-			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"1rem"}},"className":"va-editorial-shadow"} -->
-			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:1rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0YO7RwzDaUBYXKWatnP-c3s1YNuEUYn9nNLqgcJUySFbisQ2mXzUAT24CCyVBwx9DoUq4rSTBoXh_rs86cenlRIxZ4kH-iF9V7HFXY3Z5UU19DlS_5Dhi1KZ1wrTKDiZZnwPWQ0fGDkZOAycv95LFi8ZMTDFQhulSQw5Vy291KYk80nSgOQ_pFPH_dUh9OShoPFYq53tA6pQpmpbrK0Mb_BLqqSGrPC_IxJTfNW6AwVOeSJlSWwna2x4Cgyc0QNxyPvVBWTB4Dy3v" alt="Sunlit Alentejo cork tree landscape"/></figure>
+			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"5rem"}},"className":"va-editorial-shadow"} -->
+			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:5rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0YO7RwzDaUBYXKWatnP-c3s1YNuEUYn9nNLqgcJUySFbisQ2mXzUAT24CCyVBwx9DoUq4rSTBoXh_rs86cenlRIxZ4kH-iF9V7HFXY3Z5UU19DlS_5Dhi1KZ1wrTKDiZZnwPWQ0fGDkZOAycv95LFi8ZMTDFQhulSQw5Vy291KYk80nSgOQ_pFPH_dUh9OShoPFYq53tA6pQpmpbrK0Mb_BLqqSGrPC_IxJTfNW6AwVOeSJlSWwna2x4Cgyc0QNxyPvVBWTB4Dy3v" alt="Sunlit Alentejo cork tree landscape"/></figure>
 			<!-- /wp:image -->
 		</div>
 		<!-- /wp:column -->
@@ -250,7 +250,7 @@ function vila_akoya_book_content() {
 	<!-- wp:column {"width":"42%"} -->
 	<div class="wp-block-column" style="flex-basis:42%">
 		<!-- wp:group {"className":"va-book-info","style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|70","right":"var:preset|spacing|70"}},"color":{"background":"var:preset|color|surface-container-low"},"border":{"radius":"1rem"}}} -->
-		<div class="wp-block-group va-book-info has-surface-container-low-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
+		<div class="wp-block-group va-book-info has-surface-container-low-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
 			<!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"var:preset|font-size|x-large"}}} -->
 			<h3 class="wp-block-heading" style="font-size:var(--wp--preset--font-size--x-large)">Inquiry details</h3>
 			<!-- /wp:heading -->
@@ -304,8 +304,8 @@ function vila_akoya_about_content() {
 		<!-- /wp:column -->
 		<!-- wp:column {"width":"42%"} -->
 		<div class="wp-block-column" style="flex-basis:42%">
-			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"1rem"}},"className":"va-editorial-shadow"} -->
-			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:1rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlUgYMyX1OvCEoPwQQlJnZdEI1RO7hI9ie7ZzlV9-LKqly81fdreXJoFvr3Yf-Ix_S_0K4GD9e23_kZYulsXoCw5_BxE1kQ0jhGFA_p-WlKNUvGnqk0rjvdZb3xCXocPGI0rZF_wPaiP6jAiaoSN_EAzmEO5_ngBRUMc4oV696A8-Vp3UVi08UaBtgUuwi4KOaWOBzNg3R5z3Hw_H4vXmBPypkHShmsexIWwQQWvViplLkHZLihjnVx0vb9Rqzb1v6IgBD9Lhs5jgR" alt="Vila Akoya founders in Alentejo"/></figure>
+			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"5rem"}},"className":"va-editorial-shadow"} -->
+			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:5rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlUgYMyX1OvCEoPwQQlJnZdEI1RO7hI9ie7ZzlV9-LKqly81fdreXJoFvr3Yf-Ix_S_0K4GD9e23_kZYulsXoCw5_BxE1kQ0jhGFA_p-WlKNUvGnqk0rjvdZb3xCXocPGI0rZF_wPaiP6jAiaoSN_EAzmEO5_ngBRUMc4oV696A8-Vp3UVi08UaBtgUuwi4KOaWOBzNg3R5z3Hw_H4vXmBPypkHShmsexIWwQQWvViplLkHZLihjnVx0vb9Rqzb1v6IgBD9Lhs5jgR" alt="Vila Akoya founders in Alentejo"/></figure>
 			<!-- /wp:image -->
 		</div>
 		<!-- /wp:column -->
@@ -348,8 +348,8 @@ function vila_akoya_contact_content() {
 		<!-- /wp:column -->
 		<!-- wp:column {"width":"48%"} -->
 		<div class="wp-block-column" style="flex-basis:48%">
-			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"1rem"}},"className":"va-editorial-shadow"} -->
-			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:1rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZfnr1xRx1RVyv9IeVK7WUmBGmSgMG4Z_4p7ZhF-_LqO5bgvPMyCEJNodKlsea8Mo046UQAKcoYl2GyOePjAYQXuAqACbw1QLLaT0tYWCIbLHf_XJaDzh3FN4vHPuvImT2b6RVdNmaQNDImYTbj71iTcQcOw50oxUD31JzqpSzLhNRe_AMam4Uz4e5EHp8HY70jF-pZW48MVbaiUzhsQ4O9G79o4_44hYzKkYHGaTtxcr-i68Ump17z6KNWvgQ5oeSkIj_vbO-8VRQ" alt="Alentejo landscape at golden hour"/></figure>
+			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"5rem"}},"className":"va-editorial-shadow"} -->
+			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:5rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZfnr1xRx1RVyv9IeVK7WUmBGmSgMG4Z_4p7ZhF-_LqO5bgvPMyCEJNodKlsea8Mo046UQAKcoYl2GyOePjAYQXuAqACbw1QLLaT0tYWCIbLHf_XJaDzh3FN4vHPuvImT2b6RVdNmaQNDImYTbj71iTcQcOw50oxUD31JzqpSzLhNRe_AMam4Uz4e5EHp8HY70jF-pZW48MVbaiUzhsQ4O9G79o4_44hYzKkYHGaTtxcr-i68Ump17z6KNWvgQ5oeSkIj_vbO-8VRQ" alt="Alentejo landscape at golden hour"/></figure>
 			<!-- /wp:image -->
 		</div>
 		<!-- /wp:column -->
@@ -363,7 +363,7 @@ function vila_akoya_contact_content() {
 	<!-- wp:column -->
 	<div class="wp-block-column">
 		<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|70","right":"var:preset|spacing|70"}},"color":{"background":"var:preset|color|surface-container-low"},"border":{"radius":"1rem"}},"className":"va-contact-card"} -->
-		<div class="wp-block-group va-contact-card has-surface-container-low-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
+		<div class="wp-block-group va-contact-card has-surface-container-low-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
 			<!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"var:preset|font-size|x-large"}}} -->
 			<h3 class="wp-block-heading" style="font-size:var(--wp--preset--font-size--x-large)">Email</h3>
 			<!-- /wp:heading -->
@@ -380,7 +380,7 @@ function vila_akoya_contact_content() {
 	<!-- wp:column -->
 	<div class="wp-block-column">
 		<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|70","right":"var:preset|spacing|70"}},"color":{"background":"var:preset|color|secondary"},"border":{"radius":"1rem"}},"textColor":"on-secondary","className":"va-contact-card"} -->
-		<div class="wp-block-group va-contact-card has-on-secondary-color has-secondary-background-color has-text-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
+		<div class="wp-block-group va-contact-card has-on-secondary-color has-secondary-background-color has-text-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
 			<!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"var:preset|font-size|x-large"}}} -->
 			<h3 class="wp-block-heading" style="font-size:var(--wp--preset--font-size--x-large)">WhatsApp</h3>
 			<!-- /wp:heading -->
@@ -397,7 +397,7 @@ function vila_akoya_contact_content() {
 	<!-- wp:column -->
 	<div class="wp-block-column">
 		<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|70","right":"var:preset|spacing|70"}},"color":{"background":"var:preset|color|surface-container-high"},"border":{"radius":"1rem"}},"className":"va-contact-card"} -->
-		<div class="wp-block-group va-contact-card has-surface-container-high-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
+		<div class="wp-block-group va-contact-card has-surface-container-high-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--70)">
 			<!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"var:preset|font-size|x-large"}}} -->
 			<h3 class="wp-block-heading" style="font-size:var(--wp--preset--font-size--x-large)">Phone</h3>
 			<!-- /wp:heading -->
@@ -415,7 +415,7 @@ function vila_akoya_contact_content() {
 <!-- /wp:columns -->
 
 <!-- wp:group {"align":"wide","style":{"spacing":{"padding":{"top":"var:preset|spacing|80","bottom":"var:preset|spacing|80","left":"var:preset|spacing|70","right":"var:preset|spacing|70"}},"color":{"background":"var:preset|color|surface-container-low"},"border":{"radius":"1rem"}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group alignwide has-surface-container-low-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--80);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--80);padding-left:var(--wp--preset--spacing--70)">
+<div class="wp-block-group alignwide has-surface-container-low-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--80);padding-right:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--80);padding-left:var(--wp--preset--spacing--70)">
 	<!-- wp:heading {"level":2,"style":{"typography":{"fontSize":"clamp(2rem,4.2vw,3.3rem)","fontStyle":"italic"}}} -->
 	<h2 class="wp-block-heading" style="font-size:clamp(2rem,4.2vw,3.3rem);font-style:italic">A place built for family.</h2>
 	<!-- /wp:heading -->

@@ -25,8 +25,8 @@
 		<!-- /wp:column -->
 		<!-- wp:column {"verticalAlignment":"center","width":"45%"} -->
 		<div class="wp-block-column is-vertically-aligned-center" style="flex-basis:45%">
-			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"1rem"}},"className":"va-editorial-shadow"} -->
-			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:1rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8joh7EBQxw0w-2Ibpm_TXuDeMvFWdctJDqCrl9jh91UOLLqM4dBgfMqOysCuhaMagkzkEmz2S_WPiIzBcWh_mPSbF3RB3BBiOqCwgtuK_-wPF66wNyrrgEdsH0Si60aw5P8wGW_G7veAAzkiRFl6D8768hDYVY1qyCdjhzyNQI8ADKoGYxSb_bTWAfxU0e_eAemO45h3DDy-4HZNLV60Pe2FDCScQbl1o-wAG7w5a2Gxfqyupk77T0V8qU7dTyuXg6XnlEK-yw3ZA" alt="Sunlight through forest trees in Alentejo"/></figure>
+			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"5rem"}},"className":"va-editorial-shadow"} -->
+			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:5rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8joh7EBQxw0w-2Ibpm_TXuDeMvFWdctJDqCrl9jh91UOLLqM4dBgfMqOysCuhaMagkzkEmz2S_WPiIzBcWh_mPSbF3RB3BBiOqCwgtuK_-wPF66wNyrrgEdsH0Si60aw5P8wGW_G7veAAzkiRFl6D8768hDYVY1qyCdjhzyNQI8ADKoGYxSb_bTWAfxU0e_eAemO45h3DDy-4HZNLV60Pe2FDCScQbl1o-wAG7w5a2Gxfqyupk77T0V8qU7dTyuXg6XnlEK-yw3ZA" alt="Sunlight through forest trees in Alentejo"/></figure>
 			<!-- /wp:image -->
 		</div>
 		<!-- /wp:column -->

@@ -26,7 +26,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-container-high"},"border":{"radius":"1rem"}},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-container-high-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60)">
+			<div class="wp-block-group has-surface-container-high-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60)">
 				<!-- wp:heading {"level":3,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio"}}} -->
 				<h3 class="wp-block-heading" style="font-family:var(--wp--preset--font-family--barrio)">Body &amp; Mind</h3>
 				<!-- /wp:heading -->
@@ -43,7 +43,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"level":3,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio"}}} -->
 				<h3 class="wp-block-heading" style="font-family:var(--wp--preset--font-family--barrio)">Creative Arts</h3>
 				<!-- /wp:heading -->
@@ -63,8 +63,8 @@
 	<div class="wp-block-columns">
 		<!-- wp:column {"width":"60%"} -->
 		<div class="wp-block-column" style="flex-basis:60%">
-			<!-- wp:cover {"url":"https://lh3.googleusercontent.com/aida-public/AB6AXuDJ9HvLKLFEWMA0xoZ8shiI53DoKr6Bp26zVvgI95PZJ0cmUd99ujx7URd8UslwcM1LGCphnbuEcxxzQICWmJyz6WkJ-LPKfKfM-FPyb4Sk1mBwEKKWojg5fCTmZGYWSOmMwd6_VRksFnIGwBccaUs9i97PRV9Dh6ws4P-mtptNz4rOkbYnyDPnpGEnkAAalnGLc_tcWBt-E2E0w-5Xv92Fk2J6fNCxCqiie3oMLqfwg08Mh8aszNnmTy3S1j92OkkTfxRXd8C6sU3z","dimRatio":45,"overlayColor":"secondary","minHeight":280,"minHeightUnit":"px","style":{"border":{"radius":"1rem"}}} -->
-			<div class="wp-block-cover is-light" style="border-radius:1rem;min-height:280px"><span aria-hidden="true" class="wp-block-cover__background has-secondary-background-color has-background-dim"></span><img class="wp-block-cover__image-background wp-image-0" alt="Ecstatic dance on a wooden deck at night" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJ9HvLKLFEWMA0xoZ8shiI53DoKr6Bp26zVvgI95PZJ0cmUd99ujx7URd8UslwcM1LGCphnbuEcxxzQICWmJyz6WkJ-LPKfKfM-FPyb4Sk1mBwEKKWojg5fCTmZGYWSOmMwd6_VRksFnIGwBccaUs9i97PRV9Dh6ws4P-mtptNz4rOkbYnyDPnpGEnkAAalnGLc_tcWBt-E2E0w-5Xv92Fk2J6fNCxCqiie3oMLqfwg08Mh8aszNnmTy3S1j92OkkTfxRXd8C6sU3z" data-object-fit="cover"/><div class="wp-block-cover__inner-container is-layout-flow wp-block-cover-is-layout-flow">
+			<!-- wp:cover {"url":"https://lh3.googleusercontent.com/aida-public/AB6AXuDJ9HvLKLFEWMA0xoZ8shiI53DoKr6Bp26zVvgI95PZJ0cmUd99ujx7URd8UslwcM1LGCphnbuEcxxzQICWmJyz6WkJ-LPKfKfM-FPyb4Sk1mBwEKKWojg5fCTmZGYWSOmMwd6_VRksFnIGwBccaUs9i97PRV9Dh6ws4P-mtptNz4rOkbYnyDPnpGEnkAAalnGLc_tcWBt-E2E0w-5Xv92Fk2J6fNCxCqiie3oMLqfwg08Mh8aszNnmTy3S1j92OkkTfxRXd8C6sU3z","dimRatio":45,"overlayColor":"secondary","minHeight":280,"minHeightUnit":"px","style":{"border":{"radius":"5rem"}}} -->
+			<div class="wp-block-cover is-light" style="border-radius:5rem;min-height:280px"><span aria-hidden="true" class="wp-block-cover__background has-secondary-background-color has-background-dim"></span><img class="wp-block-cover__image-background wp-image-0" alt="Ecstatic dance on a wooden deck at night" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJ9HvLKLFEWMA0xoZ8shiI53DoKr6Bp26zVvgI95PZJ0cmUd99ujx7URd8UslwcM1LGCphnbuEcxxzQICWmJyz6WkJ-LPKfKfM-FPyb4Sk1mBwEKKWojg5fCTmZGYWSOmMwd6_VRksFnIGwBccaUs9i97PRV9Dh6ws4P-mtptNz4rOkbYnyDPnpGEnkAAalnGLc_tcWBt-E2E0w-5Xv92Fk2J6fNCxCqiie3oMLqfwg08Mh8aszNnmTy3S1j92OkkTfxRXd8C6sU3z" data-object-fit="cover"/><div class="wp-block-cover__inner-container is-layout-flow wp-block-cover-is-layout-flow">
 				<!-- wp:heading {"level":3,"textColor":"on-secondary"} -->
 				<h3 class="wp-block-heading has-on-secondary-color has-text-color">Movement</h3>
 				<!-- /wp:heading -->
@@ -78,7 +78,7 @@
 		<!-- wp:column {"width":"40%"} -->
 		<div class="wp-block-column" style="flex-basis:40%">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}},"color":{"background":"var:preset|color|surface-container"},"border":{"radius":"1rem"}},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
+			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
 				<!-- wp:heading {"level":4} -->
 				<h4 class="wp-block-heading">Practical Skills</h4>
 				<!-- /wp:heading -->
@@ -88,7 +88,7 @@
 			</div>
 			<!-- /wp:group -->
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60","left":"var:preset|spacing|50","right":"var:preset|spacing|50"}},"color":{"background":"var:preset|color|surface-container-high"},"border":{"radius":"1rem"}},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-container-high-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
+			<div class="wp-block-group has-surface-container-high-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--60);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--60);padding-left:var(--wp--preset--spacing--50)">
 				<!-- wp:heading {"level":4} -->
 				<h4 class="wp-block-heading">Philosophy</h4>
 				<!-- /wp:heading -->

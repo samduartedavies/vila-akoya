@@ -147,6 +147,13 @@ body.admin-bar .va-header {
 	background: #0b5a49 !important;
 	color: #f6ead0 !important;
 	border-top: 0 !important;
+	border-radius: 0 !important;
+}
+
+.va-footer-home.wp-block-group.has-background,
+footer .va-footer-home,
+footer .va-footer-home.wp-block-group {
+	border-radius: 0 !important;
 }
 
 .va-footer-home-nav .wp-block-navigation-item a {
@@ -776,6 +783,13 @@ body.page-the-campsite .entry-content > .wp-block-cover.alignfull {
 	min-height: min(86vh, 930px);
 }
 
+/* Booking hero image should keep the large rounded shape */
+body.page-template-page-book .entry-content .va-book-hero .wp-block-image,
+body.page-template-page-book .entry-content .va-book-hero .wp-block-image img {
+	border-radius: 5rem !important;
+	overflow: hidden;
+}
+
 /* Utility pages keep cleaner readable measure */
 body.page-about .entry-content > :not(.alignwide):not(.alignfull),
 body.page-contact .entry-content > :not(.alignwide):not(.alignfull),
@@ -783,10 +797,26 @@ body.page-book .entry-content > :not(.alignwide):not(.alignfull) {
 	max-width: 1120px;
 }
 
+/* Contact + Booking should match header canvas width */
+body.page-contact .va-main .wp-block-post-content > :not(.alignfull),
+body.page-book .va-main .wp-block-post-content > :not(.alignfull),
+body.page-template-page-book .va-main .wp-block-post-content > :not(.alignfull) {
+	max-width: var(--va-canvas-max);
+}
+
+/* Contact touts/cards: force generous curve over inline block styles */
+body.page-contact .entry-content .va-contact-card,
+body.page-contact .entry-content .va-contact-card.has-background,
+body.page-contact .entry-content .va-contact-card.wp-block-group,
+body.page-contact .entry-content .va-contact-card.wp-block-group.has-background {
+	border-radius: 5rem !important;
+	overflow: hidden;
+}
+
 /* Booking form */
 :is(.va-booking-form .wpcf7, body.page-template-page-book .entry-content .wpcf7) {
 	background: #fff;
-	border-radius: 1rem;
+	border-radius: 5rem;
 	padding: clamp(1.75rem, 2.8vw, 3rem);
 	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.04);
 	position: relative;
@@ -1481,4 +1511,24 @@ body .va-main .wp-block-cover,
 body .va-main .wp-block-image img,
 body .va-main .wp-block-media-text__media img {
 	border-radius: 5rem !important;
+}
+
+/* Contact + Booking: keep alignwide rows inside header canvas */
+body.page-contact .entry-content > .alignwide,
+body.page-contact .entry-content > .wp-block-columns.alignwide,
+body.page-book .entry-content > .alignwide,
+body.page-book .entry-content > .wp-block-columns.alignwide,
+body.page-template-page-book .entry-content > .alignwide,
+body.page-template-page-book .entry-content > .wp-block-columns.alignwide {
+	width: min(var(--va-canvas-max), calc(100% - 2.5rem)) !important;
+	max-width: var(--va-canvas-max) !important;
+	margin-left: auto !important;
+	margin-right: auto !important;
+}
+
+/* First hero section on Contact + Booking should match the same canvas */
+body.page-contact .entry-content > .wp-block-group:first-child,
+body.page-book .entry-content > .wp-block-group:first-child,
+body.page-template-page-book .entry-content > .wp-block-group:first-child {
+	max-width: var(--va-canvas-max) !important;
 }

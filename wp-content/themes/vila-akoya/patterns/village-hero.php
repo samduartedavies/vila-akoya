@@ -25,8 +25,8 @@
 		<!-- /wp:column -->
 		<!-- wp:column {"verticalAlignment":"bottom","width":"42%"} -->
 		<div class="wp-block-column is-vertically-aligned-bottom" style="flex-basis:42%">
-			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"1rem"}},"className":"va-editorial-shadow"} -->
-			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:1rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyzk4TOL5610Gk-U9uxmuFiuXWf0EEG15Xw-iX2hqh5Wep3o1hqVyMKj_ZT17nNOFIgwyWf-2oQmedvlBi0zNL-SKi_13lSiT4M7536GetnixyRDlkzIPSDe0w6F49hwZo0Z1y7KpbygeWSvYkCC1Qhar3gyjBM8ueVsGSMsbbda3U7zXOMeEk1Al_7esbqRzHTDrGSzknOhJYJCac_VO7CKQBSX315KFjwpxUZnyY9Q5nIW7HqDlWihvAI8FYUEk7bvKwbVeSLGy1" alt="Tiny house with wooden cladding in a cork oak forest at golden hour"/></figure>
+			<!-- wp:image {"sizeSlug":"large","style":{"border":{"radius":"5rem"}},"className":"va-editorial-shadow"} -->
+			<figure class="wp-block-image size-large va-editorial-shadow" style="border-radius:5rem"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyzk4TOL5610Gk-U9uxmuFiuXWf0EEG15Xw-iX2hqh5Wep3o1hqVyMKj_ZT17nNOFIgwyWf-2oQmedvlBi0zNL-SKi_13lSiT4M7536GetnixyRDlkzIPSDe0w6F49hwZo0Z1y7KpbygeWSvYkCC1Qhar3gyjBM8ueVsGSMsbbda3U7zXOMeEk1Al_7esbqRzHTDrGSzknOhJYJCac_VO7CKQBSX315KFjwpxUZnyY9Q5nIW7HqDlWihvAI8FYUEk7bvKwbVeSLGy1" alt="Tiny house with wooden cladding in a cork oak forest at golden hour"/></figure>
 			<!-- /wp:image -->
 		</div>
 		<!-- /wp:column -->

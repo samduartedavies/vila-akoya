@@ -26,7 +26,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-container"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"level":3} -->
 				<h3 class="wp-block-heading">Plot Rental</h3>
 				<!-- /wp:heading -->
@@ -46,7 +46,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-container"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"level":3} -->
 				<h3 class="wp-block-heading">Tiny House Rental</h3>
 				<!-- /wp:heading -->
@@ -70,7 +70,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-container"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-container-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"level":3} -->
 				<h3 class="wp-block-heading">Ownership</h3>
 				<!-- /wp:heading -->

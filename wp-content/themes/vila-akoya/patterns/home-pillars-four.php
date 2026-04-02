@@ -27,7 +27,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}}} -->
 				<h5 class="wp-block-heading has-text-align-center" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Earth-bound</h5>
 				<!-- /wp:heading -->
@@ -41,7 +41,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"secondary"} -->
 				<h5 class="wp-block-heading has-text-align-center has-secondary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Kinsfolk</h5>
 				<!-- /wp:heading -->
@@ -55,7 +55,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"tertiary"} -->
 				<h5 class="wp-block-heading has-text-align-center has-tertiary-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Creativity</h5>
 				<!-- /wp:heading -->
@@ -69,7 +69,7 @@
 		<!-- wp:column -->
 		<div class="wp-block-column">
 			<!-- wp:group {"style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70","left":"var:preset|spacing|60","right":"var:preset|spacing|60"}},"color":{"background":"var:preset|color|surface-bright"},"border":{"radius":"1rem"},"shadow":"var:preset|shadow|editorial"},"layout":{"type":"constrained"}} -->
-			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:1rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
+			<div class="wp-block-group has-surface-bright-background-color has-background" style="border-radius:5rem;padding-top:var(--wp--preset--spacing--70);padding-right:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--70);padding-left:var(--wp--preset--spacing--60);box-shadow:var(--wp--preset--shadow--editorial)">
 				<!-- wp:heading {"textAlign":"center","level":5,"style":{"typography":{"fontFamily":"var:preset|font-family|barrio","fontSize":"var:preset|font-size|x-large"}},"textColor":"primary-container"} -->
 				<h5 class="wp-block-heading has-text-align-center has-primary-container-color has-text-color" style="font-family:var(--wp--preset--font-family--barrio);font-size:var(--wp--preset--font-size--x-large)">Soul Space</h5>
 				<!-- /wp:heading -->
