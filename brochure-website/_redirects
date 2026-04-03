@@ -6,9 +6,12 @@
 /campsite        /campsite.html        200
 /booking         /booking.html         200
 /campus          /campus.html          200
-/forest-school   /forest_school.html   200
+/the-kids        /the_kids.html        200
 /contact         /contact.html         200
 /thank-you       /thank-you.html       200
+
+# Legacy URL → new page name
+/forest-school   /the-kids             301
 
 # Optional: old *.html bookmarks → clean URLs (301)
 /home.html           /home        301
@@ -17,6 +20,7 @@
 /campsite.html       /campsite    301
 /booking.html        /booking     301
 /campus.html         /campus      301
-/forest_school.html  /forest-school 301
+/the_kids.html       /the-kids    301
+/forest_school.html  /the-kids    301
 /contact.html        /contact     301
 /thank-you.html      /thank-you   301

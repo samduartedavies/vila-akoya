@@ -24,13 +24,13 @@
         },
         {
           "slug": "secondary",
-          "color": "#436250",
-          "name": "Forest green"
+          "color": "#5c6348",
+          "name": "Olive sage"
         },
         {
           "slug": "secondary-container",
-          "color": "#c7ebd4",
-          "name": "Forest mint"
+          "color": "#e2e6d8",
+          "name": "Sage mist"
         },
         {
           "slug": "tertiary",
@@ -89,13 +89,13 @@
         },
         {
           "slug": "on-secondary",
-          "color": "#d7fbe3",
-          "name": "On forest"
+          "color": "#f5f3eb",
+          "name": "On olive sage"
         },
         {
           "slug": "on-secondary-container",
-          "color": "#395847",
-          "name": "On forest mint"
+          "color": "#3d4338",
+          "name": "On sage mist"
         },
         {
           "slug": "outline-variant",

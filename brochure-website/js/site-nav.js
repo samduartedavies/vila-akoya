@@ -20,7 +20,7 @@
     if (p === '/campsite') return 'campsite';
     if (p === '/booking') return 'booking';
     if (p === '/campus') return 'campus';
-    if (p === '/forest-school') return 'forest-school';
+    if (p === '/the-kids') return 'the-kids';
     if (p === '/about') return 'about';
     if (p === '/contact') return 'contact';
     return null;

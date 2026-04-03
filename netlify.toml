@@ -29,8 +29,13 @@
   status = 301
 
 [[redirects]]
+  from = "/the-kids/"
+  to = "/the-kids"
+  status = 301
+
+[[redirects]]
   from = "/forest-school/"
-  to = "/forest-school"
+  to = "/the-kids"
   status = 301
 
 [[redirects]]
