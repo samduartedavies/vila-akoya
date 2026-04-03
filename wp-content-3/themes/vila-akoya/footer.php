@@ -4,7 +4,7 @@
   <div class="ak-container footer-top">
     <div>
       <div class="footer-brand">Vila Akoya</div>
-      <p>Handcrafted with love in Alentejo.</p>
+      <p>A tiny house village and creative campsite.</p>
     </div>
     <nav class="footer-nav" aria-label="Footer">
       <?php wp_nav_menu([
