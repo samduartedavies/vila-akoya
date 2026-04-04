@@ -17,6 +17,11 @@
     box-shadow: 0 20px 40px rgba(51, 46, 30, 0.06);
   }
 
+  /* Brochure campus.html — subtle noise over background */
+  .textured-bg {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='noise' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
   .glass-card {
     backdrop-filter: blur(16px);
   }
@@ -32,37 +37,137 @@
     margin-right: auto;
   }
 
+  /*
+   * Block images: object-fit applies to <img>, not <figure>. Grid lets the img fill any aspect-
+   * ratio / rounded frame. Optional <a> wrapper (editor) is supported.
+   * — Homepage: figure.vila-img-fill
+   * — Brochure pages: .vila-page-inner figure.wp-block-image (seeded HTML uses object-cover on figure)
+   */
+  figure.vila-img-fill,
+  .vila-page-inner figure.wp-block-image {
+    position: relative;
+    display: grid;
+    grid-template: 1fr / 1fr;
+    width: 100%;
+    max-width: none;
+    overflow: hidden;
+  }
+
+  figure.vila-img-fill {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  figure.vila-img-fill > img,
+  .vila-page-inner figure.wp-block-image > img {
+    grid-area: 1 / 1;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-width: none !important;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  figure.vila-img-fill > a,
+  .vila-page-inner figure.wp-block-image > a {
+    grid-area: 1 / 1;
+    display: grid;
+    grid-template: 1fr / 1fr;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    line-height: 0;
+  }
+
+  figure.vila-img-fill > a img,
+  .vila-page-inner figure.wp-block-image > a img {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-width: none !important;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  /* Figures inside aspect-ratio wrappers (block column layouts) */
+  .vila-page-inner .aspect-video figure.wp-block-image,
+  .vila-page-inner .aspect-\[3\/2\] figure.wp-block-image,
+  .vila-page-inner .aspect-\[4\/5\] figure.wp-block-image,
+  .vila-page-inner .aspect-square figure.wp-block-image,
+  .vila-page-inner [class*="aspect-"] figure.wp-block-image {
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  .vila-home .wp-block-columns.vila-columns-stretch,
+  .vila-page-inner .wp-block-columns.vila-columns-stretch {
+    align-items: stretch;
+  }
+
+  .vila-home .wp-block-columns.vila-columns-stretch > .wp-block-column,
+  .vila-page-inner .wp-block-columns.vila-columns-stretch > .wp-block-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Brochure: image zoom on hover in “Community & Nature” style grids */
+  .vila-page-inner .relative.group figure.wp-block-image img {
+    transition: transform 700ms ease;
+  }
+
+  .vila-page-inner .relative.group:hover figure.wp-block-image img {
+    transform: scale(1.05);
+  }
+
+  /* Split sections (Village | Campsite, newsletter): no gutter — core sets gap via theme / block */
+  .vila-home .wp-block-columns.vila-split-flush {
+    gap: 0 !important;
+    --wp--style--block-gap: 0 !important;
+  }
+
+  @media (min-width: 782px) {
+    .vila-home .wp-block-columns.vila-split-flush {
+      flex-wrap: nowrap !important;
+    }
+  }
+
   .who-we-portrait {
     position: relative;
-    width: min(100%, 25rem);
-    max-width: 25rem;
-    aspect-ratio: 3 / 4;
+    width: min(100%, 22rem);
+    max-width: 22rem;
+    aspect-ratio: 3 / 4.1;
     margin-inline: auto;
     pointer-events: none;
   }
 
   .who-we-portrait--wide {
-    width: min(100%, 56rem);
-    max-width: 56rem;
-    aspect-ratio: 2.15 / 1;
-    min-height: clamp(14rem, 32vw, 24rem);
+    width: min(100%, 52rem);
+    max-width: 52rem;
+    aspect-ratio: 2.05 / 1;
+    min-height: clamp(13rem, 30vw, 22rem);
   }
 
   .who-we-portrait__aura {
     position: absolute;
-    inset: -7%;
+    inset: -6%;
     z-index: 0;
     pointer-events: none;
-    border-radius: 45% 55% 50% 50% / 50% 45% 55% 50%;
+    border-radius: 50%;
     background: conic-gradient(
       from 0deg,
-      rgba(154, 63, 33, 0.14),
-      rgba(92, 99, 72, 0.11),
-      rgba(217, 167, 119, 0.16),
-      rgba(154, 63, 33, 0.14)
+      rgba(154, 63, 33, 0.12),
+      rgba(92, 99, 72, 0.09),
+      rgba(217, 167, 119, 0.14),
+      rgba(154, 63, 33, 0.12)
     );
-    filter: blur(26px);
-    opacity: 0.9;
+    filter: blur(22px);
+    opacity: 0.85;
   }
 
   .who-we-portrait__clip {
@@ -72,7 +177,7 @@
     height: 100%;
     overflow: hidden;
     animation: who-we-blob-morph-1 14s ease-in-out infinite;
-    box-shadow: 0 28px 56px rgba(61, 42, 34, 0.16);
+    box-shadow: 0 22px 48px rgba(61, 42, 34, 0.14);
   }
 
   .who-we-portrait--wide .who-we-portrait__clip {
@@ -106,7 +211,7 @@
     height: 100%;
     object-fit: cover;
     object-position: center;
-    transform: scale(1.05);
+    transform: scale(1.03);
     -webkit-user-drag: none;
     user-select: none;
   }
@@ -216,8 +321,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .who-we-portrait__aura {
-    opacity: 0.5;
+    opacity: 0.45;
   }
+
   .who-we-portrait__clip {
     animation: none !important;
     border-radius: 50% 48% 52% 50% / 52% 50% 48% 50% !important;
