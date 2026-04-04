@@ -24,8 +24,11 @@ function vila_akoya_get_cf7_form_ids() {
 
 	$ids = array();
 
-	$newsletter_home = new WPCF7_ContactForm();
-	$newsletter_home->set_title( __( 'Newsletter — Home', 'vila-akoya' ) );
+	$newsletter_home = WPCF7_ContactForm::get_template(
+		array(
+			'title' => __( 'Newsletter — Home', 'vila-akoya' ),
+		)
+	);
 	$newsletter_home->set_properties(
 		array(
 			'form' => implode(
@@ -47,8 +50,11 @@ function vila_akoya_get_cf7_form_ids() {
 	$newsletter_home->save();
 	$ids['newsletter_home'] = (int) $newsletter_home->id();
 
-	$newsletter_village = new WPCF7_ContactForm();
-	$newsletter_village->set_title( __( 'Village waitlist', 'vila-akoya' ) );
+	$newsletter_village = WPCF7_ContactForm::get_template(
+		array(
+			'title' => __( 'Village waitlist', 'vila-akoya' ),
+		)
+	);
 	$newsletter_village->set_properties(
 		array(
 			'form' => implode(
@@ -70,8 +76,11 @@ function vila_akoya_get_cf7_form_ids() {
 	$newsletter_village->save();
 	$ids['newsletter_village'] = (int) $newsletter_village->id();
 
-	$booking = new WPCF7_ContactForm();
-	$booking->set_title( __( 'Booking inquiry', 'vila-akoya' ) );
+	$booking = WPCF7_ContactForm::get_template(
+		array(
+			'title' => __( 'Booking inquiry', 'vila-akoya' ),
+		)
+	);
 	$booking->set_properties(
 		array(
 			'form' => implode(
@@ -96,8 +105,11 @@ function vila_akoya_get_cf7_form_ids() {
 	$booking->save();
 	$ids['booking'] = (int) $booking->id();
 
-	$campus = new WPCF7_ContactForm();
-	$campus->set_title( __( 'Campus — host your own', 'vila-akoya' ) );
+	$campus = WPCF7_ContactForm::get_template(
+		array(
+			'title' => __( 'Campus — host your own', 'vila-akoya' ),
+		)
+	);
 	$campus->set_properties(
 		array(
 			'form' => implode(
@@ -121,8 +133,11 @@ function vila_akoya_get_cf7_form_ids() {
 	$campus->save();
 	$ids['campus'] = (int) $campus->id();
 
-	$contact = new WPCF7_ContactForm();
-	$contact->set_title( __( 'Contact', 'vila-akoya' ) );
+	$contact = WPCF7_ContactForm::get_template(
+		array(
+			'title' => __( 'Contact', 'vila-akoya' ),
+		)
+	);
 	$contact->set_properties(
 		array(
 			'form' => implode(

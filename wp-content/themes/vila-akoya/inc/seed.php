@@ -7,6 +7,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/permalink-nav.php';
+
 /**
  * Run seed when an admin visits the dashboard (idempotent).
  */
@@ -21,6 +23,18 @@ function vila_akoya_maybe_seed_content() {
 	update_option( 'vila_akoya_content_seeded', '1' );
 }
 add_action( 'admin_init', 'vila_akoya_maybe_seed_content', 5 );
+
+/**
+ * First activation: seed without requiring a dashboard visit.
+ */
+function vila_akoya_maybe_seed_on_switch_theme() {
+	if ( '1' === get_option( 'vila_akoya_content_seeded' ) ) {
+		return;
+	}
+	vila_akoya_run_seed();
+	update_option( 'vila_akoya_content_seeded', '1' );
+}
+add_action( 'after_switch_theme', 'vila_akoya_maybe_seed_on_switch_theme' );
 
 /**
  * Create CF7 forms and all brochure pages with block content.
@@ -54,6 +68,7 @@ function vila_akoya_run_seed() {
 		}
 		$content = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$content = vila_akoya_seed_replace_cf7_placeholders( $content, $cf7 );
+		$content = vila_akoya_absolutize_brochure_hrefs( $content );
 
 		$existing = get_page_by_path( $slug, OBJECT, 'page' );
 		$args     = array(

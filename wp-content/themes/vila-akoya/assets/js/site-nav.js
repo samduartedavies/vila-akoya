@@ -16,24 +16,28 @@
   function pathToKey() {
     var p = window.location.pathname.replace(/\/$/, "") || "/";
     if (p === "/" || p === "/home") return null;
-    if (p === "/village") return "village";
-    if (p === "/campsite") return "campsite";
-    if (p === "/booking") return "booking";
-    if (p === "/campus") return "campus";
-    if (p === "/the-kids") return "the-kids";
-    if (p === "/about") return "about";
-    if (p === "/contact") return "contact";
-    return null;
+    var parts = p.split("/").filter(Boolean);
+    var last = parts.length ? parts[parts.length - 1] : "";
+    var map = {
+      village: "village",
+      campsite: "campsite",
+      booking: "booking",
+      campus: "campus",
+      "the-kids": "the-kids",
+      about: "about",
+      contact: "contact",
+    };
+    return map[last] || null;
   }
 
   var inactiveDesktop =
-    "text-stone-600 dark:text-stone-400 transition-colors hover:text-[#9a4021] hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 active:text-[#9a4021] active:bg-[#9a4021]/5 dark:active:bg-[#ba5737]/10 px-2 py-1 rounded-md";
+    "text-stone-600 transition-colors hover:text-[#9a4021] hover:bg-[#9a4021]/5 active:text-[#9a4021] active:bg-[#9a4021]/5 px-2 py-1 rounded-md";
   var activeDesktop =
-    "text-[#9a4021] dark:text-[#ba5737] bg-[#9a4021]/5 dark:bg-[#ba5737]/10 px-2 py-1 rounded-md transition-colors hover:text-[#9a4021] hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 active:text-[#9a4021] active:bg-[#9a4021]/5 dark:active:bg-[#ba5737]/10";
+    "text-[#9a4021] bg-[#9a4021]/5 px-2 py-1 rounded-md transition-colors hover:text-[#9a4021] hover:bg-[#9a4021]/5 active:text-[#9a4021] active:bg-[#9a4021]/5";
   var inactiveMobile =
-    "block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 active:bg-[#9a4021]/5 dark:active:bg-[#ba5737]/10";
+    "block rounded-lg px-2 py-3 text-stone-600 transition-colors hover:bg-[#9a4021]/5 active:bg-[#9a4021]/5";
   var activeMobile =
-    "block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 bg-[#9a4021]/5 dark:bg-[#ba5737]/10 transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 active:bg-[#9a4021]/5 dark:active:bg-[#ba5737]/10";
+    "block rounded-lg px-2 py-3 text-stone-600 bg-[#9a4021]/5 transition-colors hover:bg-[#9a4021]/5 active:bg-[#9a4021]/5";
 
   var key = pathToKey();
   document.querySelectorAll("[data-nav]").forEach(function (el) {

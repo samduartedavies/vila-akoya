@@ -7,7 +7,9 @@
     "wp-env": "wp-env",
     "wp:start": "wp-env start",
     "wp:stop": "wp-env stop",
-    "wp:fix-plugins": "wp-env run cli sh -c 'cd /tmp && curl -fsSL -o cf7.zip https://downloads.wordpress.org/plugin/contact-form-7.zip && unzip -oq cf7.zip -d /var/www/html/wp-content/plugins/ && rm cf7.zip && curl -fsSL -o uag.zip https://downloads.wordpress.org/plugin/ultimate-addons-for-gutenberg.zip && unzip -oq uag.zip -d /var/www/html/wp-content/plugins/ && rm uag.zip && wp plugin activate contact-form-7 ultimate-addons-for-gutenberg'"
+    "wp:fix-plugins": "wp-env run cli sh -c 'cd /tmp && curl -fsSL -o cf7.zip https://downloads.wordpress.org/plugin/contact-form-7.zip && unzip -oq cf7.zip -d /var/www/html/wp-content/plugins/ && rm cf7.zip && curl -fsSL -o uag.zip https://downloads.wordpress.org/plugin/ultimate-addons-for-gutenberg.zip && unzip -oq uag.zip -d /var/www/html/wp-content/plugins/ && rm uag.zip && wp plugin activate contact-form-7 ultimate-addons-for-gutenberg'",
+    "wp:sync-theme": "bash scripts/sync-theme-to-wp-env.sh",
+    "wp:seed": "bash scripts/sync-theme-to-wp-env.sh && wp-env run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seed-cli.php && wp theme activate vila-akoya'"
   },
   "devDependencies": {
     "@wordpress/env": "^10.0.0",
