@@ -1,0 +1,19 @@
+{
+  "name": "vila-akoya",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --minify",
+    "watch:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --watch",
+    "wp-env": "wp-env",
+    "wp:start": "wp-env start",
+    "wp:stop": "wp-env stop",
+    "wp:fix-plugins": "wp-env run cli sh -c 'cd /tmp && curl -fsSL -o cf7.zip https://downloads.wordpress.org/plugin/contact-form-7.zip && unzip -oq cf7.zip -d /var/www/html/wp-content/plugins/ && rm cf7.zip && curl -fsSL -o uag.zip https://downloads.wordpress.org/plugin/ultimate-addons-for-gutenberg.zip && unzip -oq uag.zip -d /var/www/html/wp-content/plugins/ && rm uag.zip && wp plugin activate contact-form-7 ultimate-addons-for-gutenberg'"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^10.0.0",
+    "@tailwindcss/forms": "^0.5.9",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15"
+  }
+}

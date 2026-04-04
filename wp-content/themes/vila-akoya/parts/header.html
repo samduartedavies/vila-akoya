@@ -1,31 +1,36 @@
-<!-- wp:group {"tagName":"nav","metadata":{"name":"Site header"},"className":"fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]","layout":{"type":"default"}} -->
-<div class="wp-block-group fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
-	<!-- wp:group {"className":"flex justify-between items-center px-8 py-6 max-w-screen-2xl mx-auto","layout":{"type":"flex","flexWrap":"nowrap","justifyContent":"space-between","verticalAlignment":"center"}} -->
-	<div class="wp-block-group flex justify-between items-center px-8 py-6 max-w-screen-2xl mx-auto">
-		<!-- wp:site-title {"level":0,"isLink":true,"className":"text-3xl font-normal text-orange-800 dark:text-orange-100 font-barrio shrink-0"} /-->
-
-		<!-- wp:group {"className":"flex items-center gap-3 md:gap-6","layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center","justifyContent":"flex-end"}} -->
-		<div class="wp-block-group flex items-center gap-3 md:gap-6">
-			<!-- wp:navigation {"overlayMenu":"mobile","layout":{"type":"flex","setCascadingProperties":true,"justifyContent":"right","orientation":"horizontal","flexWrap":"wrap"},"style":{"spacing":{"blockGap":"1.5rem"}},"className":"font-body text-lg tracking-wide"} -->
-				<!-- wp:navigation-link {"label":"Village","url":"/village/","kind":"custom"} /-->
-				<!-- wp:navigation-link {"label":"Campsite","url":"/campsite/","kind":"custom"} /-->
-				<!-- wp:navigation-link {"label":"Booking","url":"/booking/","kind":"custom"} /-->
-				<!-- wp:navigation-link {"label":"The Campus","url":"/campus/","kind":"custom"} /-->
-				<!-- wp:navigation-link {"label":"The Kids","url":"/the-kids/","kind":"custom"} /-->
-				<!-- wp:navigation-link {"label":"About","url":"/about/","kind":"custom"} /-->
-				<!-- wp:navigation-link {"label":"Contact","url":"/contact/","kind":"custom"} /-->
-			<!-- /wp:navigation -->
-
-			<!-- wp:buttons {"className":"hidden md:flex shrink-0","layout":{"type":"flex"}} -->
-			<div class="wp-block-buttons hidden md:flex shrink-0">
-				<!-- wp:button {"className":"bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737]"} -->
-				<div class="wp-block-button bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737]"><a class="wp-block-button__link wp-element-button" href="/booking/">Book Now</a></div>
-				<!-- /wp:button -->
-			</div>
-			<!-- /wp:buttons -->
-		</div>
-		<!-- /wp:group -->
-	</div>
-	<!-- /wp:group -->
+<!-- wp:html -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 dark:bg-stone-900/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
+<div class="flex justify-between items-center px-8 py-6 max-w-screen-2xl mx-auto">
+<a class="text-3xl font-normal text-orange-800 dark:text-orange-100 font-barrio shrink-0" href="/">Vila Akoya</a>
+<div id="site-nav-desktop-links" class="hidden md:flex items-center space-x-8 font-body text-lg tracking-wide">
+<a data-nav="village" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/village">Village</a>
+<a data-nav="campsite" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/campsite">Campsite</a>
+<a data-nav="booking" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/booking">Booking</a>
+<a data-nav="campus" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/campus">The Campus</a>
+<a data-nav="the-kids" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/the-kids">The Kids</a>
+<a data-nav="about" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/about">About</a>
+<a data-nav="contact" class="text-stone-600 dark:text-stone-400 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10 px-2 py-1 rounded-md" href="/contact">Contact</a>
 </div>
-<!-- /wp:group -->
+<div class="flex items-center gap-2">
+<button type="button" id="site-nav-toggle" class="md:hidden inline-flex rounded-lg p-2 text-[#9a4021] hover:bg-[#9a4021]/10 dark:hover:bg-[#ba5737]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Open menu">
+<span class="material-symbols-outlined text-3xl" aria-hidden="true">menu</span>
+</button>
+<a class="hidden md:inline-block bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] scale-95 active:scale-90 transition-all duration-300 text-center" href="/booking">Book Now</a>
+</div>
+</div>
+<div id="site-mobile-nav" class="hidden md:hidden border-t border-stone-200/80 dark:border-stone-700/50 bg-[#fcf9ef]/95 dark:bg-stone-900/95 backdrop-blur-xl">
+<div class="max-w-screen-2xl mx-auto px-8">
+<div id="site-nav-mobile-links" class="flex flex-col space-y-0.5 font-body text-lg tracking-wide py-1">
+<a data-nav="village" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/village">Village</a>
+<a data-nav="campsite" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/campsite">Campsite</a>
+<a data-nav="booking" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/booking">Booking</a>
+<a data-nav="campus" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/campus">The Campus</a>
+<a data-nav="the-kids" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/the-kids">The Kids</a>
+<a data-nav="about" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/about">About</a>
+<a data-nav="contact" class="block rounded-lg px-2 py-3 text-stone-600 dark:text-stone-400 hover:bg-[#9a4021]/5 dark:hover:bg-[#ba5737]/10" href="/contact">Contact</a>
+</div>
+<a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="/booking">Book Now</a>
+</div>
+</div>
+</nav>
+<!-- /wp:html -->
