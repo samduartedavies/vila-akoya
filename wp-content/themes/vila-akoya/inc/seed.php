@@ -40,6 +40,9 @@ add_action( 'after_switch_theme', 'vila_akoya_maybe_seed_on_switch_theme' );
  * Create CF7 forms and all brochure pages with block content.
  */
 function vila_akoya_run_seed() {
+	if ( function_exists( 'vila_akoya_ensure_campsite_booking_product' ) ) {
+		vila_akoya_ensure_campsite_booking_product();
+	}
 	$cf7 = function_exists( 'vila_akoya_get_cf7_form_ids' ) ? vila_akoya_get_cf7_form_ids() : array();
 
 	$dir = VILA_AKOYA_DIR . '/inc/page-content/';
@@ -68,6 +71,7 @@ function vila_akoya_run_seed() {
 		}
 		$content = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$content = vila_akoya_seed_replace_cf7_placeholders( $content, $cf7 );
+		$content = vila_akoya_seed_replace_wc_placeholders( $content );
 		$content = vila_akoya_absolutize_brochure_hrefs( $content );
 
 		$existing = get_page_by_path( $slug, OBJECT, 'page' );
@@ -126,6 +130,28 @@ function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
 			'',
 			$html
 		);
+	}
+
+	return $html;
+}
+
+/**
+ * Replace {{wc:…}} placeholders (WooCommerce shortcodes).
+ *
+ * @param string $html HTML / block content.
+ * @return string
+ */
+function vila_akoya_seed_replace_wc_placeholders( $html ) {
+	$pid = (int) get_option( 'vila_akoya_campsite_product_id' );
+	if ( $pid && get_post_status( $pid ) === 'publish' ) {
+		$campsite = sprintf( '[product_page id="%d"]', $pid );
+	} else {
+		$campsite = '';
+	}
+	$html = str_replace( '{{wc:campsite_booking}}', $campsite, $html );
+
+	if ( strpos( $html, '{{wc:' ) !== false ) {
+		$html = preg_replace( '/\{\{wc:[a-z0-9_]+\}\}/', '', $html );
 	}
 
 	return $html;

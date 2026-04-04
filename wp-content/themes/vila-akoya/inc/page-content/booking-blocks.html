@@ -99,11 +99,38 @@
 <!-- /wp:group -->
 </div>
 <!-- /wp:column -->
-<!-- wp:column {"className":"bg-white p-8 md:p-12 rounded-xl editorial-shadow relative overflow-hidden"} -->
-<div class="wp-block-column bg-white p-8 md:p-12 rounded-xl editorial-shadow relative overflow-hidden">
+<!-- wp:column {"className":"bg-surface-container-lowest/95 backdrop-blur-sm border border-outline-variant/20 p-8 md:p-12 rounded-xl editorial-shadow relative overflow-hidden"} -->
+<div class="wp-block-column bg-surface-container-lowest/95 backdrop-blur-sm border border-outline-variant/20 p-8 md:p-12 rounded-xl editorial-shadow relative overflow-hidden">
+<!-- wp:group {"className":"space-y-8","layout":{"type":"default"}} -->
+<div class="wp-block-group space-y-8">
+<!-- wp:heading {"level":3,"className":"font-headline text-2xl text-primary mb-0"} -->
+<h3 class="wp-block-heading font-headline text-2xl text-primary mb-0">Reserve your dates</h3>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"className":"text-sm text-on-surface-variant mb-0"} -->
+<p class="text-sm text-on-surface-variant mb-0">Choose check-in and check-out, add to cart, then complete secure payment (card via Stripe when configured).</p>
+<!-- /wp:paragraph -->
+<!-- wp:group {"className":"vila-wc-booking","layout":{"type":"default"}} -->
+<div class="wp-block-group vila-wc-booking">
+<!-- wp:shortcode -->
+{{wc:campsite_booking}}
+<!-- /wp:shortcode -->
+</div>
+<!-- /wp:group -->
+<!-- wp:group {"className":"pt-8 border-t border-outline-variant/25 space-y-4","layout":{"type":"default"}} -->
+<div class="wp-block-group pt-8 border-t border-outline-variant/25 space-y-4">
+<!-- wp:heading {"level":4,"className":"font-headline text-lg text-on-background mb-0"} -->
+<h4 class="wp-block-heading font-headline text-lg text-on-background mb-0">Questions before you book?</h4>
+<!-- /wp:heading -->
+<!-- wp:paragraph {"className":"text-sm text-on-surface-variant mb-0"} -->
+<p class="text-sm text-on-surface-variant mb-0">Send us a note and we will get back to you.</p>
+<!-- /wp:paragraph -->
 <!-- wp:shortcode -->
 {{cf7:booking}}
 <!-- /wp:shortcode -->
+</div>
+<!-- /wp:group -->
+</div>
+<!-- /wp:group -->
 </div>
 <!-- /wp:column -->
 </div>

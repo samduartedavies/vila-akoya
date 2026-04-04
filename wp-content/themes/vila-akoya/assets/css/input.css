@@ -255,6 +255,269 @@
   .vila-cf7 .wpcf7-response-output {
     @apply mt-4 rounded-lg text-sm;
   }
+
+  /* --- WooCommerce + MWB booking (Booking page embed) --- */
+  .vila-wc-booking.wp-block-group {
+    @apply w-full min-w-0 max-w-full;
+  }
+
+  .vila-wc-booking .woocommerce-breadcrumb {
+    @apply hidden;
+  }
+
+  .vila-wc-booking .woocommerce,
+  .vila-wc-booking .woocommerce div.product {
+    @apply font-body text-on-surface m-0 block max-w-none p-0 w-full;
+  }
+
+  .vila-wc-booking .woocommerce div.product .woocommerce-product-gallery {
+    @apply hidden;
+  }
+
+  /* WooCommerce classic templates often float summary at ~48% even when gallery is hidden */
+  .vila-wc-booking .woocommerce div.product div.summary.entry-summary {
+    float: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .vila-wc-booking .summary.entry-summary {
+    @apply float-none m-0 w-full max-w-none p-0;
+  }
+
+  .vila-wc-booking .woocommerce-product-rating,
+  .vila-wc-booking .woocommerce-review-link {
+    @apply hidden;
+  }
+
+  .vila-wc-booking .product_title,
+  .vila-wc-booking h1.product_title,
+  .vila-wc-booking h2.product_title {
+    @apply font-headline text-xl md:text-2xl text-primary mb-2 mt-0;
+  }
+
+  .vila-wc-booking .woocommerce-product-details__short-description,
+  .vila-wc-booking .woocommerce-product-details__short-description p,
+  .vila-wc-booking .vila-wc-booking__lede {
+    @apply text-sm text-on-surface-variant leading-relaxed mb-4;
+  }
+
+  .vila-wc-booking p.price,
+  .vila-wc-booking span.price {
+    @apply font-headline text-lg text-on-background mb-6 block;
+  }
+
+  .vila-wc-booking .woocommerce-Price-amount {
+    @apply text-on-background;
+  }
+
+  .vila-wc-booking .mwb-mbfw-cart-page-data {
+    @apply w-full;
+  }
+
+  .vila-wc-booking .mbfw-date-picker-section__wrapper {
+    @apply mb-6 flex flex-wrap gap-4;
+  }
+
+  /* Airbnb-style range: hide native From/To when JS enhances the wrapper */
+  .vila-wc-booking .vila-booking-range-wrap-enhanced .mbfw-date-picker-section {
+    @apply hidden;
+  }
+
+  .vila-wc-booking .vila-booking-range-ui input {
+    @apply min-h-[3rem] shadow-none;
+  }
+
+  .vila-wc-booking .mbfw-date-picker-section {
+    flex: 1 1 140px !important;
+    max-width: none !important;
+  }
+
+  .vila-wc-booking .mbfw-date-picker-section label {
+    @apply font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 block text-left;
+  }
+
+  .vila-wc-booking .mbfw-date-picker-section input,
+  .vila-wc-booking .mbfw-date-picker-section__wrapper .flatpickr-input,
+  .vila-wc-booking .mwb-mbfw-cart-page-data input[type="text"] {
+    @apply w-full rounded-lg border-0 bg-surface-container-low px-4 py-3 text-center font-body text-on-surface;
+    @apply focus:ring-2 focus:ring-primary/20;
+  }
+
+  .vila-wc-booking .bfwp-people-title,
+  .vila-wc-booking .mwb_mbfw_included_service_title {
+    @apply font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 mt-4;
+  }
+
+  .vila-wc-booking .bfwp-people-options__wrapper {
+    @apply mb-3 rounded-lg bg-surface-container-low/80 p-3;
+  }
+
+  .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-type,
+  .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-number {
+    @apply max-w-none flex-1 text-sm text-on-surface;
+  }
+
+  .vila-wc-booking .mbfw-total-cost__wrapper {
+    @apply mt-4 border-t border-outline-variant/30 pt-4;
+  }
+
+  .vila-wc-booking .mbfw-total-listing-single-page__wrapper,
+  .vila-wc-booking .mbfw-total-cost__wrapper .mbfw-total-listing-single-page {
+    @apply font-body text-sm text-on-background;
+  }
+
+  .vila-wc-booking .mwb-mbfw-total-area {
+    @apply mt-2 rounded-lg bg-secondary/10 p-3 text-sm text-on-background;
+  }
+
+  .vila-wc-booking form.cart {
+    @apply mb-0 flex flex-col gap-3;
+  }
+
+  .vila-wc-booking .single_add_to_cart_button.button,
+  .vila-wc-booking .woocommerce button.button.alt,
+  .vila-wc-booking .woocommerce a.button.alt {
+    @apply inline-flex w-full cursor-pointer items-center justify-center rounded-full border-0 bg-primary px-8 py-4 font-label font-medium tracking-wide text-on-primary transition-colors;
+    @apply hover:bg-primary-container hover:text-on-primary;
+  }
+
+  .vila-wc-booking .quantity .qty {
+    @apply rounded-lg border border-outline-variant/40 bg-surface-container-low px-3 py-2 text-on-surface;
+  }
+
+  .vila-wc-booking .woocommerce-message,
+  .vila-wc-booking .woocommerce-info,
+  .vila-wc-booking .woocommerce-error {
+    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low text-on-background;
+    @apply text-sm leading-relaxed;
+  }
+
+  /* Flatpickr popup (appended to body) */
+  body.vila-page-booking .flatpickr-calendar {
+    @apply rounded-xl border border-outline-variant/40 font-body;
+    box-shadow: 0 20px 40px rgba(51, 46, 30, 0.12);
+    min-width: min(100vw - 2rem, 38rem);
+  }
+
+  body.vila-page-booking .flatpickr-calendar.hasTime {
+    min-width: min(100vw - 2rem, 38rem);
+  }
+
+  body.vila-page-booking .flatpickr-months .flatpickr-month {
+    @apply bg-surface-container-low/90;
+  }
+
+  body.vila-page-booking .flatpickr-day.inRange {
+    @apply bg-primary/10 text-on-background border-none shadow-none;
+  }
+
+  body.vila-page-booking .flatpickr-day.startRange,
+  body.vila-page-booking .flatpickr-day.endRange {
+    @apply bg-primary text-on-primary border-primary;
+  }
+
+  body.vila-page-booking .flatpickr-months {
+    @apply rounded-t-xl bg-primary/10 text-on-background;
+  }
+
+  body.vila-page-booking .flatpickr-weekdays {
+    @apply bg-surface-container-low;
+  }
+
+  body.vila-page-booking .flatpickr-day.selected,
+  body.vila-page-booking .flatpickr-day.startRange,
+  body.vila-page-booking .flatpickr-day.endRange {
+    @apply border-primary bg-primary text-on-primary;
+  }
+
+  body.vila-page-booking .flatpickr-day:hover {
+    @apply bg-primary/15;
+  }
+
+  /* Cart, checkout, account — match brochure tone */
+  body.vila-wc-commerce .woocommerce,
+  body.woocommerce-cart .woocommerce,
+  body.woocommerce-checkout .woocommerce,
+  body.woocommerce-account .woocommerce {
+    @apply font-body text-on-surface;
+  }
+
+  body.vila-wc-commerce .woocommerce a:not(.button):not(.wp-block-button__link) {
+    @apply text-primary underline-offset-2 hover:text-primary-container;
+  }
+
+  body.vila-wc-commerce .woocommerce table.shop_table,
+  body.vila-wc-commerce .woocommerce table.shop_table_responsive {
+    @apply rounded-xl border border-outline-variant/30 bg-surface-container-lowest/80;
+  }
+
+  body.vila-wc-commerce .woocommerce table.shop_table th,
+  body.vila-wc-commerce .woocommerce table.shop_table td {
+    @apply border-outline-variant/25;
+  }
+
+  body.vila-wc-commerce .woocommerce .cart_totals,
+  body.vila-wc-commerce .woocommerce-checkout-review-order {
+    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low p-4 md:p-6;
+  }
+
+  body.vila-wc-commerce .woocommerce .button,
+  body.vila-wc-commerce .woocommerce button.button,
+  body.vila-wc-commerce .woocommerce a.button,
+  body.vila-wc-commerce .woocommerce input.button {
+    @apply rounded-full border-0 bg-primary px-6 py-3 font-label font-medium text-on-primary transition-colors;
+    @apply hover:bg-primary-container;
+  }
+
+  body.vila-wc-commerce .woocommerce .button.alt,
+  body.vila-wc-commerce .woocommerce button.button.alt,
+  body.vila-wc-commerce #place_order {
+    @apply bg-primary text-on-primary hover:bg-primary-container;
+  }
+
+  body.vila-wc-commerce .woocommerce form .form-row input.input-text,
+  body.vila-wc-commerce .woocommerce form .form-row textarea,
+  body.vila-wc-commerce .woocommerce form .form-row select {
+    @apply rounded-lg border-0 bg-surface-container-low px-4 py-3 font-body text-on-surface;
+    @apply focus:ring-2 focus:ring-primary/20;
+  }
+
+  body.vila-wc-commerce .woocommerce form .form-row label {
+    @apply font-label text-xs uppercase tracking-widest text-on-surface-variant;
+  }
+
+  body.vila-wc-commerce .woocommerce-info,
+  body.vila-wc-commerce .woocommerce-message,
+  body.vila-wc-commerce .woocommerce-error {
+    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low text-sm;
+  }
+
+  body.vila-wc-commerce .woocommerce-checkout #payment,
+  body.vila-wc-commerce #add_payment_method {
+    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low;
+  }
+
+  body.vila-wc-commerce .woocommerce-checkout #payment ul.payment_methods {
+    @apply border-outline-variant/25;
+  }
+
+  /* Block checkout (WooCommerce blocks) */
+  body.vila-wc-commerce .wc-block-components-text-input input,
+  body.vila-wc-commerce .wc-block-components-textarea textarea {
+    @apply rounded-lg border-0 bg-surface-container-low;
+  }
+
+  body.vila-wc-commerce .wc-block-components-button:not(.is-link) {
+    @apply rounded-full bg-primary text-on-primary;
+  }
+
+  body.vila-wc-commerce .wc-block-cart__submit-button,
+  body.vila-wc-commerce .wc-block-components-checkout-place-order-button {
+    @apply rounded-full;
+  }
 }
 
 @keyframes who-we-blob-morph-1 {

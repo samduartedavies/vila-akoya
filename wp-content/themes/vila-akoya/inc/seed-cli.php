@@ -31,6 +31,7 @@ if ( ! defined( 'VILA_AKOYA_URI' ) ) {
 }
 
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
+require_once VILA_AKOYA_DIR . '/inc/woocommerce-campsite.php';
 require_once VILA_AKOYA_DIR . '/inc/seed.php';
 
 vila_akoya_run_seed();

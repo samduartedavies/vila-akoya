@@ -3,7 +3,10 @@
   "core": null,
   "plugins": [
     "https://downloads.wordpress.org/plugin/contact-form-7.zip",
-    "https://downloads.wordpress.org/plugin/ultimate-addons-for-gutenberg.zip"
+    "https://downloads.wordpress.org/plugin/ultimate-addons-for-gutenberg.zip",
+    "https://downloads.wordpress.org/plugin/woocommerce.zip",
+    "https://downloads.wordpress.org/plugin/mwb-bookings-for-woocommerce.zip",
+    "https://downloads.wordpress.org/plugin/woocommerce-gateway-stripe.zip"
   ],
   "themes": ["./wp-content/themes/vila-akoya"],
   "config": {

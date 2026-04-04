@@ -12,6 +12,8 @@ define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
 require_once VILA_AKOYA_DIR . '/inc/redirects.php';
+require_once VILA_AKOYA_DIR . '/inc/woocommerce-campsite.php';
+require_once VILA_AKOYA_DIR . '/inc/booking-extras.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
 require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';
 require_once VILA_AKOYA_DIR . '/inc/seed.php';
@@ -48,10 +50,23 @@ function vila_akoya_enqueue_assets() {
 		array(),
 		null
 	);
+	$theme_deps = array();
+	if (
+		class_exists( 'WooCommerce' )
+		&& (
+			( function_exists( 'is_woocommerce' ) && is_woocommerce() )
+			|| is_cart()
+			|| is_checkout()
+			|| is_account_page()
+			|| is_page( 'booking' )
+		)
+	) {
+		$theme_deps[] = 'woocommerce-general';
+	}
 	wp_enqueue_style(
 		'vila-akoya-theme',
 		VILA_AKOYA_URI . '/assets/css/theme.css',
-		array(),
+		$theme_deps,
 		VILA_AKOYA_VERSION
 	);
 	wp_enqueue_script(
