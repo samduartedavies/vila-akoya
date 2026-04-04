@@ -9,7 +9,9 @@
     "clean": "wp-env clean all",
     "theme:sync": "bash scripts/sync-theme-to-wp-env.sh",
     "wp:seed": "wp-env run cli wp eval-file wp-content/themes/vila-akoya/scripts/seed-vila-akoya.php",
-    "setup:local": "npm run theme:sync && wp-env run cli wp theme activate vila-akoya && npm run wp:seed"
+    "setup:local": "npm run theme:sync && wp-env run cli wp theme activate vila-akoya && npm run wp:seed",
+    "build:css": "npm run build:css --prefix wp-content/themes/vila-akoya",
+    "watch:css": "npm run watch:css --prefix wp-content/themes/vila-akoya"
   },
   "devDependencies": {
     "@wordpress/env": "^10.0.0"

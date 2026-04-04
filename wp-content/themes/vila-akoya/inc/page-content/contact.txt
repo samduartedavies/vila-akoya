@@ -1,0 +1,117 @@
+<!-- wp:html -->
+<section class="min-h-[calc(100vh-6rem)] max-w-screen-2xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center content-center">
+<div class="lg:col-span-5 z-10">
+<span class="font-label text-primary tracking-[0.2em] uppercase text-sm mb-4 block">Get in Touch</span>
+<h1 class="font-headline text-6xl md:text-8xl text-on-surface leading-tight mb-8">
+                    Let’s start <br/><span class="text-primary font-headline">your journey.</span>
+</h1>
+<p class="font-body text-xl text-on-surface-variant max-w-md leading-relaxed mb-12">
+                    Vila Akoya, named after our children, is a labor of love tucked into the heart of the Alentejo. We’d love to welcome you to our community.
+                </p>
+</div>
+<div class="lg:col-span-7 relative">
+<div class="rounded-xl overflow-hidden aspect-[4/5] md:aspect-[16/10] shadow-2xl">
+<img alt="Scenic Alentejo landscape" class="w-full h-full object-cover" data-alt="Golden hour landscape of Alentejo Portugal with rolling hills, scattered cork oak trees, and a warm rustic sunset glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZfnr1xRx1RVyv9IeVK7WUmBGmSgMG4Z_4p7ZhF-_LqO5bgvPMyCEJNodKlsea8Mo046UQAKcoYl2GyOePjAYQXuAqACbw1QLLaT0tYWCIbLHf_XJaDzh3FN4vHPuvImT2b6RVdNmaQNDImYTbj71iTcQcOw50oxUD31JzqpSzLhNRe_AMam4Uz4e5EHp8HY70jF-pZW48MVbaiUzhsQ4O9G79o4_44hYzKkYHGaTtxcr-i68Ump17z6KNWvgQ5oeSkIj_vbO-8VRQ"/>
+</div>
+<!-- Floating Info Card -->
+<div class="absolute -bottom-10 -left-10 md:left-20 bg-surface-container-lowest/90 backdrop-blur-xl p-10 rounded-lg shadow-xl max-w-sm hidden md:block">
+<div class="flex items-start gap-4 mb-6">
+<span class="material-symbols-outlined text-primary text-3xl">location_on</span>
+<div>
+<p class="font-label text-xs uppercase tracking-widest text-secondary mb-1">Visit Us</p>
+<p class="font-headline text-lg italic">Alentejo, Portugal</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Contact Bento Grid -->
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<section class="max-w-screen-2xl mx-auto px-8 mt-40">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Email Card -->
+<div class="bg-surface-container-low p-12 rounded-lg flex flex-col justify-between hover:bg-surface-container transition-colors duration-500 min-h-[320px]">
+<div>
+<div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-primary">mail</span>
+</div>
+<h3 class="font-headline text-3xl mb-4">Email</h3>
+<p class="text-on-surface-variant leading-relaxed">For general inquiries and booking details, reach out to us anytime.</p>
+</div>
+<a class="text-primary text-2xl font-body font-semibold mt-8 break-all" href="mailto:Info@vila-akoya.com">Info@vila-akoya.com</a>
+</div>
+<!-- WhatsApp Card -->
+<div class="bg-secondary text-on-secondary p-12 rounded-lg flex flex-col justify-between min-h-[320px]">
+<div>
+<div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-on-secondary">chat</span>
+</div>
+<h3 class="font-headline text-3xl mb-4">WhatsApp</h3>
+<p class="text-on-secondary/80 leading-relaxed">Quick questions or immediate assistance while traveling.</p>
+</div>
+<a class="text-on-secondary text-2xl font-body font-semibold mt-8" href="https://wa.me/351960446285">+351 960 446 285</a>
+</div>
+<!-- Call Card -->
+<div class="bg-surface-container-highest p-12 rounded-lg flex flex-col justify-between min-h-[320px]">
+<div>
+<div class="w-12 h-12 bg-on-surface/5 rounded-full flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-on-surface">call</span>
+</div>
+<h3 class="font-headline text-3xl mb-4">Phone</h3>
+<p class="text-on-surface-variant leading-relaxed">Speak directly with our team for personalized campus tours.</p>
+</div>
+<a class="text-on-surface text-2xl font-body font-semibold mt-8" href="tel:+351960446285">+351 960 446 285</a>
+</div>
+</div>
+</section>
+<!-- Interactive Connection Section -->
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<section class="max-w-screen-2xl mx-auto px-8 mt-24">
+<div class="bg-surface-container-low rounded-xl overflow-hidden grid grid-cols-1 lg:grid-cols-2">
+<div class="p-12 lg:p-20 flex flex-col justify-center">
+<h2 class="font-headline text-4xl mb-6 italic">A place built for family.</h2>
+<p class="text-on-surface-variant text-lg leading-relaxed mb-8">
+                        We started Vila Akoya to create a legacy for our children and a haven for the creative community. Whether you're interested in the <a class="text-primary underline hover:opacity-80" href="/the-kids/">The Kids</a>, our <a class="text-primary underline hover:opacity-80" href="/campsite/">campsites</a>, or the <a class="text-primary underline hover:opacity-80" href="/village/">village</a> and <a class="text-primary underline hover:opacity-80" href="/campus/">campus</a>, we are here to help you find your spot in our ecosystem.
+                    </p>
+<div class="flex items-center gap-6">
+<div class="flex -space-x-4">
+<div class="w-14 h-14 rounded-full border-4 border-surface overflow-hidden">
+<img alt="Team member" data-alt="Portrait of a smiling friendly man in casual linen clothing against a blurred garden background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVi-B2QTwrMbYExp58yEaSwatsuiVPGThidGzH_Hgfzy8okb0RSw1OgUwzQo6MhdIiBYR1sAGY2T-itEW2x9n8lPyAqatWgeKwWMvd-nIQYOWjrebRsqDZOl6kby4ouOxmqJwGPvGGg8XNatNDDDStnvai0r685M-kok4aDdXwjhkQDOvp1Az7lAA-yjknmOP1fagRU7Sl3fUOh9JJouZul5qI-UB2FVsNRlhCQtfnfYOQltVRJ5aTkrDYHS806ny-pw6CtFHvVjX_"/>
+</div>
+<div class="w-14 h-14 rounded-full border-4 border-surface overflow-hidden">
+<img alt="Team member" data-alt="Portrait of a warm smiling woman with natural hair and earthy-toned outfit in soft outdoor lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrzqKHOG9yNMcTvL2opS9zOdqwmsoDb38I6rsGj3MKqGTIZk_17LQtXH5BjSLTLIWK3fktItK_zEwOprV8KKYqvYxRIfpZBXnXGqDrabUh7YJU7E0tni7xEEQaTT2YjQxG0cwZ2ioNhRfYYLFC9GuOvHRh_tsrxXOjtKAvW2Y3rdfGOP0tN1B5pZgrKWcHpdIvPNPUM5Sm8NF9Vs7t-0XKAForYezYWZX0Y8BEPh-st2-_htsP03TMdILoLe8b3DPVAyvrVEBflAQg"/>
+</div>
+</div>
+<p class="font-label text-sm text-on-surface-variant italic">The Akoya Founders</p>
+</div>
+</div>
+<div class="h-[400px] lg:h-auto">
+<img alt="Alentejo Fields" class="w-full h-full object-cover" data-alt="Wide panoramic shot of sprawling green wheat fields in Alentejo under a soft morning haze with lone cork oak trees on the horizon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzANp2j1ZfB_2xUj0I_XqB7NY5G0Xa3o_fTxRO6kCDU9xotu1tVM-k54s3yjn6EFozvNNkfupJCCdW9KzhL2erg23hOVvyL0K9TDMR3MpNx-SVM8OXtw8J3ZNtftD7cDYYrV3iKOcKTGPs7MYqd2z-CRaDZrICte1Aix9sgp4la8NFN13tcbORWiADgolM0MbbkO3I9CTvYpyFpR7hyWLTZe5IviVCN_7CIlAA9wnd9M4rd_CSc0kS6PgLpfFLgnUmvYAznP30MRIb"/>
+</div>
+</div>
+</section>
+<!-- Contact form -->
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<section class="max-w-screen-2xl mx-auto px-8 mt-24 mb-4">
+<div class="max-w-2xl mx-auto bg-surface-container-low rounded-xl p-8 md:p-12 border border-outline-variant/20 shadow-sm">
+<div class="text-center mb-10">
+<h2 class="font-headline text-4xl md:text-5xl text-on-surface mb-4">Send a message</h2>
+<p class="text-on-surface-variant text-lg leading-relaxed">Share a question or idea and we will reply by email. For urgent help while traveling, WhatsApp is often fastest.</p>
+</div>
+<!-- /wp:html -->
+
+<!-- wp:shortcode -->
+%%VILA_CF7_CONTACT%%
+<!-- /wp:shortcode -->
+
+<!-- wp:html -->
+</div>
+</section>
+<!-- /wp:html -->
+

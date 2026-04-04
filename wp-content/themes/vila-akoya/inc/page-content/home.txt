@@ -1,0 +1,207 @@
+<!-- wp:html -->
+<section class="relative w-full p-4 md:p-8 mb-24">
+<div class="relative w-full rounded-xl overflow-hidden editorial-shadow md:min-h-[calc(100vh-160px)]">
+<img alt="" class="w-full aspect-[4/3] object-cover brightness-[0.85] md:absolute md:inset-0 md:h-full md:min-h-0 md:aspect-auto md:w-full" data-alt="Vila Akoya home hero" src="THEME_URI/assets/images/home-hero.jpg"/>
+<div class="relative flex flex-col justify-end bg-gradient-to-b from-surface-container/95 to-surface-container p-8 md:absolute md:inset-0 md:justify-center md:bg-gradient-to-t md:from-on-surface/40 md:to-transparent md:p-20">
+<div class="max-w-4xl space-y-6 md:text-on-primary">
+<h1 class="text-5xl md:text-8xl font-barrio text-on-surface md:text-on-primary leading-tight">The little village of our dreams</h1>
+<p class="text-lg md:text-2xl text-on-surface-variant md:text-on-primary/90 font-light max-w-2xl leading-relaxed">A tiny house village, glamping and creative community bordering the river Mira in the south of Alentejo. An extraordinary place of creation, relaxation and inspiration that we get to share with our friends and friends disguised as strangers.</p>
+<div class="flex flex-wrap gap-4 pt-4">
+<a class="px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-medium text-lg hover:scale-95 transition-transform inline-block text-center" href="/booking/">Book your stay</a>
+<a class="px-8 py-4 bg-primary/10 border border-primary/20 text-primary md:bg-surface-bright/20 md:border-white/20 md:text-on-primary rounded-xl font-medium text-lg hover:bg-primary/15 md:hover:bg-surface-bright/30 transition-all inline-block text-center" href="/campus/">Tell me more!</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- The Dual-World Toggle: Split-Screen Experience -->
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<section class="mb-32">
+<div class="grid grid-cols-1 md:grid-cols-2 min-h-[calc(100vh-6rem)]">
+<!-- The Village Side -->
+<div class="relative group flex flex-col items-center p-12 md:p-24 bg-surface-container-low transition-all duration-700 hover:bg-surface-container overflow-hidden">
+<div class="absolute -top-10 -left-10 w-64 h-64 bg-tertiary/5 rounded-full blur-3xl group-hover:bg-tertiary/10 transition-colors"></div>
+<div class="z-10 text-center space-y-8 max-w-md" style="max-width: 31rem;">
+<span class="text-tertiary text-2xl font-headline">A place to stay</span>
+<h2 class="text-6xl md:text-7xl font-barrio text-on-surface narrow-header">The Village</h2>
+<div class="h-1 w-24 bg-tertiary/20 mx-auto rounded-full"></div>
+<p class="text-xl font-light text-on-surface-variant italic">Unique tiny homes in all shapes and forms. 
+  A feast for the eye and a home for the kind. This is the little village we've always been hoping to find.</p>
+<div class="pt-6">
+<img alt="" class="w-full h-64 object-cover rounded-xl editorial-shadow mb-8 grayscale-[0.2] hover:grayscale-0 transition-all" data-alt="Campsite at Vila Akoya" src="THEME_URI/assets/images/village-small.jpg"/>
+<a class="font-headline font-bold text-lg text-tertiary-dim underline decoration-tertiary/40 underline-offset-8 hover:decoration-tertiary transition-all inline-block" href="/village/">Looking for a village?</a>
+</div>
+</div>
+</div>
+<!-- The Campsite Side -->
+<div class="relative group flex flex-col justify-center items-center p-12 md:p-24 bg-secondary-container/30 transition-all duration-700 hover:bg-secondary-container/50 overflow-hidden border-l-0 md:border-l-0">
+<div class="absolute -bottom-10 -right-10 w-64 h-64 bg-secondary/5 rounded-full blur-3xl group-hover:bg-secondary/10 transition-colors"></div>
+<div class="z-10 text-center space-y-8 max-w-md" style="max-width: 31rem;">
+<span class="text-secondary text-2xl font-headline">...or to visit</span>
+<h2 class="text-6xl md:text-7xl font-barrio text-on-surface narrow-header">The Campsite</h2>
+<div class="h-1 w-24 bg-secondary/20 mx-auto rounded-full"></div>
+<p class="text-xl font-light text-on-surface-variant italic">Want to dip you toe in our home-away-from home? Swing by, join our table, have a swim, build a treehouse, make a friend.. and leave forever changed.</p>
+<div class="pt-6">
+<img alt="" class="w-full h-64 object-cover rounded-xl editorial-shadow mb-8 hover:scale-[1.02] transition-transform" data-alt="Vibrant scene of people gathered around a large outdoor pottery wheel at dusk with hanging fairy lights" src="THEME_URI/assets/images/campsite.jpeg"/>
+<a class="font-headline font-bold text-lg text-secondary-dim underline decoration-secondary/40 underline-offset-8 hover:decoration-secondary transition-all inline-block" href="/campsite/">Book your dates</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 'Deeply Rooted' Section: Vision -->
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<section class="max-w-screen-xl mx-auto px-8 mb-32">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-16 items-center">
+<div class="md:col-span-5 relative">
+<img alt="" class="rounded-[3rem] w-full editorial-shadow relative z-10 rotate-[-2deg]" data-alt="Artistic close up of weather-beaten hands planting a sapling in rich dark soil with warm sunlight" src="THEME_URI/assets/images/river.jpeg"/>
+<div class="absolute bottom-[-2rem] right-[-2rem] glass-card bg-surface-bright/80 p-6 rounded-2xl editorial-shadow max-w-[200px] z-20 rotate-[3deg]">
+<span class="material-symbols-outlined text-primary text-4xl mb-2" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<p class="text-sm leading-tight text-on-surface">A little village with a big heart.</p>
+</div>
+</div>
+<div class="md:col-span-7 space-y-8">
+<h3 class="text-4xl md:text-6xl font-headline text-on-surface font-light leading-tight">That little village <br/><span class="text-primary italic">we've been looking for</span></h3>
+<div class="space-y-6 text-xl font-light text-on-surface-variant leading-relaxed">
+<p>We wanted to live in the forest, and raise our kids amongst the trees. But we did not want to do it alone. Frankly, we’re done with doing everything alone! Who came up with that? Lucky for us, there are loads more people like us. So we got a bunch of fantastic humans together and set out to build the little village of our dreams.</p>
+<p>Expect to find something fantastic in every corner of this space. With playgrounds for children and for grown-ups, areas for wellness and relaxation, spaces designed for connection, creation and celebration, and a full agenda of workshops, classes and activities for humans of all ages.</p>
+</div>
+<div class="pt-4">
+<a class="group flex items-center gap-4 text-primary font-bold text-xl" href="/campus/">Learn more about the activities for adults and kids<span class="material-symbols-outlined group-hover:translate-x-2 transition-transform">arrow_right_alt</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Who we are: family behind Vila Akoya (brochure content, site styling) -->
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<section class="relative mb-32 overflow-x-hidden bg-gradient-to-b from-[#ebe4d4] via-[#e8dcc8] to-[#e5d6c4] text-[#3d2a22]">
+<div class="absolute inset-0 pointer-events-none opacity-[0.35] bg-[radial-gradient(ellipse_at_30%_20%,rgba(154,63,33,0.08),transparent_50%),radial-gradient(ellipse_at_70%_80%,rgba(92,99,72,0.06),transparent_45%)]"></div>
+<div class="relative max-w-screen-xl mx-auto px-8 py-20 md:py-28">
+<header class="text-center max-w-3xl mx-auto mb-16 md:mb-20 space-y-4">
+<h2 class="font-barrio text-5xl md:text-7xl text-on-surface leading-tight">Who are we?</h2>
+<p class="font-headline text-tertiary text-xl md:text-2xl tracking-wide">The family behind Vila Akoya</p>
+<div class="h-px w-32 bg-tertiary/25 mx-auto rounded-full"></div>
+</header>
+<!-- Intro -->
+<!-- <div class="max-w-3xl mx-auto mb-20 md:mb-24 space-y-6 text-lg md:text-xl font-light leading-relaxed text-on-surface-variant">
+<h3 class="font-headline text-2xl md:text-3xl text-on-surface text-center">Thank you for reading this far!</h3>
+<p>I would like to start by thanking you for taking the time to read about our Vila Akoya. I hope you’re enjoying the document we have made, and that it helps you get a clear idea about the place we want to create for ourselves, our children, our villagers and visitors.</p>
+<p>In the next pages I’ll introduce myself and my family to you, so you have a bit of a picture of the people behind the village. I also like to give you some insight in what moved us to start Vila Akoya and which roles we play in the creation of this place.</p>
+<p>Besides us, there are a lot more people involved in building Vila Akoya: our partners, villagers, investors, lawyers, architects, builders, consultants and skilled workers. We have another document with a biography of each of these beautiful humans. If you’d like to receive this document, please let me know. Here, I’ll keep it short, with just a bit of info about the four of us.</p>
+</div> -->
+<!-- Joyaa -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center mb-20 md:mb-28">
+<div class="order-2 md:order-1 space-y-5 text-lg md:text-xl font-light leading-relaxed text-on-surface-variant">
+<h3 class="font-barrio text-3xl md:text-4xl text-on-surface">Joyaa</h3>
+<p>It takes a village to raise a child, and for us it took a child to build a village. Vila Akoya wouldn’t be anything without our daughter Joyaa. It’s with her in mind that we envision the village in which we want to raise her; a green and inspiring place with a vibrant community where she — together with her little brother — will get to grow, learn and adventure.</p>
+<p>Joyaa is 10 years old now. She’s creative, funny, kind, smart and a great friend to have… and did I mention she’s creative?</p>
+<p>Joyaa spends her days building castles for beetles with leaves and sticks that she finds, while singing songs about the things that she sees on her way, and what she thinks about them. She loves reading, making music and climbing trees; she carries a big smile and an even bigger heart. You’ll feel it when you meet her — this little lady is someone special.</p>
+</div>
+<div class="order-1 md:order-2 flex w-full justify-center items-center">
+<div class="who-we-portrait w-full">
+<span class="who-we-portrait__aura" aria-hidden="true"></span>
+<div class="who-we-portrait__clip">
+<img alt="Joyaa smiling with a large autumn leaf" draggable="false" loading="lazy" src="THEME_URI/assets/images/joyaa.jpg"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Hans -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center mb-20 md:mb-28">
+<div class="flex w-full justify-center items-center">
+<div class="who-we-portrait who-we-portrait--blob-2 w-full">
+<span class="who-we-portrait__aura" aria-hidden="true"></span>
+<div class="who-we-portrait__clip">
+<img alt="Hans smiling with Joyaa leaning on his shoulder" draggable="false" loading="lazy" src="THEME_URI/assets/images/hans.jpg"/>
+</div>
+</div>
+</div>
+<div class="space-y-5 text-lg md:text-xl font-light leading-relaxed text-on-surface-variant">
+<h3 class="font-barrio text-3xl md:text-4xl text-on-surface">Hans</h3>
+<p>Hans is the <em class="text-on-surface">brains</em> and the <em class="text-on-surface">muscles</em> behind Vila Akoya. He knows and learns about the possibles and impossibles surrounding our projects. He always finds answers to the difficult questions, and he does so by tirelessly reading through piles of documents, underlining all that’s relevant and questioning all that can be questioned, then puts on his gloves and starts lifting whatever heavy needs lifting before brushing off his shirt to sit patiently with Joyaa working on her homework, or playing tirelessly with little Akhoda.</p>
+<p>Hans has spent the last 8 years working in real estate. Before that he was a national champion fencer and fencing coach in Canada, ran an organic farm, holds a degree in Cognitive Science and Philosophy and studied and taught an Indian martial art called Kalaripayattu — pretty impressive, right?</p>
+</div>
+</div>
+<!-- Sammy: mobile image first (order-1), text second; md text left, image right -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center mb-20 md:mb-28">
+<div class="order-2 md:order-1 space-y-5 text-lg md:text-xl font-light leading-relaxed text-on-surface-variant">
+<h3 class="font-barrio text-3xl md:text-4xl text-on-surface">Sammy</h3>
+<p>My name is Sammy. I am Joyaa and Akhoda’s mother, Hans’s partner and the person you most likely have been speaking to before receiving this document.</p>
+<p>Besides a mother and partner, I am many other things. I have an entrepreneurial mind and a heart for sustainability; I founded and run sustainable clothing and baby brands, and just like Joyaa I am very creative, love making music and like to work with my hands.</p>
+<p>I spent most of my adult life travelling the world, had Joyaa along the way, and about 6 years ago Hans joined us — or we him! Together we decided to settle down in Portugal to build our dream: Vila Akoya.</p>
+<p>Hans said I should call myself the heart and soul of the project, and I will do so with a humble pride. I have a clear vision of the village we wish to build for our children and ourselves. A vision that I am grateful to get to share with many.</p>
+<p>Within Vila Akoya I focus on the commercial aspects of the project, on being in touch with the people interested in joining us, designing the spaces, finding and building relationships with suppliers, partners and builders, building the community and making documents like this one.</p>
+</div>
+<div class="order-1 md:order-2 flex w-full justify-center items-center">
+<div class="who-we-portrait who-we-portrait--blob-3 w-full">
+<span class="who-we-portrait__aura" aria-hidden="true"></span>
+<div class="who-we-portrait__clip">
+<img alt="Sammy and Joyaa smiling together outdoors" draggable="false" loading="lazy" src="THEME_URI/assets/images/sammy.jpg"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Little Akhoda: mobile image first; md image left, text right -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center mb-16 md:mb-24">
+<div class="order-1 flex w-full justify-center items-center">
+<div class="who-we-portrait who-we-portrait--blob-4 w-full">
+<span class="who-we-portrait__aura" aria-hidden="true"></span>
+<div class="who-we-portrait__clip">
+<img alt="Hans holding baby Akhoda" draggable="false" loading="lazy" src="THEME_URI/assets/images/akhoda.jpg"/>
+</div>
+</div>
+</div>
+<div class="order-2 space-y-5 text-lg md:text-xl font-light leading-relaxed text-on-surface-variant">
+<h3 class="font-barrio text-3xl md:text-4xl text-on-surface">Little Akhoda</h3>
+<p>In summer 2024 this little guy made our family complete. Akhoda is such a wonderful little person; he is strong but kind, he loves his family and the forest and meets plants and creatures with gentle hands and great curiosity.</p>
+<p>For us he is a big inspiration to want to be our best selves — so that when he looks his big eyes up at us, he sees good people who work hard doing something beautiful and meaningful in the world. This project is exactly that, for us.</p>
+</div>
+</div>
+<!-- Family -->
+<div class="max-w-4xl mx-auto text-center space-y-8">
+<div class="who-we-portrait who-we-portrait--wide w-full mx-auto">
+<span class="who-we-portrait__aura" aria-hidden="true"></span>
+<div class="who-we-portrait__clip">
+<img alt="The family together in the forest in front of a large tree" draggable="false" loading="lazy" src="THEME_URI/assets/images/family.jpg"/>
+</div>
+</div>
+<p class="font-headline text-xl text-tertiary-dim italic">More about us and the people around us, our story and what brought us here.</p>
+<a class="inline-flex items-center gap-2 text-primary font-bold text-lg hover:underline underline-offset-4" href="/about/">How we got here<span class="material-symbols-outlined text-xl" aria-hidden="true">arrow_forward</span></a>
+</div>
+</div>
+</section>
+<!-- Newsletter: copy 2/3 + image 1/3 on md+ (primary overlay on image); mobile = full-width copy, no image -->
+<!-- /wp:html -->
+
+<!-- wp:html -->
+<section class="max-w-screen-xl mx-auto px-8 mb-32">
+<div class="flex flex-col md:flex-row rounded-[3rem] overflow-hidden md:min-h-[min(28rem,70vh)] editorial-shadow">
+<div class="bg-primary text-on-primary w-full md:w-2/3 md:flex-shrink-0 p-12 md:p-16 flex flex-col justify-center">
+<div class="w-full space-y-8">
+<h2 class="text-5xl md:text-7xl font-headline leading-tight">Join our digi-family</h2>
+<p class="text-xl opacity-90 leading-relaxed font-light">Want to stay in the loop about what’s happening on our little slice of paradise? Enter your email here, and we will try not to spam you too much with the things we are excited to share.</p>
+<!-- /wp:html -->
+
+<!-- wp:shortcode -->
+%%VILA_CF7_HOME_NEWSLETTER%%
+<!-- /wp:shortcode -->
+
+<!-- wp:html -->
+<p class="text-sm opacity-80"><a class="underline hover:opacity-100" href="/contact/">Want to get in touch? Find our contact info here</a></p>
+</div>
+</div>
+<div class="relative hidden md:block md:w-1/3 md:flex-shrink-0 md:min-h-[min(20rem,50vh)] bg-primary overflow-hidden">
+<img alt="" class="absolute inset-0 w-full h-full object-cover opacity-[0.4] pointer-events-none" data-alt="Abstract silhouette of rolling hills and cork trees at dusk with subtle paper texture" loading="lazy" src="THEME_URI/assets/images/newsletter.jpg"/>
+<!-- <div class="absolute inset-0 bg-primary/35 pointer-events-none" aria-hidden="true"></div>
+</div> -->
+</div>
+</section>
+<!-- /wp:html -->
+

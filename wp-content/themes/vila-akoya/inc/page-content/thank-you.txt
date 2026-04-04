@@ -1,0 +1,19 @@
+<!-- wp:html -->
+<section class="text-center space-y-8">
+<div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary/15 text-secondary mx-auto">
+<span class="material-symbols-outlined text-4xl" aria-hidden="true">mark_email_read</span>
+</div>
+<p class="text-primary font-label uppercase tracking-[0.2em] text-xs">Thank you</p>
+<h1 class="font-barrio text-4xl md:text-5xl text-on-background leading-tight">
+                    We received your <span class="font-serif-italic">inquiry</span>
+</h1>
+<p class="font-body text-lg text-on-surface-variant max-w-xl mx-auto leading-relaxed">
+                    We will get back to you soon. If you need anything urgent, message us on WhatsApp or email hello@vilaakoya.pt.
+                </p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+<a class="inline-flex items-center justify-center gap-2 rounded-full bg-primary text-white px-8 py-3 font-medium hover:bg-primary-container transition-colors" href="/">Back to home</a>
+<a class="inline-flex items-center justify-center gap-2 rounded-full border-2 border-primary/30 text-primary px-8 py-3 font-medium hover:bg-primary/5 transition-colors" href="/booking/">Send another message</a>
+</div>
+</section>
+<!-- /wp:html -->
+
