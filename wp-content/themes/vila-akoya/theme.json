@@ -1,0 +1,79 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 2,
+	"settings": {
+		"appearanceTools": true,
+		"useRootPaddingAwareAlignments": true,
+		"layout": {
+			"contentSize": "720px",
+			"wideSize": "1536px"
+		},
+		"typography": {
+			"fontFamilies": [
+				{
+					"fontFamily": "'Josefin Sans', sans-serif",
+					"slug": "josefin-sans",
+					"name": "Josefin Sans"
+				},
+				{
+					"fontFamily": "'Marcellus', serif",
+					"slug": "marcellus",
+					"name": "Marcellus"
+				},
+				{
+					"fontFamily": "'Barrio', system-ui, sans-serif",
+					"slug": "barrio",
+					"name": "Barrio"
+				}
+			]
+		},
+		"color": {
+			"palette": [
+				{
+					"slug": "surface",
+					"color": "#fff6e1",
+					"name": "Surface"
+				},
+				{
+					"slug": "on-surface",
+					"color": "#332e1e",
+					"name": "On surface"
+				},
+				{
+					"slug": "primary",
+					"color": "#9a3f21",
+					"name": "Primary"
+				},
+				{
+					"slug": "footer-bg",
+					"color": "#2f3628",
+					"name": "Footer background"
+				}
+			]
+		}
+	},
+	"styles": {
+		"color": {
+			"background": "#fff6e1",
+			"text": "#332e1e"
+		},
+		"typography": {
+			"fontFamily": "var(--wp--preset--font-family--josefin-sans), 'Josefin Sans', sans-serif"
+		},
+		"spacing": {
+			"blockGap": "0"
+		}
+	},
+	"templateParts": [
+		{
+			"name": "header",
+			"title": "Header",
+			"area": "header"
+		},
+		{
+			"name": "footer",
+			"title": "Footer",
+			"area": "footer"
+		}
+	]
+}

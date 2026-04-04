@@ -1,0 +1,495 @@
+/* Vila Akoya — shared styles (Tailwind CDN provides utilities). */
+
+/*
+ * Image crop frames — radius lives on the Group only; inner blocks are square-clipped.
+ * (WP wraps blocks in .wp-block-group__inner-container — that layer must clip too.)
+ */
+.vila-crop-tout {
+  width: 100%;
+  max-width: 31rem;
+  margin-inline: auto;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 40px rgba(51, 46, 30, 0.06);
+  isolation: isolate;
+}
+
+.vila-crop-tout > .wp-block-group__inner-container {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  max-width: none !important;
+}
+
+.vila-crop-tout .wp-block-image,
+.vila-crop-tout figure.wp-block-image {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0 !important;
+  overflow: hidden;
+}
+
+.vila-crop-tout img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border-radius: 0 !important;
+}
+
+/* Editorial “deeply rooted” column image — 4:5 rounded card */
+.vila-crop-editorial {
+  position: relative;
+  border-radius: 3rem;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  box-shadow: 0 20px 40px rgba(51, 46, 30, 0.06);
+  isolation: isolate;
+}
+
+.vila-crop-editorial > .wp-block-group__inner-container {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  max-width: none !important;
+}
+
+.vila-crop-editorial .wp-block-image,
+.vila-crop-editorial figure {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0 !important;
+  overflow: hidden;
+}
+
+.vila-crop-editorial img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border-radius: 0 !important;
+}
+
+/* Home hero — radius on shell only; media group clips the photo */
+.vila-hero-shell {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.vila-hero-shell__media {
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.vila-hero-shell__media > .wp-block-group__inner-container {
+  min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  max-width: none !important;
+}
+
+.vila-hero-shell__media .wp-block-image,
+.vila-hero-shell__media figure.wp-block-image {
+  margin: 0;
+  border-radius: 0 !important;
+}
+
+.vila-hero-shell__media img {
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 0 !important;
+}
+
+/* Mobile: image fills a 4∶3 band that spans the content width */
+@media (max-width: 767px) {
+  .vila-hero-shell__media {
+    position: relative;
+    width: 100%;
+  }
+
+  .vila-hero-shell__media > .wp-block-group__inner-container {
+    position: relative;
+    width: 100%;
+    height: auto;
+  }
+
+  .vila-hero-shell__media .wp-block-image,
+  .vila-hero-shell__media figure.wp-block-image {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+  }
+
+  .vila-hero-shell__media img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* Desktop: media layer is a full-bleed background; image stretches to every edge */
+@media (min-width: 768px) {
+  .vila-hero-shell {
+    min-height: min(90vh, calc(100vh - 10rem));
+  }
+
+  .vila-hero-shell__media {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .vila-hero-shell__media > .wp-block-group__inner-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .vila-hero-shell__media .wp-block-image,
+  .vila-hero-shell__media figure.wp-block-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .vila-hero-shell__media img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-width: 100%;
+    min-height: 100%;
+  }
+
+  .vila-hero-shell__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+/* Split Village | Campsite — two columns; grid overrides core flex for a clear 50/50 split */
+.wp-block-columns.vila-home-dual {
+  display: grid !important;
+  flex-wrap: unset !important;
+  gap: 0;
+  grid-template-columns: 1fr;
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .wp-block-columns.vila-home-dual {
+    grid-template-columns: 1fr 1fr;
+    min-height: calc(100vh - 6rem);
+    align-items: stretch;
+  }
+
+  .wp-block-columns.vila-home-dual > .wp-block-column {
+    min-width: 0;
+  }
+}
+
+/*
+ * Site-wide: images fill their figure/cell like the static HTML (object-fit: cover).
+ * Targets Tailwind aspect/height utilities on figure.wp-block-image. Blob portraits (.who-we-portrait) stay on their own rules.
+ */
+:is(.entry-content, .wp-block-post-content, .editor-styles-wrapper)
+  figure.wp-block-image:not(.who-we-portrait .wp-block-image):is(
+    [class*='aspect'],
+    [class*='h-64'],
+    [class*='h-48'],
+    [class*='h-['],
+    [class*='h-[400'],
+    [class*='min-h-'],
+    [class*='max-h-']
+  ) {
+  position: relative;
+  overflow: hidden;
+}
+
+:is(.entry-content, .wp-block-post-content, .editor-styles-wrapper)
+  figure.wp-block-image:not(.who-we-portrait .wp-block-image):is(
+    [class*='aspect'],
+    [class*='h-64'],
+    [class*='h-48'],
+    [class*='h-['],
+    [class*='h-[400'],
+    [class*='min-h-'],
+    [class*='max-h-']
+  )
+  img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* Any remaining content images: prefer cover over letterboxing (does not force height) */
+:is(.entry-content, .wp-block-post-content, .editor-styles-wrapper)
+  figure.wp-block-image:not(.who-we-portrait .wp-block-image)
+  img {
+  object-fit: cover;
+  object-position: center;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.editorial-shadow {
+  box-shadow: 0 20px 40px rgba(51, 46, 30, 0.06);
+}
+
+.glass-card {
+  backdrop-filter: blur(16px);
+}
+
+body.vila-akoya-home,
+body.page-template-default.page-slug-home {
+  background-color: #fff6e1;
+  color: #332e1e;
+}
+
+.narrow-header {
+  max-width: 24rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.font-serif-italic {
+  font-family: 'Josefin Sans', sans-serif;
+  font-style: italic;
+}
+
+/* Who we are — blob portraits: Group.who-we-portrait contains figure.wp-block-image */
+.who-we-portrait {
+  position: relative;
+  width: min(100%, 25rem);
+  max-width: 25rem;
+  aspect-ratio: 3 / 4;
+  margin-inline: auto;
+  pointer-events: none;
+}
+
+.who-we-portrait::before {
+  content: '';
+  position: absolute;
+  inset: -7%;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 45% 55% 50% 50% / 50% 45% 55% 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(154, 63, 33, 0.14),
+    rgba(92, 99, 72, 0.11),
+    rgba(217, 167, 119, 0.16),
+    rgba(154, 63, 33, 0.14)
+  );
+  filter: blur(26px);
+  opacity: 0.9;
+}
+
+.who-we-portrait .wp-block-image,
+.who-we-portrait figure {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  animation: who-we-blob-morph-1 14s ease-in-out infinite;
+  box-shadow: 0 28px 56px rgba(61, 42, 34, 0.16);
+}
+
+.who-we-portrait .wp-block-image img,
+.who-we-portrait figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.05);
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.who-we-portrait--wide {
+  width: min(100%, 56rem);
+  max-width: 56rem;
+  aspect-ratio: 2.15 / 1;
+  min-height: clamp(14rem, 32vw, 24rem);
+}
+
+.who-we-portrait--wide .wp-block-image,
+.who-we-portrait--wide figure {
+  animation: who-we-blob-morph-wide 16s ease-in-out infinite;
+}
+
+.who-we-portrait--blob-2 .wp-block-image,
+.who-we-portrait--blob-2 figure {
+  animation: who-we-blob-morph-2 15s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+.who-we-portrait--blob-3 .wp-block-image,
+.who-we-portrait--blob-3 figure {
+  animation: who-we-blob-morph-3 13s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+.who-we-portrait--blob-4 .wp-block-image,
+.who-we-portrait--blob-4 figure {
+  animation: who-we-blob-morph-4 16s ease-in-out infinite;
+  animation-delay: -2s;
+}
+
+@keyframes who-we-blob-morph-1 {
+  0%, 100% { border-radius: 58% 42% 38% 62% / 48% 42% 58% 52%; }
+  33% { border-radius: 42% 58% 62% 38% / 52% 48% 42% 58%; }
+  66% { border-radius: 52% 48% 42% 58% / 42% 58% 52% 48%; }
+}
+
+@keyframes who-we-blob-morph-2 {
+  0%, 100% { border-radius: 45% 55% 52% 48% / 55% 45% 48% 52%; }
+  40% { border-radius: 62% 38% 40% 60% / 44% 56% 52% 48%; }
+  75% { border-radius: 38% 62% 58% 42% / 58% 42% 44% 56%; }
+}
+
+@keyframes who-we-blob-morph-3 {
+  0%, 100% { border-radius: 52% 48% 46% 54% / 50% 50% 50% 50%; }
+  35% { border-radius: 40% 60% 55% 45% / 48% 52% 46% 54%; }
+  70% { border-radius: 58% 42% 38% 62% / 54% 46% 52% 48%; }
+}
+
+@keyframes who-we-blob-morph-4 {
+  0%, 100% { border-radius: 48% 52% 58% 42% / 52% 48% 44% 56%; }
+  50% { border-radius: 56% 44% 44% 56% / 46% 54% 56% 44%; }
+}
+
+@keyframes who-we-blob-morph-wide {
+  0%, 100% { border-radius: 52% 48% 42% 58% / 68% 58% 62% 52%; }
+  33% { border-radius: 44% 56% 54% 46% / 55% 62% 48% 58%; }
+  66% { border-radius: 58% 42% 46% 54% / 62% 52% 55% 58%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .who-we-portrait::before {
+    opacity: 0.5;
+  }
+  .who-we-portrait .wp-block-image,
+  .who-we-portrait figure {
+    animation: none !important;
+    border-radius: 50% 48% 52% 50% / 52% 50% 48% 50% !important;
+  }
+}
+
+/* Contact Form 7 — brochure-like fields */
+.wpcf7 form {
+  margin: 0;
+}
+
+.wpcf7 input[type='text'],
+.wpcf7 input[type='email'],
+.wpcf7 input[type='tel'],
+.wpcf7 input[type='url'],
+.wpcf7 select,
+.wpcf7 textarea {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-family: inherit;
+}
+
+.wpcf7 .wpcf7-submit {
+  cursor: pointer;
+  border: none;
+  border-radius: 9999px;
+  padding: 1rem 2rem;
+  font-weight: 600;
+  background-color: #9a4021;
+  color: #fff;
+  transition: background-color 0.2s, transform 0.15s;
+}
+
+.wpcf7 .wpcf7-submit:hover {
+  background-color: #ba5737;
+}
+
+.wpcf7 form.sent .wpcf7-response-output {
+  border-radius: 0.5rem;
+}
+
+.wpcf7-not-valid-tip {
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.wpcf7-spinner {
+  margin-left: 0.5rem;
+}
+
+/* Newsletter / home form variant (on primary background) */
+.vila-akoya-cf7--on-primary .wpcf7 input[type='email'] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.vila-akoya-cf7--on-primary .wpcf7 input[type='email']::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.vila-akoya-cf7--on-primary .wpcf7 .wpcf7-submit {
+  border-radius: 0.75rem;
+  background-color: #fff6e1;
+  color: #9a3f21;
+}
+
+.vila-akoya-cf7--on-primary .wpcf7 .wpcf7-submit:hover {
+  background-color: #fff;
+}
+
+/* Booking form radios — layout */
+.wpcf7 .wpcf7-list-item {
+  display: inline-block;
+  margin: 0.25rem;
+}
+
+.wpcf7 input[type='radio'] {
+  margin-right: 0.25rem;
+}
+
+@media (min-width: 768px) {
+  .vila-akoya-newsletter-form .vila-akoya-cf7--on-primary .wpcf7-form {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+  .vila-akoya-newsletter-form .vila-akoya-cf7--on-primary .wpcf7-email {
+    flex: 1 1 auto;
+    min-width: 12rem;
+  }
+}
