@@ -1,14 +1,72 @@
 <?php
 /**
- * WooCommerce + Bookings for WooCommerce (MWB): theme support, pages, default campsite product.
+ * WooCommerce + Bookings for WooCommerce (MWB): theme support, default campsite product.
+ *
+ * Uses the free “Bookings for WooCommerce” plugin (`mwb-bookings-for-woocommerce`) for calendar
+ * booking on the front end and booking management in wp-admin.
  *
  * @package Vila_Akoya
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Product SKU used to find or create the default bookable campsite product. */
+/** Legacy single-product SKU (older installs); new installs use one bookable product per plot. */
 const VILA_AKOYA_CAMPSITE_SKU = 'vila-akoya-campsite';
+
+/** SKU prefix for plot inventory: `vila-akoya-plot-1` … `vila-akoya-plot-N`. */
+const VILA_AKOYA_CAMPSITE_PLOT_SKU_PREFIX = 'vila-akoya-plot-';
+
+/**
+ * Bump this when default MWB booking meta (people, capacity, etc.) should be re-applied to the seeded product.
+ */
+const VILA_AKOYA_CAMPSITE_MWB_META_VER = 3;
+
+/**
+ * Option key: list of product IDs (one mwb_booking product per plot).
+ */
+const VILA_AKOYA_CAMPSITE_PLOT_PRODUCT_IDS_OPTION = 'vila_akoya_campsite_plot_product_ids';
+
+/**
+ * @param int $n Plot index 1..N.
+ * @return string
+ */
+function vila_akoya_campsite_plot_sku( $n ) {
+	$n = max( 1, (int) $n );
+	return VILA_AKOYA_CAMPSITE_PLOT_SKU_PREFIX . $n;
+}
+
+/**
+ * Product IDs for each campsite plot (parallel bookable products; each has max_bookings = 1).
+ *
+ * @return int[]
+ */
+function vila_akoya_get_campsite_plot_product_ids() {
+	$ids = get_option( VILA_AKOYA_CAMPSITE_PLOT_PRODUCT_IDS_OPTION, array() );
+	if ( ! is_array( $ids ) ) {
+		return array();
+	}
+	$out = array();
+	foreach ( $ids as $id ) {
+		$id = (int) $id;
+		if ( $id && get_post_status( $id ) ) {
+			$out[] = $id;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Primary campsite product ID for shortcodes / embedded booking page (first plot).
+ *
+ * @return int
+ */
+function vila_akoya_get_campsite_primary_product_id() {
+	$plots = vila_akoya_get_campsite_plot_product_ids();
+	if ( ! empty( $plots ) ) {
+		return (int) $plots[0];
+	}
+	return (int) get_option( 'vila_akoya_campsite_product_id' );
+}
 
 /**
  * Whether this product is the seeded campsite bookable product (stored option or SKU match).
@@ -21,15 +79,27 @@ function vila_akoya_is_campsite_product_id( $product_id ) {
 	if ( ! $product_id ) {
 		return false;
 	}
+	$plots = vila_akoya_get_campsite_plot_product_ids();
+	if ( $plots && in_array( $product_id, $plots, true ) ) {
+		return true;
+	}
 	$opt = (int) get_option( 'vila_akoya_campsite_product_id' );
 	if ( $opt && $opt === $product_id ) {
 		return true;
 	}
-	if ( ! function_exists( 'wc_get_product' ) ) {
+	// SKU check loads the product; only after WooCommerce has finished bootstrap (see wc_doing_it_wrong in WC 3.9+).
+	if ( ! function_exists( 'wc_get_product' ) || ! did_action( 'woocommerce_init' ) ) {
 		return false;
 	}
 	$product = wc_get_product( $product_id );
-	return $product && $product->get_sku() === VILA_AKOYA_CAMPSITE_SKU;
+	if ( ! $product ) {
+		return false;
+	}
+	$sku = $product->get_sku();
+	if ( $sku === VILA_AKOYA_CAMPSITE_SKU ) {
+		return true;
+	}
+	return (bool) preg_match( '/^' . preg_quote( VILA_AKOYA_CAMPSITE_PLOT_SKU_PREFIX, '/' ) . '\d+$/', (string) $sku );
 }
 
 /**
@@ -81,53 +151,98 @@ function vila_akoya_mwb_availability_dates( $days = 548 ) {
 }
 
 /**
- * Create the default bookable “Campsite stay” product once WooCommerce + MWB are loaded.
+ * Apply MWB meta for campsite: guest limits, per-person nightly rate, and concurrent booking capacity for this product.
+ *
+ * For per-plot products, pass `$max_concurrent_for_this_product = 1` so each plot is exclusive.
+ *
+ * @param int  $post_id                         Product post ID.
+ * @param int|null $max_concurrent_for_this_product MWB "max bookings" for this product (null = sum of all plots — legacy).
  */
-function vila_akoya_ensure_campsite_booking_product() {
-	if ( ! function_exists( 'wc_get_product_id_by_sku' ) ) {
+function vila_akoya_campsite_apply_mwb_booking_defaults( $post_id, $max_concurrent_for_this_product = null ) {
+	$post_id = (int) $post_id;
+	if ( ! $post_id ) {
 		return;
 	}
 
-	// MWB must be loaded (booking meta helpers + product class).
+	$plot_count = (int) apply_filters( 'vila_akoya_campsite_plot_count', 5 );
+	$plot_count = max( 1, $plot_count );
+	if ( null === $max_concurrent_for_this_product ) {
+		$max_concurrent_for_this_product = $plot_count;
+	}
+	$max_concurrent_for_this_product = max( 1, (int) $max_concurrent_for_this_product );
+
+	$min_p   = (int) apply_filters( 'vila_akoya_campsite_min_people', 1 );
+	$max_p   = (int) apply_filters( 'vila_akoya_campsite_max_people', 8 );
+	$min_p   = max( 1, $min_p );
+	$max_p   = max( $min_p, $max_p );
+	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '35' );
+
+	$meta = array(
+		'mwb_mbfw_max_bookings'                    => (string) $max_concurrent_for_this_product,
+		'mwb_mbfw_is_people_option'                => 'yes',
+		'mwb_mbfw_minimum_people_per_booking'      => (string) $min_p,
+		'mwb_mbfw_maximum_people_per_booking'      => (string) $max_p,
+		'mwb_mbfw_is_booking_unit_cost_per_people' => 'yes',
+		'mwb_mbfw_is_booking_base_cost_per_people' => 'no',
+		'mwb_mbfw_booking_unit_cost'               => $night_price,
+	);
+
+	foreach ( $meta as $key => $value ) {
+		update_post_meta( $post_id, $key, $value );
+	}
+
+	wc_delete_product_transients( $post_id );
+}
+
+/**
+ * One-time upgrade: apply people + capacity meta to an existing seeded product after theme updates.
+ */
+function vila_akoya_campsite_maybe_upgrade_mwb_booking_meta() {
 	if ( ! function_exists( 'wps_booking_get_meta_data' ) ) {
 		return;
 	}
-
-	$existing = wc_get_product_id_by_sku( VILA_AKOYA_CAMPSITE_SKU );
-	if ( $existing ) {
-		update_option( 'vila_akoya_campsite_product_id', (int) $existing );
-		$excerpt = get_post_field( 'post_excerpt', $existing );
-		if ( '' === (string) $excerpt ) {
-			wp_update_post(
-				array(
-					'ID'           => (int) $existing,
-					'post_excerpt' => __( 'Per night · Alentejo campsite. Choose check-in and check-out below.', 'vila-akoya' ),
-				)
-			);
+	$current = (int) get_option( 'vila_akoya_campsite_mwb_meta_ver', 0 );
+	if ( $current >= VILA_AKOYA_CAMPSITE_MWB_META_VER ) {
+		return;
+	}
+	$plots = vila_akoya_get_campsite_plot_product_ids();
+	if ( ! empty( $plots ) ) {
+		foreach ( $plots as $plot_pid ) {
+			vila_akoya_campsite_apply_mwb_booking_defaults( (int) $plot_pid, 1 );
 		}
-		return;
+	} else {
+		$pid = (int) get_option( 'vila_akoya_campsite_product_id' );
+		if ( ! $pid && function_exists( 'wc_get_product_id_by_sku' ) ) {
+			$pid = (int) wc_get_product_id_by_sku( VILA_AKOYA_CAMPSITE_SKU );
+		}
+		if ( $pid ) {
+			vila_akoya_campsite_apply_mwb_booking_defaults( $pid );
+		}
 	}
-
-	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '35' );
-
-	$post_id = wp_insert_post(
-		array(
-			'post_title'   => __( 'Campsite stay', 'vila-akoya' ),
-			'post_content' => '',
-			'post_excerpt' => __( 'Per night · Alentejo campsite. Choose check-in and check-out below.', 'vila-akoya' ),
-			'post_status'  => 'publish',
-			'post_type'    => 'product',
-		),
-		true
-	);
-
-	if ( is_wp_error( $post_id ) || ! $post_id ) {
-		return;
+	if ( function_exists( 'wc_get_product_id_by_sku' ) ) {
+		$legacy = wc_get_product_id_by_sku( VILA_AKOYA_CAMPSITE_SKU );
+		if ( $legacy ) {
+			vila_akoya_campsite_apply_mwb_booking_defaults( (int) $legacy );
+		}
 	}
+	update_option( 'vila_akoya_campsite_mwb_meta_ver', VILA_AKOYA_CAMPSITE_MWB_META_VER );
+}
+// After woocommerce_init completes: wc_delete_product_transients() must not run during WC bootstrap.
+add_action( 'wp_loaded', 'vila_akoya_campsite_maybe_upgrade_mwb_booking_meta', 21 );
 
+/**
+ * Create shared mwb_booking meta for one campsite plot product.
+ *
+ * @param int    $post_id   Product ID.
+ * @param string $sku       Product SKU.
+ * @param string $title     Product title.
+ * @param string $night_price Price string.
+ */
+function vila_akoya_seed_campsite_plot_product_core( $post_id, $sku, $title, $night_price ) {
+	$post_id = (int) $post_id;
 	wp_set_object_terms( $post_id, 'mwb_booking', 'product_type' );
 
-	update_post_meta( $post_id, '_sku', VILA_AKOYA_CAMPSITE_SKU );
+	update_post_meta( $post_id, '_sku', $sku );
 	update_post_meta( $post_id, '_virtual', 'yes' );
 	update_post_meta( $post_id, '_downloadable', 'no' );
 	update_post_meta( $post_id, '_sold_individually', 'no' );
@@ -147,15 +262,112 @@ function vila_akoya_ensure_campsite_booking_product() {
 	update_post_meta( $post_id, 'mwb_mbfw_cancellation_allowed', 'yes' );
 	update_post_meta( $post_id, 'mwb_mbfw_show_date_with_time', 'no' );
 	update_post_meta( $post_id, 'mwb_mbfw_enable_time_picker', 'no' );
-	update_post_meta( $post_id, 'mwb_mbfw_max_bookings', '5' );
-
 	$avail = vila_akoya_mwb_availability_dates( 548 );
 	update_post_meta( $post_id, 'wps_mbfw_set_availability', $avail['dates'] );
 	update_post_meta( $post_id, 'wps_mbfw_set_availability_upto', $avail['until'] );
 
-	update_option( 'vila_akoya_campsite_product_id', (int) $post_id );
+	vila_akoya_campsite_apply_mwb_booking_defaults( $post_id, 1 );
 }
-add_action( 'woocommerce_init', 'vila_akoya_ensure_campsite_booking_product', 5 );
+
+/**
+ * Create one bookable product per campsite plot (MWB max_bookings = 1 each) so inventory is per plot.
+ * Hides the legacy single SKU product from the catalog when plot products exist.
+ */
+function vila_akoya_ensure_campsite_booking_product() {
+	if ( ! function_exists( 'wc_get_product_id_by_sku' ) ) {
+		return;
+	}
+
+	if ( ! function_exists( 'wps_booking_get_meta_data' ) ) {
+		return;
+	}
+
+	$plot_count = (int) apply_filters( 'vila_akoya_campsite_plot_count', 5 );
+	$plot_count = max( 1, $plot_count );
+
+	$existing_ids = vila_akoya_get_campsite_plot_product_ids();
+	if ( count( $existing_ids ) === $plot_count ) {
+		update_option( 'vila_akoya_campsite_product_id', (int) $existing_ids[0] );
+		return;
+	}
+
+	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '35' );
+	$plot_ids    = array();
+
+	for ( $i = 1; $i <= $plot_count; $i++ ) {
+		$sku = vila_akoya_campsite_plot_sku( $i );
+		$found = wc_get_product_id_by_sku( $sku );
+		if ( $found ) {
+			$plot_ids[] = (int) $found;
+			vila_akoya_seed_campsite_plot_product_core( (int) $found, $sku, '', $night_price );
+			continue;
+		}
+		/* translators: %d: plot number */
+		$title = sprintf( __( 'Campsite stay — Plot %d', 'vila-akoya' ), $i );
+
+		$post_id = wp_insert_post(
+			array(
+				'post_title'   => $title,
+				'post_content' => '',
+				'post_excerpt' => __( 'Per night · Alentejo campsite. Choose check-in and check-out below.', 'vila-akoya' ),
+				'post_status'  => 'publish',
+				'post_type'    => 'product',
+			),
+			true
+		);
+
+		if ( is_wp_error( $post_id ) || ! $post_id ) {
+			continue;
+		}
+
+		vila_akoya_seed_campsite_plot_product_core( (int) $post_id, $sku, $title, $night_price );
+		$plot_ids[] = (int) $post_id;
+	}
+
+	if ( empty( $plot_ids ) ) {
+		return;
+	}
+
+	update_option( VILA_AKOYA_CAMPSITE_PLOT_PRODUCT_IDS_OPTION, $plot_ids );
+	update_option( 'vila_akoya_campsite_product_id', (int) $plot_ids[0] );
+	update_option( 'vila_akoya_campsite_mwb_meta_ver', VILA_AKOYA_CAMPSITE_MWB_META_VER );
+
+	$legacy = wc_get_product_id_by_sku( VILA_AKOYA_CAMPSITE_SKU );
+	if ( $legacy ) {
+		wp_update_post(
+			array(
+				'ID'          => (int) $legacy,
+				'post_status' => 'draft',
+			)
+		);
+		update_post_meta( (int) $legacy, '_catalog_visibility', 'hidden' );
+	}
+}
+// Run after WooCommerce init: avoids wc_get_product / transients during woocommerce_init (WC 3.9+ notice).
+add_action( 'wp_loaded', 'vila_akoya_ensure_campsite_booking_product', 20 );
+
+/**
+ * Remind admins when WooCommerce is active but MWB is not (campsite product cannot be seeded).
+ */
+function vila_akoya_admin_notice_mwb_bookings() {
+	if ( ! current_user_can( 'manage_options' ) || ! class_exists( 'WooCommerce' ) ) {
+		return;
+	}
+	if ( function_exists( 'wps_booking_get_meta_data' ) ) {
+		return;
+	}
+	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+	if ( ! $screen || ! in_array( $screen->id, array( 'dashboard', 'plugins', 'edit-product', 'woocommerce_page_wc-settings' ), true ) ) {
+		return;
+	}
+	echo '<div class="notice notice-warning"><p>';
+	echo esc_html__(
+		'Vila Akoya: Install and activate the free plugin “Bookings for WooCommerce” (Bookings for WooCommerce by WP Swings) so the campsite booking product and calendar can work.',
+		'vila-akoya'
+	);
+	echo '</p></div>';
+}
+add_action( 'admin_notices', 'vila_akoya_admin_notice_mwb_bookings' );
 
 /**
  * Whether the campsite product is rendered inside the Booking page (shortcode), not on a single-product URL.
@@ -172,7 +384,7 @@ function vila_akoya_is_booking_embedded_product() {
 }
 
 /**
- * Booking page: scope Flatpickr / layout; cart & checkout: scope global commerce styles.
+ * Booking page: layout scope; cart & checkout: scope global commerce styles.
  *
  * @param string[] $classes Body classes.
  * @return string[]
@@ -253,6 +465,6 @@ function vila_akoya_booking_product_short_description( $desc ) {
 	if ( '' !== trim( wp_strip_all_tags( (string) $desc ) ) ) {
 		return $desc;
 	}
-	return '<p class="vila-wc-booking__lede">' . esc_html__( 'Select your stay dates below. Price is per night.', 'vila-akoya' ) . '</p>';
+	return '<p class="vila-wc-booking__lede">' . esc_html__( 'Choose dates, number of guests, and unit type. Nightly rate is per guest; pitch supplements apply by night.', 'vila-akoya' ) . '</p>';
 }
 add_filter( 'woocommerce_short_description', 'vila_akoya_booking_product_short_description', 15 );

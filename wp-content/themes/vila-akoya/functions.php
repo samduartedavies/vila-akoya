@@ -13,6 +13,7 @@ define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
 require_once VILA_AKOYA_DIR . '/inc/redirects.php';
 require_once VILA_AKOYA_DIR . '/inc/woocommerce-campsite.php';
+require_once VILA_AKOYA_DIR . '/inc/campsite-plots-admin.php';
 require_once VILA_AKOYA_DIR . '/inc/booking-extras.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
 require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';

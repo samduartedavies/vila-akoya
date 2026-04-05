@@ -12,6 +12,8 @@
   "config": {
     "WP_DEBUG": true,
     "WP_DEBUG_LOG": true,
-    "SCRIPT_DEBUG": true
+    "SCRIPT_DEBUG": true,
+    "WP_MEMORY_LIMIT": "512M",
+    "WP_MAX_MEMORY_LIMIT": "512M"
   }
 }

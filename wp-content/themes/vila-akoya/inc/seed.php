@@ -142,7 +142,7 @@ function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
  * @return string
  */
 function vila_akoya_seed_replace_wc_placeholders( $html ) {
-	$pid = (int) get_option( 'vila_akoya_campsite_product_id' );
+	$pid = function_exists( 'vila_akoya_get_campsite_primary_product_id' ) ? (int) vila_akoya_get_campsite_primary_product_id() : (int) get_option( 'vila_akoya_campsite_product_id' );
 	if ( $pid && get_post_status( $pid ) === 'publish' ) {
 		$campsite = sprintf( '[product_page id="%d"]', $pid );
 	} else {

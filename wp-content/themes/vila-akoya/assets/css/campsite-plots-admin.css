@@ -1,0 +1,101 @@
+/**
+ * WooCommerce → Campsite plots admin screen.
+ */
+
+.vila-campsite-plots-admin .description {
+  max-width: 52rem;
+}
+
+.vila-campsite-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 1.5rem;
+}
+
+.vila-campsite-kpi {
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  border: 1px solid #c3c4c7;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.vila-campsite-kpi__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #646970;
+  margin-bottom: 0.35rem;
+}
+
+.vila-campsite-kpi__val {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #1d2327;
+}
+
+.vila-campsite-kpi--arrive {
+  border-left: 4px solid #dba617;
+}
+.vila-campsite-kpi--depart {
+  border-left: 4px solid #d63638;
+}
+.vila-campsite-kpi--stay {
+  border-left: 4px solid #2271b1;
+}
+.vila-campsite-kpi--book {
+  border-left: 4px solid #00a32a;
+}
+
+.vila-campsite-plots-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.vila-campsite-grid {
+  table-layout: fixed;
+  margin-top: 0.5rem;
+}
+
+.vila-campsite-grid__plot {
+  width: 8rem;
+  vertical-align: middle;
+  font-weight: 600;
+}
+
+.vila-campsite-grid__day {
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.25;
+  padding: 8px 4px;
+}
+
+.vila-campsite-grid__dow {
+  display: block;
+  color: #646970;
+  text-transform: uppercase;
+}
+
+.vila-campsite-grid__num {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2327;
+}
+
+.vila-campsite-grid__mon {
+  display: block;
+  color: #646970;
+}
+
+.vila-campsite-grid__busy {
+  background: #e7f0f8;
+  font-size: 11px;
+  word-break: break-word;
+}

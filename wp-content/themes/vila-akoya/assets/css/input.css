@@ -256,7 +256,7 @@
     @apply mt-4 rounded-lg text-sm;
   }
 
-  /* --- WooCommerce + MWB booking (Booking page embed) --- */
+  /* --- Bookings for WooCommerce (MWB) — Booking page embed --- */
   .vila-wc-booking.wp-block-group {
     @apply w-full min-w-0 max-w-full;
   }
@@ -274,7 +274,6 @@
     @apply hidden;
   }
 
-  /* WooCommerce classic templates often float summary at ~48% even when gallery is hidden */
   .vila-wc-booking .woocommerce div.product div.summary.entry-summary {
     float: none !important;
     width: 100% !important;
@@ -321,7 +320,6 @@
     @apply mb-6 flex flex-wrap gap-4;
   }
 
-  /* Airbnb-style range: hide native From/To when JS enhances the wrapper */
   .vila-wc-booking .vila-booking-range-wrap-enhanced .mbfw-date-picker-section {
     @apply hidden;
   }
@@ -356,8 +354,9 @@
   }
 
   .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-type,
-  .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-number {
-    @apply max-w-none flex-1 text-sm text-on-surface;
+  .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-number,
+  .vila-wc-booking #mwb_mbfw_people_number {
+    @apply max-w-none flex-1 text-sm text-on-surface rounded-lg border-0 bg-surface-container-low px-4 py-3;
   }
 
   .vila-wc-booking .mbfw-total-cost__wrapper {
