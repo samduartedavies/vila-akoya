@@ -468,3 +468,73 @@ function vila_akoya_booking_product_short_description( $desc ) {
 	return '<p class="vila-wc-booking__lede">' . esc_html__( 'Choose dates, number of guests, and unit type. Nightly rate is per guest; pitch supplements apply by night.', 'vila-akoya' ) . '</p>';
 }
 add_filter( 'woocommerce_short_description', 'vila_akoya_booking_product_short_description', 15 );
+
+/**
+ * Product ID from the current add-to-cart request (classic form or WC AJAX).
+ *
+ * @return int
+ */
+function vila_akoya_add_to_cart_request_product_id() {
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- WC core validates; we only read product id for routing.
+	if ( isset( $_REQUEST['add-to-cart'] ) ) {
+		$id = absint( wp_unslash( $_REQUEST['add-to-cart'] ) );
+		if ( $id ) {
+			return $id;
+		}
+	}
+	if ( isset( $_REQUEST['product_id'] ) ) {
+		$id = absint( wp_unslash( $_REQUEST['product_id'] ) );
+		if ( $id ) {
+			return $id;
+		}
+	}
+	if ( isset( $_REQUEST['mwb_mbfw_booking_product_id'] ) ) {
+		$id = absint( wp_unslash( $_REQUEST['mwb_mbfw_booking_product_id'] ) );
+		if ( $id ) {
+			return $id;
+		}
+	}
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
+	return 0;
+}
+
+/**
+ * After adding a campsite stay to the cart, go straight to checkout (classic + AJAX add-to-cart).
+ *
+ * @param string         $url     Redirect URL.
+ * @param WC_Product|null $product Product when provided by WooCommerce.
+ * @return string
+ */
+function vila_akoya_campsite_add_to_cart_redirect_checkout( $url, $product = null ) {
+	$pid = 0;
+	if ( $product && is_a( $product, 'WC_Product' ) ) {
+		$pid = (int) $product->get_id();
+	}
+	if ( ! $pid ) {
+		$pid = vila_akoya_add_to_cart_request_product_id();
+	}
+	if ( ! $pid || ! vila_akoya_is_campsite_product_id( $pid ) ) {
+		return $url;
+	}
+	if ( wc_get_page_id( 'checkout' ) <= 0 ) {
+		return $url;
+	}
+	return wc_get_checkout_url();
+}
+add_filter( 'woocommerce_add_to_cart_redirect', 'vila_akoya_campsite_add_to_cart_redirect_checkout', 99, 2 );
+
+/**
+ * WooCommerce only includes a redirect in the AJAX add-to-cart JSON when this option is "yes".
+ * Enable it only for campsite products so other products keep the store setting.
+ *
+ * @param string $value Option value.
+ * @return string
+ */
+function vila_akoya_campsite_option_cart_redirect_after_add( $value ) {
+	$pid = vila_akoya_add_to_cart_request_product_id();
+	if ( $pid && vila_akoya_is_campsite_product_id( $pid ) ) {
+		return 'yes';
+	}
+	return $value;
+}
+add_filter( 'option_woocommerce_cart_redirect_after_add', 'vila_akoya_campsite_option_cart_redirect_after_add', 20 );

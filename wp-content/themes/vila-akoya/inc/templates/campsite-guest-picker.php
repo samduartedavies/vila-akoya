@@ -31,7 +31,7 @@ $def_ad  = min( $def_ad, $max_people );
 $uid = 'vila-guest-' . $product_id;
 ?>
 <div
-	class="vila-guest-picker"
+	class="vila-guest-picker vila-airbnb-booking vila-airbnb-booking--who"
 	id="<?php echo esc_attr( $uid ); ?>"
 	data-vila-default-adults="<?php echo esc_attr( (string) $def_ad ); ?>"
 	data-vila-min-adults="<?php echo esc_attr( (string) $min_people ); ?>"
@@ -56,13 +56,13 @@ $uid = 'vila-guest-' . $product_id;
 	<input type="hidden" name="vila_guest_pets" id="vila_guest_pets" value="0" />
 
 	<div class="mbfw-additionl-detail-listing-section__wrapper vila-guest-picker__shell">
-		<p class="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 mt-4">
+		<p class="vila-airbnb-booking__legend mb-2 mt-0">
 			<?php esc_html_e( 'Who', 'vila-akoya' ); ?>
 		</p>
-		<div class="vila-guest-picker__bar rounded-full border border-outline-variant/25 bg-surface-container-low/90 shadow-sm px-4 py-3 flex flex-wrap items-center gap-3">
+		<div class="vila-guest-picker__bar rounded-[12px] border border-outline-variant/30 bg-surface-container-low px-4 py-3.5 flex flex-wrap items-center gap-3 min-h-[3.25rem]">
 			<button
 				type="button"
-				class="vila-guest-picker__trigger flex min-w-0 flex-1 items-center gap-2 rounded-full bg-transparent text-left font-body text-on-surface"
+				class="vila-guest-picker__trigger flex min-w-0 flex-1 items-center gap-2 rounded-[10px] bg-transparent text-left font-body text-base text-on-background"
 				aria-expanded="false"
 				aria-haspopup="dialog"
 				aria-controls="<?php echo esc_attr( $uid ); ?>-panel"

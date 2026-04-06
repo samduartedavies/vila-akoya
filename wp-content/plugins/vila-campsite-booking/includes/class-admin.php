@@ -1,0 +1,1159 @@
+<?php
+/**
+ * wp-admin: Campsite overview, timeline, plots, settings.
+ *
+ * @package Vila_CB
+ */
+
+namespace Vila_CB;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Admin UI.
+ */
+class Admin {
+
+	const PAGE_OVERVIEW = 'vila-cb-overview';
+	const PAGE_CAL      = 'vila-cb-calendar';
+	const PAGE_PLOTS    = 'vila-cb-plots';
+	const PAGE_SETTINGS = 'vila-cb-settings';
+	const PAGE_BOOKING  = 'vila-cb-booking';
+
+	/**
+	 * Init.
+	 */
+	public static function init() {
+		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ), 60 );
+		add_action( 'admin_bar_menu', array( __CLASS__, 'register_admin_bar' ), 100 );
+		add_action( 'admin_init', array( __CLASS__, 'handle_settings_save' ) );
+		add_action( 'admin_init', array( __CLASS__, 'handle_plots_save' ) );
+		add_action( 'admin_post_vila_cb_save_booking', array( __CLASS__, 'handle_booking_edit_save' ) );
+	}
+
+	/**
+	 * Admin bar: quick link to Campsite calendar.
+	 *
+	 * @param \WP_Admin_Bar $wp_admin_bar Admin bar instance.
+	 */
+	public static function register_admin_bar( $wp_admin_bar ) {
+		if ( ! class_exists( 'WooCommerce' ) || ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		$wp_admin_bar->add_node(
+			array(
+				'id'     => 'vila-cb-toolbar-calendar',
+				'title'  => __( 'Calendar', 'vila-campsite-booking' ),
+				'href'   => admin_url( 'admin.php?page=' . self::PAGE_CAL ),
+				'meta'   => array(
+					'title' => __( 'Campsite calendar', 'vila-campsite-booking' ),
+				),
+				'parent' => false,
+			)
+		);
+	}
+
+	/**
+	 * Shared wp-admin styles for all Campsite screens.
+	 */
+	private static function enqueue_admin_assets() {
+		wp_enqueue_style( 'vila-cb-admin', VILA_CB_URL . 'assets/css/admin.css', array(), VILA_CB_VERSION );
+	}
+
+	/**
+	 * Safe `date_format` option for DateTime::format() (PHP 8.1+ dislikes null / invalid patterns).
+	 *
+	 * @return string
+	 */
+	private static function wp_date_format_pattern() {
+		$df = get_option( 'date_format' );
+		return ( is_string( $df ) && '' !== $df ) ? $df : 'Y-m-d';
+	}
+
+	/**
+	 * Register WooCommerce submenu pages.
+	 */
+	public static function register_menu() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return;
+		}
+
+		add_submenu_page(
+			'woocommerce',
+			__( 'Campsite', 'vila-campsite-booking' ),
+			__( 'Campsite', 'vila-campsite-booking' ),
+			'manage_woocommerce',
+			self::PAGE_OVERVIEW,
+			array( __CLASS__, 'render_overview' )
+		);
+
+		add_submenu_page(
+			'woocommerce',
+			__( 'Campsite calendar', 'vila-campsite-booking' ),
+			__( 'Campsite · Calendar', 'vila-campsite-booking' ),
+			'manage_woocommerce',
+			self::PAGE_CAL,
+			array( __CLASS__, 'render_calendar' )
+		);
+
+		add_submenu_page(
+			'woocommerce',
+			__( 'Campsite plots', 'vila-campsite-booking' ),
+			__( 'Campsite · Plots', 'vila-campsite-booking' ),
+			'manage_woocommerce',
+			self::PAGE_PLOTS,
+			array( __CLASS__, 'render_plots' )
+		);
+
+		add_submenu_page(
+			'woocommerce',
+			__( 'Campsite settings', 'vila-campsite-booking' ),
+			__( 'Campsite · Settings', 'vila-campsite-booking' ),
+			'manage_woocommerce',
+			self::PAGE_SETTINGS,
+			array( __CLASS__, 'render_settings' )
+		);
+
+		add_submenu_page(
+			null,
+			__( 'Edit campsite booking', 'vila-campsite-booking' ),
+			'',
+			'manage_woocommerce',
+			self::PAGE_BOOKING,
+			array( __CLASS__, 'render_booking_edit' )
+		);
+	}
+
+	/**
+	 * Save booking edit (plot, dates, guests, unit type, billing name).
+	 */
+	public static function handle_booking_edit_save() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die(
+				esc_html__( 'Sorry, you are not allowed to do that.', 'vila-campsite-booking' ),
+				'',
+				array( 'response' => 403 )
+			);
+		}
+		if ( ! isset( $_POST['vila_cb_booking_edit_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_booking_edit_nonce'] ) ) ), 'vila_cb_booking_edit' ) ) {
+			wp_die(
+				esc_html__( 'Security check failed. Please try again.', 'vila-campsite-booking' ),
+				'',
+				array( 'response' => 403 )
+			);
+		}
+
+		$booking_id = isset( $_POST['booking_id'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['booking_id'] ) ) : 0;
+		if ( $booking_id <= 0 ) {
+			wp_die(
+				esc_html__( 'Invalid booking.', 'vila-campsite-booking' ),
+				'',
+				array( 'response' => 400 )
+			);
+		}
+
+		$repo    = new Booking_Repository();
+		$booking = $repo->get( $booking_id );
+		if ( ! $booking ) {
+			wp_die(
+				esc_html__( 'Booking not found.', 'vila-campsite-booking' ),
+				'',
+				array( 'response' => 404 )
+			);
+		}
+
+		$order_id     = (int) $booking['order_id'];
+		$line_item_id = isset( $booking['line_item_id'] ) ? (int) $booking['line_item_id'] : 0;
+		$order        = $order_id ? wc_get_order( $order_id ) : null;
+
+		$plot_id   = isset( $_POST['vila_cb_plot_id'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_plot_id'] ) ) : 0;
+		$check_in  = isset( $_POST['vila_cb_check_in'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_check_in'] ) ) ) : '';
+		$check_out = isset( $_POST['vila_cb_check_out'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_check_out'] ) ) ) : '';
+
+		$guests = array(
+			'adults'   => isset( $_POST['vila_cb_adults'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_adults'] ) ) : 1,
+			'children' => isset( $_POST['vila_cb_children'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_children'] ) ) : 0,
+			'infants'  => isset( $_POST['vila_cb_infants'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_infants'] ) ) : 0,
+			'pets'     => isset( $_POST['vila_cb_pets'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_pets'] ) ) : 0,
+		);
+
+		$fn = isset( $_POST['vila_cb_billing_first_name'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_billing_first_name'] ) ) ) : '';
+		$ln = isset( $_POST['vila_cb_billing_last_name'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_billing_last_name'] ) ) ) : '';
+
+		$opts = WooCommerce_Integration::get_admin_vehicle_type_options();
+		$slug = isset( $_POST['vila_cb_vehicle_slug'] ) ? sanitize_key( wp_unslash( Request_String::scalar( $_POST['vila_cb_vehicle_slug'] ) ) ) : '';
+		$custom = isset( $_POST['vila_cb_unit_custom'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_unit_custom'] ) ) ) : '';
+		$unit_label = '';
+		if ( '__custom__' === $slug ) {
+			$unit_label = $custom;
+		} elseif ( '' !== $slug && isset( $opts[ $slug ] ) ) {
+			$unit_label = $opts[ $slug ];
+		}
+		if ( '' === $unit_label && $order instanceof \WC_Order && $line_item_id > 0 ) {
+			$unit_label = (string) WooCommerce_Integration::get_order_line_unit_type_label( $order, $line_item_id );
+		}
+
+		$svc = new Booking_Service();
+		$res = $svc->admin_update_booking(
+			$booking_id,
+			array(
+				'plot_id'             => $plot_id,
+				'check_in'            => $check_in,
+				'check_out'           => $check_out,
+				'guests'              => $guests,
+				'billing_first_name'  => $fn,
+				'billing_last_name'   => $ln,
+				'unit_type_label'     => $unit_label,
+			)
+		);
+
+		if ( ! empty( $res['success'] ) ) {
+			$cal_start = Dates::parse_ymd( $check_in );
+			$redirect  = add_query_arg(
+				array(
+					'page'        => self::PAGE_CAL,
+					'vila_cb_cal' => $cal_start ? $cal_start->format( 'Y-m-d' ) : $check_in,
+					'updated'     => '1',
+				),
+				admin_url( 'admin.php' )
+			);
+		} else {
+			$redirect = add_query_arg(
+				array(
+					'page'       => self::PAGE_BOOKING,
+					'booking_id' => $booking_id,
+					'error'      => rawurlencode( isset( $res['message'] ) ? (string) $res['message'] : __( 'Could not save.', 'vila-campsite-booking' ) ),
+				),
+				admin_url( 'admin.php' )
+			);
+		}
+
+		wp_safe_redirect( $redirect );
+		exit;
+	}
+
+	/**
+	 * Single booking editor (hidden submenu).
+	 */
+	public static function render_booking_edit() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		self::enqueue_admin_assets();
+
+		$booking_id = isset( $_GET['booking_id'] ) ? (int) wp_unslash( Request_String::scalar( $_GET['booking_id'] ) ) : 0;
+		$repo       = new Booking_Repository();
+		$booking    = $booking_id > 0 ? $repo->get( $booking_id ) : null;
+
+		if ( ! $booking || 'confirmed' !== (string) $booking['status'] ) {
+			echo '<div class="wrap"><h1>' . esc_html__( 'Booking not found', 'vila-campsite-booking' ) . '</h1></div>';
+			return;
+		}
+
+		$plot_repo = new Plot_Repository();
+		$plots     = $plot_repo->get_all();
+
+		$order_id     = (int) $booking['order_id'];
+		$line_item_id = isset( $booking['line_item_id'] ) ? (int) $booking['line_item_id'] : 0;
+		$order        = $order_id ? wc_get_order( $order_id ) : null;
+
+		$guests = array(
+			'adults'   => 1,
+			'children' => 0,
+			'infants'  => 0,
+			'pets'     => 0,
+		);
+		if ( ! empty( $booking['guest_json'] ) ) {
+			$dec = json_decode( (string) $booking['guest_json'], true );
+			if ( is_array( $dec ) ) {
+				foreach ( array( 'adults', 'children', 'infants', 'pets' ) as $k ) {
+					if ( isset( $dec[ $k ] ) ) {
+						$guests[ $k ] = (int) $dec[ $k ];
+					}
+				}
+			}
+		}
+
+		$billing_fn = $order ? (string) $order->get_billing_first_name() : '';
+		$billing_ln = $order ? (string) $order->get_billing_last_name() : '';
+
+		$opts          = WooCommerce_Integration::get_admin_vehicle_type_options();
+		$current_unit  = ( $order && $line_item_id > 0 ) ? (string) WooCommerce_Integration::get_order_line_unit_type_label( $order, $line_item_id ) : '';
+		$selected_slug = '';
+		foreach ( $opts as $sk => $lab ) {
+			if ( $lab === $current_unit ) {
+				$selected_slug = $sk;
+				break;
+			}
+		}
+		$use_custom = ( '' === $selected_slug && '' !== $current_unit );
+
+		$order_edit = $order ? $order->get_edit_order_url() : '';
+
+		if ( isset( $_GET['updated'] ) ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Booking saved.', 'vila-campsite-booking' ) . '</p></div>';
+		}
+		if ( isset( $_GET['error'] ) ) {
+			$raw = wp_unslash( Request_String::scalar( $_GET['error'] ) );
+			$raw = rawurldecode( $raw );
+			$err = sanitize_text_field( Request_String::scalar( $raw ) );
+			echo '<div class="notice notice-error"><p>' . esc_html( $err ) . '</p></div>';
+		}
+
+		?>
+		<div class="wrap vila-cb-admin">
+			<h1><?php esc_html_e( 'Edit campsite booking', 'vila-campsite-booking' ); ?></h1>
+			<p class="description">
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: %d: booking ID */
+						__( 'Booking #%d — changes sync to the campsite schedule and the WooCommerce order line.', 'vila-campsite-booking' ),
+						$booking_id
+					)
+				);
+				?>
+				<?php if ( $order_edit ) : ?>
+					<a href="<?php echo esc_url( $order_edit ); ?>"><?php esc_html_e( 'View order in WooCommerce', 'vila-campsite-booking' ); ?></a>
+				<?php endif; ?>
+			</p>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="vila-cb-booking-edit">
+				<input type="hidden" name="action" value="vila_cb_save_booking" />
+				<?php wp_nonce_field( 'vila_cb_booking_edit', 'vila_cb_booking_edit_nonce' ); ?>
+				<input type="hidden" name="booking_id" value="<?php echo esc_attr( (string) (int) $booking_id ); ?>" />
+
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="vila_cb_plot_id"><?php esc_html_e( 'Plot', 'vila-campsite-booking' ); ?></label></th>
+						<td>
+							<select name="vila_cb_plot_id" id="vila_cb_plot_id" required>
+								<?php foreach ( $plots as $p ) : ?>
+									<option value="<?php echo esc_attr( (string) (int) $p['id'] ); ?>" <?php selected( (int) $booking['plot_id'], (int) $p['id'] ); ?>>
+										<?php echo esc_html( (string) $p['label'] ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Stay dates', 'vila-campsite-booking' ); ?></th>
+						<td>
+							<label for="vila_cb_check_in"><?php esc_html_e( 'Check-in', 'vila-campsite-booking' ); ?></label>
+							<input type="date" name="vila_cb_check_in" id="vila_cb_check_in" value="<?php echo esc_attr( (string) $booking['check_in'] ); ?>" required />
+							&nbsp;
+							<label for="vila_cb_check_out"><?php esc_html_e( 'Check-out', 'vila-campsite-booking' ); ?></label>
+							<input type="date" name="vila_cb_check_out" id="vila_cb_check_out" value="<?php echo esc_attr( (string) $booking['check_out'] ); ?>" required />
+							<p class="description"><?php esc_html_e( 'Nights are from check-in up to (but not including) check-out.', 'vila-campsite-booking' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Guests', 'vila-campsite-booking' ); ?></th>
+						<td>
+							<label><span class="screen-reader-text"><?php esc_html_e( 'Adults', 'vila-campsite-booking' ); ?></span>
+								<?php esc_html_e( 'Adults', 'vila-campsite-booking' ); ?>
+								<input type="number" name="vila_cb_adults" min="1" step="1" class="small-text" value="<?php echo esc_attr( (string) (int) $guests['adults'] ); ?>" />
+							</label>
+							<label><?php esc_html_e( 'Children', 'vila-campsite-booking' ); ?>
+								<input type="number" name="vila_cb_children" min="0" step="1" class="small-text" value="<?php echo esc_attr( (string) (int) $guests['children'] ); ?>" />
+							</label>
+							<label><?php esc_html_e( 'Infants', 'vila-campsite-booking' ); ?>
+								<input type="number" name="vila_cb_infants" min="0" step="1" class="small-text" value="<?php echo esc_attr( (string) (int) $guests['infants'] ); ?>" />
+							</label>
+							<label><?php esc_html_e( 'Pets', 'vila-campsite-booking' ); ?>
+								<input type="number" name="vila_cb_pets" min="0" step="1" class="small-text" value="<?php echo esc_attr( (string) (int) $guests['pets'] ); ?>" />
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vila_cb_vehicle_slug"><?php esc_html_e( 'Unit type', 'vila-campsite-booking' ); ?></label></th>
+						<td>
+							<select name="vila_cb_vehicle_slug" id="vila_cb_vehicle_slug">
+								<option value="" <?php selected( ! $use_custom && '' === $selected_slug ); ?>><?php esc_html_e( 'Keep current on order', 'vila-campsite-booking' ); ?></option>
+								<?php foreach ( $opts as $sk => $lab ) : ?>
+									<option value="<?php echo esc_attr( (string) $sk ); ?>" <?php selected( $selected_slug, $sk ); ?>><?php echo esc_html( (string) $lab ); ?></option>
+								<?php endforeach; ?>
+								<option value="__custom__" <?php selected( true, $use_custom ); ?>><?php esc_html_e( 'Other…', 'vila-campsite-booking' ); ?></option>
+							</select>
+							<input type="text" name="vila_cb_unit_custom" id="vila_cb_unit_custom" class="regular-text" value="<?php echo esc_attr( $use_custom ? (string) $current_unit : '' ); ?>" placeholder="<?php esc_attr_e( 'Custom unit type', 'vila-campsite-booking' ); ?>" style="<?php echo $use_custom ? '' : 'display:none;'; ?>" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Billing name (order)', 'vila-campsite-booking' ); ?></th>
+						<td>
+							<input type="text" name="vila_cb_billing_first_name" class="regular-text" value="<?php echo esc_attr( (string) $billing_fn ); ?>" placeholder="<?php esc_attr_e( 'First name', 'vila-campsite-booking' ); ?>" />
+							<input type="text" name="vila_cb_billing_last_name" class="regular-text" value="<?php echo esc_attr( (string) $billing_ln ); ?>" placeholder="<?php esc_attr_e( 'Last name', 'vila-campsite-booking' ); ?>" />
+						</td>
+					</tr>
+				</table>
+
+				<?php submit_button( __( 'Save booking', 'vila-campsite-booking' ), 'primary', 'vila_cb_booking_save' ); ?>
+			</form>
+		</div>
+		<script>
+		(function(){
+			var sel = document.getElementById('vila_cb_vehicle_slug');
+			var cust = document.getElementById('vila_cb_unit_custom');
+			if (!sel || !cust) return;
+			function toggle(){ cust.style.display = (sel.value === '__custom__') ? '' : 'none'; }
+			sel.addEventListener('change', toggle);
+			toggle();
+		})();
+		</script>
+		<?php
+	}
+
+	/**
+	 * Save settings form.
+	 */
+	public static function handle_settings_save() {
+		if ( ! isset( $_POST['vila_cb_settings_nonce'] ) || ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_settings_nonce'] ) ) ), 'vila_cb_settings' ) ) {
+			return;
+		}
+		$product_id = isset( $_POST['vila_cb_product_id'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_product_id'] ) ) : 0;
+		$plot_count = isset( $_POST['vila_cb_plot_count'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_plot_count'] ) ) : 5;
+
+		update_option( 'vila_cb_product_id', max( 0, $product_id ) );
+		update_option( 'vila_cb_plot_count', max( 1, $plot_count ) );
+
+		if ( $product_id ) {
+			update_post_meta( $product_id, WooCommerce_Integration::PRODUCT_META_FLAG, 'yes' );
+		}
+
+		Install::sync_plots();
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'    => self::PAGE_SETTINGS,
+					'updated' => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Plots CRUD.
+	 */
+	public static function handle_plots_save() {
+		if ( ! isset( $_POST['vila_cb_plots_nonce'] ) || ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_plots_nonce'] ) ) ), 'vila_cb_plots' ) ) {
+			return;
+		}
+
+		$repo = new Plot_Repository();
+		if ( isset( $_POST['vila_cb_new_label'] ) && '' !== trim( wp_unslash( Request_String::scalar( $_POST['vila_cb_new_label'] ) ) ) ) {
+			$label = sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_new_label'] ) ) );
+			$now   = current_time( 'mysql' );
+			$max   = 0;
+			foreach ( $repo->get_all() as $p ) {
+				$max = max( $max, (int) $p['sort_order'] );
+			}
+			$repo->insert(
+				array(
+					'label'      => $label,
+					'sort_order' => $max + 1,
+					'created_at' => $now,
+					'updated_at' => $now,
+				)
+			);
+		}
+
+		if ( ! empty( $_POST['vila_cb_plot'] ) && is_array( $_POST['vila_cb_plot'] ) ) {
+			foreach ( $_POST['vila_cb_plot'] as $id => $row ) {
+				$id = (int) $id;
+				if ( $id <= 0 || ! is_array( $row ) ) {
+					continue;
+				}
+				if ( ! empty( $row['delete'] ) ) {
+					$repo->delete( $id );
+					continue;
+				}
+				$label = isset( $row['label'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $row['label'] ) ) ) : '';
+				$sort  = isset( $row['sort'] ) ? (int) wp_unslash( Request_String::scalar( $row['sort'] ) ) : 0;
+				if ( '' !== $label ) {
+					$repo->update(
+						$id,
+						array(
+							'label'      => $label,
+							'sort_order' => $sort,
+							'updated_at' => current_time( 'mysql' ),
+						)
+					);
+				}
+			}
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'    => self::PAGE_PLOTS,
+					'updated' => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Overview + daily list.
+	 */
+	public static function render_overview() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		self::enqueue_admin_assets();
+
+		$tz   = wp_timezone();
+		$base = new \DateTime( 'now', $tz );
+		$base->setTime( 0, 0, 0 );
+		if ( isset( $_GET['vila_cb_day'] ) ) {
+			$raw = wp_unslash( Request_String::scalar( $_GET['vila_cb_day'] ) );
+			$try = Dates::parse_ymd( sanitize_text_field( $raw ) );
+			if ( $try ) {
+				$base = new \DateTime( $try->format( 'Y-m-d' ), $tz );
+			}
+		}
+		$ymd = $base->format( 'Y-m-d' );
+
+		$svc   = new Booking_Service();
+		$stats = $svc->get_day_stats( $ymd );
+
+		$repo = new Booking_Repository();
+		$rows = $repo->get_activity_for_day( $ymd );
+
+		$prev = ( clone $base )->modify( '-1 day' )->format( 'Y-m-d' );
+		$nxt  = ( clone $base )->modify( '+1 day' )->format( 'Y-m-d' );
+
+		?>
+		<div class="wrap vila-cb-admin vila-cb-overview">
+			<div class="vila-cb-ui-hero">
+				<div class="vila-cb-ui-hero__text">
+					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Overview', 'vila-campsite-booking' ); ?></h1>
+					<p class="vila-cb-ui-lead"><?php esc_html_e( 'Operational snapshot for the selected day — arrivals, departures, and who is on site.', 'vila-campsite-booking' ); ?></p>
+				</div>
+				<form method="get" class="vila-cb-daynav vila-cb-ui-nav">
+					<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_OVERVIEW ); ?>" />
+					<button type="submit" class="button vila-cb-ui-nav-btn" name="vila_cb_day" value="<?php echo esc_attr( $prev ); ?>" aria-label="<?php esc_attr_e( 'Previous day', 'vila-campsite-booking' ); ?>">
+						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">‹</span>
+						<span><?php esc_html_e( 'Prev', 'vila-campsite-booking' ); ?></span>
+					</button>
+					<div class="vila-cb-ui-nav-period">
+						<span class="vila-cb-ui-nav-month"><?php echo esc_html( $base->format( 'l' ) ); ?></span>
+						<span class="vila-cb-ui-nav-sub"><?php echo esc_html( $base->format( self::wp_date_format_pattern() ) ); ?></span>
+					</div>
+					<button type="submit" class="button vila-cb-ui-nav-btn vila-cb-ui-nav-btn--primary" name="vila_cb_day" value="<?php echo esc_attr( $nxt ); ?>" aria-label="<?php esc_attr_e( 'Next day', 'vila-campsite-booking' ); ?>">
+						<span><?php esc_html_e( 'Next', 'vila-campsite-booking' ); ?></span>
+						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">›</span>
+					</button>
+				</form>
+			</div>
+
+			<div class="vila-cb-kpis">
+				<div class="vila-cb-kpi vila-cb-kpi--arrive">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Arriving today', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $stats['arriving'] ); ?></strong>
+				</div>
+				<div class="vila-cb-kpi vila-cb-kpi--depart">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Departing today', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $stats['departing'] ); ?></strong>
+				</div>
+				<div class="vila-cb-kpi vila-cb-kpi--stay">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Staying tonight', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $stats['staying'] ); ?></strong>
+				</div>
+				<div class="vila-cb-kpi vila-cb-kpi--book">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Orders with activity today', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $stats['activity_orders'] ); ?></strong>
+				</div>
+			</div>
+
+			<div class="vila-cb-ui-panel">
+				<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Daily list', 'vila-campsite-booking' ); ?></h2>
+				<div class="vila-cb-ui-table-wrap">
+					<table class="vila-cb-list-table">
+						<thead>
+							<tr>
+								<th scope="col"><?php esc_html_e( 'Guest / stay', 'vila-campsite-booking' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Plot', 'vila-campsite-booking' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Balance / order', 'vila-campsite-booking' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Actions', 'vila-campsite-booking' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+					<?php
+					if ( empty( $rows ) ) {
+						echo '<tr><td colspan="4">' . esc_html__( 'No bookings with activity on this day.', 'vila-campsite-booking' ) . '</td></tr>';
+					}
+					$plot_repo = new Plot_Repository();
+					foreach ( $rows as $b ) {
+						if ( 'confirmed' !== $b['status'] ) {
+							continue;
+						}
+						$cin  = (string) $b['check_in'];
+						$cout = (string) $b['check_out'];
+						$nights = Dates::night_count( $cin, $cout );
+						$order_id = (int) $b['order_id'];
+						$order    = $order_id ? wc_get_order( $order_id ) : null;
+						$name = $order ? trim( (string) $order->get_formatted_billing_full_name() ) : '';
+						if ( '' === $name ) {
+							$name = $order ? '#' . $order->get_order_number() : '#' . (int) $b['id'];
+						}
+						$plot = $plot_repo->get( (int) $b['plot_id'] );
+						$plabel = $plot ? (string) $plot['label'] : '#' . (int) $b['plot_id'];
+						$edit   = $order ? $order->get_edit_order_url() : '';
+						$total  = $order ? $order->get_total() : '';
+						$booking_edit_url = add_query_arg(
+							array(
+								'page'       => self::PAGE_BOOKING,
+								'booking_id' => (int) $b['id'],
+							),
+							admin_url( 'admin.php' )
+						);
+						?>
+						<tr>
+							<td>
+								<strong><?php echo esc_html( $name ); ?></strong><br />
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: 1: nights, 2: check-in, 3: check-out */
+										_n( '%1$d night · %2$s → %3$s', '%1$d nights · %2$s → %3$s', $nights, 'vila-campsite-booking' ),
+										$nights,
+										$cin,
+										$cout
+									)
+								);
+								?>
+							</td>
+							<td><?php echo esc_html( $plabel ); ?></td>
+							<td>
+								<?php if ( $order ) : ?>
+									<a href="<?php echo esc_url( $edit ); ?>"><?php echo wp_kses_post( wc_price( $total ) ); ?></a>
+								<?php else : ?>
+									—
+								<?php endif; ?>
+							</td>
+							<td>
+								<a class="button button-small" href="<?php echo esc_url( $booking_edit_url ); ?>"><?php esc_html_e( 'Edit booking', 'vila-campsite-booking' ); ?></a>
+								<?php if ( $edit ) : ?>
+									<a class="button button-small" href="<?php echo esc_url( $edit ); ?>"><?php esc_html_e( 'Order', 'vila-campsite-booking' ); ?></a>
+								<?php endif; ?>
+							</td>
+						</tr>
+						<?php
+					}
+					?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Gantt-style calendar.
+	 */
+	public static function render_calendar() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		self::enqueue_admin_assets();
+
+		$tz = wp_timezone();
+		if ( isset( $_GET['vila_cb_cal'] ) ) {
+			$raw = wp_unslash( Request_String::scalar( $_GET['vila_cb_cal'] ) );
+			$try = Dates::parse_ymd( sanitize_text_field( $raw ) );
+			if ( $try ) {
+				$base = new \DateTime( $try->format( 'Y-m-d' ), $tz );
+			} else {
+				$base = new \DateTime( 'now', $tz );
+				$base->setTime( 0, 0, 0 );
+				$base->modify( '-1 day' );
+			}
+		} else {
+			$base = new \DateTime( 'now', $tz );
+			$base->setTime( 0, 0, 0 );
+			$base->modify( '-1 day' );
+		}
+
+		$days = array();
+		for ( $i = 0; $i < 14; $i++ ) {
+			$d = ( clone $base )->modify( '+' . $i . ' days' );
+			$days[] = array(
+				'ymd' => $d->format( 'Y-m-d' ),
+				'dow' => $d->format( 'D' ),
+				'day' => $d->format( 'j' ),
+				'mon' => $d->format( 'M' ),
+			);
+		}
+
+		$from = $days[0]['ymd'];
+		$to   = ( clone $base )->modify( '+14 days' )->format( 'Y-m-d' );
+
+		$booking_repo = new Booking_Repository();
+		$bookings     = $booking_repo->get_in_range( $from, $to );
+		$plot_repo    = new Plot_Repository();
+		$plots        = $plot_repo->get_all();
+
+		$by_plot = array();
+		foreach ( $plots as $p ) {
+			$by_plot[ (int) $p['id'] ] = array();
+		}
+		foreach ( $bookings as $b ) {
+			$pid = (int) $b['plot_id'];
+			if ( ! isset( $by_plot[ $pid ] ) ) {
+				$by_plot[ $pid ] = array();
+			}
+			$by_plot[ $pid ][] = $b;
+		}
+
+		$prev = ( clone $base )->modify( '-14 days' )->format( 'Y-m-d' );
+		$next = ( clone $base )->modify( '+14 days' )->format( 'Y-m-d' );
+		$today_ymd = ( new \DateTime( 'now', $tz ) )->format( 'Y-m-d' );
+
+		?>
+		<div class="wrap vila-cb-admin vila-cb-cal">
+			<?php if ( isset( $_GET['updated'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Booking saved.', 'vila-campsite-booking' ); ?></p></div>
+			<?php endif; ?>
+			<div class="vila-cb-ui-hero">
+				<div class="vila-cb-ui-hero__text">
+					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Calendar', 'vila-campsite-booking' ); ?></h1>
+					<p class="vila-cb-ui-lead">
+						<?php esc_html_e( '14-day occupancy grid. Bookings show after orders are synced (processing, completed, or on-hold).', 'vila-campsite-booking' ); ?>
+					</p>
+				</div>
+				<form method="get" class="vila-cb-daynav vila-cb-ui-nav">
+					<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_CAL ); ?>" />
+					<button type="submit" class="button vila-cb-ui-nav-btn" name="vila_cb_cal" value="<?php echo esc_attr( $prev ); ?>" aria-label="<?php esc_attr_e( 'Previous 14 days', 'vila-campsite-booking' ); ?>">
+						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">‹</span>
+						<span><?php esc_html_e( 'Prev', 'vila-campsite-booking' ); ?></span>
+					</button>
+					<div class="vila-cb-ui-nav-period">
+						<span class="vila-cb-ui-nav-month"><?php echo esc_html( $base->format( 'F' ) ); ?></span>
+						<span class="vila-cb-ui-nav-sub"><?php echo esc_html( $base->format( 'Y' ) ); ?></span>
+					</div>
+					<button type="submit" class="button vila-cb-ui-nav-btn vila-cb-ui-nav-btn--primary" name="vila_cb_cal" value="<?php echo esc_attr( $next ); ?>" aria-label="<?php esc_attr_e( 'Next 14 days', 'vila-campsite-booking' ); ?>">
+						<span><?php esc_html_e( 'Next', 'vila-campsite-booking' ); ?></span>
+						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">›</span>
+					</button>
+				</form>
+			</div>
+
+			<div class="vila-cb-ui-table-wrap vila-cb-cal__table-wrap">
+				<table class="vila-cb-grid">
+					<thead>
+						<tr>
+							<th class="vila-cb-grid__plot" scope="col"><?php esc_html_e( 'Plot', 'vila-campsite-booking' ); ?></th>
+							<?php foreach ( $days as $dl ) : ?>
+								<?php
+								$is_today = ( $dl['ymd'] === $today_ymd );
+								$th_class = 'vila-cb-grid__day' . ( $is_today ? ' vila-cb-grid__day--today' : '' );
+								?>
+								<th class="<?php echo esc_attr( $th_class ); ?>" scope="col">
+									<span class="vila-cb-grid__dow"><?php echo esc_html( $dl['dow'] ); ?></span>
+									<span class="vila-cb-grid__date-stack">
+										<span class="vila-cb-grid__num"><?php echo esc_html( $dl['day'] ); ?></span>
+										<span class="vila-cb-grid__mon"><?php echo esc_html( $dl['mon'] ); ?></span>
+									</span>
+									<?php if ( $is_today ) : ?>
+										<span class="vila-cb-grid__today-badge"><?php esc_html_e( 'Today', 'vila-campsite-booking' ); ?></span>
+									<?php endif; ?>
+								</th>
+							<?php endforeach; ?>
+						</tr>
+					</thead>
+					<tbody>
+						<?php
+						$day_count = count( $days );
+						foreach ( $plots as $plot ) :
+							$pid = (int) $plot['id'];
+							?>
+							<tr>
+								<th class="vila-cb-grid__plot-cell" scope="row"><?php echo esc_html( (string) $plot['label'] ); ?></th>
+								<?php
+								$j = 0;
+								while ( $j < $day_count ) :
+									$ymd = $days[ $j ]['ymd'];
+									$seg = self::calendar_booking_for_plot_day( $by_plot, $pid, $ymd );
+									if ( null === $seg ) {
+										$span = 1;
+										for ( $k = $j + 1; $k < $day_count; $k++ ) {
+											if ( null !== self::calendar_booking_for_plot_day( $by_plot, $pid, $days[ $k ]['ymd'] ) ) {
+												break;
+											}
+											$span++;
+										}
+										$range_includes_today = self::calendar_day_range_includes( $days, $j, $span, $today_ymd );
+										$cell_classes         = array_filter(
+											array(
+												'vila-cb-grid__cell--free',
+												$range_includes_today ? 'vila-cb-grid__cell--today' : '',
+											)
+										);
+										$title_dates = self::calendar_day_range_title( $days, $j, $span );
+										echo '<td class="' . esc_attr( implode( ' ', $cell_classes ) ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $title_dates ) . '">';
+										echo '<span class="vila-cb-grid__empty">' . esc_html( __( '—', 'vila-campsite-booking' ) ) . '</span>';
+										echo '</td>';
+										$j += $span;
+										continue;
+									}
+
+									$bid = (int) $seg['id'];
+									$span = 0;
+									for ( $k = $j; $k < $day_count; $k++ ) {
+										$sk = self::calendar_booking_for_plot_day( $by_plot, $pid, $days[ $k ]['ymd'] );
+										if ( null === $sk || (int) $sk['id'] !== $bid ) {
+											break;
+										}
+										$span++;
+									}
+
+									$payload              = self::calendar_booking_cell_payload( $seg );
+									$range_includes_today = self::calendar_day_range_includes( $days, $j, $span, $today_ymd );
+									$cell_classes         = array_filter(
+										array(
+											'vila-cb-grid__busy',
+											'vila-cb-grid__busy-bar',
+											$range_includes_today ? 'vila-cb-grid__cell--today' : '',
+										)
+									);
+									echo '<td class="' . esc_attr( implode( ' ', $cell_classes ) ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $payload['cell_title'] ) . '">';
+									echo $payload['cell_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built in render_calendar_busy_cell_markup().
+									echo '</td>';
+									$j += $span;
+								endwhile;
+								?>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+
+			<div class="vila-cb-ui-legend vila-cb-cal__legend" role="note">
+				<span class="vila-cb-ui-legend-item">
+					<span class="vila-cb-ui-swatch vila-cb-ui-swatch--free"></span>
+					<?php esc_html_e( 'Available', 'vila-campsite-booking' ); ?>
+				</span>
+				<span class="vila-cb-ui-legend-item">
+					<span class="vila-cb-ui-swatch vila-cb-ui-swatch--busy"></span>
+					<?php esc_html_e( 'Booked (click to edit booking)', 'vila-campsite-booking' ); ?>
+				</span>
+				<span class="vila-cb-ui-legend-item">
+					<span class="vila-cb-ui-swatch vila-cb-ui-swatch--today"></span>
+					<?php esc_html_e( 'Current day column', 'vila-campsite-booking' ); ?>
+				</span>
+				<span class="vila-cb-ui-legend-item">
+					<?php esc_html_e( 'Booked cells show stay dates (from–until), guest counts, and unit type when saved on the order line.', 'vila-campsite-booking' ); ?>
+				</span>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Booking row covering a calendar day for a plot, or null.
+	 *
+	 * @param array<int, array<int, array<string, mixed>>> $by_plot Plot ID => booking rows.
+	 * @param int                                           $pid   Plot ID.
+	 * @param string                                        $ymd   Y-m-d.
+	 * @return array<string, mixed>|null
+	 */
+	private static function calendar_booking_for_plot_day( array $by_plot, $pid, $ymd ) {
+		$pid = (int) $pid;
+		$ymd = (string) $ymd;
+		foreach ( $by_plot[ $pid ] ?? array() as $seg ) {
+			$nights = Dates::nights_in_range( (string) $seg['check_in'], (string) $seg['check_out'] );
+			if ( in_array( $ymd, $nights, true ) ) {
+				return $seg;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Whether a contiguous day range in the grid includes "today".
+	 *
+	 * @param array<int, array{ymd: string}> $days      Grid columns.
+	 * @param int                            $start_idx First index.
+	 * @param int                            $span      Column count.
+	 * @param string                         $today_ymd Today Y-m-d.
+	 * @return bool
+	 */
+	private static function calendar_day_range_includes( array $days, $start_idx, $span, $today_ymd ) {
+		$start_idx = (int) $start_idx;
+		$span      = (int) $span;
+		for ( $i = 0; $i < $span; $i++ ) {
+			$idx = $start_idx + $i;
+			if ( isset( $days[ $idx ]['ymd'] ) && $days[ $idx ]['ymd'] === $today_ymd ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Compact stay range for booking bar, e.g. 12/03 - 16/03 (check-out is the departure morning).
+	 *
+	 * @param string $check_in  Y-m-d inclusive.
+	 * @param string $check_out Y-m-d exclusive end.
+	 * @return string
+	 */
+	private static function calendar_booking_stay_date_range_label( $check_in, $check_out ) {
+		$cin  = Dates::parse_ymd( (string) $check_in );
+		$cout = Dates::parse_ymd( (string) $check_out );
+		if ( ! $cin || ! $cout ) {
+			return '';
+		}
+		$from = wp_date( 'd/m', $cin->getTimestamp() );
+		$to   = wp_date( 'd/m', $cout->getTimestamp() );
+		return $from . ' - ' . $to;
+	}
+
+	/**
+	 * Title text for empty cells (date range shown in this segment).
+	 *
+	 * @param array<int, array{ymd: string}> $days      Grid columns.
+	 * @param int                            $start_idx First index.
+	 * @param int                            $span      Column count.
+	 * @return string
+	 */
+	private static function calendar_day_range_title( array $days, $start_idx, $span ) {
+		$start_idx = (int) $start_idx;
+		$span      = (int) $span;
+		if ( $span <= 0 || ! isset( $days[ $start_idx ]['ymd'] ) ) {
+			return '';
+		}
+		$from = $days[ $start_idx ]['ymd'];
+		$end  = $days[ $start_idx + $span - 1 ]['ymd'] ?? $from;
+		if ( $from === $end ) {
+			return $from;
+		}
+		return $from . ' – ' . $end;
+	}
+
+	/**
+	 * Guest / order data for one booking bar.
+	 *
+	 * @param array<string, mixed> $seg Booking row.
+	 * @return array{cell_title: string, cell_html: string}
+	 */
+	private static function calendar_booking_cell_payload( array $seg ) {
+		$oid   = (int) $seg['order_id'];
+		$order = $oid ? wc_get_order( $oid ) : null;
+		$bid   = (int) $seg['id'];
+		$url   = add_query_arg(
+			array(
+				'page'       => self::PAGE_BOOKING,
+				'booking_id' => $bid,
+			),
+			admin_url( 'admin.php' )
+		);
+		if ( $order ) {
+			$guest_name = trim( (string) $order->get_formatted_billing_full_name() );
+			if ( '' === $guest_name ) {
+				$guest_name = '#' . $order->get_order_number();
+			}
+		} else {
+			$guest_name = '#' . $bid;
+		}
+		$line_id     = isset( $seg['line_item_id'] ) ? (int) $seg['line_item_id'] : 0;
+		$gjson       = isset( $seg['guest_json'] ) ? $seg['guest_json'] : null;
+		$counts      = WooCommerce_Integration::resolve_guest_counts_for_booking( $gjson, $order, $line_id );
+		$detail_line = WooCommerce_Integration::format_guest_counts_calendar_line( $counts );
+		$unit_type   = $order ? (string) WooCommerce_Integration::get_order_line_unit_type_label( $order, $line_id ) : '';
+
+		$date_range = self::calendar_booking_stay_date_range_label( (string) $seg['check_in'], (string) $seg['check_out'] );
+
+		$tip_bits = array();
+		if ( '' !== $date_range ) {
+			$tip_bits[] = $date_range;
+		}
+		$tip_bits[] = $guest_name;
+		$tip_bits[] = $detail_line;
+		if ( '' !== $unit_type ) {
+			$tip_bits[] = $unit_type;
+		}
+		$tip_bits = array_filter( $tip_bits );
+
+		return array(
+			'cell_title' => implode( ' — ', $tip_bits ),
+			'cell_html'  => self::render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range ),
+		);
+	}
+
+	/**
+	 * Markup for a booked calendar cell (guest name, breakdown, unit type).
+	 *
+	 * @param string $guest_name  Display name.
+	 * @param string $detail_line From format_guest_counts_calendar_line().
+	 * @param string $unit_type   Unit type label, e.g. Caravan.
+	 * @param string $url         Booking edit URL or empty.
+	 * @param string $date_range  Compact d/m - d/m range or empty.
+	 * @return string Safe HTML.
+	 */
+	private static function render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range = '' ) {
+		$guest_name  = (string) $guest_name;
+		$detail_line = (string) $detail_line;
+		$unit_type   = (string) $unit_type;
+		$url         = (string) $url;
+		$date_range  = (string) $date_range;
+
+		$inner  = '';
+		if ( '' !== $date_range ) {
+			$inner .= '<span class="vila-cb-grid__cell-dates">' . esc_html( $date_range ) . '</span>';
+		}
+		$inner .= '<span class="vila-cb-grid__cell-name">' . esc_html( $guest_name ) . '</span>';
+		$inner .= '' !== $detail_line
+			? '<span class="vila-cb-grid__cell-guests">' . esc_html( $detail_line ) . '</span>'
+			: '';
+		$inner .= '' !== $unit_type
+			? '<span class="vila-cb-grid__cell-unit">' . esc_html( $unit_type ) . '</span>'
+			: '';
+
+		if ( '' !== $url ) {
+			return '<a class="vila-cb-grid__cell-link" href="' . esc_url( $url ) . '">' . $inner . '</a>';
+		}
+
+		return '<span class="vila-cb-grid__cell-link vila-cb-grid__cell-link--static">' . $inner . '</span>';
+	}
+
+	/**
+	 * Plots list.
+	 */
+	public static function render_plots() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		self::enqueue_admin_assets();
+
+		$repo  = new Plot_Repository();
+		$plots = $repo->get_all();
+
+		?>
+		<div class="wrap vila-cb-admin vila-cb-plots">
+			<?php if ( isset( $_GET['updated'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Plots saved.', 'vila-campsite-booking' ); ?></p></div>
+			<?php endif; ?>
+			<div class="vila-cb-ui-hero">
+				<div class="vila-cb-ui-hero__text">
+					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Plots', 'vila-campsite-booking' ); ?></h1>
+					<p class="vila-cb-ui-lead"><?php esc_html_e( 'Name and order each pitch. Availability and the booking calendar use this list.', 'vila-campsite-booking' ); ?></p>
+				</div>
+			</div>
+			<form method="post" class="vila-cb-plots-form">
+				<?php wp_nonce_field( 'vila_cb_plots', 'vila_cb_plots_nonce' ); ?>
+				<div class="vila-cb-ui-panel">
+					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'All plots', 'vila-campsite-booking' ); ?></h2>
+					<div class="vila-cb-ui-table-wrap">
+						<table class="vila-cb-form-table vila-cb-plot-rows">
+							<thead>
+								<tr>
+									<th scope="col"><?php esc_html_e( 'Label', 'vila-campsite-booking' ); ?></th>
+									<th scope="col"><?php esc_html_e( 'Sort', 'vila-campsite-booking' ); ?></th>
+									<th scope="col"><?php esc_html_e( 'Delete', 'vila-campsite-booking' ); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ( $plots as $p ) : ?>
+									<tr>
+										<td>
+											<input type="text" class="regular-text" name="vila_cb_plot[<?php echo esc_attr( (string) (int) $p['id'] ); ?>][label]" value="<?php echo esc_attr( (string) $p['label'] ); ?>" />
+										</td>
+										<td>
+											<input type="number" class="small-text" name="vila_cb_plot[<?php echo esc_attr( (string) (int) $p['id'] ); ?>][sort]" value="<?php echo esc_attr( (string) (int) $p['sort_order'] ); ?>" />
+										</td>
+										<td>
+											<label class="vila-cb-ui-check"><input type="checkbox" name="vila_cb_plot[<?php echo esc_attr( (string) (int) $p['id'] ); ?>][delete]" value="1" /> <?php esc_html_e( 'Delete', 'vila-campsite-booking' ); ?></label>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="vila-cb-ui-panel vila-cb-ui-panel--compact">
+					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Add plot', 'vila-campsite-booking' ); ?></h2>
+					<p class="vila-cb-ui-field">
+						<label for="vila_cb_new_label" class="screen-reader-text"><?php esc_html_e( 'New plot label', 'vila-campsite-booking' ); ?></label>
+						<input type="text" name="vila_cb_new_label" id="vila_cb_new_label" class="regular-text" placeholder="<?php esc_attr_e( 'New plot label', 'vila-campsite-booking' ); ?>" />
+					</p>
+					<?php submit_button( __( 'Save plots', 'vila-campsite-booking' ), 'primary', '', false, array( 'class' => 'vila-cb-ui-submit' ) ); ?>
+				</div>
+			</form>
+			<p class="vila-cb-ui-footnote"><?php esc_html_e( 'Maintenance blocks per plot can be added in a future release; the database table is already installed.', 'vila-campsite-booking' ); ?></p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Plugin + WC product settings.
+	 */
+	public static function render_settings() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		self::enqueue_admin_assets();
+
+		$product_id = (int) get_option( 'vila_cb_product_id', 0 );
+		$plot_count = (int) get_option( 'vila_cb_plot_count', 5 );
+
+		?>
+		<div class="wrap vila-cb-admin vila-cb-settings">
+			<?php if ( isset( $_GET['updated'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'vila-campsite-booking' ); ?></p></div>
+			<?php endif; ?>
+			<div class="vila-cb-ui-hero">
+				<div class="vila-cb-ui-hero__text">
+					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Settings', 'vila-campsite-booking' ); ?></h1>
+					<p class="vila-cb-ui-lead"><?php esc_html_e( 'Connect WooCommerce checkout to the campsite product and seed plot rows.', 'vila-campsite-booking' ); ?></p>
+				</div>
+			</div>
+			<form method="post" class="vila-cb-settings-form">
+				<?php wp_nonce_field( 'vila_cb_settings', 'vila_cb_settings_nonce' ); ?>
+				<div class="vila-cb-ui-panel">
+					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'WooCommerce', 'vila-campsite-booking' ); ?></h2>
+					<table class="form-table vila-cb-ui-form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="vila_cb_product_id"><?php esc_html_e( 'Campsite product', 'vila-campsite-booking' ); ?></label></th>
+							<td>
+								<input name="vila_cb_product_id" id="vila_cb_product_id" type="number" min="0" step="1" value="<?php echo esc_attr( (string) $product_id ); ?>" class="regular-text" />
+								<p class="description"><?php esc_html_e( 'Use one product ID for checkout and pricing (per adult per night on that product). Pitches are not tied to this product title: inventory lives in Campsite → Plots (e.g. 15 rows). On checkout we assign the first pitch that is free for the whole stay; availability and the calendar use all plots.', 'vila-campsite-booking' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_plot_count"><?php esc_html_e( 'Default plot count (seed)', 'vila-campsite-booking' ); ?></label></th>
+							<td>
+								<input name="vila_cb_plot_count" id="vila_cb_plot_count" type="number" min="1" step="1" value="<?php echo esc_attr( (string) $plot_count ); ?>" class="small-text" />
+								<p class="description"><?php esc_html_e( 'Used when seeding new plot rows on upgrade (e.g. set to 15 once, save, then tweak labels under Campsite → Plots).', 'vila-campsite-booking' ); ?></p>
+							</td>
+						</tr>
+					</table>
+					<?php submit_button( __( 'Save settings', 'vila-campsite-booking' ), 'primary', '', false, array( 'class' => 'vila-cb-ui-submit' ) ); ?>
+				</div>
+			</form>
+			<div class="vila-cb-ui-panel vila-cb-ui-panel--code">
+				<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Shortcode', 'vila-campsite-booking' ); ?></h2>
+				<p class="vila-cb-ui-code-wrap"><code class="vila-cb-ui-code">[vila_campsite_booking]</code></p>
+				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Optional: [vila_campsite_booking product_id="123" label="Your label"]. The label overrides the “Where” text (defaults to a generic campsite name, not the WC product title).', 'vila-campsite-booking' ); ?></p>
+			</div>
+		</div>
+		<?php
+	}
+}

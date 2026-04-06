@@ -4,12 +4,19 @@
   "scripts": {
     "build:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --minify",
     "watch:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --watch",
-    "wp-env": "wp-env",
-    "wp:start": "wp-env start",
-    "wp:stop": "wp-env stop",
-    "wp:fix-plugins": "wp-env run cli sh -c 'cd /tmp && for u in contact-form-7 ultimate-addons-for-gutenberg woocommerce mwb-bookings-for-woocommerce woocommerce-gateway-stripe; do curl -fsSL -o \"$u.zip\" \"https://downloads.wordpress.org/plugin/$u.zip\" && unzip -oq \"$u.zip\" -d /var/www/html/wp-content/plugins/ && rm \"$u.zip\"; done && cd /var/www/html && wp plugin activate contact-form-7 ultimate-addons-for-gutenberg woocommerce mwb-bookings-for-woocommerce woocommerce-gateway-stripe'",
+    "wp-env": "bash scripts/wp-env.sh",
+    "wp:start": "bash scripts/wp-env.sh start",
+    "wp:stop": "bash scripts/wp-env.sh stop",
+    "wp:restart": "bash scripts/wp-env.sh stop && bash scripts/wp-env.sh start",
+    "wp:activate-campsite": "bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp plugin activate vila-campsite-booking",
+    "wp:verify-campsite-plugin": "bash scripts/verify-vila-plugin-wp-env.sh",
+    "wp:restore": "bash scripts/wp-env-restore.sh",
+    "wp:install-plugins": "bash scripts/wp-env-install-plugins.sh",
+    "wp:fix-plugins": "bash scripts/wp-env-install-plugins.sh",
     "wp:sync-theme": "bash scripts/sync-theme-to-wp-env.sh",
-    "wp:seed": "bash scripts/sync-theme-to-wp-env.sh && wp-env run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seed-cli.php && wp theme activate vila-akoya'"
+    "wp:sync-plugin": "bash scripts/sync-vila-plugin-to-wp-env.sh",
+    "wp:sync-campsite-bookings": "bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/plugins/vila-campsite-booking/resync-orders-cli.php",
+    "wp:seed": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/sync-vila-plugin-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seed-cli.php && wp theme activate vila-akoya'"
   },
   "devDependencies": {
     "@wordpress/env": "^10.0.0",

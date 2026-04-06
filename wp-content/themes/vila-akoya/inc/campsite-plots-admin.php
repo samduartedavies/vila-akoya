@@ -55,6 +55,10 @@ function vila_akoya_register_campsite_plots_admin_page() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		return;
 	}
+	// vila-campsite-booking plugin registers WooCommerce → Campsite (plots, calendar, settings).
+	if ( class_exists( '\Vila_CB\Admin' ) ) {
+		return;
+	}
 	add_submenu_page(
 		'woocommerce',
 		__( 'Campsite plots', 'vila-akoya' ),
@@ -166,7 +170,8 @@ function vila_akoya_render_campsite_plots_admin_page() {
 	$base = new DateTime( 'now', $tz );
 	$base->setTime( 0, 0, 0 );
 	if ( isset( $_GET['vila_date'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$d = sanitize_text_field( wp_unslash( $_GET['vila_date'] ) );
+		$raw = wp_unslash( vila_akoya_scalar_request_string( $_GET['vila_date'] ) );
+		$d   = sanitize_text_field( $raw );
 		$try = DateTime::createFromFormat( 'Y-m-d', $d, $tz );
 		if ( $try ) {
 			$base = $try;
@@ -292,7 +297,7 @@ function vila_akoya_render_campsite_plots_admin_page() {
 				<?php foreach ( $plot_rows as $row ) : ?>
 					<tr>
 						<td class="vila-campsite-grid__plot">
-							<a href="<?php echo esc_url( $row['edit_url'] ); ?>"><?php echo esc_html( $row['title'] ); ?></a>
+							<a href="<?php echo esc_url( (string) $row['edit_url'] ); ?>"><?php echo esc_html( (string) $row['title'] ); ?></a>
 						</td>
 						<?php foreach ( $day_labels as $dl ) : ?>
 							<?php
@@ -301,7 +306,7 @@ function vila_akoya_render_campsite_plots_admin_page() {
 							$class = '';
 							foreach ( $row['segments'] as $seg ) {
 								if ( in_array( $ymd, $seg['nights'], true ) ) {
-									$cell  = mb_substr( $seg['label'], 0, 18 );
+									$cell  = mb_substr( (string) $seg['label'], 0, 18 );
 									$class = 'vila-campsite-grid__busy';
 									break;
 								}

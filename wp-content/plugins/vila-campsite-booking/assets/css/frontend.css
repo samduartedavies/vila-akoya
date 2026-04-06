@@ -1,0 +1,249 @@
+/**
+ * Airbnb-style booking bar — uses theme accent via CSS variables when present.
+ */
+
+.vila-cb {
+  --vila-cb-accent: var(--wp--preset--color--primary, #9a3f21);
+  --vila-cb-surface: var(--wp--preset--color--surface-container-low, #fbf0d5);
+  --vila-cb-radius: 20px;
+  --vila-cb-border: rgba(126, 118, 98, 0.28);
+  --vila-cb-shadow: 0 16px 36px rgba(51, 46, 30, 0.08);
+  font-family: inherit;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.vila-cb__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: var(--vila-cb-radius);
+  box-shadow: var(--vila-cb-shadow);
+  background: var(--vila-cb-surface);
+  overflow: visible;
+}
+
+.vila-cb__seg {
+  flex: 1 1 140px;
+  text-align: left;
+  padding: 14px 18px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.vila-cb__seg.is-active {
+  box-shadow: inset 0 0 0 2px var(--vila-cb-accent);
+  border-radius: var(--vila-cb-radius);
+}
+
+.vila-cb__lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #625b48;
+}
+
+.vila-cb__val {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #332e1e;
+}
+
+.vila-cb__cta {
+  flex: 0 0 auto;
+  margin: 8px;
+  padding: 14px 24px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--vila-cb-accent);
+  color: #ffefeb;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.vila-cb__hint {
+  margin: 10px 4px 0;
+  font-size: 13px;
+  color: #625b48;
+}
+
+.vila-cb__popover {
+  position: relative;
+  margin-top: 12px;
+}
+
+.vila-cb__popover[hidden] {
+  display: none;
+}
+
+.vila-cb__popover-inner {
+  background: var(--vila-cb-surface);
+  border: 1px solid var(--vila-cb-border);
+  border-radius: var(--vila-cb-radius);
+  box-shadow: var(--vila-cb-shadow);
+  padding: 18px;
+}
+
+.vila-cb-cal__nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vila-cb-cal__grid-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .vila-cb-cal__grid-inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vila-cb-cal__title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.vila-cb-cal__dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: 11px;
+  color: #717171;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.vila-cb-cal__cells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.vila-cb-cal__day {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.vila-cb-cal__day:hover:not(:disabled) {
+  background: #f7f7f7;
+}
+
+.vila-cb-cal__day.is-inrange {
+  background: #f1f1f1;
+  border-radius: 0;
+}
+
+.vila-cb-cal__day.is-start,
+.vila-cb-cal__day.is-end {
+  background: #111;
+  color: #fff;
+}
+
+.vila-cb-cal__day.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.vila-cb-guests__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.vila-cb-guests__row:last-child {
+  border-bottom: 0;
+}
+
+.vila-cb-guests__label {
+  font-weight: 600;
+}
+
+.vila-cb-guests__sub {
+  font-size: 13px;
+  color: #717171;
+}
+
+.vila-cb-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vila-cb-stepper__btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid #111;
+  background: #fff;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.vila-cb-stepper__btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.vila-cb-msg--error {
+  color: #b00020;
+}
+
+/* Opt-in debug UI (?vila_cb_debug=1, shop manager) */
+.vila-cb-debug-banner {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff8e6;
+  border: 1px solid #e6c200;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #3d3200;
+}
+
+.vila-cb-debug-panel-wrap {
+  margin-bottom: 16px;
+}
+
+.vila-cb-debug-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #717171;
+  margin-bottom: 6px;
+}
+
+.vila-cb-debug-panel {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #0d1117;
+  color: #c9d1d9;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid #30363d;
+}

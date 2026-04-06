@@ -256,7 +256,7 @@
     @apply mt-4 rounded-lg text-sm;
   }
 
-  /* --- Bookings for WooCommerce (MWB) — Booking page embed --- */
+  /* --- Bookings for WooCommerce (MWB) — aligned with brochure cream + terracotta --- */
   .vila-wc-booking.wp-block-group {
     @apply w-full min-w-0 max-w-full;
   }
@@ -267,7 +267,7 @@
 
   .vila-wc-booking .woocommerce,
   .vila-wc-booking .woocommerce div.product {
-    @apply font-body text-on-surface m-0 block max-w-none p-0 w-full;
+    @apply font-body text-on-surface m-0 block max-w-none p-0 w-full bg-transparent;
   }
 
   .vila-wc-booking .woocommerce div.product .woocommerce-product-gallery {
@@ -291,25 +291,13 @@
     @apply hidden;
   }
 
-  .vila-wc-booking .product_title,
-  .vila-wc-booking h1.product_title,
-  .vila-wc-booking h2.product_title {
-    @apply font-headline text-xl md:text-2xl text-primary mb-2 mt-0;
-  }
-
-  .vila-wc-booking .woocommerce-product-details__short-description,
-  .vila-wc-booking .woocommerce-product-details__short-description p,
-  .vila-wc-booking .vila-wc-booking__lede {
-    @apply text-sm text-on-surface-variant leading-relaxed mb-4;
-  }
-
-  .vila-wc-booking p.price,
-  .vila-wc-booking span.price {
-    @apply font-headline text-lg text-on-background mb-6 block;
-  }
-
-  .vila-wc-booking .woocommerce-Price-amount {
-    @apply text-on-background;
+  /* Booking embed: column copy covers context — hide WC product title, list price, short description */
+  .vila-wc-booking .summary.entry-summary .product_title,
+  .vila-wc-booking .summary.entry-summary h1.product_title,
+  .vila-wc-booking .summary.entry-summary h2.product_title,
+  .vila-wc-booking .summary.entry-summary .woocommerce-product-details__short-description,
+  .vila-wc-booking .summary.entry-summary p.price {
+    @apply hidden;
   }
 
   .vila-wc-booking .mwb-mbfw-cart-page-data {
@@ -317,11 +305,34 @@
   }
 
   .vila-wc-booking .mbfw-date-picker-section__wrapper {
-    @apply mb-6 flex flex-wrap gap-4;
+    @apply mb-0 flex min-w-0 flex-1 flex-wrap gap-4;
+  }
+
+  /* Dates + Who: one row on desktop (see booking-ui.js layoutDatesAndWhoRow) */
+  .vila-booking-dates-who {
+    @apply mb-6 flex w-full min-w-0 flex-col gap-5;
+  }
+
+  @media (min-width: 768px) {
+    .vila-booking-dates-who {
+      @apply flex-row items-start gap-8;
+    }
+
+    .vila-booking-dates-who > .mbfw-date-picker-section__wrapper {
+      @apply mb-0 min-w-0 flex-[1.1];
+    }
+
+    .vila-booking-dates-who > .vila-airbnb-booking--who {
+      @apply min-w-0 flex-1;
+    }
   }
 
   .vila-wc-booking .vila-booking-range-wrap-enhanced .mbfw-date-picker-section {
     @apply hidden;
+  }
+
+  .vila-wc-booking .vila-booking-range-ui {
+    @apply min-w-0 w-full max-w-full;
   }
 
   .vila-wc-booking .vila-booking-range-ui input {
@@ -334,33 +345,33 @@
   }
 
   .vila-wc-booking .mbfw-date-picker-section label {
-    @apply font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 block text-left;
+    @apply font-label text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant mb-2 block text-left;
   }
 
   .vila-wc-booking .mbfw-date-picker-section input,
   .vila-wc-booking .mbfw-date-picker-section__wrapper .flatpickr-input,
   .vila-wc-booking .mwb-mbfw-cart-page-data input[type="text"] {
-    @apply w-full rounded-lg border-0 bg-surface-container-low px-4 py-3 text-center font-body text-on-surface;
-    @apply focus:ring-2 focus:ring-primary/20;
+    @apply w-full min-h-[3.25rem] rounded-[12px] border border-outline-variant/40 bg-surface-container-low px-4 py-3.5 text-left font-body text-base text-on-background antialiased;
+    @apply focus:border-primary/55 focus:outline-none focus:ring-2 focus:ring-primary/15;
   }
 
   .vila-wc-booking .bfwp-people-title,
   .vila-wc-booking .mwb_mbfw_included_service_title {
-    @apply font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 mt-4;
+    @apply font-label text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant mb-2 mt-4;
   }
 
   .vila-wc-booking .bfwp-people-options__wrapper {
-    @apply mb-3 rounded-lg bg-surface-container-low/80 p-3;
+    @apply mb-3 rounded-[12px] border border-outline-variant/30 bg-surface-container-low p-3;
   }
 
   .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-type,
   .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-number,
   .vila-wc-booking #mwb_mbfw_people_number {
-    @apply max-w-none flex-1 text-sm text-on-surface rounded-lg border-0 bg-surface-container-low px-4 py-3;
+    @apply max-w-none flex-1 text-base text-on-background rounded-[12px] border border-outline-variant/35 bg-surface-container-low px-4 py-3.5;
   }
 
   .vila-wc-booking .mbfw-total-cost__wrapper {
-    @apply mt-4 border-t border-outline-variant/30 pt-4;
+    @apply mt-4 border-t border-outline-variant/20 pt-4;
   }
 
   .vila-wc-booking .mbfw-total-listing-single-page__wrapper,
@@ -369,35 +380,153 @@
   }
 
   .vila-wc-booking .mwb-mbfw-total-area {
-    @apply mt-2 rounded-lg bg-secondary/10 p-3 text-sm text-on-background;
+    @apply mt-2 rounded-[12px] border border-outline-variant/30 bg-surface-container-low p-5 text-base text-on-background;
   }
 
   .vila-wc-booking form.cart {
-    @apply mb-0 flex flex-col gap-3;
+    @apply mb-0 flex flex-col gap-4;
+  }
+
+  /*
+   * MWB campsite — chips, date field, guest bar (minimal surfaces; avoid theme 2rem/3rem radii).
+   */
+  .vila-wc-booking .vila-airbnb-booking,
+  body.single-product .vila-airbnb-booking {
+    @apply font-body text-on-surface;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__legend,
+  body.single-product .vila-airbnb-booking__legend {
+    @apply font-label m-0 mb-2 block text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-on-surface-variant;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__lead,
+  body.single-product .vila-airbnb-booking__lead {
+    line-height: 1.5;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__card,
+  body.single-product .vila-airbnb-booking__card {
+    @apply rounded-[14px] border border-outline-variant/30 bg-surface-container-low p-6 shadow-none;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip-grid,
+  body.single-product .vila-airbnb-booking__chip-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  @media (min-width: 480px) {
+    .vila-wc-booking .vila-airbnb-booking__chip-grid,
+    body.single-product .vila-airbnb-booking__chip-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip,
+  body.single-product .vila-airbnb-booking__chip {
+    @apply m-0 block cursor-pointer;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip-body,
+  body.single-product .vila-airbnb-booking__chip-body {
+    @apply flex min-h-[3.5rem] flex-col items-start gap-0.5 rounded-[12px] border border-outline-variant/35 bg-surface-container-low px-4 py-3.5 transition-colors;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip:hover .vila-airbnb-booking__chip-body,
+  body.single-product .vila-airbnb-booking__chip:hover .vila-airbnb-booking__chip-body {
+    @apply border-outline-variant/60 bg-surface-container-lowest;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body,
+  body.single-product .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body {
+    @apply border-primary bg-surface-container-low shadow-none;
+    box-shadow: inset 0 0 0 1px rgb(154 63 33 / 0.35);
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip-title,
+  body.single-product .vila-airbnb-booking__chip-title {
+    @apply text-[0.9375rem] font-medium text-on-background;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip-meta,
+  body.single-product .vila-airbnb-booking__chip-meta {
+    @apply text-[0.8125rem] text-on-surface-variant;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__hint,
+  body.single-product .vila-airbnb-booking__hint {
+    line-height: 1.5;
+  }
+
+  .vila-booking-dates-who .vila-airbnb-booking--dates.vila-booking-range-ui {
+    @apply mb-0;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--dates.vila-booking-range-ui,
+  body.single-product .vila-airbnb-booking--dates.vila-booking-range-ui {
+    @apply mb-6 min-w-0 w-full max-w-full;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__date-input,
+  body.single-product .vila-airbnb-booking__date-input {
+    @apply min-h-[3.25rem] min-w-0 w-full max-w-full rounded-[12px] border border-outline-variant/40 bg-surface-container-low px-4 py-3.5 text-left text-base font-medium leading-snug text-on-background shadow-none transition-colors;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__date-input:hover,
+  body.single-product .vila-airbnb-booking__date-input:hover {
+    @apply border-outline-variant/70;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__date-input:focus,
+  body.single-product .vila-airbnb-booking__date-input:focus {
+    outline: none;
+    @apply border-primary/60 ring-2 ring-primary/15;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__shell,
+  body.single-product .vila-airbnb-booking--who .vila-guest-picker__shell {
+    @apply mt-0;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar,
+  body.single-product .vila-airbnb-booking--who .vila-guest-picker__bar {
+    @apply rounded-[12px] border border-outline-variant/40 bg-surface-container-low px-4 py-3.5 shadow-none min-h-[3.25rem];
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__panel,
+  body.single-product .vila-airbnb-booking--who .vila-guest-picker__panel {
+    @apply rounded-[14px] border border-outline-variant/30 bg-surface-container-low shadow-lg;
+    box-shadow: 0 10px 40px rgba(19, 14, 3, 0.08);
   }
 
   .vila-wc-booking .single_add_to_cart_button.button,
   .vila-wc-booking .woocommerce button.button.alt,
   .vila-wc-booking .woocommerce a.button.alt {
-    @apply inline-flex w-full cursor-pointer items-center justify-center rounded-full border-0 bg-primary px-8 py-4 font-label font-medium tracking-wide text-on-primary transition-colors;
-    @apply hover:bg-primary-container hover:text-on-primary;
+    @apply inline-flex w-full cursor-pointer items-center justify-center rounded-[10px] border-0 bg-primary px-8 py-3.5 font-label text-[0.9375rem] font-semibold tracking-wide text-on-primary transition-colors;
+    @apply hover:bg-primary-dim hover:text-on-primary;
   }
 
   .vila-wc-booking .quantity .qty {
-    @apply rounded-lg border border-outline-variant/40 bg-surface-container-low px-3 py-2 text-on-surface;
+    @apply rounded-[10px] border border-outline-variant/35 bg-surface-container-lowest px-3 py-2 text-on-surface;
   }
 
   .vila-wc-booking .woocommerce-message,
   .vila-wc-booking .woocommerce-info,
   .vila-wc-booking .woocommerce-error {
-    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low text-on-background;
+    @apply rounded-[10px] border border-outline-variant/25 bg-surface-container-lowest text-on-background;
     @apply text-sm leading-relaxed;
   }
 
   /* Flatpickr popup (appended to body) */
   body.vila-page-booking .flatpickr-calendar {
-    @apply rounded-xl border border-outline-variant/40 font-body;
-    box-shadow: 0 20px 40px rgba(51, 46, 30, 0.12);
+    @apply rounded-[12px] border border-outline-variant/30 bg-surface-container-lowest font-body;
+    box-shadow: 0 12px 40px rgba(19, 14, 3, 0.1);
     min-width: min(100vw - 2rem, 38rem);
   }
 
@@ -406,7 +535,7 @@
   }
 
   body.vila-page-booking .flatpickr-months .flatpickr-month {
-    @apply bg-surface-container-low/90;
+    @apply bg-surface-container-lowest;
   }
 
   body.vila-page-booking .flatpickr-day.inRange {
@@ -419,11 +548,11 @@
   }
 
   body.vila-page-booking .flatpickr-months {
-    @apply rounded-t-xl bg-primary/10 text-on-background;
+    @apply rounded-t-[12px] bg-surface-container-low/80 text-on-background;
   }
 
   body.vila-page-booking .flatpickr-weekdays {
-    @apply bg-surface-container-low;
+    @apply bg-surface-container-lowest;
   }
 
   body.vila-page-booking .flatpickr-day.selected,
