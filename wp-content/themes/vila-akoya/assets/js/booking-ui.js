@@ -384,7 +384,6 @@
       }
     });
     updateGuestStepperUi($root, s, minA, maxP, maxPet);
-    updateGuestEstimate();
     updateVehicleHint();
   }
 
@@ -427,50 +426,6 @@
       }
       $btn.prop('disabled', dis);
     });
-  }
-
-  function updateGuestEstimate() {
-    var $el = $('.vila-guest-picker__estimate');
-    if (!$el.length || typeof vilaAkoyaBooking === 'undefined') {
-      return;
-    }
-    var rates = vilaAkoyaBooking.guestCategoryRates;
-    if (!rates) {
-      return;
-    }
-    var $root = $('.vila-guest-picker').first();
-    var s = getGuestState($root);
-    var nights = nightsBetween(
-      $('#mwb-mbfw-booking-from-time').val(),
-      $('#mwb-mbfw-booking-to-time').val()
-    );
-    var perNight =
-      s.children * (parseFloat(rates.children) || 0) +
-      s.infants * (parseFloat(rates.infants) || 0) +
-      s.pets * (parseFloat(rates.pets) || 0);
-    var total = perNight * nights;
-    var sym = vilaAkoyaBooking.currencySymbol || '€';
-    if (total > 0 && vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.guestSupplementEstimate) {
-      $el.text(
-        vilaAkoyaBooking.strings.guestSupplementEstimate +
-          ': ' +
-          sym +
-          total.toFixed(2) +
-          ' (' +
-          sym +
-          perNight.toFixed(2) +
-          ' × ' +
-          nights +
-          ' ' +
-          (nights === 1
-            ? vilaAkoyaBooking.strings.nightSingular || 'night'
-            : vilaAkoyaBooking.strings.nightPlural || 'nights') +
-          '). ' +
-          (vilaAkoyaBooking.strings.finalAtCheckout || '')
-      );
-    } else {
-      $el.text('');
-    }
   }
 
   function initGuestPicker() {
@@ -789,7 +744,6 @@
       'input[name="vila_vehicle_types[]"], #mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time, #mwb_mbfw_people_number',
       function () {
         updateVehicleHint();
-        updateGuestEstimate();
       }
     );
 

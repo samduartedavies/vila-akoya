@@ -458,8 +458,34 @@ class Booking_Service {
 			);
 		}
 
-		$guests_in  = isset( $args['guests'] ) && is_array( $args['guests'] ) ? $args['guests'] : array();
-		$guest_arr  = WooCommerce_Integration::normalize_guest_counts_array( $guests_in );
+		$guests_in = isset( $args['guests'] ) && is_array( $args['guests'] ) ? $args['guests'] : array();
+		$guest_arr = WooCommerce_Integration::normalize_guest_counts_array( $guests_in );
+		$existing  = json_decode( (string) $row['guest_json'], true );
+		if ( is_array( $existing ) ) {
+			foreach ( array( 'vehicle_slugs', 'extras_label' ) as $ek ) {
+				if ( isset( $guest_arr[ $ek ] ) ) {
+					continue;
+				}
+				if ( 'vehicle_slugs' === $ek && ! empty( $existing['vehicle_slugs'] ) && is_array( $existing['vehicle_slugs'] ) ) {
+					$guest_arr['vehicle_slugs'] = array_values( array_filter( array_map( 'sanitize_key', $existing['vehicle_slugs'] ) ) );
+				}
+				if ( 'extras_label' === $ek && ! empty( $existing['extras_label'] ) && is_string( $existing['extras_label'] ) && '' !== trim( $existing['extras_label'] ) ) {
+					$guest_arr['extras_label'] = sanitize_text_field( $existing['extras_label'] );
+				}
+			}
+		}
+		if ( isset( $guests_in['vehicle_slugs'] ) && is_array( $guests_in['vehicle_slugs'] ) ) {
+			$guest_arr['vehicle_slugs'] = array_values( array_filter( array_map( 'sanitize_key', $guests_in['vehicle_slugs'] ) ) );
+			if ( array() === $guest_arr['vehicle_slugs'] ) {
+				unset( $guest_arr['vehicle_slugs'], $guest_arr['extras_label'] );
+			}
+		}
+		if ( isset( $guests_in['extras_label'] ) && is_string( $guests_in['extras_label'] ) && '' !== trim( $guests_in['extras_label'] ) ) {
+			$guest_arr['extras_label'] = sanitize_text_field( $guests_in['extras_label'] );
+		}
+		if ( isset( $guests_in['extras_label'] ) && is_string( $guests_in['extras_label'] ) && '' === trim( $guests_in['extras_label'] ) ) {
+			unset( $guest_arr['extras_label'] );
+		}
 		$guest_json = wp_json_encode( $guest_arr );
 
 		$order_id     = (int) $row['order_id'];

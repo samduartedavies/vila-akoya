@@ -732,3 +732,179 @@
 	font-size: 11px;
 	color: #646970;
 }
+
+/* Booking edit: extras / unit types (multi-select) */
+.vila-cb-unit-types-checkboxes {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	max-width: 36em;
+}
+
+.vila-cb-extras-multiselect__row {
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--vila-cb-ui-border-soft, #e8e8e9);
+}
+
+.vila-cb-extras-multiselect__row:first-child {
+	border-top: 0;
+}
+
+.vila-cb-extras-multiselect__row .vila-cb-unit-types-checkboxes__item {
+	padding: 10px 4px 10px 0;
+}
+
+.vila-cb-unit-types-checkboxes .description {
+	margin: 0 0 10px;
+}
+
+.vila-cb-unit-types-checkboxes__item {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0 0 8px;
+	line-height: 1.45;
+	cursor: pointer;
+}
+
+.vila-cb-unit-types-checkboxes__item input[type='checkbox'] {
+	margin-top: 2px;
+	flex-shrink: 0;
+}
+
+/* Ensure native checkboxes stay visible (some admin / theme CSS hides unstyled inputs). */
+.wrap.vila-cb-admin .vila-cb-extras-checkbox {
+	position: static !important;
+	width: auto !important;
+	height: auto !important;
+	min-width: 1rem !important;
+	min-height: 1rem !important;
+	opacity: 1 !important;
+	clip: auto !important;
+	-webkit-clip-path: none !important;
+	clip-path: none !important;
+	margin: 0 8px 0 0 !important;
+	accent-color: var(--vila-cb-ui-accent, #2271b1);
+}
+
+.vila-cb-unit-types-checkboxes__item--legacy .description {
+	margin-left: 4px;
+	font-style: italic;
+}
+
+/* WooCommerce order edit + booking edit: chip grid (parity with storefront booking form) */
+.vila-cb-order-extras-panel {
+	margin: 16px 0 20px;
+	padding: 16px 18px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	max-width: 56em;
+}
+
+.vila-cb-order-extras-panel__title {
+	margin: 0 0 10px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.vila-cb-order-line-extras {
+	margin-bottom: 20px;
+}
+
+.vila-cb-order-line-extras:last-child {
+	margin-bottom: 0;
+}
+
+.vila-cb-order-line-extras__title {
+	margin: 0 0 10px;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.vila-cb-order-item-extras {
+	margin-top: 10px;
+	padding: 12px 14px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	max-width: 56em;
+}
+
+.vila-cb-admin-chip-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+	gap: 10px;
+	margin-top: 8px;
+	max-width: 56em;
+}
+
+.vila-cb-admin-chip {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	border: 1px solid #c3c4c7;
+	border-radius: 10px;
+	background: #fdfdfd;
+	cursor: pointer;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.vila-cb-admin-chip:hover {
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px rgba(34, 113, 177, 0.12);
+}
+
+.vila-cb-admin-chip:has(input:checked) {
+	border-color: #2271b1;
+	background: #f0f6fc;
+	box-shadow: 0 0 0 1px rgba(34, 113, 177, 0.2);
+}
+
+.vila-cb-admin-chip__body {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 12px 11px 0;
+	min-width: 0;
+}
+
+.vila-cb-admin-chip__title {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.25;
+	color: #1d2327;
+}
+
+.vila-cb-admin-chip__meta {
+	font-size: 11px;
+	color: #646970;
+	line-height: 1.3;
+}
+
+.vila-cb-admin-chip--legacy {
+	border-style: dashed;
+}
+
+.wrap.vila-cb-admin .vila-cb-admin-chip input.vila-cb-extras-checkbox,
+.woocommerce_order_items .vila-cb-admin-chip input.vila-cb-extras-checkbox,
+.vila-cb-order-extras-panel .vila-cb-admin-chip input.vila-cb-extras-checkbox,
+.vila-cb-order-item-extras .vila-cb-admin-chip input.vila-cb-extras-checkbox {
+	position: static !important;
+	width: auto !important;
+	height: auto !important;
+	min-width: 1rem !important;
+	min-height: 1rem !important;
+	opacity: 1 !important;
+	clip: auto !important;
+	-webkit-clip-path: none !important;
+	clip-path: none !important;
+	margin: 10px 0 10px 10px !important;
+	accent-color: #2271b1;
+	flex-shrink: 0;
+	align-self: flex-start;
+}

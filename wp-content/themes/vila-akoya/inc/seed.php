@@ -108,6 +108,7 @@ function vila_akoya_run_seed() {
  * @return string
  */
 function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
+	$html = is_string( $html ) ? $html : '';
 	$classes = array(
 		'newsletter_home'    => 'vila-cf7 vila-cf7--newsletter',
 		'newsletter_village' => 'vila-cf7 vila-cf7--newsletter',
@@ -142,6 +143,7 @@ function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
  * @return string
  */
 function vila_akoya_seed_replace_wc_placeholders( $html ) {
+	$html = is_string( $html ) ? $html : '';
 	$pid = function_exists( 'vila_akoya_get_campsite_primary_product_id' ) ? (int) vila_akoya_get_campsite_primary_product_id() : (int) get_option( 'vila_akoya_campsite_product_id' );
 	if ( $pid && get_post_status( $pid ) === 'publish' ) {
 		$campsite = sprintf( '[product_page id="%d"]', $pid );

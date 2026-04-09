@@ -309,7 +309,7 @@ function vila_akoya_ensure_campsite_booking_product() {
 			array(
 				'post_title'   => $title,
 				'post_content' => '',
-				'post_excerpt' => __( 'Per night · Alentejo campsite. Choose check-in and check-out below.', 'vila-akoya' ),
+				'post_excerpt' => '',
 				'post_status'  => 'publish',
 				'post_type'    => 'product',
 			),
@@ -396,6 +396,9 @@ function vila_akoya_wc_body_classes( $classes ) {
 	if ( class_exists( 'WooCommerce' ) && ( is_cart() || is_checkout() || is_account_page() || ( function_exists( 'is_woocommerce' ) && is_woocommerce() ) ) ) {
 		$classes[] = 'vila-wc-commerce';
 	}
+	if ( class_exists( 'WooCommerce' ) && function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
+		$classes[] = 'vila-page-order-received';
+	}
 	return $classes;
 }
 add_filter( 'body_class', 'vila_akoya_wc_body_classes' );
@@ -431,6 +434,21 @@ function vila_akoya_campsite_hide_reviews_and_rating() {
 add_action( 'woocommerce_before_single_product', 'vila_akoya_campsite_hide_reviews_and_rating', 2 );
 
 /**
+ * Hide SKU and product meta row on campsite bookable products (internal SKU is not for guests).
+ */
+function vila_akoya_campsite_remove_single_product_meta() {
+	global $product;
+	if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
+		return;
+	}
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product->get_id() ) ) {
+		return;
+	}
+	remove_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_meta', 40 );
+}
+add_action( 'woocommerce_before_single_product', 'vila_akoya_campsite_remove_single_product_meta', 3 );
+
+/**
  * @param array<string, array<string, mixed>> $tabs Product tabs.
  * @return array<string, array<string, mixed>>
  */
@@ -451,21 +469,23 @@ function vila_akoya_embedded_product_title() {
 }
 
 /**
- * Fallback short description for the campsite product when empty.
+ * Hide WooCommerce product short description for campsite bookable products.
+ *
+ * Copy for the booking flow lives in the page layout; the product excerpt is only
+ * used internally and was showing redundant checkout/payment hints on the form.
  *
  * @param string $desc HTML.
  * @return string
  */
 function vila_akoya_booking_product_short_description( $desc ) {
-	global $post;
-	$booking_id = (int) get_option( 'vila_akoya_campsite_product_id' );
-	if ( ! $booking_id || ! is_a( $post, 'WP_Post' ) || (int) $post->ID !== $booking_id ) {
-		return $desc;
+	$product_id = (int) get_the_ID();
+	if ( ! $product_id || 'product' !== get_post_type( $product_id ) ) {
+		return is_string( $desc ) ? $desc : (string) ( $desc ?? '' );
 	}
-	if ( '' !== trim( wp_strip_all_tags( (string) $desc ) ) ) {
-		return $desc;
+	if ( ! vila_akoya_is_campsite_product_id( $product_id ) ) {
+		return is_string( $desc ) ? $desc : (string) ( $desc ?? '' );
 	}
-	return '<p class="vila-wc-booking__lede">' . esc_html__( 'Choose dates, number of guests, and unit type. Nightly rate is per guest; pitch supplements apply by night.', 'vila-akoya' ) . '</p>';
+	return '';
 }
 add_filter( 'woocommerce_short_description', 'vila_akoya_booking_product_short_description', 15 );
 
@@ -513,15 +533,76 @@ function vila_akoya_campsite_add_to_cart_redirect_checkout( $url, $product = nul
 	if ( ! $pid ) {
 		$pid = vila_akoya_add_to_cart_request_product_id();
 	}
+	$passthrough = is_string( $url ) ? $url : (string) ( $url ?? '' );
 	if ( ! $pid || ! vila_akoya_is_campsite_product_id( $pid ) ) {
-		return $url;
+		return $passthrough;
 	}
 	if ( wc_get_page_id( 'checkout' ) <= 0 ) {
-		return $url;
+		return $passthrough;
 	}
 	return wc_get_checkout_url();
 }
 add_filter( 'woocommerce_add_to_cart_redirect', 'vila_akoya_campsite_add_to_cart_redirect_checkout', 99, 2 );
+
+/**
+ * Hide the “… has been added to your cart” notice for campsite stays (redundant when redirecting to checkout).
+ *
+ * @param string               $message  Notice HTML/text.
+ * @param int|array<int, int>  $products Product ID(s) or cart qty map keyed by product ID.
+ * @param bool                 $show_qty Whether quantities are shown.
+ * @return string
+ */
+function vila_akoya_suppress_campsite_add_to_cart_notice( $message, $products, $show_qty = false ) {
+	unset( $show_qty );
+	if ( ! function_exists( 'vila_akoya_is_campsite_product_id' ) ) {
+		return $message;
+	}
+	$ids = array();
+	if ( is_array( $products ) ) {
+		foreach ( array_keys( $products ) as $k ) {
+			$ids[] = (int) $k;
+		}
+	} elseif ( is_numeric( $products ) ) {
+		$ids[] = (int) $products;
+	}
+	foreach ( array_unique( array_filter( $ids ) ) as $pid ) {
+		if ( ! $pid ) {
+			continue;
+		}
+		if ( vila_akoya_is_campsite_product_id( $pid ) ) {
+			return '';
+		}
+	}
+	return $message;
+}
+add_filter( 'woocommerce_add_to_cart_message', 'vila_akoya_suppress_campsite_add_to_cart_notice', 10, 3 );
+
+/**
+ * Block checkout: hide “Return to cart” (Checkout Actions block may still have it enabled in saved templates).
+ *
+ * @param array $parsed_block Parsed block.
+ * @param array $source_block Source block.
+ * @return array
+ */
+function vila_akoya_checkout_actions_hide_return_to_cart( $parsed_block, $source_block ) {
+	unset( $source_block );
+	if ( empty( $parsed_block['blockName'] ) ) {
+		return $parsed_block;
+	}
+	$names = array(
+		'woocommerce/checkout-actions-block',
+		'woocommerce/checkout-actions',
+	);
+	if ( ! in_array( $parsed_block['blockName'], $names, true ) ) {
+		return $parsed_block;
+	}
+	if ( ! isset( $parsed_block['attrs'] ) || ! is_array( $parsed_block['attrs'] ) ) {
+		$parsed_block['attrs'] = array();
+	}
+	$parsed_block['attrs']['showReturnToCart'] = false;
+	return $parsed_block;
+}
+add_filter( 'render_block_data', 'vila_akoya_checkout_actions_hide_return_to_cart', 10, 2 );
 
 /**
  * WooCommerce only includes a redirect in the AJAX add-to-cart JSON when this option is "yes".
@@ -534,6 +615,9 @@ function vila_akoya_campsite_option_cart_redirect_after_add( $value ) {
 	$pid = vila_akoya_add_to_cart_request_product_id();
 	if ( $pid && vila_akoya_is_campsite_product_id( $pid ) ) {
 		return 'yes';
+	}
+	if ( null === $value ) {
+		return false;
 	}
 	return $value;
 }

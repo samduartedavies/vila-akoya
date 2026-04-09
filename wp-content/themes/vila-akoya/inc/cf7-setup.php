@@ -91,9 +91,9 @@ function vila_akoya_get_cf7_form_ids() {
 					'<div><label for="booking-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:booking-email placeholder "elias@example.com"]</div>',
 					'</div>',
 					'<div><label for="booking-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel your-phone id:booking-phone placeholder "+351 000 000 000"]</div>',
-					'<div><span class="block mb-2">' . esc_html__( 'Primary Interest', 'vila-akoya' ) . '</span><div class="grid grid-cols-1 sm:grid-cols-3 gap-3 vila-cf7-booking-radios" role="radiogroup">[radio primary-interest use_label_element default:1 "Village" "Campsite" "Both"]</div></div>',
+					'<div class="vila-booking-primary-interest"><span class="block mb-2 font-label uppercase tracking-widest text-on-surface-variant">' . esc_html__( 'Primary interest (optional)', 'vila-akoya' ) . '</span><p class="vila-booking-primary-interest__explore text-sm text-on-surface-variant mb-4 mt-0">' . esc_html__( 'Explore first:', 'vila-akoya' ) . ' <a class="text-primary underline-offset-2 hover:underline" href="' . esc_url( home_url( '/village/' ) ) . '">' . esc_html__( 'Village', 'vila-akoya' ) . '</a><span class="text-on-surface-variant/70" aria-hidden="true"> · </span><a class="text-primary underline-offset-2 hover:underline" href="' . esc_url( home_url( '/campsite/' ) ) . '">' . esc_html__( 'Campsite', 'vila-akoya' ) . '</a><span class="text-on-surface-variant/70" aria-hidden="true"> · </span><a class="text-primary underline-offset-2 hover:underline" href="' . esc_url( home_url( '/the-kids/' ) ) . '">' . esc_html__( 'The Kids', 'vila-akoya' ) . '</a></p><div class="grid grid-cols-1 sm:grid-cols-3 gap-3 vila-cf7-booking-radios" role="radiogroup">[radio primary-interest use_label_element "Village" "Campsite" "Both"]</div></div>',
 					'<div><label for="booking-message">' . esc_html__( 'Tell us your story', 'vila-akoya' ) . '</label>[textarea* your-message id:booking-message placeholder "' . esc_attr__( 'How do you see yourself spending time at Akoya?', 'vila-akoya' ) . '"]</div>',
-					'[submit "' . esc_html__( 'Send Inquiry', 'vila-akoya' ) . '"]',
+					'[submit "' . esc_html__( 'Send Inquiry →', 'vila-akoya' ) . '"]',
 				)
 			),
 			'mail' => vila_akoya_cf7_default_mail(

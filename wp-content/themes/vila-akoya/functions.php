@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.8' );
+define( 'VILA_AKOYA_VERSION', '1.0.13' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
@@ -18,6 +18,20 @@ require_once VILA_AKOYA_DIR . '/inc/campsite-plots-admin.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
 require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';
 require_once VILA_AKOYA_DIR . '/inc/seed.php';
+
+/**
+ * Body class for pages that use a white / neutral canvas (matches block content, e.g. booking reserve card).
+ *
+ * @param string[] $classes Body classes.
+ * @return string[]
+ */
+function vila_akoya_body_class_neutral_canvas( $classes ) {
+	if ( is_page( 'contact' ) ) {
+		$classes[] = 'vila-page-contact';
+	}
+	return $classes;
+}
+add_filter( 'body_class', 'vila_akoya_body_class_neutral_canvas' );
 
 /**
  * Theme setup.

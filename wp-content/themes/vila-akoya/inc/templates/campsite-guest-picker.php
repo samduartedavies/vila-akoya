@@ -80,7 +80,7 @@ $uid = 'vila-guest-' . $product_id;
 		</div>
 
 		<div
-			class="vila-guest-picker__panel mt-3 rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-1 shadow-lg"
+			class="vila-guest-picker__panel border border-outline-variant/20 bg-surface-container-low p-1 shadow-lg"
 			id="<?php echo esc_attr( $uid ); ?>-panel"
 			role="dialog"
 			aria-labelledby="<?php echo esc_attr( $uid ); ?>-trigger"
@@ -165,7 +165,5 @@ $uid = 'vila-guest-' . $product_id;
 				</div>
 			<?php endforeach; ?>
 		</div>
-
-		<p class="vila-guest-picker__estimate mt-2 text-xs text-on-surface-variant mb-0" aria-live="polite"></p>
 	</div>
 </div>

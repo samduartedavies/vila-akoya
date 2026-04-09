@@ -3,7 +3,7 @@ Contributors: vilaakoya
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,18 @@ Yes for inventory and booking UX. Deactivate MWB when ready and point your Booki
 Orders remain in WooCommerce. Custom tables are kept unless you filter `vila_cb_uninstall_remove_tables` to return true.
 
 == Changelog ==
+
+= 1.0.8 =
+* Admin calendar / booking views: resolve extras labels from theme `_vila_vehicle_slugs` JSON when the “Extras” display meta is missing or locale-mismatched; fall back to the first campsite order line when `line_item_id` is unset.
+
+= 1.0.7 =
+* On load, remove deprecated `vehicle_fees` keys (e.g. four_by_four) from the saved `vila_cb_pricing` option so the database matches current extras.
+
+= 1.0.6 =
+* Campsite settings: `vehicle_fee_slugs()` always drops deprecated keys (e.g. four_by_four) after merging theme slugs, so legacy rows cannot reappear if another filter runs late.
+
+= 1.0.5 =
+* Campsite settings “Extras”: always list electricity and car from plugin defaults; strip legacy four_by_four from vehicle types and saved pricing; show plugin version on the rates panel.
 
 = 1.0.0 =
 * Initial release.

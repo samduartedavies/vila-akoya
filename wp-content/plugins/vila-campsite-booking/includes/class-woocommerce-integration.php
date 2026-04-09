@@ -22,6 +22,13 @@ class WooCommerce_Integration {
 	const PRODUCT_META_FLAG  = '_vila_cb_campsite_product';
 
 	/**
+	 * Order IDs where the top-of-order campsite extras chip panel was rendered (skip duplicate UI under each line).
+	 *
+	 * @var array<int, true>
+	 */
+	private static $order_admin_extras_panel_rendered = array();
+
+	/**
 	 * If Campsite → Settings was never saved, map the Vila Akoya theme’s seeded campsite product (MWB plot products).
 	 *
 	 * Runs after the theme’s wp_loaded seed (priority 20).
@@ -73,7 +80,8 @@ class WooCommerce_Integration {
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'add_to_cart_validation' ), 10, 3 );
 		add_filter( 'woocommerce_add_cart_item_data', array( __CLASS__, 'add_cart_item_data' ), 10, 3 );
 		add_filter( 'woocommerce_get_cart_item_from_session', array( __CLASS__, 'get_cart_item_from_session' ), 10, 3 );
-		add_action( 'woocommerce_before_calculate_totals', array( __CLASS__, 'before_calculate_totals' ), 20, 1 );
+		// Run after MWB and other extensions so campsite line totals match Campsite → Settings (adult override, guest rates).
+		add_action( 'woocommerce_before_calculate_totals', array( __CLASS__, 'before_calculate_totals' ), 100000, 1 );
 		// Priority 25: after MWB (10) so we can copy mwb_mbfw_booking_values onto the line when blocks omit $values.
 		add_action( 'woocommerce_checkout_create_order_line_item', array( __CLASS__, 'checkout_save_line_item' ), 25, 4 );
 		// Last-chance copy: some checkouts populate cart line data late or strip $values before earlier hooks see it.
@@ -102,6 +110,11 @@ class WooCommerce_Integration {
 		add_action( 'woocommerce_checkout_process', array( __CLASS__, 'validate_campsite_cart_has_stay_data' ), 10, 0 );
 		add_filter( 'woocommerce_hidden_order_itemmeta', array( __CLASS__, 'hidden_order_itemmeta' ), 10, 1 );
 		add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( __CLASS__, 'order_item_formatted_meta_data' ), 20, 2 );
+		add_action( 'woocommerce_admin_order_data_after_order_details', array( __CLASS__, 'render_order_admin_extras_after_order_details' ), 10, 1 );
+		add_action( 'woocommerce_admin_order_data_after_payment_info', array( __CLASS__, 'render_order_admin_extras_after_order_details' ), 10, 1 );
+		add_action( 'woocommerce_after_order_itemmeta', array( __CLASS__, 'render_order_item_admin_extras' ), 15, 3 );
+		add_action( 'woocommerce_saved_order_items', array( __CLASS__, 'save_order_admin_item_extras' ), 99, 2 );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_order_edit_admin_assets' ), 10, 1 );
 
 		add_action( 'woocommerce_blocks_loaded', array( __CLASS__, 'register_store_api_cart_extensions' ), 5 );
 		add_filter( 'woocommerce_store_api_add_to_cart_data', array( __CLASS__, 'store_api_merge_add_to_cart_extensions' ), 10, 2 );
@@ -184,6 +197,7 @@ class WooCommerce_Integration {
 	 * Enable any of:
 	 * - `wp-config.php`: `define( 'WP_DEBUG', true );` and `define( 'WP_DEBUG_LOG', true );`
 	 * - Theme/plugin: `add_filter( 'vila_cb_debug_logging', '__return_true' );`
+	 * - On-screen extras panel on Edit booking: filter `vila_cb_booking_edit_extras_debug` (defaults on when `WP_DEBUG_LOG` is on).
 	 *
 	 * @param string              $message One-line message.
 	 * @param array<string,mixed> $context Small JSON-safe context (no secrets).
@@ -205,6 +219,16 @@ class WooCommerce_Integration {
 		} else {
 			error_log( $line );
 		}
+	}
+
+	/**
+	 * Public wrapper for opt-in debug (e.g. Admin booking UI cannot call private debug_log).
+	 *
+	 * @param string              $message Message.
+	 * @param array<string,mixed> $context Context.
+	 */
+	public static function log_debug( $message, array $context = array() ) {
+		self::debug_log( (string) $message, $context );
 	}
 
 	/**
@@ -490,7 +514,7 @@ class WooCommerce_Integration {
 
 		if ( $campsite && ! WC()->cart->is_empty() ) {
 			WC()->cart->empty_cart( true );
-			if ( apply_filters( 'vila_cb_show_notice_cart_cleared_for_booking', true ) ) {
+			if ( apply_filters( 'vila_cb_show_notice_cart_cleared_for_booking', false ) ) {
 				wc_add_notice( __( 'Previous cart items were cleared so your new booking can be added.', 'vila-campsite-booking' ), 'notice' );
 			}
 		}
@@ -535,6 +559,9 @@ class WooCommerce_Integration {
 	 */
 	public static function cart_item_product_name( $name, $cart_item, $cart_key ) {
 		unset( $cart_key );
+		if ( ! is_string( $name ) ) {
+			$name = (string) $name;
+		}
 		if ( ! is_array( $cart_item ) ) {
 			return $name;
 		}
@@ -955,6 +982,10 @@ class WooCommerce_Integration {
 			$cin = isset( $cart_item['vila_cb_check_in'] ) ? (string) $cart_item['vila_cb_check_in'] : '';
 			$cout = isset( $cart_item['vila_cb_check_out'] ) ? (string) $cart_item['vila_cb_check_out'] : '';
 			$guests = isset( $cart_item['vila_cb_guests'] ) && is_array( $cart_item['vila_cb_guests'] ) ? $cart_item['vila_cb_guests'] : array();
+			// MWB-only cart rows may omit vila_cb_guests; use adults from mwb_mbfw_booking_values so per-person totals match the booking form.
+			if ( ( ! isset( $guests['adults'] ) || (int) $guests['adults'] < 1 ) && ! empty( $cart_item['mwb_mbfw_booking_values']['people_number'] ) ) {
+				$guests['adults'] = max( 1, (int) $cart_item['mwb_mbfw_booking_values']['people_number'] );
+			}
 			$product = $cart_item['data'];
 			if ( ! $product ) {
 				continue;
@@ -1621,21 +1652,32 @@ class WooCommerce_Integration {
 
 	/**
 	 * Persistable guest counts (minimum 1 adult when empty / broken POST).
+	 * Optionally preserves campsite extras: vehicle_slugs (string[]), extras_label (human-readable line).
 	 *
 	 * @param array<string, mixed> $guests Raw guest array.
-	 * @return array{adults: int, children: int, infants: int, pets: int}
+	 * @return array<string, mixed>
 	 */
 	private static function normalize_guests_for_storage( $guests ) {
 		$min_a = max( 1, (int) apply_filters( 'vila_cb_min_adults', 1 ) );
 		if ( ! is_array( $guests ) ) {
 			$guests = array();
 		}
-		return array(
+		$out = array(
 			'adults'   => isset( $guests['adults'] ) ? max( $min_a, (int) $guests['adults'] ) : $min_a,
 			'children' => isset( $guests['children'] ) ? max( 0, (int) $guests['children'] ) : 0,
 			'infants'  => isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0,
 			'pets'     => isset( $guests['pets'] ) ? max( 0, (int) $guests['pets'] ) : 0,
 		);
+		if ( ! empty( $guests['vehicle_slugs'] ) && is_array( $guests['vehicle_slugs'] ) ) {
+			$slugs = array_values( array_filter( array_map( 'sanitize_key', $guests['vehicle_slugs'] ) ) );
+			if ( array() !== $slugs ) {
+				$out['vehicle_slugs'] = $slugs;
+			}
+		}
+		if ( isset( $guests['extras_label'] ) && is_string( $guests['extras_label'] ) && '' !== trim( $guests['extras_label'] ) ) {
+			$out['extras_label'] = sanitize_text_field( $guests['extras_label'] );
+		}
+		return $out;
 	}
 
 	/**
@@ -1646,6 +1688,235 @@ class WooCommerce_Integration {
 	 */
 	public static function normalize_guest_counts_array( array $guests ) {
 		return self::normalize_guests_for_storage( $guests );
+	}
+
+	/**
+	 * Vehicle slugs from theme `_vila_vehicle_slugs` JSON on the order line.
+	 *
+	 * @param \WC_Order_Item $item Line item.
+	 * @return string[]
+	 */
+	private static function get_vehicle_slugs_from_line_item( $item ) {
+		if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_meta' ) ) ) {
+			return array();
+		}
+		// HPOS / lazy meta: ensure item meta is loaded before get_meta().
+		if ( is_callable( array( $item, 'read_meta_data' ) ) ) {
+			$item->read_meta_data( true );
+		}
+		$raw = $item->get_meta( '_vila_vehicle_slugs', true );
+		$dec = null;
+		if ( is_array( $raw ) ) {
+			// WooCommerce may return decoded JSON as array (especially with HPOS / CRUD).
+			$dec = $raw;
+		} elseif ( is_string( $raw ) && '' !== $raw ) {
+			$dec = json_decode( $raw, true );
+		}
+		if ( ! is_array( $dec ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $dec as $s ) {
+			$k = sanitize_key( is_string( $s ) ? $s : (string) $s );
+			if ( '' !== $k ) {
+				$out[] = $k;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * `_vila_vehicle_slugs` for the campsite stay line (same line resolution as get_order_line_unit_type_label).
+	 *
+	 * @param \WC_Order|null $order          Order.
+	 * @param int            $line_item_id   Line ID, or 0 for first campsite line.
+	 * @return string[]
+	 */
+	public static function get_order_line_vehicle_slugs_resolved( $order, $line_item_id ) {
+		$line_item_id = (int) $line_item_id;
+		if ( ! $order instanceof \WC_Order ) {
+			return array();
+		}
+		if ( $line_item_id <= 0 ) {
+			foreach ( $order->get_items( 'line_item' ) as $lid => $line ) {
+				if ( ! is_object( $line ) || ! is_callable( array( $line, 'get_product_id' ) ) ) {
+					continue;
+				}
+				if ( self::is_campsite_product( (int) $line->get_product_id() ) ) {
+					$line_item_id = (int) $lid;
+					break;
+				}
+			}
+		}
+		if ( $line_item_id <= 0 ) {
+			return array();
+		}
+		$item = $order->get_item( $line_item_id );
+		if ( ! $item ) {
+			return array();
+		}
+		return self::get_vehicle_slugs_from_line_item( $item );
+	}
+
+	/**
+	 * Vehicle slugs for the booking edit UI: guest_json first, then order line meta.
+	 *
+	 * @param string|null    $guest_json_string Booking guest_json.
+	 * @param \WC_Order|null $order             Order.
+	 * @param int            $line_item_id      Line item ID.
+	 * @return string[]
+	 */
+	public static function get_vehicle_slugs_for_booking_edit( $guest_json_string, $order, $line_item_id ) {
+		$dec = json_decode( (string) $guest_json_string, true );
+		// If the key exists (even []), treat guest_json as authoritative — do not merge order line.
+		if ( is_array( $dec ) && array_key_exists( 'vehicle_slugs', $dec ) && is_array( $dec['vehicle_slugs'] ) ) {
+			return array_values( array_filter( array_map( 'sanitize_key', $dec['vehicle_slugs'] ) ) );
+		}
+		// No vehicle_slugs in DB row: use order line (HPOS-safe; see get_vehicle_slugs_from_line_item).
+		return self::get_order_line_vehicle_slugs_resolved( $order, $line_item_id );
+	}
+
+	/**
+	 * Human-readable extras line from slug list (for admin and order sync).
+	 *
+	 * @param string[] $slugs Sanitized slugs.
+	 * @return string
+	 */
+	public static function extras_label_from_slugs( array $slugs ) {
+		return self::labels_join_from_slugs( array_values( array_filter( array_map( 'sanitize_key', $slugs ) ) ) );
+	}
+
+	/**
+	 * Human-readable extras from stored slug list.
+	 *
+	 * @param string[] $slugs Sanitized slugs.
+	 * @return string
+	 */
+	private static function labels_join_from_slugs( array $slugs ) {
+		if ( array() === $slugs ) {
+			return '';
+		}
+		if ( function_exists( 'vila_akoya_vehicle_labels_join' ) ) {
+			return (string) vila_akoya_vehicle_labels_join( $slugs );
+		}
+		$opts   = self::get_admin_vehicle_type_options();
+		$labels = array();
+		foreach ( $slugs as $slug ) {
+			$labels[] = isset( $opts[ $slug ] ) ? $opts[ $slug ] : $slug;
+		}
+		return implode(
+			/* translators: Separator between extras labels in a list. */
+			__( ', ', 'vila-campsite-booking' ),
+			$labels
+		);
+	}
+
+	/**
+	 * Merge guest counts JSON with extras from the order line when creating a booking row.
+	 *
+	 * @param string|null        $guest_json_string From line META_GUESTS or null.
+	 * @param \WC_Order_Item     $item              Line item.
+	 * @param \WC_Order          $order             Order.
+	 * @param int                $line_item_id      Line item ID.
+	 * @return string JSON.
+	 */
+	public static function merge_guest_json_with_line_extras( $guest_json_string, $item, $order, $line_item_id ) {
+		$base = self::normalize_guests_for_storage( json_decode( (string) $guest_json_string, true ) ?: array() );
+		if ( ! $item || ! is_callable( array( $item, 'get_meta' ) ) ) {
+			return wp_json_encode( $base );
+		}
+		$slugs = self::get_vehicle_slugs_from_line_item( $item );
+		if ( array() !== $slugs ) {
+			$base['vehicle_slugs'] = $slugs;
+		}
+		$label = '';
+		if ( $order instanceof \WC_Order && (int) $line_item_id > 0 ) {
+			$label = self::get_order_line_unit_type_label( $order, (int) $line_item_id );
+		}
+		if ( '' !== $label ) {
+			$base['extras_label'] = $label;
+		} elseif ( array() !== $slugs ) {
+			$joined = self::labels_join_from_slugs( $slugs );
+			if ( '' !== $joined ) {
+				$base['extras_label'] = $joined;
+			}
+		}
+		$encoded = wp_json_encode( $base );
+		self::debug_log(
+			'extras.merge_guest_json_with_line_extras',
+			array(
+				'order_id'           => $order instanceof \WC_Order ? $order->get_id() : 0,
+				'line_item_id'       => (int) $line_item_id,
+				'input_guest_json_b' => strlen( (string) $guest_json_string ),
+				'slugs_from_line'    => $slugs,
+				'label_from_order'   => $label,
+				'out_keys'           => array_keys( $base ),
+				'out_b'              => strlen( (string) $encoded ),
+			)
+		);
+		return $encoded;
+	}
+
+	/**
+	 * Extras line for admin: booking guest_json first, then order line meta.
+	 *
+	 * @param string|null        $guest_json   wp_vila_bookings.guest_json.
+	 * @param \WC_Order|null     $order        Order.
+	 * @param int                $line_item_id Line item ID.
+	 * @return string
+	 */
+	public static function get_booking_extras_display_label( $guest_json, $order, $line_item_id ) {
+		$raw = is_string( $guest_json ) ? $guest_json : '';
+		$dec = json_decode( $raw, true );
+		$oid = $order instanceof \WC_Order ? $order->get_id() : 0;
+		if ( is_array( $dec ) ) {
+			if ( ! empty( $dec['extras_label'] ) && is_string( $dec['extras_label'] ) && '' !== trim( $dec['extras_label'] ) ) {
+				$out = trim( $dec['extras_label'] );
+				self::debug_log(
+					'extras.get_booking_extras_display_label',
+					array(
+						'order_id'       => $oid,
+						'line_item_id'   => (int) $line_item_id,
+						'source'         => 'guest_json.extras_label',
+						'guest_json_b'   => strlen( $raw ),
+						'guest_json_keys'=> array_keys( $dec ),
+						'result_len'     => strlen( $out ),
+					)
+				);
+				return $out;
+			}
+			if ( ! empty( $dec['vehicle_slugs'] ) && is_array( $dec['vehicle_slugs'] ) ) {
+				$slugs = array_values( array_filter( array_map( 'sanitize_key', $dec['vehicle_slugs'] ) ) );
+				$joined = self::labels_join_from_slugs( $slugs );
+				if ( '' !== $joined ) {
+					self::debug_log(
+						'extras.get_booking_extras_display_label',
+						array(
+							'order_id'        => $oid,
+							'line_item_id'    => (int) $line_item_id,
+							'source'          => 'guest_json.vehicle_slugs',
+							'guest_json_b'    => strlen( $raw ),
+							'slugs_resolved'  => $slugs,
+							'result_len'      => strlen( $joined ),
+						)
+					);
+					return $joined;
+				}
+			}
+		}
+		$fallback = (string) self::get_order_line_unit_type_label( $order, (int) $line_item_id );
+		self::debug_log(
+			'extras.get_booking_extras_display_label',
+			array(
+				'order_id'        => $oid,
+				'line_item_id'    => (int) $line_item_id,
+				'source'          => 'order_line_fallback',
+				'guest_json_ok'   => is_array( $dec ),
+				'guest_json_keys' => is_array( $dec ) ? array_keys( $dec ) : array(),
+				'result_len'      => strlen( $fallback ),
+			)
+		);
+		return $fallback;
 	}
 
 	/**
@@ -1679,6 +1950,12 @@ class WooCommerce_Integration {
 		$item->update_meta_data( self::META_GUESTS, wp_json_encode( $guests ) );
 		$item->update_meta_data( self::META_PLOT_ID, (string) (int) $plot_id );
 
+		if ( ! empty( $guests['vehicle_slugs'] ) && is_array( $guests['vehicle_slugs'] ) ) {
+			$item->update_meta_data( '_vila_vehicle_slugs', wp_json_encode( array_values( $guests['vehicle_slugs'] ) ) );
+		} else {
+			$item->update_meta_data( '_vila_vehicle_slugs', '[]' );
+		}
+
 		$cin = Dates::parse_ymd( (string) $check_in_ymd );
 		$cout = Dates::parse_ymd( (string) $check_out_ymd );
 		if ( $cin && $cout ) {
@@ -1691,15 +1968,208 @@ class WooCommerce_Integration {
 		}
 
 		$unit_type_label = sanitize_text_field( Request_String::scalar( $unit_type_label ) );
+		if ( '' === $unit_type_label && ! empty( $guests['extras_label'] ) && is_string( $guests['extras_label'] ) ) {
+			$unit_type_label = sanitize_text_field( $guests['extras_label'] );
+		}
 		if ( '' !== $unit_type_label ) {
+			$item->update_meta_data( 'Extras', $unit_type_label );
 			$item->update_meta_data( 'Unit type', $unit_type_label );
 			if ( function_exists( 'vila_akoya_vehicle_label' ) ) {
+				$item->update_meta_data( __( 'Extras', 'vila-akoya' ), $unit_type_label );
 				$item->update_meta_data( __( 'Unit type', 'vila-akoya' ), $unit_type_label );
+			}
+		} else {
+			foreach ( array( 'Extras', 'Unit type' ) as $ek ) {
+				if ( is_callable( array( $item, 'delete_meta_data' ) ) ) {
+					$item->delete_meta_data( $ek );
+				}
+			}
+			if ( function_exists( 'vila_akoya_vehicle_label' ) ) {
+				$tl_ex = __( 'Extras', 'vila-akoya' );
+				$tl_ut = __( 'Unit type', 'vila-akoya' );
+				if ( is_callable( array( $item, 'delete_meta_data' ) ) ) {
+					$item->delete_meta_data( $tl_ex );
+					$item->delete_meta_data( $tl_ut );
+				}
 			}
 		}
 
 		if ( is_callable( array( $item, 'save' ) ) ) {
 			$item->save();
+		}
+	}
+
+	/**
+	 * Enqueue shared admin styles on WooCommerce order edit (HPOS + classic) for order-line extras checkboxes.
+	 *
+	 * @param string $hook_suffix Current admin page hook.
+	 */
+	public static function enqueue_order_edit_admin_assets( $hook_suffix ) {
+		unset( $hook_suffix );
+		if ( ! function_exists( 'get_current_screen' ) ) {
+			return;
+		}
+		$screen = get_current_screen();
+		if ( ! $screen || ! isset( $screen->id ) ) {
+			return;
+		}
+		$allowed = array( 'woocommerce_page_wc-orders', 'shop_order' );
+		if ( ! in_array( (string) $screen->id, $allowed, true ) ) {
+			return;
+		}
+		wp_enqueue_style( 'vila-cb-admin-order-extras', VILA_CB_URL . 'assets/css/admin.css', array(), VILA_CB_VERSION );
+	}
+
+	/**
+	 * WooCommerce order edit: multi-select extras (same slugs as Campsite → Edit booking).
+	 *
+	 * @param int                 $item_id Item ID.
+	 * @param \WC_Order_Item      $item    Line item.
+	 * @param \WC_Product|mixed   $product Product or null.
+	 */
+	public static function render_order_item_admin_extras( $item_id, $item, $product ) {
+		unset( $product );
+		if ( ! is_admin() || ! $item || ! is_callable( array( $item, 'get_product_id' ) ) ) {
+			return;
+		}
+		if ( ! self::is_campsite_product( (int) $item->get_product_id() ) ) {
+			return;
+		}
+		$item_id = (int) $item_id;
+		$order_id = is_callable( array( $item, 'get_order_id' ) ) ? (int) $item->get_order_id() : 0;
+		if ( $order_id <= 0 ) {
+			return;
+		}
+		if ( isset( self::$order_admin_extras_panel_rendered[ $order_id ] ) ) {
+			return;
+		}
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
+
+		static $nonce_printed = array();
+		$need_nonce = ! isset( $nonce_printed[ $order_id ] );
+		if ( $need_nonce ) {
+			$nonce_printed[ $order_id ] = true;
+		}
+
+		echo '<div class="vila-cb-order-item-extras">';
+		echo '<p style="margin:0 0 8px;"><strong>' . esc_html__( 'Extras (unit types)', 'vila-campsite-booking' ) . '</strong></p>';
+		echo '<p class="description" style="margin:0 0 10px;">' . esc_html__( 'Check all that apply. Saves when you update the order.', 'vila-campsite-booking' ) . '</p>';
+		if ( $need_nonce ) {
+			wp_nonce_field( 'vila_cb_save_order_extras', 'vila_cb_order_extras_nonce' );
+		}
+		self::echo_order_line_extras_chips( $order, $item_id, $item );
+		echo '</div>';
+	}
+
+	/**
+	 * Persist extras checkboxes from WooCommerce order edit.
+	 *
+	 * @param int   $order_id Order ID.
+	 * @param array $items    Posted item data (WC passes context).
+	 */
+	public static function save_order_admin_item_extras( $order_id, $items ) {
+		unset( $items );
+		if ( ! isset( $_POST['vila_cb_order_extras_nonce'] ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_order_extras_nonce'] ) ) ), 'vila_cb_save_order_extras' ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'edit_shop_orders' ) ) {
+			return;
+		}
+		$order_id = (int) $order_id;
+		$order    = wc_get_order( $order_id );
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
+		$map = isset( $_POST['vila_cb_vehicle_slugs_order'] ) && is_array( $_POST['vila_cb_vehicle_slugs_order'] ) ? wp_unslash( $_POST['vila_cb_vehicle_slugs_order'] ) : array();
+		if ( array() === $map ) {
+			return;
+		}
+		$opts = self::get_admin_vehicle_type_options();
+
+		foreach ( $map as $item_id => $raw_slugs ) {
+			$item_id = (int) $item_id;
+			if ( $item_id <= 0 ) {
+				continue;
+			}
+			$item = $order->get_item( $item_id );
+			if ( ! $item || ! self::is_campsite_product( (int) $item->get_product_id() ) ) {
+				continue;
+			}
+			$initial = self::get_order_line_vehicle_slugs_resolved( $order, $item_id );
+			$whitelist = array_unique( array_merge( array_keys( $opts ), $initial ) );
+			$whitelist = array_values( array_filter( array_map( 'sanitize_key', $whitelist ) ) );
+
+			$slug_set = array();
+			if ( is_array( $raw_slugs ) ) {
+				foreach ( $raw_slugs as $r ) {
+					if ( ! is_string( $r ) && ! is_numeric( $r ) ) {
+						continue;
+					}
+					$k = sanitize_key( (string) $r );
+					if ( '' !== $k ) {
+						$slug_set[ $k ] = true;
+					}
+				}
+			}
+			$vehicle_slugs = array_keys( $slug_set );
+			$vehicle_slugs = array_values( array_intersect( $vehicle_slugs, $whitelist ) );
+			sort( $vehicle_slugs );
+
+			$guest_raw = $item->get_meta( self::META_GUESTS, true );
+			$guest_arr = json_decode( is_string( $guest_raw ) ? $guest_raw : '', true );
+			$guest_arr = self::normalize_guest_counts_array( is_array( $guest_arr ) ? $guest_arr : array() );
+			if ( array() === $vehicle_slugs ) {
+				unset( $guest_arr['vehicle_slugs'], $guest_arr['extras_label'] );
+			} else {
+				$guest_arr['vehicle_slugs'] = $vehicle_slugs;
+				$guest_arr['extras_label']  = self::extras_label_from_slugs( $vehicle_slugs );
+			}
+			$label = self::extras_label_from_slugs( $vehicle_slugs );
+
+			$check_in = (string) $item->get_meta( self::META_CHECK_IN, true );
+			$check_out = (string) $item->get_meta( self::META_CHECK_OUT, true );
+			$plot_id   = (int) $item->get_meta( self::META_PLOT_ID, true );
+
+			self::sync_order_line_after_booking_admin_edit(
+				$order,
+				$item_id,
+				$check_in,
+				$check_out,
+				$guest_arr,
+				$label,
+				$plot_id
+			);
+
+			$bid = (int) $item->get_meta( self::META_BOOKING_ID, true );
+			if ( $bid > 0 ) {
+				$repo = new Booking_Repository();
+				$row  = $repo->get( $bid );
+				if ( $row && 'confirmed' === (string) $row['status'] ) {
+					$g = json_decode( (string) $row['guest_json'], true );
+					if ( ! is_array( $g ) ) {
+						$g = array();
+					}
+					if ( array() === $vehicle_slugs ) {
+						unset( $g['vehicle_slugs'], $g['extras_label'] );
+					} else {
+						$g['vehicle_slugs']  = $vehicle_slugs;
+						$g['extras_label'] = $label;
+					}
+					$repo->update(
+						$bid,
+						array(
+							'guest_json' => wp_json_encode( $g ),
+							'updated_at' => current_time( 'mysql' ),
+						)
+					);
+				}
+			}
 		}
 	}
 
@@ -1779,8 +2249,12 @@ class WooCommerce_Integration {
 	 */
 	public static function get_admin_vehicle_type_options() {
 		if ( function_exists( 'vila_akoya_get_vehicle_types' ) ) {
+			$types = vila_akoya_get_vehicle_types();
+			if ( ! is_array( $types ) ) {
+				$types = array();
+			}
 			$opts = array();
-			foreach ( vila_akoya_get_vehicle_types() as $slug => $row ) {
+			foreach ( $types as $slug => $row ) {
 				if ( is_array( $row ) && isset( $row['label'] ) ) {
 					$opts[ sanitize_key( (string) $slug ) ] = (string) $row['label'];
 				}
@@ -1793,33 +2267,288 @@ class WooCommerce_Integration {
 			'tent'         => __( 'Tent', 'vila-campsite-booking' ),
 			'caravan'      => __( 'Caravan', 'vila-campsite-booking' ),
 			'camper'       => __( 'Camper van', 'vila-campsite-booking' ),
-			'four_by_four' => __( '4×4 / off-road rig', 'vila-campsite-booking' ),
+			'electricity'  => __( 'Include electricity', 'vila-campsite-booking' ),
+			'car'          => __( 'Car', 'vila-campsite-booking' ),
 		);
+	}
+
+	/**
+	 * Meta keys to hide from WooCommerce’s editable line-item meta UI (dropdown + text) while we manage extras via chips.
+	 *
+	 * @return string[]
+	 */
+	private static function extras_meta_keys_to_hide() {
+		$keys = array( '_vila_vehicle_slugs', 'Extras', 'Unit type' );
+		if ( function_exists( 'vila_akoya_get_vehicle_types' ) ) {
+			$keys[] = __( 'Extras', 'vila-akoya' );
+			$keys[] = __( 'Unit type', 'vila-akoya' );
+		}
+		return array_values( array_unique( array_map( 'strval', $keys ) ) );
+	}
+
+	/**
+	 * Whether a formatted meta row is a duplicate extras / unit-type field we replace with a single “Extras” row.
+	 *
+	 * @param string $key         Meta key.
+	 * @param string $display_key Display key.
+	 * @return bool
+	 */
+	private static function should_strip_extra_meta_row( $key, $display_key ) {
+		$key = (string) $key;
+		foreach ( self::extras_meta_keys_to_hide() as $k ) {
+			if ( $key === $k ) {
+				return true;
+			}
+		}
+		$dk = trim( (string) $display_key );
+		if ( '' === $dk ) {
+			return false;
+		}
+		$candidates = array( 'Extras', 'Unit type' );
+		if ( function_exists( 'vila_akoya_get_vehicle_types' ) ) {
+			$candidates[] = __( 'Extras', 'vila-akoya' );
+			$candidates[] = __( 'Unit type', 'vila-akoya' );
+		}
+		return in_array( $dk, $candidates, true );
+	}
+
+	/**
+	 * Unit type options with nightly fee for chip UI (matches theme checkout when available).
+	 *
+	 * @return array<string, array{ label: string, fee: float }>
+	 */
+	public static function get_admin_vehicle_type_options_with_fees() {
+		$out = array();
+		if ( function_exists( 'vila_akoya_get_vehicle_types' ) ) {
+			$types = vila_akoya_get_vehicle_types();
+			if ( is_array( $types ) ) {
+				foreach ( $types as $slug => $row ) {
+					if ( is_array( $row ) && isset( $row['label'] ) ) {
+						$sk       = sanitize_key( (string) $slug );
+						$out[ $sk ] = array(
+							'label' => (string) $row['label'],
+							'fee'   => isset( $row['fee'] ) ? (float) $row['fee'] : 0.0,
+						);
+					}
+				}
+			}
+		}
+		if ( array() !== $out ) {
+			return $out;
+		}
+		foreach ( self::get_admin_vehicle_type_options() as $sk => $lab ) {
+			$out[ $sk ] = array(
+				'label' => (string) $lab,
+				'fee'   => 0.0,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * WooCommerce order edit: chip-style extras above line items (classic + HPOS when hook runs).
+	 *
+	 * @param \WC_Order|int|\WP_Post|null $order_or_arg Order object, ID, or post (depending on WC version).
+	 */
+	public static function render_order_admin_extras_after_order_details( $order_or_arg = null ) {
+		if ( ! is_admin() ) {
+			return;
+		}
+		$order = null;
+		if ( $order_or_arg instanceof \WC_Order ) {
+			$order = $order_or_arg;
+		} elseif ( is_numeric( $order_or_arg ) ) {
+			$order = wc_get_order( (int) $order_or_arg );
+		}
+		global $theorder;
+		if ( ! $order instanceof \WC_Order && isset( $theorder ) && $theorder instanceof \WC_Order ) {
+			$order = $theorder;
+		}
+		if ( ! $order instanceof \WC_Order ) {
+			return;
+		}
+		$order_id = (int) $order->get_id();
+		if ( isset( self::$order_admin_extras_panel_rendered[ $order_id ] ) ) {
+			return;
+		}
+		$has_campsite = false;
+		foreach ( $order->get_items( 'line_item' ) as $line ) {
+			if ( ! is_object( $line ) || ! is_callable( array( $line, 'get_product_id' ) ) ) {
+				continue;
+			}
+			if ( self::is_campsite_product( (int) $line->get_product_id() ) ) {
+				$has_campsite = true;
+				break;
+			}
+		}
+		if ( ! $has_campsite ) {
+			return;
+		}
+		self::$order_admin_extras_panel_rendered[ $order_id ] = true;
+
+		echo '<div class="vila-cb-order-extras-panel">';
+		echo '<h3 class="vila-cb-order-extras-panel__title">' . esc_html__( 'Campsite extras', 'vila-campsite-booking' ) . '</h3>';
+		echo '<p class="description" style="margin:0 0 12px;">' . esc_html__( 'Select pitch types and add-ons (same options as the booking form). Changes apply when you save or update the order.', 'vila-campsite-booking' ) . '</p>';
+		wp_nonce_field( 'vila_cb_save_order_extras', 'vila_cb_order_extras_nonce' );
+		foreach ( $order->get_items( 'line_item' ) as $item_id => $item ) {
+			if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_product_id' ) ) ) {
+				continue;
+			}
+			if ( ! self::is_campsite_product( (int) $item->get_product_id() ) ) {
+				continue;
+			}
+			self::echo_order_line_extras_chips( $order, (int) $item_id, $item );
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Chip grid for unit types (booking form parity): used on WooCommerce order edit and Campsite booking editor.
+	 *
+	 * @param string   $input_name   Full HTML name for checkboxes, e.g. `vila_cb_vehicle_slugs[]` or `vila_cb_vehicle_slugs_order[12][]`.
+	 * @param string   $id_prefix    Unique prefix for element ids (slug appended).
+	 * @param string[] $checked_slugs Slugs that should be checked (including legacy slugs not in current options).
+	 */
+	public static function echo_vehicle_extras_chip_grid( $input_name, $id_prefix, array $checked_slugs ) {
+		$opts   = self::get_admin_vehicle_type_options_with_fees();
+		$slugs  = array_values( array_filter( array_map( 'sanitize_key', $checked_slugs ) ) );
+		$orphan = array_values( array_diff( $slugs, array_keys( $opts ) ) );
+		$checked = array_fill_keys( $slugs, true );
+
+		$currency = function_exists( 'get_woocommerce_currency_symbol' ) ? get_woocommerce_currency_symbol() : '€';
+
+		echo '<div class="vila-cb-admin-chip-grid" role="group" aria-label="' . esc_attr__( 'Extras', 'vila-campsite-booking' ) . '">';
+		foreach ( $opts as $sk => $meta ) {
+			$fid = $id_prefix . '_' . preg_replace( '/[^a-z0-9_-]/i', '_', (string) $sk );
+			$fee = isset( $meta['fee'] ) ? (float) $meta['fee'] : 0.0;
+			echo '<label class="vila-cb-admin-chip" for="' . esc_attr( $fid ) . '">';
+			echo '<input type="checkbox" id="' . esc_attr( $fid ) . '" class="vila-cb-extras-checkbox" name="' . esc_attr( $input_name ) . '" value="' . esc_attr( (string) $sk ) . '" ' . checked( ! empty( $checked[ $sk ] ), true, false ) . ' />';
+			echo '<span class="vila-cb-admin-chip__body">';
+			echo '<span class="vila-cb-admin-chip__title">' . esc_html( (string) $meta['label'] ) . '</span>';
+			if ( $fee > 0 ) {
+				echo '<span class="vila-cb-admin-chip__meta">+' . esc_html( $currency . sprintf( '%.0f', $fee ) );
+				echo esc_html(
+					_x( '/night', 'price suffix for pitch fee', 'vila-campsite-booking' )
+				);
+				echo '</span>';
+			} else {
+				echo '<span class="vila-cb-admin-chip__meta">' . esc_html__( 'Included', 'vila-campsite-booking' ) . '</span>';
+			}
+			echo '</span></label>';
+		}
+		foreach ( $orphan as $oslug ) {
+			$fid = $id_prefix . '_leg_' . preg_replace( '/[^a-z0-9_-]/i', '_', (string) $oslug );
+			echo '<label class="vila-cb-admin-chip vila-cb-admin-chip--legacy" for="' . esc_attr( $fid ) . '">';
+			echo '<input type="checkbox" id="' . esc_attr( $fid ) . '" class="vila-cb-extras-checkbox" name="' . esc_attr( $input_name ) . '" value="' . esc_attr( (string) $oslug ) . '" ' . checked( ! empty( $checked[ $oslug ] ), true, false ) . ' />';
+			echo '<span class="vila-cb-admin-chip__body">';
+			echo '<span class="vila-cb-admin-chip__title">' . esc_html( (string) $oslug ) . '</span>';
+			echo '<span class="vila-cb-admin-chip__meta">' . esc_html__( '(legacy slug)', 'vila-campsite-booking' ) . '</span>';
+			echo '</span></label>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Output chip grid + booking link for one campsite order line.
+	 *
+	 * @param \WC_Order      $order   Order.
+	 * @param int            $item_id Line item ID.
+	 * @param \WC_Order_Item $item    Line item.
+	 */
+	private static function echo_order_line_extras_chips( $order, $item_id, $item ) {
+		$item_id = (int) $item_id;
+		$slugs   = self::get_order_line_vehicle_slugs_resolved( $order, $item_id );
+		$slugs   = array_values( array_filter( array_map( 'sanitize_key', $slugs ) ) );
+
+		echo '<div class="vila-cb-order-line-extras" data-vila-cb-item-id="' . esc_attr( (string) $item_id ) . '">';
+		echo '<h4 class="vila-cb-order-line-extras__title">' . esc_html( $item->get_name() ) . '</h4>';
+		self::echo_vehicle_extras_chip_grid(
+			'vila_cb_vehicle_slugs_order[' . (string) $item_id . '][]',
+			'vila_cb_ord_' . (string) $item_id,
+			$slugs
+		);
+		$booking_url = add_query_arg(
+			array(
+				'page'       => 'vila-cb-booking',
+				'booking_id' => (int) $item->get_meta( self::META_BOOKING_ID, true ),
+			),
+			admin_url( 'admin.php' )
+		);
+		if ( (int) $item->get_meta( self::META_BOOKING_ID, true ) > 0 ) {
+			echo '<p class="description" style="margin:10px 0 0;"><a href="' . esc_url( $booking_url ) . '">' . esc_html__( 'Open Campsite booking editor', 'vila-campsite-booking' ) . '</a></p>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Human-readable extras line from theme `_vila_vehicle_slugs` JSON (multi-select).
+	 *
+	 * @param \WC_Order_Item $item Line item.
+	 * @return string
+	 */
+	private static function order_line_label_from_vehicle_slugs_meta( $item ) {
+		return self::labels_join_from_slugs( self::get_vehicle_slugs_from_line_item( $item ) );
 	}
 
 	/**
 	 * Unit type label on the stay order line (e.g. Caravan), from line item meta.
 	 *
-	 * Vila Akoya theme stores `Unit type` via `woocommerce_checkout_create_order_line_item`.
+	 * Theme stores extras under translated “Extras” and `_vila_vehicle_slugs` (JSON). The calendar
+	 * must resolve multi-select labels even when the display string meta is missing or keyed by a
+	 * different locale than wp-admin.
+	 *
 	 * Filter `vila_cb_order_line_unit_type_label` can override or supply a value when meta is absent.
 	 *
 	 * @param \WC_Order|null $order          Order.
-	 * @param int            $line_item_id   Campsite stay line item ID.
+	 * @param int            $line_item_id   Campsite stay line item ID (0 = first campsite line on order).
 	 * @return string Display label or empty.
 	 */
 	public static function get_order_line_unit_type_label( $order, $line_item_id ) {
 		$line_item_id = (int) $line_item_id;
-		if ( ! $order instanceof \WC_Order || $line_item_id <= 0 ) {
+		$requested_id = $line_item_id;
+		if ( ! $order instanceof \WC_Order ) {
+			self::debug_log( 'extras.get_order_line_unit_type_label', array( 'reason' => 'no_order' ) );
 			return '';
+		}
+		if ( $line_item_id <= 0 ) {
+			foreach ( $order->get_items( 'line_item' ) as $lid => $line ) {
+				if ( ! is_object( $line ) || ! is_callable( array( $line, 'get_product_id' ) ) ) {
+					continue;
+				}
+				if ( self::is_campsite_product( (int) $line->get_product_id() ) ) {
+					$line_item_id = (int) $lid;
+					break;
+				}
+			}
+		}
+		if ( $line_item_id <= 0 ) {
+			self::debug_log(
+				'extras.get_order_line_unit_type_label',
+				array(
+					'order_id'      => $order->get_id(),
+					'requested_id'  => $requested_id,
+					'reason'        => 'no_campsite_line',
+				)
+			);
+			return (string) apply_filters( 'vila_cb_order_line_unit_type_label', '', $order, $line_item_id, null );
 		}
 		$item = $order->get_item( $line_item_id );
 		if ( ! $item || ! is_callable( array( $item, 'get_meta' ) ) ) {
+			self::debug_log(
+				'extras.get_order_line_unit_type_label',
+				array(
+					'order_id'     => $order->get_id(),
+					'line_item_id' => $line_item_id,
+					'reason'       => 'item_missing',
+				)
+			);
 			return (string) apply_filters( 'vila_cb_order_line_unit_type_label', '', $order, $line_item_id, null );
 		}
 
 		$resolved = '';
-		$keys     = array( 'Unit type' );
+		$keys     = array( 'Extras', 'Unit type' );
 		if ( function_exists( 'vila_akoya_vehicle_label' ) ) {
+			$keys[] = __( 'Extras', 'vila-akoya' );
 			$keys[] = __( 'Unit type', 'vila-akoya' );
 		}
 		$keys = array_unique( array_filter( $keys ) );
@@ -1839,6 +2568,21 @@ class WooCommerce_Integration {
 				if ( '' === $k ) {
 					continue;
 				}
+				if ( preg_match( '/^extras$/iu', $k ) ) {
+					$val = is_object( $m ) && isset( $m->value ) ? $m->value : '';
+					if ( is_string( $val ) && '' !== trim( $val ) ) {
+						$resolved = trim( $val );
+						break;
+					}
+				}
+				$dk = is_object( $m ) && isset( $m->display_key ) ? (string) $m->display_key : '';
+				if ( '' !== $dk && preg_match( '/^extras$/iu', $dk ) ) {
+					$val = is_object( $m ) && isset( $m->value ) ? $m->value : '';
+					if ( is_string( $val ) && '' !== trim( $val ) ) {
+						$resolved = trim( $val );
+						break;
+					}
+				}
 				if ( preg_match( '/unit/i', $k ) && preg_match( '/type/i', $k ) ) {
 					$val = is_object( $m ) && isset( $m->value ) ? $m->value : '';
 					if ( is_string( $val ) && '' !== trim( $val ) ) {
@@ -1848,8 +2592,46 @@ class WooCommerce_Integration {
 				}
 			}
 		}
+		if ( '' === $resolved ) {
+			$resolved = self::order_line_label_from_vehicle_slugs_meta( $item );
+		}
 
 		$filtered = apply_filters( 'vila_cb_order_line_unit_type_label', $resolved, $order, $line_item_id, $item );
+		$slug_raw = $item->get_meta( '_vila_vehicle_slugs', true );
+		$slug_raw_b = is_string( $slug_raw ) ? strlen( $slug_raw ) : 0;
+		$parsed_slugs = self::get_vehicle_slugs_from_line_item( $item );
+		$meta_keys    = array();
+		if ( is_callable( array( $item, 'get_meta_data' ) ) ) {
+			foreach ( $item->get_meta_data() as $m ) {
+				if ( is_object( $m ) && isset( $m->key ) ) {
+					$meta_keys[] = (string) $m->key;
+				}
+				if ( count( $meta_keys ) >= 25 ) {
+					break;
+				}
+			}
+		}
+		$extras_direct = $item->get_meta( 'Extras', true );
+		$out           = '';
+		if ( is_string( $filtered ) ) {
+			$out = $filtered;
+		} elseif ( is_scalar( $filtered ) && ! is_bool( $filtered ) ) {
+			$out = (string) $filtered;
+		}
+		self::debug_log(
+			'extras.get_order_line_unit_type_label',
+			array(
+				'order_id'           => $order->get_id(),
+				'line_item_id'       => $line_item_id,
+				'requested_id'       => $requested_id,
+				'resolved_before_f_b'=> strlen( (string) $resolved ),
+				'filtered_out_b'     => strlen( $out ),
+				'_vila_vehicle_slugs_b' => $slug_raw_b,
+				'parsed_slugs'       => $parsed_slugs,
+				'extras_meta_preview'=> is_string( $extras_direct ) ? substr( trim( $extras_direct ), 0, 80 ) : '',
+				'meta_key_sample'    => $meta_keys,
+			)
+		);
 		if ( is_string( $filtered ) ) {
 			return $filtered;
 		}
@@ -2144,7 +2926,9 @@ class WooCommerce_Integration {
 		$hidden[] = self::META_GUESTS;
 		$hidden[] = self::META_BOOKING_ID;
 		$hidden[] = self::META_PLOT_ID;
-		return $hidden;
+		// Theme/plugin JSON for multi-select; managed via Campsite extras UI (do not edit raw JSON in the line meta box).
+		$hidden[] = '_vila_vehicle_slugs';
+		return array_values( array_unique( array_map( 'strval', $hidden ) ) );
 	}
 
 	/**
@@ -2173,7 +2957,8 @@ class WooCommerce_Integration {
 		);
 		$stay_label   = __( 'Stay', 'vila-campsite-booking' );
 		$guests_label = __( 'Guests', 'vila-campsite-booking' );
-		$out          = array();
+		$extras_label_key = __( 'Extras', 'vila-campsite-booking' );
+		$out              = array();
 		foreach ( $formatted_meta as $m ) {
 			$key = is_object( $m ) && isset( $m->key ) ? (string) $m->key : '';
 			if ( in_array( $key, $strip, true ) ) {
@@ -2195,6 +2980,9 @@ class WooCommerce_Integration {
 				if ( $dk === $guests_label || $dk === 'Guests' ) {
 					continue;
 				}
+			}
+			if ( self::should_strip_extra_meta_row( $key, $dk ) ) {
+				continue;
 			}
 			$out[] = $m;
 		}
@@ -2225,6 +3013,26 @@ class WooCommerce_Integration {
 				'value'         => $gtext,
 				'display_key'   => $guests_label,
 				'display_value' => wc_clean( $gtext ),
+			);
+		}
+		$extras_order = null;
+		if ( is_callable( array( $item, 'get_order_id' ) ) ) {
+			$oid = (int) $item->get_order_id();
+			if ( $oid > 0 ) {
+				$extras_order = wc_get_order( $oid );
+			}
+		}
+		$extras_text = '';
+		if ( $extras_order instanceof \WC_Order ) {
+			$extras_text = (string) self::get_order_line_unit_type_label( $extras_order, $line_id );
+		}
+		if ( '' !== $extras_text ) {
+			$out[] = (object) array(
+				'id'            => 'vila-cb-extras-' . $line_id,
+				'key'           => '_vila_cb_display_extras',
+				'value'         => $extras_text,
+				'display_key'   => $extras_label_key,
+				'display_value' => wc_clean( $extras_text ),
 			);
 		}
 		return $out;
@@ -2292,6 +3100,7 @@ class WooCommerce_Integration {
 			$cin        = $stay['check_in'];
 			$cout       = $stay['check_out'];
 			$guest_json = $stay['guest_json'];
+			$guest_json = self::merge_guest_json_with_line_extras( $guest_json ? $guest_json : '', $item, $order, $line_id );
 			$res        = $svc->confirm_booking_atomic( (int) $order->get_id(), $line_id, $cin, $cout, $guest_json ? $guest_json : null );
 			if ( ! empty( $res['success'] ) && ! empty( $res['booking_id'] ) ) {
 				$item->update_meta_data( self::META_BOOKING_ID, (string) $res['booking_id'] );

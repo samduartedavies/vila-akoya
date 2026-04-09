@@ -7,6 +7,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Required for wp-env’s Docker bind-mount of ./wp-content/plugins/vila-campsite-booking (see .wp-env.json).
+mkdir -p "${ROOT}/wp-content/plugins/vila-campsite-booking"
 THEME_SRC="${ROOT}/wp-content/themes/vila-akoya"
 DEST="/var/www/html/wp-content/themes/vila-akoya"
 TMP="/tmp/vila-akoya-theme"

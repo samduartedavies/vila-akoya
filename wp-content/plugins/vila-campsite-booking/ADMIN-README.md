@@ -5,12 +5,20 @@
 1. Open **WooCommerce → Campsite → Settings**.
 2. Set **Default plot count** if you need extra rows seeded, then open **WooCommerce → Campsite → Plots** to edit labels and sort order or add/remove plots.
 
+## Pricing (EUR)
+
+1. The store uses **EUR** for all WooCommerce prices and checkout. Saving **WooCommerce → Campsite → Settings** also sets **WooCommerce → Settings → General → Currency** to **Euro (€)**.
+2. Under **Nightly rates (EUR)** on the same screen you can set:
+   - **Adult rate (override)** — per adult, per night; leave **0** to use the campsite product’s **Regular price** in WooCommerce.
+   - **Children / Infants / Pets** — nightly supplements (same amounts as the theme booking form fees).
+   - **Pitch supplement by unit type** — nightly add-on per selected unit (tent, caravan, camper van, 4×4), matching the theme “What are you bringing?” chips.
+3. Advanced: filters `vila_cb_guest_category_nightly_rates`, `vila_akoya_vehicle_types`, and `vila_cb_adult_rate_per_night` still apply if you need code-level overrides.
+
 ## WooCommerce product
 
 1. Create a **simple** product (not a MWB bookable type).
-2. Set **Regular price** to the **per adult, per night** amount in your store currency.
-3. Optional supplements for children, infants, and pets per night are filterable in code (`vila_cb_guest_category_nightly_rates`) or can be adjusted via small custom plugin if you need per-site values without code.
-4. In **WooCommerce → Campsite → Settings**, save the **Campsite product ID**. The plugin marks that product with internal meta so it uses the custom booking flow.
+2. Set **Regular price** to the **per adult, per night** amount in **EUR** (or rely on **Adult rate (override)** in Campsite settings).
+3. In **WooCommerce → Campsite → Settings**, save the **Campsite product ID**. The plugin marks that product with internal meta so it uses the custom booking flow.
 
 ## Booking page
 
@@ -43,8 +51,6 @@ After changing `.wp-env.json`, run **`npm run wp:restart`** then **`npm run wp:i
 
 wp-env records **absolute host paths** when `wp-env start` runs. Always use **`npm run wp:start`** from the repo root (via `scripts/wp-env.sh`) so paths resolve correctly.
 
-## Mirroring theme supplement amounts
+## Legacy: filters only
 
-If you previously tuned guest supplements in the theme, you can map them in a small mu-plugin or `functions.php` hook:
-
-`add_filter( 'vila_cb_guest_category_nightly_rates', function ( $rates, $product_id ) { /* return $rates; */ }, 10, 2 );`
+Guest supplements and unit-type fees are editable in **Campsite → Settings**; use filters only for edge cases (e.g. `vila_cb_guest_category_nightly_rates`).

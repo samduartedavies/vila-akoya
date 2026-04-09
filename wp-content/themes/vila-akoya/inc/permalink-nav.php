@@ -188,6 +188,7 @@ add_action( 'template_redirect', 'vila_akoya_fallback_brochure_page_on_404', 5 )
  * @return string
  */
 function vila_akoya_absolutize_brochure_hrefs( $html ) {
+	$html = is_string( $html ) ? $html : '';
 	if ( '' === $html || strpos( $html, 'href="/' ) === false ) {
 		return $html;
 	}
@@ -216,8 +217,14 @@ function vila_akoya_absolutize_brochure_hrefs( $html ) {
  * Fix stored block HTML that still uses root-relative internal links (front + editor preview).
  */
 function vila_akoya_filter_content_absolutize_links( $content ) {
-	if ( empty( $content ) ) {
+	if ( null === $content ) {
+		return '';
+	}
+	if ( ! is_string( $content ) ) {
 		return $content;
+	}
+	if ( '' === $content ) {
+		return '';
 	}
 	return vila_akoya_absolutize_brochure_hrefs( $content );
 }
@@ -251,7 +258,7 @@ function vila_akoya_shortcode_header_nav() {
 <button type="button" id="site-nav-toggle" class="md:hidden inline-flex rounded-lg p-2 text-[#9a4021] hover:bg-[#9a4021]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Open menu">
 <span class="material-symbols-outlined text-3xl" aria-hidden="true">menu</span>
 </button>
-<a class="hidden md:inline-block bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] scale-95 active:scale-90 transition-all duration-300 text-center" href="<?php echo $h( 'booking' ); ?>">Book Now</a>
+<a class="hidden md:inline-flex md:items-center md:justify-center bg-[#9a4021] text-white px-8 py-2.5 md:px-10 md:py-3 rounded-full text-sm md:text-base font-medium tracking-wide shadow-md shadow-[#9a4021]/25 hover:bg-[#ba5737] transition-all duration-300 text-center" href="<?php echo $h( 'booking' ); ?>">Book Now</a>
 </div>
 </div>
 <div id="site-mobile-nav" class="hidden md:hidden border-t border-stone-200/80 bg-[#fcf9ef]/95 backdrop-blur-xl">
@@ -265,7 +272,7 @@ function vila_akoya_shortcode_header_nav() {
 <a data-nav="about" class="block rounded-lg px-2 py-3 text-stone-600 hover:bg-[#9a4021]/5" href="<?php echo $h( 'about' ); ?>">About</a>
 <a data-nav="contact" class="block rounded-lg px-2 py-3 text-stone-600 hover:bg-[#9a4021]/5" href="<?php echo $h( 'contact' ); ?>">Contact</a>
 </div>
-<a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="<?php echo $h( 'booking' ); ?>">Book Now</a>
+<a class="mt-4 mb-4 inline-flex w-full items-center justify-center text-center bg-[#9a4021] text-white px-8 py-3 rounded-full text-sm font-medium tracking-wide shadow-md shadow-[#9a4021]/25 hover:bg-[#ba5737] transition-all duration-300" href="<?php echo $h( 'booking' ); ?>">Book Now</a>
 </div>
 </div>
 </nav>
