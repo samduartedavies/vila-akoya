@@ -9,7 +9,7 @@
 
 1. The store uses **EUR** for all WooCommerce prices and checkout. Saving **WooCommerce → Campsite → Settings** also sets **WooCommerce → Settings → General → Currency** to **Euro (€)**.
 2. Under **Nightly rates (EUR)** on the same screen you can set:
-   - **Adult rate (override)** — per adult, per night; leave **0** to use the campsite product’s **Regular price** in WooCommerce.
+   - **Adult rate (override)** — per adult, per night; leave **0** to use the campsite product's **Regular price** in WooCommerce.
    - **Children / Infants / Pets** — nightly supplements (same amounts as the theme booking form fees).
    - **Pitch supplement by unit type** — nightly add-on per selected unit (tent, caravan, camper van, 4×4), matching the theme “What are you bringing?” chips.
 3. Advanced: filters `vila_cb_guest_category_nightly_rates`, `vila_akoya_vehicle_types`, and `vila_cb_adult_rate_per_night` still apply if you need code-level overrides.

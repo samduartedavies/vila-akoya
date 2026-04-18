@@ -961,7 +961,7 @@ function vila_akoya_mbfw_simplify_booking_charges( $charges, $product_id ) {
 add_filter( 'mbfw_ajax_load_total_booking_charge_individually', 'vila_akoya_mbfw_simplify_booking_charges', 20, 2 );
 
 /**
- * Replace MWB’s generic rows with a clear per-night breakdown (pitch + unit supplements + guest supplements).
+ * Replace MWB's generic rows with a clear per-night breakdown (pitch + unit supplements + guest supplements).
  *
  * MWB passes charge rows with numeric totals; we keep those totals authoritative for the pitch line and add
  * theme-calculated lines for vehicle and child/infant/pet supplements so the AJAX total matches checkout fees.
@@ -990,7 +990,7 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 	}
 	$unit_rate = (float) apply_filters( 'vila_cb_mwb_pitch_unit_rate_per_night', $raw_unit, $product_id );
 	$expected_pitch = $per_person ? $unit_rate * $adults * $nights : $unit_rate * $nights;
-	// MWB’s general_cost uses product meta; when Campsite Settings overrides the adult rate, recompute the pitch line so AJAX matches checkout.
+	// MWB's general_cost uses product meta; when Campsite Settings overrides the adult rate, recompute the pitch line so AJAX matches checkout.
 	$pitch_value = $gc;
 	if ( abs( $raw_unit - $unit_rate ) > 0.0001 ) {
 		$pitch_value = $expected_pitch;

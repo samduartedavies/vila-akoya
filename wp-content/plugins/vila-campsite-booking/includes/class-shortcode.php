@@ -87,7 +87,7 @@ class Shortcode {
 		} elseif ( 1 === $plot_n ) {
 			$assign_hint = (string) apply_filters(
 				'vila_cb_assign_hint',
-				__( 'We’ll assign the pitch if it’s free for your dates.', 'vila-campsite-booking' ),
+				__( 'We'll assign the pitch if it's free for your dates.', 'vila-campsite-booking' ),
 				$plot_n,
 				$product_id
 			);
@@ -96,7 +96,7 @@ class Shortcode {
 				'vila_cb_assign_hint',
 				sprintf(
 					/* translators: %d: number of pitches (e.g. 15) */
-					__( 'We’ll pick the first available pitch for your stay (%d pitches share one availability pool).', 'vila-campsite-booking' ),
+					__( 'We'll pick the first available pitch for your stay (%d pitches share one availability pool).', 'vila-campsite-booking' ),
 					$plot_n
 				),
 				$plot_n,

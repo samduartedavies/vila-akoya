@@ -29,9 +29,9 @@ class WooCommerce_Integration {
 	private static $order_admin_extras_panel_rendered = array();
 
 	/**
-	 * If Campsite → Settings was never saved, map the Vila Akoya theme’s seeded campsite product (MWB plot products).
+	 * If Campsite → Settings was never saved, map the Vila Akoya theme's seeded campsite product (MWB plot products).
 	 *
-	 * Runs after the theme’s wp_loaded seed (priority 20).
+	 * Runs after the theme's wp_loaded seed (priority 20).
 	 */
 	public static function maybe_autoconfigure_product() {
 		if ( ! function_exists( 'wc_get_product' ) ) {
@@ -268,7 +268,7 @@ class WooCommerce_Integration {
 		if ( 'yes' === get_post_meta( $product_id, self::PRODUCT_META_FLAG, true ) ) {
 			return true;
 		}
-		// Vila Akoya theme: one WC product per plot (SKU vila-akoya-plot-N); same inventory as this plugin’s plots table.
+		// Vila Akoya theme: one WC product per plot (SKU vila-akoya-plot-N); same inventory as this plugin's plots table.
 		if ( function_exists( 'vila_akoya_is_campsite_product_id' ) && vila_akoya_is_campsite_product_id( $product_id ) ) {
 			return true;
 		}
@@ -665,7 +665,7 @@ class WooCommerce_Integration {
 				return $ymd;
 			}
 		}
-		// MWB uses gmdate( get_option( 'date_format' ), … ) — match the site’s Settings → General date format.
+		// MWB uses gmdate( get_option( 'date_format' ), … ) — match the site's Settings → General date format.
 		$wp_df = (string) get_option( 'date_format' );
 		$wp_tf = (string) get_option( 'time_format' );
 		foreach ( array_filter( array( $wp_df, trim( $wp_df . ' ' . $wp_tf ) ) ) as $fmt ) {
@@ -674,7 +674,7 @@ class WooCommerce_Integration {
 				return $dt->format( 'Y-m-d' );
 			}
 		}
-		// Last resort: PHP’s natural-language parser (handles many localized month/day strings MWB emits).
+		// Last resort: PHP's natural-language parser (handles many localized month/day strings MWB emits).
 		$parsed = date_create( $raw, wp_timezone() );
 		if ( $parsed instanceof \DateTimeInterface ) {
 			return $parsed->setTimezone( wp_timezone() )->format( 'Y-m-d' );
@@ -2273,7 +2273,7 @@ class WooCommerce_Integration {
 	}
 
 	/**
-	 * Meta keys to hide from WooCommerce’s editable line-item meta UI (dropdown + text) while we manage extras via chips.
+	 * Meta keys to hide from WooCommerce's editable line-item meta UI (dropdown + text) while we manage extras via chips.
 	 *
 	 * @return string[]
 	 */

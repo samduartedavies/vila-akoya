@@ -280,7 +280,7 @@
     @apply mt-4 rounded-lg text-sm;
   }
 
-  /* Booking page: white card + don’t clip guest popover (columns often default to overflow hidden) */
+  /* Booking page: white card + don't clip guest popover (columns often default to overflow hidden) */
   body.vila-page-booking .wp-block-columns:has(.va-booking-reserve-card),
   body.vila-page-booking .wp-block-column:has(.va-booking-reserve-card) {
     overflow: visible;
