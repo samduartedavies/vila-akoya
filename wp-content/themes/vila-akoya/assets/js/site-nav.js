@@ -31,9 +31,9 @@
   }
 
   var inactiveDesktop =
-    "text-stone-600 transition-colors hover:text-[#9a4021] hover:bg-[#9a4021]/5 active:text-[#9a4021] active:bg-[#9a4021]/5 px-2 py-1 rounded-md";
+    "text-stone-600 transition-colors hover:text-[#8f3a1d] hover:bg-[#9a4021]/10 active:text-[#8f3a1d] active:bg-[#9a4021]/10 px-3 py-1.5 rounded-full";
   var activeDesktop =
-    "text-[#9a4021] bg-[#9a4021]/5 px-2 py-1 rounded-md transition-colors hover:text-[#9a4021] hover:bg-[#9a4021]/5 active:text-[#9a4021] active:bg-[#9a4021]/5";
+    "text-[#8f3a1d] bg-[#9a4021]/12 shadow-[inset_0_0_0_1px_rgba(154,64,33,0.18)] px-3 py-1.5 rounded-full transition-colors hover:text-[#8f3a1d] hover:bg-[#9a4021]/12 active:text-[#8f3a1d] active:bg-[#9a4021]/12";
   var inactiveMobile =
     "block rounded-lg px-2 py-3 text-stone-600 transition-colors hover:bg-[#9a4021]/5 active:bg-[#9a4021]/5";
   var activeMobile =

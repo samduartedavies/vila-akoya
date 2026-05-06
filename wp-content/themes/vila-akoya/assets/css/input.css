@@ -20,13 +20,13 @@
 @layer components {
   @media (max-width: 1240px) {
     #site-nav-desktop-links {
-      font-size: 0.875rem;
+      font-size: 0.84rem;
       letter-spacing: 0.01em;
     }
 
     #site-nav-desktop-links a {
-      padding-left: 0.4rem;
-      padding-right: 0.4rem;
+      padding-left: 0.6rem;
+      padding-right: 0.6rem;
     }
 
     nav a[href*="/booking/"] {
@@ -285,8 +285,8 @@
   .vila-cf7 .wpcf7-form input[type="url"],
   .vila-cf7 .wpcf7-form textarea,
   .vila-cf7 .wpcf7-form select {
-    @apply w-full rounded-lg border-0 bg-surface-container-low px-4 py-3 font-body text-on-surface;
-    @apply focus:ring-2 focus:ring-primary/20 transition-all;
+    @apply w-full rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 font-body text-on-surface;
+    @apply hover:border-outline-variant/40 focus:border-outline-variant focus:ring-0 focus:outline-none transition-all;
   }
 
   body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
@@ -339,8 +339,8 @@
   }
 
   .va-home-digi-family .vila-cf7--newsletter .newsletter-email {
-    @apply min-h-[3.25rem] w-full rounded-full border-0 bg-white/20 px-6 py-3 text-base text-on-primary placeholder:text-on-primary/70;
-    @apply focus:ring-2 focus:ring-white/30;
+    @apply min-h-[3.25rem] w-full rounded-full border-2 border-transparent bg-white/20 px-6 py-3 text-base text-on-primary placeholder:text-on-primary/70;
+    @apply hover:border-white/30 focus:border-white/50 focus:ring-0 focus:outline-none;
   }
 
   .va-home-digi-family .vila-cf7--newsletter .newsletter-submit {
@@ -381,8 +381,8 @@
   body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="tel"],
   body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="url"],
   body.vila-page-contact .va-contact-form-card .wpcf7-form textarea {
-    @apply w-full rounded-lg border-0 bg-surface-container-highest px-4 py-3 text-base text-on-surface shadow-none;
-    @apply focus:ring-2 focus:ring-primary/20;
+    @apply w-full rounded-lg border-2 border-transparent bg-surface-container-highest px-4 py-3 text-base text-on-surface shadow-none transition-all;
+    @apply hover:border-outline-variant/40 focus:border-outline-variant focus:ring-0 focus:outline-none;
   }
 
   body.vila-page-contact .va-contact-form-card .wpcf7-form textarea {
@@ -429,13 +429,13 @@
   .va-campus-form-card .wpcf7-form input[type="email"],
   .va-campus-form-card .wpcf7-form input[type="tel"],
   .va-campus-form-card .wpcf7-form input[type="url"] {
-    @apply w-full min-h-[3rem] rounded-full border-0 bg-surface px-5 py-3 text-base text-on-background shadow-none;
-    @apply focus:ring-2 focus:ring-primary/20;
+    @apply w-full min-h-[3rem] rounded-full border-2 border-transparent bg-surface-container-low px-5 py-3 text-base text-on-background shadow-none transition-all duration-300;
+    @apply hover:bg-surface-container-high hover:border-outline-variant/40 focus:border-outline-variant focus:ring-0 focus:outline-none;
   }
 
   .va-campus-form-card .wpcf7-form textarea {
-    @apply w-full min-h-[8.5rem] rounded-[1.5rem] border-0 bg-surface px-5 py-4 text-base text-on-background shadow-none resize-y;
-    @apply focus:ring-2 focus:ring-primary/20;
+    @apply w-full min-h-[8.5rem] rounded-[1.5rem] border-2 border-transparent bg-surface-container-low px-5 py-4 text-base text-on-background shadow-none transition-all duration-300 resize-y;
+    @apply hover:bg-surface-container-high hover:border-outline-variant/40 focus:border-outline-variant focus:ring-0 focus:outline-none;
   }
 
   .va-campus-form-card .wpcf7-checkbox .wpcf7-list-item {
@@ -469,8 +469,8 @@
     width: 100% !important;
     border: 0 !important;
     border-radius: 9999px !important;
-    background: #ece6cf !important;
-    color: #332e1e !important;
+    background: #f7f4e9 !important;
+    color: #1c1c16 !important;
     box-shadow: none !important;
   }
 
@@ -513,9 +513,31 @@
     background-image: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    border: 0 !important;
+    border-radius: 3.5rem !important;
+    position: relative;
     box-shadow:
-      0 28px 56px rgba(61, 42, 34, 0.1),
-      0 8px 24px rgba(61, 42, 34, 0.06);
+      0 32px 72px rgba(61, 42, 34, 0.08),
+      0 10px 28px rgba(61, 42, 34, 0.05);
+  }
+
+  body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell::before,
+  body.vila-page-booking .va-booking-reserve-card::before {
+    content: '';
+    position: absolute;
+    top: -2rem;
+    right: -2rem;
+    width: 8rem;
+    height: 8rem;
+    pointer-events: none;
+    z-index: 1;
+    @apply rounded-bl-full bg-primary/5;
+  }
+
+  body.vila-page-booking .va-booking-reserve-card > *,
+  body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell > * {
+    position: relative;
+    z-index: 2;
   }
 
   body.vila-page-booking .wp-block-column[class*='bg-surface-container-lowest'],
@@ -532,47 +554,79 @@
     -webkit-backdrop-filter: none !important;
   }
 
-  /* CF7 inquiry inside white card — pill inputs, large textarea, full-width terracotta CTA */
+  body.vila-page-booking .va-booking-reserve-card .va-booking-map-panel {
+    @apply border-outline-variant/25 bg-surface-container-low/70;
+  }
+
+  body.vila-page-booking .va-booking-map-trigger {
+    @apply relative block overflow-hidden rounded-2xl;
+  }
+
+  body.vila-page-booking .va-booking-map-trigger__hint {
+    @apply absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 bg-surface-container-high/90 px-3 py-1.5 text-xs font-medium text-on-background shadow-md backdrop-blur-sm transition-all duration-300 ease-out;
+  }
+
+  body.vila-page-booking .va-booking-map-trigger__icon {
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  body.vila-page-booking .va-booking-map-trigger__label {
+    @apply font-label uppercase tracking-[0.14em];
+  }
+
+  body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hint,
+  body.vila-page-booking .va-booking-map-trigger:focus-visible .va-booking-map-trigger__hint {
+    @apply bg-primary text-on-primary border-primary/30;
+    transform: translateY(-1px);
+  }
+
+  /* CF7 inquiry — matches brochure-website/booking.html (surface-container-low, rounded-lg, ring focus, radio border) */
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-form {
     @apply space-y-6;
   }
 
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-form label {
-    @apply font-label text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-on-surface-variant;
+    @apply font-label text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant;
   }
 
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='text'],
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='email'],
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='tel'],
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='url'] {
-    @apply w-full min-h-[3.25rem] rounded-full border-0 bg-surface-container-low px-5 py-3 font-body text-base text-on-background shadow-none;
-    @apply focus:ring-2 focus:ring-primary/20;
+    @apply w-full min-h-[3.25rem] rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 font-body text-base text-on-background shadow-none transition-all duration-300 ease-out;
+    @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:outline-none focus:border-outline-variant focus:ring-0;
   }
 
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-form textarea {
-    @apply w-full min-h-[10rem] rounded-[1.75rem] border-0 bg-surface-container-low px-5 py-4 font-body text-base text-on-background shadow-none;
-    @apply focus:ring-2 focus:ring-primary/20;
+    @apply w-full min-h-[10rem] resize-none rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 font-body text-base text-on-background shadow-none transition-all duration-300 ease-out;
+    @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:outline-none focus:border-outline-variant focus:ring-0;
   }
 
   .va-booking-reserve-card .vila-cf7--booking .vila-booking-primary-interest__explore a {
-    @apply font-medium;
+    @apply font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary-container;
   }
 
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-list-item-label {
-    @apply flex min-h-[3.25rem] w-full cursor-pointer items-center justify-center rounded-full border-2 border-outline-variant/30 bg-surface-container-low px-4 py-3 text-sm font-medium text-on-surface-variant transition-colors;
+    @apply flex min-h-[3rem] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 text-sm font-medium text-on-surface-variant shadow-none transition-all duration-300 ease-out;
   }
 
   .va-booking-reserve-card .vila-cf7--booking .wpcf7-list-item-label:hover {
-    @apply border-outline-variant/50 bg-surface-container-high;
+    @apply bg-surface-container-high border-outline-variant/20;
   }
 
   .va-booking-reserve-card .vila-cf7--booking input[type='radio']:checked + .wpcf7-list-item-label {
-    @apply border-primary bg-primary/5 text-primary shadow-none;
+    @apply border-primary bg-primary/5 text-primary shadow-none ring-0;
   }
 
   .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
-    @apply mt-2 w-full cursor-pointer rounded-full border-0 bg-primary px-8 py-4 font-label text-sm font-semibold uppercase tracking-[0.12em] text-on-primary shadow-lg shadow-primary/25 transition-colors;
-    @apply hover:bg-primary-container;
+    @apply mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-primary px-8 py-5 font-label text-sm font-semibold uppercase tracking-[0.2em] text-on-primary shadow-lg shadow-primary/20 transition-all duration-300 ease-out;
+  }
+
+  .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
+    @apply bg-primary-container;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(154, 63, 33, 0.22);
   }
 
   /* --- Bookings for WooCommerce (MWB) — aligned with brochure cream + terracotta --- */
@@ -606,7 +660,10 @@
   }
 
   .vila-wc-booking .woocommerce-product-rating,
-  .vila-wc-booking .woocommerce-review-link {
+  .vila-wc-booking .woocommerce-review-link,
+  .vila-wc-booking .product_meta,
+  .vila-wc-booking .woocommerce-tabs,
+  .vila-wc-booking .related.products {
     @apply hidden;
   }
 
@@ -631,21 +688,21 @@
     @apply mb-0 flex min-w-0 flex-1 flex-wrap gap-4;
   }
 
-  /* Dates + Who: one row on desktop (see booking-ui.js layoutDatesAndWhoRow) */
-  .vila-booking-dates-who {
-    @apply mb-6 flex w-full min-w-0 flex-col gap-5 overflow-visible;
+  /* Plot + Who: one row on desktop (see booking-ui.js layoutDatesAndWhoRow) */
+  .vila-booking-plot-who {
+    @apply mb-8 flex w-full min-w-0 flex-col gap-5 overflow-visible;
   }
 
   @media (min-width: 768px) {
-    .vila-booking-dates-who {
+    .vila-booking-plot-who {
       @apply flex-row items-start gap-8;
     }
 
-    .vila-booking-dates-who > .mbfw-date-picker-section__wrapper {
-      @apply mb-0 min-w-0 flex-[1.1];
+    .vila-booking-plot-who > .vila-plot-dropdown-wrap {
+      @apply mb-0 min-w-0 flex-1;
     }
 
-    .vila-booking-dates-who > .vila-airbnb-booking--who {
+    .vila-booking-plot-who > .vila-airbnb-booking--who {
       @apply min-w-0 flex-1;
     }
   }
@@ -659,7 +716,8 @@
   }
 
   .vila-wc-booking .vila-booking-range-ui input {
-    @apply min-h-[3rem] shadow-none;
+    @apply min-h-[3.25rem] rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 shadow-none transition-all duration-300 ease-out;
+    @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:outline-none focus:border-outline-variant focus:ring-0;
   }
 
   .vila-wc-booking .mbfw-date-picker-section {
@@ -668,19 +726,19 @@
   }
 
   .vila-wc-booking .mbfw-date-picker-section label {
-    @apply font-label text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant mb-2 block text-left;
+    @apply font-label text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant mb-2 ml-px block text-left;
   }
 
   .vila-wc-booking .mbfw-date-picker-section input,
   .vila-wc-booking .mbfw-date-picker-section__wrapper .flatpickr-input,
   .vila-wc-booking .mwb-mbfw-cart-page-data input[type="text"] {
-    @apply w-full min-h-[3.25rem] rounded-[12px] border border-outline-variant/40 bg-surface-container-low px-4 py-3.5 text-left font-body text-base text-on-background antialiased;
-    @apply focus:border-primary/55 focus:outline-none focus:ring-2 focus:ring-primary/15;
+    @apply w-full min-h-[3.25rem] rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 text-left font-body text-base text-on-background antialiased shadow-none transition-all duration-300 ease-out;
+    @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:outline-none focus:border-outline-variant focus:ring-0;
   }
 
   .vila-wc-booking .bfwp-people-title,
   .vila-wc-booking .mwb_mbfw_included_service_title {
-    @apply font-label text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant mb-2 mt-4;
+    @apply font-label text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant mb-2 ml-px mt-6;
   }
 
   .vila-wc-booking .bfwp-people-options__wrapper {
@@ -690,28 +748,56 @@
   .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-type,
   .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-number,
   .vila-wc-booking #mwb_mbfw_people_number {
-    @apply max-w-none flex-1 text-base text-on-background rounded-[12px] border border-outline-variant/35 bg-surface-container-low px-4 py-3.5;
+    @apply max-w-none flex-1 rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 text-base text-on-background shadow-none transition-all duration-300 ease-out;
+    @apply hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:outline-none focus:border-outline-variant focus:ring-0;
   }
 
-  .vila-wc-booking .mbfw-total-cost__wrapper {
-    @apply mt-3 border-t border-outline-variant/20 pt-3;
-  }
+  /* ── Booking bill ─────────────────────────────────────────────────────
+   * Hidden until valid stay dates are selected (class toggled by JS).
+   */
 
-  .vila-wc-booking .mbfw-total-listing-single-page__wrapper,
-  .vila-wc-booking .mbfw-total-cost__wrapper .mbfw-total-listing-single-page {
-    @apply font-body text-sm text-on-background;
+  body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
+    display: none !important;
   }
 
   .vila-wc-booking .mwb-mbfw-total-area {
-    @apply mt-1 bg-transparent p-0 pt-2 text-base text-on-background;
+    display: block;
+    width: 100%;
+  }
+
+  .mbfw-total-listing-single-page {
+    font-size: 150%;
+    font-weight: 800px;
+  }
+
+  .vila-wc-booking .mbfw-total-listing-single-page__wrapper-parent {
+    display: block;
+    width: 100%;
+  }
+
+  .vila-wc-booking .mbfw-total-listing-single-page__wrapper {
+    display: block;
+    width: 100%;
+  }
+
+  .vila-wc-booking .mbfw-total-listing-single-page {
+    @apply font-body text-sm text-on-surface-variant leading-relaxed py-1;
+  }
+
+  .vila-wc-booking .mbfw-total-cost__wrapper {
+    @apply mt-3 pt-3 border-t border-outline-variant/20 bg-transparent;
   }
 
   .vila-wc-booking form.cart {
-    @apply mb-0 flex flex-col gap-4;
+    @apply mb-0 flex flex-col gap-5;
+  }
+
+  .vila-wc-booking .quantity {
+    @apply hidden;
   }
 
   /*
-   * MWB campsite — chips, date field, guest bar (minimal surfaces; avoid theme 2rem/3rem radii).
+   * MWB campsite — chips & fields: matches brochure booking.html (surface-container-low, rounded-lg, ring focus).
    */
   .vila-wc-booking .vila-airbnb-booking,
   body.single-product .vila-airbnb-booking {
@@ -720,7 +806,7 @@
 
   .vila-wc-booking .vila-airbnb-booking__legend,
   body.single-product .vila-airbnb-booking__legend {
-    @apply font-label m-0 mb-2 block text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-on-surface-variant;
+    @apply font-label m-0 mb-2 ml-px block text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant;
   }
 
   .vila-wc-booking .vila-airbnb-booking__lead,
@@ -738,7 +824,7 @@
   body.single-product .vila-airbnb-booking__chip-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
 
   @media (min-width: 480px) {
@@ -755,39 +841,51 @@
 
   .vila-wc-booking .vila-airbnb-booking__chip-body,
   body.single-product .vila-airbnb-booking__chip-body {
-    @apply flex min-h-[3.5rem] flex-col items-start gap-0.5 rounded-[12px] border border-outline-variant/35 bg-surface-container-low px-4 py-3.5 transition-colors;
+    @apply flex min-h-[3rem] flex-col items-start gap-0.5 rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 transition-all duration-300 ease-out;
   }
 
   .vila-wc-booking .vila-airbnb-booking__chip:hover .vila-airbnb-booking__chip-body,
   body.single-product .vila-airbnb-booking__chip:hover .vila-airbnb-booking__chip-body {
-    @apply border-outline-variant/60 bg-surface-container-high;
+    @apply bg-surface-container-high border-outline-variant/20;
   }
 
-  /* Primary interest — brochure-style pills: centered, full rounding; faint default outline; selected = terracotta tint. */
+  /* Primary interest — brochure booking.html */
   .vila-wc-booking .vila-primary-interest-option .vila-airbnb-booking__chip-body,
   body.single-product .vila-primary-interest-option .vila-airbnb-booking__chip-body {
-    @apply min-h-[3.25rem] flex-row items-center justify-center text-center rounded-full border-2 border-outline-variant/30 bg-surface-container-low px-4 py-3 shadow-none;
+    @apply min-h-[3rem] flex-row items-center justify-center text-center rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 shadow-none;
   }
 
   .vila-wc-booking .vila-primary-interest-option:hover .vila-airbnb-booking__chip-body,
   body.single-product .vila-primary-interest-option:hover .vila-airbnb-booking__chip-body {
-    @apply border-outline-variant/50 bg-surface-container-high;
+    @apply bg-surface-container-high border-outline-variant/20;
   }
 
-  /* Extras — same pill + hover language as Primary interest (title + meta stacked). */
+  /* Vehicle / lodging chips */
   .vila-wc-booking .vila-vehicle-option .vila-airbnb-booking__chip-body,
   body.single-product .vila-vehicle-option .vila-airbnb-booking__chip-body {
-    @apply min-h-[3.25rem] flex flex-col items-center justify-center gap-0.5 text-center rounded-full border-2 border-outline-variant/30 bg-surface-container-low px-4 py-3.5 shadow-none;
+    @apply min-h-[3rem] flex flex-row items-center justify-center gap-2 text-center rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 shadow-none;
+  }
+
+  .vila-wc-booking .vila-vehicle-option .vila-airbnb-booking__chip-title,
+  body.single-product .vila-vehicle-option .vila-airbnb-booking__chip-title,
+  .vila-wc-booking .vila-vehicle-option .vila-airbnb-booking__chip-meta,
+  body.single-product .vila-vehicle-option .vila-airbnb-booking__chip-meta {
+    white-space: nowrap;
+  }
+
+  .vila-wc-booking .vila-vehicle-option .vila-airbnb-booking__chip-meta,
+  body.single-product .vila-vehicle-option .vila-airbnb-booking__chip-meta {
+    @apply text-sm;
   }
 
   .vila-wc-booking .vila-vehicle-option:hover .vila-airbnb-booking__chip-body,
   body.single-product .vila-vehicle-option:hover .vila-airbnb-booking__chip-body {
-    @apply border-outline-variant/50 bg-surface-container-high;
+    @apply bg-surface-container-high border-outline-variant/20;
   }
 
   .vila-wc-booking .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body,
   body.single-product .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body {
-    @apply border-primary bg-primary/5 shadow-none;
+    @apply border-primary bg-primary/5 text-primary shadow-none ring-0;
   }
 
   .vila-wc-booking .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title,
@@ -797,7 +895,7 @@
 
   .vila-wc-booking .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body,
   body.single-product .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body {
-    @apply border-primary bg-primary/5 text-primary shadow-none;
+    @apply border-primary bg-primary/5 text-primary shadow-none ring-0;
   }
 
   .vila-wc-booking .vila-primary-interest-grid,
@@ -820,12 +918,27 @@
 
   .vila-wc-booking .vila-primary-interest__explore,
   body.single-product .vila-primary-interest__explore {
-    @apply flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2;
+    @apply flex flex-col gap-1 text-xs text-on-surface-variant sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2;
+  }
+
+  .vila-wc-booking .vila-primary-interest__explore a,
+  body.single-product .vila-primary-interest__explore a {
+    @apply font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary-container;
   }
 
   .vila-wc-booking .vila-airbnb-booking__chip-title,
   body.single-product .vila-airbnb-booking__chip-title {
     @apply text-[0.9375rem] font-medium text-on-background;
+  }
+
+  .vila-wc-booking .vila-primary-interest-option .vila-airbnb-booking__chip-title,
+  body.single-product .vila-primary-interest-option .vila-airbnb-booking__chip-title {
+    @apply text-on-surface-variant;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title,
+  body.single-product .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title {
+    @apply text-primary;
   }
 
   .vila-wc-booking .vila-airbnb-booking__chip-meta,
@@ -838,10 +951,6 @@
     line-height: 1.5;
   }
 
-  .vila-booking-dates-who .vila-airbnb-booking--dates.vila-booking-range-ui {
-    @apply mb-0;
-  }
-
   .vila-wc-booking .vila-airbnb-booking--dates.vila-booking-range-ui,
   body.single-product .vila-airbnb-booking--dates.vila-booking-range-ui {
     @apply mb-6 min-w-0 w-full max-w-full;
@@ -849,7 +958,7 @@
 
   .vila-wc-booking .vila-airbnb-booking__date-input,
   body.single-product .vila-airbnb-booking__date-input {
-    @apply min-h-[3.25rem] min-w-0 w-full max-w-full rounded-[12px] border border-outline-variant/40 bg-surface-container-low px-4 py-3.5 text-left text-base font-medium leading-snug text-on-background shadow-none transition-colors;
+    @apply min-h-[3.25rem] min-w-0 w-full max-w-full rounded-lg border-0 bg-surface-container-low px-5 py-4 text-left text-base font-medium leading-snug text-on-background shadow-none transition-all duration-300 ease-out;
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
@@ -858,13 +967,43 @@
 
   .vila-wc-booking .vila-airbnb-booking__date-input:hover,
   body.single-product .vila-airbnb-booking__date-input:hover {
-    @apply border-outline-variant/70;
+    @apply bg-surface-container-high;
   }
 
   .vila-wc-booking .vila-airbnb-booking__date-input:focus,
   body.single-product .vila-airbnb-booking__date-input:focus {
     outline: none;
-    @apply border-primary/60 ring-2 ring-primary/15;
+    @apply bg-surface-container-low ring-2 ring-primary/20;
+  }
+
+  .vila-wc-booking .vila-plot-select,
+  body.single-product .vila-plot-select {
+    @apply min-h-[3.25rem] min-w-0 w-full max-w-full cursor-pointer appearance-none rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 text-left text-base font-medium leading-snug text-on-background shadow-none transition-all duration-300 ease-out;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 16 16'%3E%3Cpath stroke='%2356423c' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1.25rem center;
+    padding-right: 2.75rem;
+  }
+
+  .vila-wc-booking .vila-plot-select:hover,
+  body.single-product .vila-plot-select:hover {
+    @apply bg-surface-container-high border-2 border-outline-variant/40;
+  }
+
+  .vila-wc-booking .vila-plot-select:focus,
+  body.single-product .vila-plot-select:focus {
+    outline: none;
+    @apply bg-surface-container-low border-2 border-outline-variant ring-0;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__date-input.vila-date-input-error,
+  body.single-product .vila-airbnb-booking__date-input.vila-date-input-error {
+    @apply bg-red-50/70 ring-2 ring-red-300/70;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--dates.vila-date-input-error .vila-airbnb-booking__date-input,
+  body.single-product .vila-airbnb-booking--dates.vila-date-input-error .vila-airbnb-booking__date-input {
+    @apply bg-red-50/70 ring-2 ring-red-300/70;
   }
 
   .vila-wc-booking {
@@ -878,17 +1017,32 @@
 
   .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar,
   body.single-product .vila-airbnb-booking--who .vila-guest-picker__bar {
-    @apply rounded-[12px] border border-outline-variant/40 bg-surface-container-low px-4 py-3.5 shadow-none min-h-[3.25rem];
+    @apply min-h-[3.25rem] cursor-pointer rounded-lg border-2 border-transparent bg-surface-container-low p-0 shadow-none transition-all duration-300 ease-out;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar:hover,
+  body.single-product .vila-airbnb-booking--who .vila-guest-picker__bar:hover {
+    @apply bg-surface-container-high border-outline-variant/40;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar:focus-within,
+  body.single-product .vila-airbnb-booking--who .vila-guest-picker__bar:focus-within {
+    @apply bg-surface-container-low border-outline-variant ring-0;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__trigger,
+  body.single-product .vila-airbnb-booking--who .vila-guest-picker__trigger {
+    @apply w-full px-5 py-4;
   }
 
   /* Guest panel: desktop = anchor right edge of “Who” so panel grows left (avoids clipping); mobile = full width */
   .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__panel,
   body.single-product .vila-airbnb-booking--who .vila-guest-picker__panel {
-    @apply rounded-[14px] border border-outline-variant/30 bg-surface-container-low p-1 shadow-lg;
+    @apply rounded-2xl border border-outline-variant/10 bg-white p-1;
     position: absolute;
     top: calc(100% + 0.75rem);
     z-index: 100;
-    box-shadow: 0 10px 40px rgba(19, 14, 3, 0.12);
+    box-shadow: 0 20px 60px rgba(19, 14, 3, 0.08), 0 8px 24px rgba(19, 14, 3, 0.04);
   }
 
   @media (max-width: 767px) {
@@ -913,29 +1067,46 @@
     }
   }
 
-  /* Primary CTA on the booking page — prominent pill (header “Book Now” stays compact in permalink-nav.php). */
+  /* Primary CTA on the booking page (brochure booking.html submit) */
   .vila-wc-booking .single_add_to_cart_button.button,
   .vila-wc-booking .woocommerce button.button.alt,
   .vila-wc-booking .woocommerce a.button.alt {
-    @apply -mt-1 inline-flex w-full min-h-[3.5rem] cursor-pointer items-center justify-center rounded-full border-0 bg-primary px-8 py-4 font-label text-base font-semibold tracking-wide text-on-primary shadow-lg shadow-primary/25 transition-colors md:min-h-[3.75rem] md:text-lg md:py-5;
-    @apply hover:bg-primary-dim hover:text-on-primary;
+    @apply mt-3 inline-flex w-full min-h-[3.75rem] cursor-pointer items-center justify-center rounded-lg border-0 bg-primary px-8 py-5 font-label text-sm font-semibold uppercase tracking-[0.2em] text-on-primary shadow-lg shadow-primary/20 transition-all duration-300 ease-out md:min-h-[4rem];
   }
 
-  .vila-wc-booking .quantity .qty {
-    @apply rounded-[10px] border border-outline-variant/35 bg-surface-container-low px-3 py-2 text-on-surface;
+  .vila-wc-booking .single_add_to_cart_button.button::after,
+  .vila-wc-booking .woocommerce button.button.alt::after,
+  .vila-wc-booking .woocommerce a.button.alt::after {
+    content: '\2192';
+    @apply ml-3 text-lg leading-none;
+  }
+
+  .vila-wc-booking .single_add_to_cart_button.button:hover,
+  .vila-wc-booking .woocommerce button.button.alt:hover,
+  .vila-wc-booking .woocommerce a.button.alt:hover {
+    @apply bg-primary-container text-on-primary;
+    box-shadow: 0 16px 34px rgba(154, 63, 33, 0.22);
+    transform: translateY(-2px);
+  }
+
+  .vila-wc-booking .single_add_to_cart_button.button:disabled,
+  .vila-wc-booking .single_add_to_cart_button.button[aria-disabled="true"] {
+    @apply cursor-not-allowed opacity-40;
+    box-shadow: none;
+    transform: none;
   }
 
   .vila-wc-booking .woocommerce-message,
   .vila-wc-booking .woocommerce-info,
   .vila-wc-booking .woocommerce-error {
-    @apply rounded-[10px] border border-outline-variant/25 bg-surface-container-low text-on-background;
+    @apply rounded-2xl border border-outline-variant/15 bg-surface-container-low/80 text-on-background p-4;
     @apply text-sm leading-relaxed;
   }
 
   /* Flatpickr popup (appended to body) */
   body.vila-page-booking .flatpickr-calendar {
-    @apply rounded-[12px] border border-outline-variant/30 bg-surface-container-low font-body;
-    box-shadow: 0 12px 40px rgba(19, 14, 3, 0.1);
+    @apply rounded-2xl border border-outline-variant/20 bg-surface-container-low font-body;
+    box-shadow: 0 20px 60px rgba(61, 42, 34, 0.08), 0 8px 24px rgba(61, 42, 34, 0.04);
     min-width: min(100vw - 2rem, 38rem);
   }
 
@@ -953,34 +1124,115 @@
 
   body.vila-page-booking .flatpickr-day.startRange,
   body.vila-page-booking .flatpickr-day.endRange {
-    @apply bg-primary text-on-primary border-primary;
+    background: var(--wp--preset--color--primary) !important;
+    border-color: var(--wp--preset--color--primary) !important;
+    @apply text-on-primary;
   }
 
   body.vila-page-booking .flatpickr-months {
-    @apply rounded-t-[12px] bg-surface-container-low text-on-background;
+    @apply rounded-t-2xl bg-surface-container-low text-on-background;
   }
 
   body.vila-page-booking .flatpickr-weekdays {
     @apply bg-surface-container-low;
   }
 
+  body.vila-page-booking .flatpickr-weekday {
+    @apply font-label text-[0.6rem] font-semibold uppercase tracking-wider text-on-surface-variant;
+  }
+
   body.vila-page-booking .flatpickr-day.selected,
   body.vila-page-booking .flatpickr-day.startRange,
   body.vila-page-booking .flatpickr-day.endRange {
-    @apply border-primary bg-primary text-on-primary;
+    background: var(--wp--preset--color--primary) !important;
+    border-color: var(--wp--preset--color--primary) !important;
+    @apply text-on-primary;
   }
 
   body.vila-page-booking .flatpickr-day:hover {
-    @apply bg-primary/15;
+    @apply bg-primary/10;
   }
 
-  /* Checkout: theme.json content width is 720px — use a wide layout for commerce only */
+  body.vila-page-booking .flatpickr-day.flatpickr-disabled {
+    @apply text-on-surface-variant/30;
+  }
+
+  body.va-map-lightbox-open {
+    overflow: hidden;
+  }
+
+  .va-map-lightbox {
+    @apply fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6;
+  }
+
+  .va-map-lightbox.hidden {
+    display: none;
+  }
+
+  .va-map-lightbox__backdrop {
+    @apply absolute inset-0 border-0 bg-[#130e03]/80;
+  }
+
+  .va-map-lightbox__content {
+    @apply relative z-10 w-full max-w-[96vw] max-h-[94vh] rounded-2xl bg-white p-2 sm:p-3;
+    box-shadow: 0 20px 60px rgba(19, 14, 3, 0.4);
+  }
+
+  .va-map-lightbox__close {
+    @apply absolute right-2 top-2 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-white/95 text-3xl leading-none text-on-background;
+    box-shadow: 0 8px 20px rgba(19, 14, 3, 0.2);
+  }
+
+  .va-map-lightbox__close:hover {
+    @apply bg-surface-container-low;
+  }
+
+  .va-map-lightbox__image {
+    @apply block h-auto max-h-[88vh] w-full rounded-xl object-contain;
+  }
+
+  .va-map-lightbox__hotspots {
+    @apply absolute inset-0 z-20;
+    display: none;
+  }
+
+  .va-map-plot-hotspot {
+    @apply absolute inline-flex -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center gap-2 rounded-full border-0 px-2 py-1 text-xs font-semibold text-white transition-all;
+    background: rgba(154, 63, 33, 0.92);
+    box-shadow: 0 8px 18px rgba(19, 14, 3, 0.35);
+  }
+
+  .va-map-plot-hotspot__dot {
+    @apply h-2.5 w-2.5 rounded-full bg-white/95;
+    animation: va-plot-pulse 2s ease-in-out infinite;
+  }
+
+  .va-map-plot-hotspot__text {
+    @apply leading-none;
+  }
+
+  .va-map-plot-hotspot:hover,
+  .va-map-plot-hotspot:focus-visible {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: rgba(126, 46, 23, 0.96);
+    box-shadow: 0 12px 24px rgba(19, 14, 3, 0.45);
+  }
+
+  .va-map-plot-hotspot.is-selected {
+    background: rgba(92, 99, 72, 0.96);
+  }
+
+  .va-map-plot-hotspot.is-selected .va-map-plot-hotspot__dot {
+    background: #fcf9ef;
+  }
+
+  /* Checkout: wider layout for commerce pages */
   body.vila-wc-commerce.woocommerce-checkout {
-    --wp--style--global--content-size: min(100vw - 2rem, 72rem);
-    --wp--style--wide-size: min(100vw - 2rem, 96rem);
+    --wp--style--global--content-size: min(100vw - 2rem, 64rem);
+    --wp--style--wide-size: min(100vw - 2rem, 80rem);
   }
 
-  /* Cart, checkout, account — match brochure tone */
+  /* Cart, checkout, account */
   body.vila-wc-commerce .woocommerce,
   body.woocommerce-cart .woocommerce,
   body.woocommerce-checkout .woocommerce,
@@ -989,88 +1241,109 @@
   }
 
   body.vila-wc-commerce .woocommerce a:not(.button):not(.wp-block-button__link) {
-    @apply text-primary underline-offset-2 hover:text-primary-container;
+    @apply text-primary no-underline hover:text-primary-container hover:underline underline-offset-2;
   }
 
   body.vila-wc-commerce .woocommerce table.shop_table,
   body.vila-wc-commerce .woocommerce table.shop_table_responsive {
-    @apply rounded-xl border border-outline-variant/30 bg-white/80;
+    @apply rounded-2xl border-0 bg-transparent shadow-none;
+    border-collapse: separate;
+    border-spacing: 0;
   }
 
-  body.vila-wc-commerce .woocommerce table.shop_table th,
+  body.vila-wc-commerce .woocommerce table.shop_table th {
+    @apply border-0 bg-transparent px-5 py-3 font-label text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-on-surface-variant;
+  }
+
   body.vila-wc-commerce .woocommerce table.shop_table td {
-    @apply border-outline-variant/25;
+    @apply border-0 border-t border-outline-variant/10 px-5 py-4 text-sm text-on-surface;
   }
 
   body.vila-wc-commerce .woocommerce .cart_totals,
   body.vila-wc-commerce .woocommerce-checkout-review-order {
-    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low p-4 md:p-6;
+    @apply rounded-3xl border border-outline-variant/10 bg-white/70 p-6 shadow-none backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce .woocommerce .button,
   body.vila-wc-commerce .woocommerce button.button,
   body.vila-wc-commerce .woocommerce a.button,
   body.vila-wc-commerce .woocommerce input.button {
-    @apply rounded-full border-0 bg-primary px-6 py-3 font-label font-medium text-on-primary transition-colors;
-    @apply hover:bg-primary-container;
+    @apply rounded-full border-0 bg-primary px-7 py-3.5 font-label text-sm font-semibold tracking-wide text-on-primary transition-all;
+  }
+
+  body.vila-wc-commerce .woocommerce .button:hover,
+  body.vila-wc-commerce .woocommerce button.button:hover,
+  body.vila-wc-commerce .woocommerce a.button:hover,
+  body.vila-wc-commerce .woocommerce input.button:hover {
+    @apply bg-primary-container;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(154, 63, 33, 0.15);
   }
 
   body.vila-wc-commerce .woocommerce .button.alt,
   body.vila-wc-commerce .woocommerce button.button.alt,
   body.vila-wc-commerce #place_order {
-    @apply bg-primary text-on-primary hover:bg-primary-container;
+    @apply bg-primary text-on-primary;
+    box-shadow: 0 6px 20px rgba(154, 63, 33, 0.15);
   }
 
   body.vila-wc-commerce .woocommerce form .form-row input.input-text,
   body.vila-wc-commerce .woocommerce form .form-row textarea,
   body.vila-wc-commerce .woocommerce form .form-row select {
-    @apply rounded-lg border-0 bg-surface-container-low px-4 py-3 font-body text-on-surface;
-    @apply focus:ring-2 focus:ring-primary/20;
+    @apply rounded-xl border-2 border-outline-variant/20 bg-white/80 px-4 py-3.5 font-body text-base text-on-surface transition-all;
+    @apply hover:border-outline-variant/40 focus:border-outline-variant focus:bg-white focus:outline-none focus:ring-0;
   }
 
   body.vila-wc-commerce .woocommerce form .form-row label {
-    @apply font-label text-xs uppercase tracking-widest text-on-surface-variant;
+    @apply mb-1.5 block font-label text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-on-surface-variant;
   }
 
   body.vila-wc-commerce .woocommerce-info,
   body.vila-wc-commerce .woocommerce-message,
   body.vila-wc-commerce .woocommerce-error {
-    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low text-sm;
+    @apply rounded-2xl border border-outline-variant/10 bg-white/60 p-5 text-sm leading-relaxed shadow-none backdrop-blur-sm;
   }
 
   body.vila-wc-commerce .woocommerce-checkout #payment,
   body.vila-wc-commerce #add_payment_method {
-    @apply rounded-xl border border-outline-variant/30 bg-surface-container-low;
+    @apply rounded-3xl border border-outline-variant/10 bg-white/70 backdrop-blur-sm;
   }
 
   body.vila-wc-commerce .woocommerce-checkout #payment ul.payment_methods {
-    @apply border-outline-variant/25;
+    @apply border-0 p-0;
   }
 
   /* Block checkout (WooCommerce blocks) */
   body.vila-wc-commerce .wc-block-components-text-input input,
   body.vila-wc-commerce .wc-block-components-textarea textarea {
-    @apply rounded-lg border-0 bg-surface-container-low;
+    @apply rounded-xl border-2 border-outline-variant/20 bg-white/80;
+    @apply hover:border-outline-variant/40 focus:border-outline-variant focus:ring-0;
   }
 
   body.vila-wc-commerce .wc-block-components-button:not(.is-link) {
-    @apply rounded-full bg-primary text-on-primary;
+    @apply rounded-full bg-primary text-on-primary transition-all;
+    box-shadow: 0 6px 20px rgba(154, 63, 33, 0.15);
+  }
+
+  body.vila-wc-commerce .wc-block-components-button:not(.is-link):hover {
+    @apply bg-primary-container;
+    transform: translateY(-1px);
   }
 
   body.vila-wc-commerce .wc-block-cart__submit-button,
   body.vila-wc-commerce .wc-block-components-checkout-place-order-button {
-    @apply rounded-full;
+    @apply rounded-full min-h-[3.25rem] text-base font-semibold;
   }
 
   /*
-   * Checkout + order received — minimalist layout aligned with brochure (cream surface, terracotta accents).
+   * Checkout — clean, spacious single-column layout
    */
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce {
-    @apply mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14 xl:max-w-[90rem] 2xl:max-w-[100rem] xl:px-10;
+    @apply mx-auto w-full max-w-3xl px-5 py-12 sm:px-8 md:py-16 lg:max-w-4xl;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce > .woocommerce-notices-wrapper:first-child {
-    @apply mb-8;
+    @apply mb-10;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce h1,
@@ -1080,43 +1353,55 @@
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce h3 {
-    @apply text-lg tracking-wide text-on-surface-variant md:text-xl;
+    @apply text-xl tracking-tight text-on-background md:text-2xl;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) form.checkout.woocommerce-checkout {
-    @apply space-y-10 md:space-y-12;
+    @apply space-y-12 md:space-y-16;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #customer_details {
-    @apply space-y-8;
+    @apply space-y-10;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-billing-fields,
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-shipping-fields,
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields {
+    @apply rounded-3xl border border-outline-variant/10 bg-white/60 p-6 backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-billing-fields__field-wrapper,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-shipping-fields__field-wrapper,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields__field-wrapper {
-    @apply space-y-4;
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-billing-fields__field-wrapper .form-row-wide,
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-shipping-fields__field-wrapper .form-row-wide,
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields__field-wrapper .form-row-wide {
+    @apply sm:col-span-2;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #order_review_heading {
-    @apply mb-4 mt-2 font-headline text-xl text-on-background md:text-2xl;
+    @apply mb-6 mt-0 font-headline text-2xl text-on-background md:text-3xl;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #order_review {
-    @apply space-y-6;
+    @apply space-y-8;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_table {
-    @apply overflow-hidden border border-outline-variant/20 bg-transparent shadow-none;
+    @apply overflow-hidden rounded-2xl border-0 bg-transparent shadow-none;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_table thead th,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_table tbody td {
-    @apply border-outline-variant/15 px-4 py-4 text-sm md:px-6 md:text-base;
+    @apply border-0 border-b border-outline-variant/10 px-5 py-4 text-sm md:px-6 md:text-base;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_table tfoot th,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_table tfoot td {
-    @apply border-outline-variant/15 px-4 py-3 text-sm md:px-6;
+    @apply border-0 border-t border-outline-variant/10 px-5 py-4 text-sm md:px-6;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout-review-order-table {
@@ -1125,20 +1410,24 @@
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout-review-order .cart-subtotal td,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout-review-order .order-total td {
-    @apply font-medium text-on-background;
+    @apply font-semibold text-on-background;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout-review-order .order-total td {
+    @apply text-lg;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout-review-order,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #order_review .woocommerce-checkout-review-order {
-    @apply rounded-2xl border border-outline-variant/20 bg-surface-container-low p-5 shadow-none md:p-8;
+    @apply rounded-3xl border border-outline-variant/10 bg-white/60 p-6 shadow-none backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout #payment {
-    @apply rounded-2xl border border-outline-variant/20 bg-surface p-4 shadow-none md:p-6;
+    @apply rounded-3xl border border-outline-variant/10 bg-white/60 p-6 shadow-none backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout #payment div.payment_box {
-    @apply rounded-xl border-0 bg-surface-container-low text-sm text-on-surface-variant;
+    @apply mt-3 rounded-2xl border-0 bg-surface-container-low/60 p-4 text-sm text-on-surface-variant;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout #payment ul.payment_methods {
@@ -1146,58 +1435,74 @@
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout #payment ul.payment_methods li {
-    @apply mb-3 rounded-xl border border-outline-variant/15 bg-surface-container-low p-4 last:mb-0;
+    @apply mb-3 rounded-2xl border border-outline-variant/10 bg-surface-container-low/40 p-5 last:mb-0;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout #payment ul.payment_methods li label {
+    @apply cursor-pointer font-body text-base font-medium text-on-background;
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #place_order {
-    @apply mt-6 w-full rounded-full py-4 text-base font-semibold tracking-wide md:min-h-[3.25rem] md:text-[1.0625rem];
+    @apply mt-8 w-full rounded-full py-[1.125rem] text-base font-semibold tracking-wide transition-all md:min-h-[3.5rem] md:text-lg;
+    box-shadow: 0 8px 24px rgba(154, 63, 33, 0.18);
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #place_order:hover {
+    box-shadow: 0 12px 32px rgba(154, 63, 33, 0.22);
+    transform: translateY(-1px);
   }
 
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-terms-and-conditions-wrapper,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-privacy-policy-text {
-    @apply text-sm leading-relaxed text-on-surface-variant;
+    @apply text-center text-sm leading-relaxed text-on-surface-variant;
   }
 
   /* Thank you / order received — modern minimalist (overrides global WC table + notice defaults) */
   body.vila-wc-commerce.woocommerce-order-received .woocommerce {
-    @apply mx-auto max-w-2xl px-4 py-16 sm:px-6 md:py-20 lg:max-w-3xl lg:px-10;
+    @apply mx-auto max-w-2xl px-5 py-16 sm:px-8 md:py-20 lg:max-w-3xl;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-order {
-    @apply space-y-12 md:space-y-16;
+    @apply space-y-10 md:space-y-14;
   }
 
   /* Success message: type-led hero, no heavy “alert” box */
   body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success {
-    @apply relative mb-0 border-0 bg-transparent p-0 text-center font-headline text-3xl font-normal leading-tight tracking-tight text-on-background shadow-none md:text-4xl;
+    @apply relative mb-0 border-0 bg-transparent p-0 text-center font-headline text-3xl font-normal leading-tight tracking-tight text-on-background shadow-none md:text-4xl lg:text-5xl;
+  }
+
+  body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received::before,
+  body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success::before {
+    content: '\2713';
+    @apply mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-secondary/15 text-2xl text-secondary;
   }
 
   body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received::after,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success::after {
     content: '';
-    @apply mx-auto mt-8 block h-px w-12 bg-primary/35;
+    @apply mx-auto mt-8 block h-px w-16 bg-primary/25;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-info,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-message {
-    @apply border-0 bg-surface-container-low/80 text-on-surface shadow-none;
+    @apply rounded-2xl border-0 bg-white/60 p-5 text-on-surface shadow-none backdrop-blur-sm;
   }
 
   /* Meta row: calm chips, no heavy outlines */
   body.vila-wc-commerce.woocommerce-order-received ul.order_details,
   body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview {
-    @apply m-0 mb-0 flex list-none flex-col gap-3 border-0 p-0 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4;
+    @apply m-0 mb-0 grid list-none grid-cols-2 gap-3 border-0 p-0 sm:grid-cols-4;
   }
 
   body.vila-wc-commerce.woocommerce-order-received ul.order_details li,
   body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview li {
-    @apply rounded-2xl bg-surface-container-low px-5 py-3 text-center font-body text-sm text-on-surface shadow-none md:text-[0.9375rem];
+    @apply rounded-2xl border border-outline-variant/10 bg-white/60 px-4 py-4 text-center font-body text-sm text-on-surface shadow-none backdrop-blur-sm;
   }
 
   body.vila-wc-commerce.woocommerce-order-received ul.order_details li strong,
   body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview li strong {
-    @apply mb-1 mr-0 block font-label text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-on-surface-variant;
+    @apply mb-1.5 mr-0 block font-label text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-on-surface-variant;
   }
 
   /* Drop default table chrome from global commerce rules */
@@ -1208,15 +1513,15 @@
 
   body.vila-wc-commerce.woocommerce-order-received section.woocommerce-order-details,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-details {
-    @apply mb-0 rounded-3xl border border-outline-variant/15 bg-surface-container-low/60 p-8 shadow-none backdrop-blur-sm md:p-10;
+    @apply mb-0 rounded-3xl border border-outline-variant/10 bg-white/60 p-6 shadow-none backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-details__title {
-    @apply mb-8 border-b border-outline-variant/15 pb-4 font-headline text-xl font-normal text-on-background md:text-2xl;
+    @apply mb-6 border-0 pb-0 font-headline text-xl font-normal text-on-background md:text-2xl;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details {
-    @apply overflow-hidden rounded-2xl border border-outline-variant/10 bg-surface/80;
+    @apply overflow-hidden rounded-2xl border-0 bg-transparent;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table thead {
@@ -1224,17 +1529,17 @@
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table thead th {
-    @apply border-0 bg-transparent px-6 py-4 font-label text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-on-surface-variant;
+    @apply border-0 bg-transparent px-5 py-3 font-label text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-on-surface-variant;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table tbody td,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table tbody th {
-    @apply border-outline-variant/10 px-6 py-4 text-sm text-on-surface md:text-base;
+    @apply border-0 border-b border-outline-variant/10 px-5 py-4 text-sm text-on-surface md:text-base;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table tfoot th,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table tfoot td {
-    @apply border-outline-variant/10 bg-surface-container-low/50 px-6 py-3 text-sm font-medium text-on-background;
+    @apply border-0 border-t border-outline-variant/10 px-5 py-4 text-sm font-semibold text-on-background;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details .product-name a {
@@ -1244,7 +1549,7 @@
   /* Billing / shipping */
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-customer-details,
   body.vila-wc-commerce.woocommerce-order-received section.woocommerce-customer-details {
-    @apply rounded-3xl border border-outline-variant/15 bg-surface-container-low/60 p-8 shadow-none backdrop-blur-sm md:p-10;
+    @apply rounded-3xl border border-outline-variant/10 bg-white/60 p-6 shadow-none backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-column__title {
@@ -1252,7 +1557,7 @@
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-columns--addresses {
-    @apply grid gap-10 md:grid-cols-2 md:gap-12;
+    @apply grid gap-8 md:grid-cols-2 md:gap-10;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-column--billing-address,
@@ -1270,24 +1575,25 @@
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-downloads {
-    @apply rounded-3xl border border-outline-variant/15 bg-surface p-8 md:p-10;
+    @apply rounded-3xl border border-outline-variant/10 bg-white/60 p-6 backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce .woocommerce-notices-wrapper + p {
-    @apply mb-10 text-center font-body text-base leading-relaxed text-on-surface-variant;
+    @apply mb-8 text-center font-body text-base leading-relaxed text-on-surface-variant;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-again {
-    @apply mt-10 text-center;
+    @apply mt-8 text-center;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-again .button {
-    @apply rounded-full px-8 py-3 text-sm font-medium;
+    @apply rounded-full px-8 py-3.5 text-sm font-semibold tracking-wide;
+    box-shadow: 0 6px 20px rgba(154, 63, 33, 0.12);
   }
 
   /* Block-based checkout / order confirmation */
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .wc-block-checkout {
-    @apply mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14 xl:max-w-[90rem] 2xl:max-w-[100rem] xl:px-10;
+    @apply mx-auto w-full max-w-3xl px-5 py-12 sm:px-8 md:py-16 lg:max-w-4xl;
   }
 
   /* Block checkout: hide “Return to cart” (backup if block attrs still render it) */
@@ -1298,27 +1604,27 @@
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-container,
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation {
-    @apply mx-auto max-w-2xl px-4 py-12 font-body md:py-16 lg:max-w-3xl;
+    @apply mx-auto max-w-2xl px-5 py-14 font-body sm:px-8 md:py-20 lg:max-w-3xl;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status {
-    @apply mb-10 rounded-3xl border-0 bg-transparent p-0 text-center font-headline text-3xl font-normal text-on-background md:text-4xl;
+    @apply mb-10 rounded-3xl border-0 bg-transparent p-0 text-center font-headline text-3xl font-normal text-on-background md:text-4xl lg:text-5xl;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-summary {
-    @apply mb-8 rounded-3xl border border-outline-variant/15 bg-surface-container-low/60 p-6 md:p-8;
+    @apply mb-8 rounded-3xl border border-outline-variant/10 bg-white/60 p-6 backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-totals {
-    @apply rounded-2xl border border-outline-variant/10 bg-surface/80;
+    @apply rounded-2xl border-0 bg-transparent;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wp-block-woocommerce-order-confirmation-totals-wrapper {
-    @apply rounded-3xl border border-outline-variant/15 bg-surface-container-low/60 p-6 shadow-none md:p-8;
+    @apply rounded-3xl border border-outline-variant/10 bg-white/60 p-6 shadow-none backdrop-blur-sm md:p-8;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
-    @apply rounded-2xl border border-outline-variant/10 bg-surface/80;
+    @apply rounded-2xl border border-outline-variant/10 bg-white/60 backdrop-blur-sm;
   }
 }
 
@@ -1332,6 +1638,18 @@
   }
   66% {
     border-radius: 52% 48% 42% 58% / 42% 58% 52% 48%;
+  }
+}
+
+@keyframes va-plot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.82;
   }
 }
 
@@ -1413,7 +1731,7 @@
   margin-bottom: 0.5rem !important;
   width: 100% !important;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #625b48;
@@ -1433,8 +1751,8 @@
   padding: 0.75rem 1.25rem !important;
   border: 0 !important;
   border-radius: 9999px !important;
-  background: #ece6cf !important;
-  color: #332e1e !important;
+  background: #f7f4e9 !important;
+  color: #1c1c16 !important;
   box-shadow: none !important;
 }
 
@@ -1444,8 +1762,8 @@
   padding: 1rem 1.25rem !important;
   border: 0 !important;
   border-radius: 1.5rem !important;
-  background: #ece6cf !important;
-  color: #332e1e !important;
+  background: #f7f4e9 !important;
+  color: #1c1c16 !important;
   box-shadow: none !important;
 }
 
@@ -1457,7 +1775,7 @@
   border-radius: 9999px !important;
   background: #9a4021 !important;
   color: #fff !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
   text-transform: uppercase;
   letter-spacing: 0.11em;
 }

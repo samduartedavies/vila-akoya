@@ -7,6 +7,8 @@
 
   var vilaGuestPickerDocBound = false;
   var vilaPlotSelectorBound = false;
+  var vilaPlotDropdownBound = false;
+  var vilaSelectedPlotId = '';
 
   /**
    * Pushes unavailable Y-m-d into MWB. When Vila Campsite Booking is active, that list is
@@ -46,7 +48,19 @@
   function redrawRangePickerIfAny() {
     var fp = document.getElementById('vila-akoya-booking-range');
     if (fp && fp._flatpickr) {
-      fp._flatpickr.redraw();
+      var inst = fp._flatpickr;
+      inst.set('disable', [
+        function (date) {
+          var list = window.vilaMwbUnavailableList || [];
+          var y =
+            date.getFullYear() +
+            '-' +
+            pad2(date.getMonth() + 1) +
+            '-' +
+            pad2(date.getDate());
+          return list.indexOf(y) !== -1;
+        },
+      ]);
     }
   }
 
@@ -69,6 +83,64 @@
       applySelectedPlotUnavailableDates();
       redrawRangePickerIfAny();
       $('#mwb-mbfw-booking-from-time').trigger('change');
+    });
+  }
+
+  function getSelectedPlotId() {
+    return vilaSelectedPlotId;
+  }
+
+  function fetchAndApplyPlotAvailability(plotId) {
+    var booking = window.vilaAkoyaBooking;
+    if (!booking || !booking.vilaCbAvailabilityRestUrl) {
+      return;
+    }
+    var from = new Date();
+    var to = new Date(from.getTime());
+    to.setFullYear(to.getFullYear() + 2);
+    var url =
+      booking.vilaCbAvailabilityRestUrl +
+      '?from=' + encodeURIComponent(ymdFromDate(from)) +
+      '&to=' + encodeURIComponent(ymdFromDate(to));
+    if (plotId) {
+      url += '&plot_id=' + encodeURIComponent(plotId);
+    }
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        window.vilaMwbUnavailableList = Array.isArray(data.fully_booked_dates)
+          ? data.fully_booked_dates
+          : [];
+        redrawRangePickerIfAny();
+        scheduleStayRangeAvailabilityCheck();
+      })
+      .catch(function () {});
+  }
+
+  function initPlotDropdown() {
+    if (typeof vilaAkoyaBooking === 'undefined' || !vilaAkoyaBooking.useSharedCampsiteInventory) {
+      return;
+    }
+    if (vilaPlotDropdownBound) {
+      return;
+    }
+    var $sel = $('#vila-plot-select');
+    if (!$sel.length) {
+      return;
+    }
+    vilaPlotDropdownBound = true;
+
+    $sel.on('change', function () {
+      var val = $(this).val();
+      vilaSelectedPlotId = val;
+      $('#vila-cb-preferred-plot-id').val(val);
+      clearAvailabilityWarning();
+      fetchAndApplyPlotAvailability(val);
+      var stay = getStayYmdFromMwbInputs();
+      if (stay && val) {
+        setAddToCartBlocked(true);
+        runStayRangeAvailabilityCheck();
+      }
     });
   }
 
@@ -105,6 +177,8 @@
   var vilaAvailTimer = null;
   var vilaAvailSeq = 0;
   var vilaAvailAbort = null;
+  var vilaRangeUnavailable = false;
+  var vilaUserPickedDates = false;
 
   function ensureAvailabilityBanner() {
     var $el = $('#vila-booking-availability-msg');
@@ -112,7 +186,7 @@
       return $el;
     }
     $el = $(
-      '<p class="vila-booking-availability-msg mt-2 mb-0 text-sm text-red-700 hidden" role="alert" id="vila-booking-availability-msg"></p>'
+      '<p class="vila-booking-availability-msg mt-3 mb-0 rounded-xl bg-red-50/80 px-4 py-2.5 text-sm font-medium text-red-700 hidden" role="alert" id="vila-booking-availability-msg"></p>'
     );
     var $anchor = $('.vila-airbnb-booking--dates').first();
     if (!$anchor.length) {
@@ -135,14 +209,28 @@
     $btn.attr('aria-disabled', blocked ? 'true' : 'false');
   }
 
+  function syncBookingTotalsAndCtaState() {
+    // Enable CTA based on actual valid stay dates in MWB inputs.
+    // Programmatic updates from flatpickr may not carry originalEvent.
+    var hasStay = !!getStayYmdFromMwbInputs();
+    $('body').toggleClass('vila-booking-dates-selected', hasStay);
+    setAddToCartBlocked(!hasStay || vilaRangeUnavailable);
+  }
+
   function clearAvailabilityWarning() {
     ensureAvailabilityBanner().addClass('hidden').text('');
-    setAddToCartBlocked(false);
+    vilaRangeUnavailable = false;
+    syncBookingTotalsAndCtaState();
+    $('#vila-akoya-booking-range').removeClass('vila-date-input-error');
+    $('.vila-airbnb-booking--dates').removeClass('vila-date-input-error');
   }
 
   function showAvailabilityWarning(msg) {
     ensureAvailabilityBanner().removeClass('hidden').text(msg);
-    setAddToCartBlocked(true);
+    vilaRangeUnavailable = true;
+    syncBookingTotalsAndCtaState();
+    $('#vila-akoya-booking-range').addClass('vila-date-input-error');
+    $('.vila-airbnb-booking--dates').addClass('vila-date-input-error');
   }
 
   function runStayRangeAvailabilityCheck() {
@@ -172,6 +260,10 @@
       encodeURIComponent(stay.check_in) +
       '&check_out=' +
       encodeURIComponent(stay.check_out);
+    var plotId = getSelectedPlotId();
+    if (plotId) {
+      q += '&plot_id=' + encodeURIComponent(plotId);
+    }
     fetch(base + q, { credentials: 'same-origin', signal: signal })
       .then(function (r) {
         return r.json();
@@ -181,13 +273,25 @@
           return;
         }
         if (data && data.bookable === false) {
-          var msg =
-            vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.rangeUnavailable
-              ? vilaAkoyaBooking.strings.rangeUnavailable
-              : 'No pitch is available for those dates.';
+          var msg;
+          if (plotId && vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.plotUnavailable) {
+            msg = vilaAkoyaBooking.strings.plotUnavailable;
+          } else if (vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.rangeUnavailable) {
+            msg = vilaAkoyaBooking.strings.rangeUnavailable;
+          } else {
+            msg = 'No pitch is available for those dates.';
+          }
           showAvailabilityWarning(msg);
         } else {
           clearAvailabilityWarning();
+          if (!plotId && data && data.assigned_plot_id) {
+            var $sel = $('#vila-plot-select');
+            if ($sel.length && !$sel.val()) {
+              $sel.val(String(data.assigned_plot_id));
+              vilaSelectedPlotId = String(data.assigned_plot_id);
+              $('#vila-cb-preferred-plot-id').val(String(data.assigned_plot_id));
+            }
+          }
         }
       })
       .catch(function (err) {
@@ -207,7 +311,8 @@
   }
 
   /**
-   * Puts stay dates and guest picker side by side on desktop (theme CSS: .vila-booking-dates-who).
+   * Puts plot and guest picker side by side on desktop
+   * (theme CSS: .vila-booking-plot-who), while stay dates remains full width.
    */
   function layoutDatesAndWhoRow() {
     var $scopes = $('.vila-wc-booking form.cart');
@@ -216,26 +321,169 @@
     }
     $scopes.each(function () {
       var $form = $(this);
-      if ($form.data('vilaDatesWhoLaidOut')) {
+      if ($form.data('vilaPlotWhoLaidOut')) {
         return;
       }
+      var $plot = $form.find('.vila-plot-dropdown-wrap').first();
       var $dates = $form.find('.mbfw-date-picker-section__wrapper').first();
       var $who = $form.find('.vila-airbnb-booking--who').first();
-      if (!$dates.length || !$who.length) {
+      if (!$plot.length || !$dates.length || !$who.length) {
         return;
       }
-      if ($who.closest('.vila-booking-dates-who').length) {
+      if ($who.closest('.vila-booking-plot-who').length) {
         return;
       }
-      var $row = $('<div class="vila-booking-dates-who"></div>');
+      var $row = $('<div class="vila-booking-plot-who"></div>');
       $dates.before($row);
-      $row.append($dates);
+      $row.append($plot);
       $row.append($who);
-      $form.data('vilaDatesWhoLaidOut', true);
+      $form.data('vilaPlotWhoLaidOut', true);
     });
   }
 
+  function placePitchAboveStayDates() {
+    var $scopes = $('.vila-wc-booking form.cart');
+    if (!$scopes.length) {
+      $scopes = $('body.single-product.post-type-product form.cart');
+    }
+    $scopes.each(function () {
+      var $form = $(this);
+      var $pitch = $form.find('.vila-plot-dropdown-wrap').first();
+      if (!$pitch.length) {
+        return;
+      }
+      if ($pitch.closest('.vila-booking-plot-who').length) {
+        return;
+      }
+      // Already positioned — don't move it again (would disrupt open dropdowns).
+      if ($pitch.data('vilaPlotPositioned')) {
+        return;
+      }
+      var $target = $form.find('.vila-booking-dates-who').first();
+      if (!$target.length) {
+        $target = $form.find('.mbfw-date-picker-section__wrapper').first();
+      }
+      if (!$target.length) {
+        return;
+      }
+      $pitch.insertBefore($target);
+      $pitch.data('vilaPlotPositioned', true);
+    });
+  }
+
+  function initBookingMapLightbox() {
+    var $trigger = $('.va-booking-map-trigger').first();
+    if (!$trigger.length || $trigger.data('vaMapLightboxBound')) {
+      return;
+    }
+    $trigger.data('vaMapLightboxBound', true);
+
+    var imageSrc = String($trigger.attr('href') || '');
+    if (!imageSrc) {
+      return;
+    }
+
+    var $lightbox = $(
+      '<div class="va-map-lightbox hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Campsite map fullscreen view">' +
+        '<button type="button" class="va-map-lightbox__backdrop" aria-label="Close campsite map popup"></button>' +
+        '<div class="va-map-lightbox__content">' +
+          '<button type="button" class="va-map-lightbox__close" aria-label="Close popup">×</button>' +
+          '<img class="va-map-lightbox__image" alt="Map of campsite plots fullscreen view" />' +
+          '<div class="va-map-lightbox__hotspots" aria-hidden="false"></div>' +
+        '</div>' +
+      '</div>'
+    );
+
+    $lightbox.find('.va-map-lightbox__image').attr('src', imageSrc);
+    $('body').append($lightbox);
+
+    function closeLightbox() {
+      $lightbox.addClass('hidden').attr('aria-hidden', 'true');
+      $('body').removeClass('va-map-lightbox-open');
+    }
+
+    function openLightbox() {
+      $lightbox.removeClass('hidden').attr('aria-hidden', 'false');
+      $('body').addClass('va-map-lightbox-open');
+      syncHotspotSelection();
+    }
+
+    $trigger.on('click', function (e) {
+      e.preventDefault();
+      openLightbox();
+    });
+
+    $lightbox.on('click', '.va-map-lightbox__close, .va-map-lightbox__backdrop', function (e) {
+      e.preventDefault();
+      closeLightbox();
+    });
+
+    $(document).on('keydown.vilaBookingMapLightbox', function (e) {
+      if (e.key === 'Escape') {
+        closeLightbox();
+      }
+    });
+
+    var hotspots = [];
+    if (window.vilaAkoyaBooking && Array.isArray(window.vilaAkoyaBooking.mapPlotHotspots)) {
+      hotspots = window.vilaAkoyaBooking.mapPlotHotspots;
+    }
+    var $plotSelect = $('#vila-plot-select');
+    var $hotspotLayer = $lightbox.find('.va-map-lightbox__hotspots');
+    if ($plotSelect.length && hotspots.length) {
+      hotspots.forEach(function (spot, idx) {
+        var id = String(spot && spot.id ? spot.id : '');
+        if (!id) {
+          return;
+        }
+        var label = String(spot && spot.label ? spot.label : ('Plot ' + String(idx + 1)));
+        var x = parseFloat(spot && spot.x !== undefined ? spot.x : '50');
+        var y = parseFloat(spot && spot.y !== undefined ? spot.y : '50');
+        if (isNaN(x)) {
+          x = 50;
+        }
+        if (isNaN(y)) {
+          y = 50;
+        }
+        var shortLabel = label.replace(/^Plot\s+/i, '');
+        var $btn = $('<button type="button" class="va-map-plot-hotspot"></button>');
+        $btn.attr('data-plot-id', id);
+        $btn.attr('aria-label', 'Select ' + label);
+        $btn.css({ left: x + '%', top: y + '%' });
+        $btn.html('<span class="va-map-plot-hotspot__dot"></span><span class="va-map-plot-hotspot__text">' + shortLabel + '</span>');
+        $hotspotLayer.append($btn);
+      });
+    }
+
+    function syncHotspotSelection() {
+      var selected = String($plotSelect.val() || '');
+      $hotspotLayer.find('.va-map-plot-hotspot').removeClass('is-selected');
+      if (selected) {
+        $hotspotLayer.find('.va-map-plot-hotspot[data-plot-id="' + selected + '"]').addClass('is-selected');
+      }
+    }
+
+    if ($plotSelect.length) {
+      $plotSelect.on('change', syncHotspotSelection);
+      $hotspotLayer.on('click', '.va-map-plot-hotspot', function (e) {
+        e.preventDefault();
+        var id = String($(this).attr('data-plot-id') || '');
+        if (!id) {
+          return;
+        }
+        $plotSelect.val(id).trigger('change');
+        syncHotspotSelection();
+        closeLightbox();
+      });
+      syncHotspotSelection();
+    }
+  }
+
   function bootstrapRangePicker() {
+    // Mount custom "Stay dates" UI immediately so MWB's native from/to fields
+    // don't flash before async availability data returns.
+    initRangePicker();
+
     var booking = window.vilaAkoyaBooking;
     if (
       booking &&
@@ -259,14 +507,12 @@
           window.vilaMwbUnavailableList = Array.isArray(data.fully_booked_dates)
             ? data.fully_booked_dates
             : [];
-          initRangePicker();
+          redrawRangePickerIfAny();
         })
         .catch(function () {
-          initRangePicker();
+          redrawRangePickerIfAny();
         });
-      return;
     }
-    initRangePicker();
   }
 
   function formatDMY(d) {
@@ -288,26 +534,6 @@
       return null;
     }
     return new Date(year, month, day);
-  }
-
-  function nightsBetween(fromStr, toStr) {
-    var a = parseDMY(fromStr);
-    var b = parseDMY(toStr);
-    if (!a || !b) {
-      return 1;
-    }
-    var ms = b.getTime() - a.getTime();
-    var days = Math.round(ms / 86400000);
-    return days > 0 ? days : 1;
-  }
-
-  function getPeopleCount() {
-    var $p = $('#mwb_mbfw_people_number');
-    if (!$p.length) {
-      return 1;
-    }
-    var n = parseInt($p.val(), 10);
-    return !isNaN(n) && n > 0 ? n : 1;
   }
 
   function guestSummaryString(a, c, i, p) {
@@ -467,19 +693,6 @@
         $(this).attr('aria-expanded', open ? 'false' : 'true');
       });
 
-      $r.find('.vila-guest-picker__clear').on('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        setGuestState($r, {
-          adults: defA,
-          children: 0,
-          infants: 0,
-          pets: 0,
-        });
-        $r.find('.vila-guest-picker__panel').prop('hidden', true);
-        $r.find('.vila-guest-picker__trigger').attr('aria-expanded', 'false');
-      });
-
       $r.find('.vila-guest-picker__btn').on('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -522,27 +735,6 @@
     }
   }
 
-  function getVehicleSupplementPerNight() {
-    var total = 0;
-    $('input[name="vila_vehicle_types[]"]:checked').each(function () {
-      var $i = $(this);
-      var r = parseFloat(String($i.attr('data-vila-fee') || ''), 10);
-      if (
-        isNaN(r) &&
-        typeof vilaAkoyaBooking !== 'undefined' &&
-        vilaAkoyaBooking.vehicleRates &&
-        vilaAkoyaBooking.vehicleRates[$i.val()] !== undefined
-      ) {
-        r = parseFloat(String(vilaAkoyaBooking.vehicleRates[$i.val()] || 0), 10);
-      }
-      if (isNaN(r)) {
-        r = 0;
-      }
-      total += r;
-    });
-    return total;
-  }
-
   function updateVehicleHint() {
     var $hint = $('.vila-vehicle-hint');
     if (!$hint.length || typeof vilaAkoyaBooking === 'undefined' || !vilaAkoyaBooking.strings) {
@@ -551,43 +743,17 @@
     if (!$('input[name="vila_vehicle_types[]"]').length) {
       return;
     }
-    var rate = getVehicleSupplementPerNight();
-    var nights = nightsBetween(
-      $('#mwb-mbfw-booking-from-time').val(),
-      $('#mwb-mbfw-booking-to-time').val()
-    );
-    var peopleMult = vilaAkoyaBooking.pitchSupplementPerGuest ? getPeopleCount() : 1;
-    var sym = vilaAkoyaBooking.currencySymbol || '€';
-    var total = rate * nights * peopleMult;
-    var nLabel =
-      nights === 1
-        ? vilaAkoyaBooking.strings.nightSingular
-        : vilaAkoyaBooking.strings.nightPlural;
     var parts = [];
     if (vilaAkoyaBooking.strings.guestCountAffectsRate && !$('.vila-guest-picker').length) {
       parts.push(vilaAkoyaBooking.strings.guestCountAffectsRate);
     }
-    if (total > 0) {
-      parts.push(
-        vilaAkoyaBooking.strings.supplement +
-          ': ' +
-          sym +
-          total.toFixed(2) +
-          ' (' +
-          sym +
-          rate.toFixed(0) +
-          ' combined / night × ' +
-          nights +
-          ' ' +
-          nLabel +
-          (vilaAkoyaBooking.pitchSupplementPerGuest ? ' × ' + getPeopleCount() + ' guests' : '') +
-          '). ' +
-          (vilaAkoyaBooking.strings.finalAtCheckout ? vilaAkoyaBooking.strings.finalAtCheckout : '')
-      );
-      $hint.text(parts.join(' '));
-    } else {
-      $hint.text(parts.join(' '));
-    }
+    $hint.text(parts.join(' '));
+  }
+
+
+  function normaliseBookingBillLayout() {
+    // The MWB DOM already nests line-item wrappers above the total row inside
+    // .mbfw-total-listing-single-page__wrapper-parent — no manual moves needed.
   }
 
   function initRangePicker() {
@@ -685,15 +851,18 @@
       ],
       onChange: function (selectedDates) {
         if (selectedDates.length === 2) {
+          vilaUserPickedDates = true;
           $(fromEl)
             .val(formatDMY(selectedDates[0]))
             .trigger('change');
           $(toEl).val(formatDMY(selectedDates[1])).trigger('change');
         }
         if (selectedDates.length === 0) {
+          vilaUserPickedDates = false;
           $(fromEl).val('').trigger('change');
           $(toEl).val('').trigger('change');
         }
+        syncBookingTotalsAndCtaState();
         updateVehicleHint();
         scheduleStayRangeAvailabilityCheck();
       },
@@ -728,9 +897,14 @@
   $(function () {
     setTimeout(bootstrapRangePicker, 120);
     initGuestPicker();
+    initPlotDropdown();
     layoutDatesAndWhoRow();
+    placePitchAboveStayDates();
+    initBookingMapLightbox();
     setTimeout(layoutDatesAndWhoRow, 400);
     setTimeout(layoutDatesAndWhoRow, 1000);
+    setTimeout(placePitchAboveStayDates, 420);
+    setTimeout(placePitchAboveStayDates, 1020);
 
     $(document).on('change', 'input[name="vila_vehicle_types[]"]', function () {
       if (!$('input[name="vila_vehicle_types[]"]:checked').length) {
@@ -750,11 +924,29 @@
     $(document).on(
       'change input',
       '#mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time',
-      function () {
+      function (e) {
+        if (e && e.originalEvent) {
+          vilaUserPickedDates = true;
+        }
+        if (!$('#mwb-mbfw-booking-from-time').val() || !$('#mwb-mbfw-booking-to-time').val()) {
+          vilaUserPickedDates = false;
+        }
+        syncBookingTotalsAndCtaState();
         scheduleStayRangeAvailabilityCheck();
       }
     );
 
     setTimeout(scheduleStayRangeAvailabilityCheck, 600);
+    setTimeout(function () {
+      normaliseBookingBillLayout();
+      syncBookingTotalsAndCtaState();
+    }, 150);
+
+    $(document).ajaxComplete(function () {
+      placePitchAboveStayDates();
+      normaliseBookingBillLayout();
+      syncBookingTotalsAndCtaState();
+      setTimeout(syncBookingTotalsAndCtaState, 100);
+    });
   });
 })(jQuery);

@@ -59,23 +59,16 @@ $uid = 'vila-guest-' . $product_id;
 		<p class="vila-airbnb-booking__legend mb-2 mt-0">
 			<?php esc_html_e( 'Who', 'vila-akoya' ); ?>
 		</p>
-		<div class="vila-guest-picker__bar rounded-[12px] border border-outline-variant/30 bg-surface-container-low px-4 py-3.5 flex flex-wrap items-center gap-3 min-h-[3.25rem]">
+		<div class="vila-guest-picker__bar rounded-[12px] border border-outline-variant/30 bg-surface-container-low flex flex-wrap items-center gap-3 min-h-[3.25rem]">
 			<button
 				type="button"
-				class="vila-guest-picker__trigger flex min-w-0 flex-1 items-center gap-2 rounded-[10px] bg-transparent text-left font-body text-base text-on-background"
+				class="vila-guest-picker__trigger flex min-w-0 flex-1 items-center gap-2 rounded-[10px] bg-transparent px-4 py-3.5 text-left font-body text-base text-on-background"
 				aria-expanded="false"
 				aria-haspopup="dialog"
 				aria-controls="<?php echo esc_attr( $uid ); ?>-panel"
 				id="<?php echo esc_attr( $uid ); ?>-trigger"
 			>
 				<span class="vila-guest-picker__summary font-medium truncate"><?php echo esc_html( vila_akoya_guest_picker_summary_string( $def_ad, 0, 0, 0 ) ); ?></span>
-			</button>
-			<button
-				type="button"
-				class="vila-guest-picker__clear text-on-surface-variant hover:text-on-surface rounded-full p-1 text-sm"
-				aria-label="<?php esc_attr_e( 'Reset guests', 'vila-akoya' ); ?>"
-			>
-				×
 			</button>
 		</div>
 

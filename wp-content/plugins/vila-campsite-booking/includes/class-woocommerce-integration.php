@@ -475,7 +475,20 @@ class WooCommerce_Integration {
 		}
 
 		$svc = new Booking_Service();
-		if ( null === $svc->find_available_plot( $check_in, $check_out ) ) {
+
+		$preferred_plot = 0;
+		if ( ! empty( $_POST['vila_cb_preferred_plot_id'] ) ) {
+			$preferred_plot = absint( $_POST['vila_cb_preferred_plot_id'] );
+		} elseif ( ! empty( $_POST['vila_cb_preferred_plot'] ) ) {
+			$preferred_plot = absint( $_POST['vila_cb_preferred_plot'] );
+		}
+
+		if ( $preferred_plot > 0 ) {
+			if ( ! $svc->is_plot_available_for_range( $preferred_plot, $check_in, $check_out ) ) {
+				wc_add_notice( __( 'The selected pitch is not available for those dates. Please choose a different pitch or different dates.', 'vila-campsite-booking' ), 'error' );
+				return false;
+			}
+		} elseif ( null === $svc->find_available_plot( $check_in, $check_out ) ) {
 			wc_add_notice( __( 'No pitch is available for those dates. Please choose a different stay.', 'vila-campsite-booking' ), 'error' );
 			return false;
 		}
@@ -928,6 +941,16 @@ class WooCommerce_Integration {
 		$cart_item_data['vila_cb_check_out'] = $stay['check_out'];
 		$cart_item_data['vila_cb_guests']    = $guests;
 
+		$preferred_plot = 0;
+		if ( ! empty( $_POST['vila_cb_preferred_plot_id'] ) ) {
+			$preferred_plot = absint( $_POST['vila_cb_preferred_plot_id'] );
+		} elseif ( ! empty( $_POST['vila_cb_preferred_plot'] ) ) {
+			$preferred_plot = absint( $_POST['vila_cb_preferred_plot'] );
+		}
+		if ( $preferred_plot > 0 ) {
+			$cart_item_data['vila_cb_preferred_plot'] = $preferred_plot;
+		}
+
 		return $cart_item_data;
 	}
 
@@ -939,7 +962,7 @@ class WooCommerce_Integration {
 	 */
 	public static function get_cart_item_from_session( $cart_item, $values, $key ) {
 		unset( $key );
-		foreach ( array( 'vila_cb_check_in', 'vila_cb_check_out', 'vila_cb_guests' ) as $k ) {
+		foreach ( array( 'vila_cb_check_in', 'vila_cb_check_out', 'vila_cb_guests', 'vila_cb_preferred_plot' ) as $k ) {
 			if ( isset( $values[ $k ] ) ) {
 				$cart_item[ $k ] = $values[ $k ];
 			}
@@ -1056,6 +1079,11 @@ class WooCommerce_Integration {
 		$item->update_meta_data( self::META_CHECK_IN, $cin );
 		$item->update_meta_data( self::META_CHECK_OUT, $cout );
 		$item->update_meta_data( self::META_GUESTS, wp_json_encode( $guests ) );
+
+		$preferred_plot = isset( $merged['vila_cb_preferred_plot'] ) ? (int) $merged['vila_cb_preferred_plot'] : 0;
+		if ( $preferred_plot > 0 ) {
+			$item->update_meta_data( '_vila_cb_preferred_plot', (string) $preferred_plot );
+		}
 
 		self::backfill_mwb_line_meta_from_cart( $item, $merged );
 	}
@@ -1363,6 +1391,9 @@ class WooCommerce_Integration {
 		}
 		if ( isset( $v['vila_cb_guests'] ) && is_array( $v['vila_cb_guests'] ) ) {
 			$cid['vila_cb_guests'] = $v['vila_cb_guests'];
+		}
+		if ( ! empty( $v['vila_cb_preferred_plot'] ) ) {
+			$cid['vila_cb_preferred_plot'] = absint( $v['vila_cb_preferred_plot'] );
 		}
 		$add_to_cart_data['cart_item_data'] = $cid;
 		self::debug_log(
@@ -2926,6 +2957,7 @@ class WooCommerce_Integration {
 		$hidden[] = self::META_GUESTS;
 		$hidden[] = self::META_BOOKING_ID;
 		$hidden[] = self::META_PLOT_ID;
+		$hidden[] = '_vila_cb_preferred_plot';
 		// Theme/plugin JSON for multi-select; managed via Campsite extras UI (do not edit raw JSON in the line meta box).
 		$hidden[] = '_vila_vehicle_slugs';
 		return array_values( array_unique( array_map( 'strval', $hidden ) ) );
@@ -3101,7 +3133,8 @@ class WooCommerce_Integration {
 			$cout       = $stay['check_out'];
 			$guest_json = $stay['guest_json'];
 			$guest_json = self::merge_guest_json_with_line_extras( $guest_json ? $guest_json : '', $item, $order, $line_id );
-			$res        = $svc->confirm_booking_atomic( (int) $order->get_id(), $line_id, $cin, $cout, $guest_json ? $guest_json : null );
+			$preferred_plot = (int) $item->get_meta( '_vila_cb_preferred_plot', true );
+			$res        = $svc->confirm_booking_atomic( (int) $order->get_id(), $line_id, $cin, $cout, $guest_json ? $guest_json : null, $preferred_plot );
 			if ( ! empty( $res['success'] ) && ! empty( $res['booking_id'] ) ) {
 				$item->update_meta_data( self::META_BOOKING_ID, (string) $res['booking_id'] );
 				$item->update_meta_data( self::META_PLOT_ID, (string) (int) $res['plot_id'] );

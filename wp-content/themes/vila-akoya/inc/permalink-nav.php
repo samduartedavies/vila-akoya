@@ -244,15 +244,15 @@ function vila_akoya_shortcode_header_nav() {
 	?>
 <nav class="fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
 <div class="flex justify-between items-center px-8 py-6 max-w-[1236px] box-border mx-auto">
-<a class="text-3xl font-normal text-orange-800 font-barrio shrink-0" href="<?php echo $h( '' ); ?>">Vila Akoya</a>
-<div id="site-nav-desktop-links" class="hidden min-[1020px]:flex items-center ml-12 max-[1240px]:ml-6 space-x-5 max-[1240px]:space-x-3 font-body text-base max-[1240px]:text-sm tracking-wide">
-<a data-nav="village" class="text-stone-600 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 px-2 py-1 rounded-md" href="<?php echo $h( 'village' ); ?>">The Village</a>
-<a data-nav="campsite" class="text-stone-600 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 px-2 py-1 rounded-md" href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
-<a data-nav="booking" class="text-stone-600 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 px-2 py-1 rounded-md" href="<?php echo $h( 'booking' ); ?>">Join us</a>
-<a data-nav="campus" class="text-stone-600 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 px-2 py-1 rounded-md" href="<?php echo $h( 'campus' ); ?>">The Campus</a>
-<a data-nav="the-kids" class="text-stone-600 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 px-2 py-1 rounded-md" href="<?php echo $h( 'the-kids' ); ?>">The Kids</a>
-<a data-nav="about" class="text-stone-600 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 px-2 py-1 rounded-md" href="<?php echo $h( 'about' ); ?>">About Us</a>
-<a data-nav="contact" class="text-stone-600 hover:text-[#9a4021] transition-colors hover:bg-[#9a4021]/5 px-2 py-1 rounded-md" href="<?php echo $h( 'contact' ); ?>">Contact</a>
+<a class="text-4xl font-normal text-orange-800 font-barrio shrink-0 leading-none" href="<?php echo $h( '' ); ?>">Vila Akoya</a>
+<div id="site-nav-desktop-links" class="hidden min-[1020px]:flex items-center ml-12 max-[1240px]:ml-6 space-x-4 max-[1240px]:space-x-2 font-body text-[0.95rem] max-[1240px]:text-[0.84rem] tracking-[0.01em]">
+<a data-nav="village" class="text-stone-600 hover:text-[#8f3a1d] transition-colors hover:bg-[#9a4021]/10 px-3 py-1.5 rounded-full" href="<?php echo $h( 'village' ); ?>">The Village</a>
+<a data-nav="campsite" class="text-stone-600 hover:text-[#8f3a1d] transition-colors hover:bg-[#9a4021]/10 px-3 py-1.5 rounded-full" href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
+<a data-nav="booking" class="text-stone-600 hover:text-[#8f3a1d] transition-colors hover:bg-[#9a4021]/10 px-3 py-1.5 rounded-full" href="<?php echo $h( 'booking' ); ?>">Join us</a>
+<a data-nav="campus" class="text-stone-600 hover:text-[#8f3a1d] transition-colors hover:bg-[#9a4021]/10 px-3 py-1.5 rounded-full" href="<?php echo $h( 'campus' ); ?>">The Campus</a>
+<a data-nav="the-kids" class="text-stone-600 hover:text-[#8f3a1d] transition-colors hover:bg-[#9a4021]/10 px-3 py-1.5 rounded-full" href="<?php echo $h( 'the-kids' ); ?>">The Kids</a>
+<a data-nav="about" class="text-stone-600 hover:text-[#8f3a1d] transition-colors hover:bg-[#9a4021]/10 px-3 py-1.5 rounded-full" href="<?php echo $h( 'about' ); ?>">About Us</a>
+<a data-nav="contact" class="text-stone-600 hover:text-[#8f3a1d] transition-colors hover:bg-[#9a4021]/10 px-3 py-1.5 rounded-full" href="<?php echo $h( 'contact' ); ?>">Contact</a>
 </div>
 <div class="flex items-center gap-2">
 <button type="button" id="site-nav-toggle" class="min-[1020px]:hidden inline-flex rounded-lg p-2 text-[#9a4021] hover:bg-[#9a4021]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Open menu">

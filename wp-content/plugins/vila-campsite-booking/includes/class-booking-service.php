@@ -144,6 +144,82 @@ class Booking_Service {
 	}
 
 	/**
+	 * Whether a specific plot is available for every night in [check_in, check_out).
+	 *
+	 * Combines booking conflicts and maintenance blocks into a single check.
+	 *
+	 * @param int    $plot_id   Plot ID.
+	 * @param string $check_in  Y-m-d.
+	 * @param string $check_out Y-m-d exclusive.
+	 * @return bool
+	 */
+	public function is_plot_available_for_range( $plot_id, $check_in, $check_out ) {
+		$plot_id = (int) $plot_id;
+		if ( $this->is_plot_blocked_for_range( $plot_id, $check_in, $check_out ) ) {
+			return false;
+		}
+		return $this->is_plot_free_for_range( $plot_id, $check_in, $check_out );
+	}
+
+	/**
+	 * Dates in [from, to] inclusive where a specific plot is unavailable (booked or blocked).
+	 *
+	 * @param int    $plot_id Plot ID.
+	 * @param string $from    Y-m-d.
+	 * @param string $to      Y-m-d inclusive.
+	 * @return string[] Y-m-d list.
+	 */
+	public function get_plot_unavailable_dates( $plot_id, $from, $to ) {
+		global $wpdb;
+		$plot_id = (int) $plot_id;
+
+		if ( ! Dates::parse_ymd( $from ) || ! Dates::parse_ymd( $to ) ) {
+			return array();
+		}
+
+		$nt       = Database::booking_nights_table();
+		$bt       = Database::bookings_table();
+		$statuses = Booking_Repository::occupying_statuses();
+		$st_ph    = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+
+		$sql  = "SELECT DISTINCT n.night_ymd FROM $nt n INNER JOIN $bt b ON b.id = n.booking_id WHERE n.plot_id = %d AND n.night_ymd >= %s AND n.night_ymd <= %s AND b.status IN ($st_ph)";
+		$args = array_merge( array( $plot_id, $from, $to ), $statuses );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders match $args.
+		$booked = $wpdb->get_col( $wpdb->prepare( $sql, $args ) );
+		$booked = is_array( $booked ) ? $booked : array();
+
+		$pbt  = Database::plot_blocks_table();
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT start_ymd, end_ymd FROM $pbt WHERE plot_id = %d AND end_ymd > %s AND start_ymd <= %s", $plot_id, $from, $to ),
+			ARRAY_A
+		);
+
+		$blocked = array();
+		if ( ! empty( $rows ) ) {
+			$days = Dates::enumerate_inclusive( $from, $to );
+			foreach ( $days as $ymd ) {
+				$d = Dates::parse_ymd( $ymd );
+				if ( ! $d ) {
+					continue;
+				}
+				foreach ( $rows as $row ) {
+					$bs = Dates::parse_ymd( $row['start_ymd'] );
+					$be = Dates::parse_ymd( $row['end_ymd'] );
+					if ( ! $bs || ! $be ) {
+						continue;
+					}
+					if ( $d >= $bs && $d < $be ) {
+						$blocked[] = $ymd;
+						break;
+					}
+				}
+			}
+		}
+
+		return array_values( array_unique( array_merge( $booked, $blocked ) ) );
+	}
+
+	/**
 	 * Dates in [from, to] inclusive where all plots are occupied that night.
 	 *
 	 * @param string $from Y-m-d.
@@ -185,9 +261,10 @@ class Booking_Service {
 	 * @param string      $check_in Y-m-d.
 	 * @param string      $check_out Y-m-d exclusive.
 	 * @param string|null $guest_json JSON.
+	 * @param int         $preferred_plot_id Optional: try this plot first before iterating others.
 	 * @return array{success: bool, booking_id?: int, plot_id?: int, message?: string}
 	 */
-	public function confirm_booking_atomic( $order_id, $line_item_id, $check_in, $check_out, $guest_json ) {
+	public function confirm_booking_atomic( $order_id, $line_item_id, $check_in, $check_out, $guest_json, $preferred_plot_id = 0 ) {
 		global $wpdb;
 
 		$nights = Dates::nights_in_range( $check_in, $check_out );
@@ -206,6 +283,20 @@ class Booking_Service {
 
 		try {
 			$plot_rows = $this->plots->get_all();
+
+			$preferred_plot_id = (int) $preferred_plot_id;
+			if ( $preferred_plot_id > 0 ) {
+				$reordered = array();
+				$rest      = array();
+				foreach ( $plot_rows as $prow ) {
+					if ( (int) $prow['id'] === $preferred_plot_id ) {
+						$reordered[] = $prow;
+					} else {
+						$rest[] = $prow;
+					}
+				}
+				$plot_rows = array_merge( $reordered, $rest );
+			}
 
 			$booking_id = $this->bookings->insert(
 				array(
