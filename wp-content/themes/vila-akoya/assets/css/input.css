@@ -18,6 +18,28 @@
 }
 
 @layer components {
+  @media (max-width: 1240px) {
+    #site-nav-desktop-links {
+      font-size: 0.875rem;
+      letter-spacing: 0.01em;
+    }
+
+    #site-nav-desktop-links a {
+      padding-left: 0.4rem;
+      padding-right: 0.4rem;
+    }
+
+    nav a[href*="/booking/"] {
+      font-size: 0.9rem;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+
+    .vila-footer-links a {
+      font-size: 0.9rem;
+    }
+  }
+
   .material-symbols-outlined {
     font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
   }
@@ -44,6 +66,12 @@
     max-width: 24rem;
     margin-left: auto;
     margin-right: auto;
+  }
+
+  /* Brochure thank-you / booking — italic accent on Josefin Sans */
+  .font-serif-italic {
+    font-family: inherit;
+    font-style: italic;
   }
 
   /*
@@ -138,6 +166,27 @@
   .vila-home .wp-block-columns.vila-split-flush {
     gap: 0 !important;
     --wp--style--block-gap: 0 !important;
+  }
+
+  .vila-home .vila-home-hero-image > img {
+    filter: brightness(0.85);
+  }
+
+  .vila-home .vila-home-village-image > img {
+    filter: grayscale(0.15);
+    transition: filter 300ms ease;
+  }
+
+  .vila-home .vila-home-village-image:hover > img {
+    filter: grayscale(0);
+  }
+
+  .vila-home .vila-home-campsite-image > img {
+    transition: transform 300ms ease;
+  }
+
+  .vila-home .group:hover .vila-home-campsite-image > img {
+    transform: scale(1.02);
   }
 
   @media (min-width: 782px) {
@@ -278,6 +327,174 @@
 
   .vila-cf7 .wpcf7-response-output {
     @apply mt-4 rounded-lg text-sm;
+  }
+
+  /* Home newsletter tout: brochure-style pill field + cream CTA */
+  .va-home-digi-family .vila-cf7--newsletter .wpcf7-form {
+    @apply mt-2;
+  }
+
+  .va-home-digi-family .vila-cf7--newsletter .wpcf7-form > div {
+    @apply flex flex-col gap-4 md:flex-row md:items-center;
+  }
+
+  .va-home-digi-family .vila-cf7--newsletter .newsletter-email {
+    @apply min-h-[3.25rem] w-full rounded-full border-0 bg-white/20 px-6 py-3 text-base text-on-primary placeholder:text-on-primary/70;
+    @apply focus:ring-2 focus:ring-white/30;
+  }
+
+  .va-home-digi-family .vila-cf7--newsletter .newsletter-submit {
+    @apply min-h-[3.25rem] rounded-full border-0 bg-surface px-10 py-3 text-base font-semibold text-primary shadow-md;
+    @apply hover:bg-surface-container-low;
+  }
+
+  /* Contact page form card: mirror brochure contact form styling */
+  body.vila-page-contact .va-contact-form-card {
+    @apply rounded-[1.75rem] border border-outline-variant/20 bg-surface-container-low p-8 md:p-12;
+    box-shadow:
+      0 20px 40px rgba(51, 46, 30, 0.06),
+      0 6px 20px rgba(51, 46, 30, 0.04);
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-form {
+    @apply space-y-6;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-form p {
+    @apply m-0;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-form p + p {
+    @apply mt-6;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-form-control-wrap {
+    @apply mt-2 block;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-form label {
+    @apply mb-2 block font-label text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="text"],
+  body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="email"],
+  body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="tel"],
+  body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="url"],
+  body.vila-page-contact .va-contact-form-card .wpcf7-form textarea {
+    @apply w-full rounded-lg border-0 bg-surface-container-highest px-4 py-3 text-base text-on-surface shadow-none;
+    @apply focus:ring-2 focus:ring-primary/20;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-form textarea {
+    @apply min-h-[140px] resize-none;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-submit {
+    @apply inline-flex min-h-[3.25rem] items-center justify-center rounded-full bg-primary px-8 py-3.5 font-label text-sm font-semibold uppercase tracking-[0.11em] text-on-primary;
+    @apply hover:bg-primary-container;
+  }
+
+  body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
+    @apply mt-2 text-xs text-error;
+  }
+
+  /* Campus form card: match brochure-style host inquiry form */
+  .va-campus-form-card {
+    box-shadow:
+      0 20px 40px rgba(51, 46, 30, 0.05),
+      0 6px 18px rgba(51, 46, 30, 0.03);
+  }
+
+  .va-campus-form-card .wpcf7-form {
+    @apply space-y-6;
+  }
+
+  .va-campus-form-card .wpcf7-form p {
+    @apply m-0;
+  }
+
+  .va-campus-form-card .wpcf7-form p + p {
+    @apply mt-6;
+  }
+
+  .va-campus-form-card .wpcf7-form-control-wrap {
+    @apply mt-2 block;
+  }
+
+  .va-campus-form-card .wpcf7-form label {
+    @apply mb-2 block font-label text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant;
+  }
+
+  .va-campus-form-card .wpcf7-form input[type="text"],
+  .va-campus-form-card .wpcf7-form input[type="email"],
+  .va-campus-form-card .wpcf7-form input[type="tel"],
+  .va-campus-form-card .wpcf7-form input[type="url"] {
+    @apply w-full min-h-[3rem] rounded-full border-0 bg-surface px-5 py-3 text-base text-on-background shadow-none;
+    @apply focus:ring-2 focus:ring-primary/20;
+  }
+
+  .va-campus-form-card .wpcf7-form textarea {
+    @apply w-full min-h-[8.5rem] rounded-[1.5rem] border-0 bg-surface px-5 py-4 text-base text-on-background shadow-none resize-y;
+    @apply focus:ring-2 focus:ring-primary/20;
+  }
+
+  .va-campus-form-card .wpcf7-checkbox .wpcf7-list-item {
+    @apply ml-0 mr-0;
+  }
+
+  .va-campus-form-card .wpcf7-list-item-label {
+    @apply text-sm italic text-on-surface-variant;
+  }
+
+  .va-campus-form-card .wpcf7-submit {
+    @apply mt-2 inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-full border-0 bg-primary px-8 py-3.5 text-center font-label text-sm font-semibold uppercase tracking-[0.11em] text-on-primary;
+    @apply hover:bg-primary-container;
+  }
+
+  /* Hard override for CF7 default/browser styles on Campus form */
+  .va-campus-form-card .wpcf7-form label {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control-wrap {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-text,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-email,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-textarea,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-tel {
+    width: 100% !important;
+    border: 0 !important;
+    border-radius: 9999px !important;
+    background: #ece6cf !important;
+    color: #332e1e !important;
+    box-shadow: none !important;
+  }
+
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-text,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-email,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-tel {
+    min-height: 3rem !important;
+    padding: 0.75rem 1.25rem !important;
+  }
+
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-textarea {
+    min-height: 8.5rem !important;
+    border-radius: 1.5rem !important;
+    padding: 1rem 1.25rem !important;
+  }
+
+  .va-campus-form-card .wpcf7-form .wpcf7-submit {
+    width: 100% !important;
+    border: 0 !important;
+    border-radius: 9999px !important;
+    background: #9a4021 !important;
+    color: #fff !important;
+    min-height: 3.25rem !important;
+    padding: 0.875rem 2rem !important;
   }
 
   /* Booking page: white card + don't clip guest popover (columns often default to overflow hidden) */
@@ -1176,4 +1393,71 @@
     animation: none !important;
     border-radius: 50% 48% 52% 50% / 52% 50% 48% 50% !important;
   }
+}
+
+/* Campus CF7 hard styles (kept outside @layer so Tailwind never prunes them) */
+.va-campus-form-card .wpcf7-form {
+  display: block;
+}
+
+.va-campus-form-card .wpcf7-form p {
+  margin: 0;
+}
+
+.va-campus-form-card .wpcf7-form p + p {
+  margin-top: 1.5rem;
+}
+
+.va-campus-form-card .wpcf7-form label {
+  display: block !important;
+  margin-bottom: 0.5rem !important;
+  width: 100% !important;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #625b48;
+}
+
+.va-campus-form-card .wpcf7-form-control-wrap {
+  display: block !important;
+  width: 100% !important;
+}
+
+.va-campus-form-card .wpcf7-form input[type="text"],
+.va-campus-form-card .wpcf7-form input[type="email"],
+.va-campus-form-card .wpcf7-form input[type="tel"],
+.va-campus-form-card .wpcf7-form input[type="url"] {
+  width: 100% !important;
+  min-height: 3rem !important;
+  padding: 0.75rem 1.25rem !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #ece6cf !important;
+  color: #332e1e !important;
+  box-shadow: none !important;
+}
+
+.va-campus-form-card .wpcf7-form textarea {
+  width: 100% !important;
+  min-height: 8.5rem !important;
+  padding: 1rem 1.25rem !important;
+  border: 0 !important;
+  border-radius: 1.5rem !important;
+  background: #ece6cf !important;
+  color: #332e1e !important;
+  box-shadow: none !important;
+}
+
+.va-campus-form-card .wpcf7-form .wpcf7-submit {
+  width: 100% !important;
+  min-height: 3.25rem !important;
+  padding: 0.875rem 2rem !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #9a4021 !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
 }

@@ -1271,7 +1271,7 @@ class Admin {
 							<th scope="row"><label for="vila_cb_pricing_adult"><?php esc_html_e( 'Adult rate (override)', 'vila-campsite-booking' ); ?></label></th>
 							<td>
 								<input name="vila_cb_pricing[adult_per_night]" id="vila_cb_pricing_adult" type="number" min="0" step="0.01" value="<?php echo esc_attr( (string) $pricing['adult_per_night'] ); ?>" class="small-text" />
-								<p class="description"><?php esc_html_e( 'Per adult, per night. Leave 0 to use the campsite product's regular price from WooCommerce (still calculated and charged in EUR).', 'vila-campsite-booking' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Per adult, per night. Leave 0 to use the campsite product regular price from WooCommerce (still calculated and charged in EUR).', 'vila-campsite-booking' ); ?></p>
 							</td>
 						</tr>
 						<tr>

@@ -72,6 +72,7 @@ function vila_akoya_run_seed() {
 		$content = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$content = vila_akoya_seed_replace_cf7_placeholders( $content, $cf7 );
 		$content = vila_akoya_seed_replace_wc_placeholders( $content );
+		$content = vila_akoya_seed_localize_image_urls( $content );
 		$content = vila_akoya_absolutize_brochure_hrefs( $content );
 
 		$existing = get_page_by_path( $slug, OBJECT, 'page' );
@@ -98,6 +99,68 @@ function vila_akoya_run_seed() {
 		update_option( 'show_on_front', 'page' );
 		update_option( 'page_on_front', $page_ids['home'] );
 	}
+}
+
+/**
+ * Replace static brochure CDN image URLs with local attachment URLs by filename.
+ *
+ * This keeps seeded content portable while still loading images from the local media library.
+ *
+ * @param string $html HTML / block content.
+ * @return string
+ */
+function vila_akoya_seed_localize_image_urls( $html ) {
+	$html = is_string( $html ) ? $html : '';
+	if ( '' === $html || false === strpos( $html, 'https://vila-akoya.com/images/' ) ) {
+		return $html;
+	}
+
+	global $wpdb;
+	$rows = $wpdb->get_results(
+		"SELECT p.ID, pm.meta_value AS attached_file
+		 FROM {$wpdb->posts} p
+		 INNER JOIN {$wpdb->postmeta} pm
+		   ON pm.post_id = p.ID
+		  AND pm.meta_key = '_wp_attached_file'
+		 WHERE p.post_type = 'attachment'"
+	);
+
+	$map = array();
+	foreach ( (array) $rows as $row ) {
+		$attached = isset( $row->attached_file ) ? (string) $row->attached_file : '';
+		$name     = basename( $attached );
+		$url      = wp_get_attachment_url( (int) $row->ID );
+		if ( '' !== $name && $url ) {
+			$map[ $name ] = wp_make_link_relative( (string) $url );
+		}
+	}
+
+	if ( empty( $map ) ) {
+		return $html;
+	}
+
+	$localized = preg_replace_callback(
+		'#https://vila-akoya\\.com/images/([^"\\s>]+)#',
+		static function ( array $matches ) use ( $map ) {
+			$file = basename( (string) $matches[1] );
+			if ( isset( $map[ $file ] ) ) {
+				return $map[ $file ];
+			}
+			$base = pathinfo( $file, PATHINFO_FILENAME );
+			$ext  = pathinfo( $file, PATHINFO_EXTENSION );
+			$slug = preg_quote( $base, '#' );
+			$extq = preg_quote( $ext, '#' );
+			foreach ( $map as $attached_file => $attached_url ) {
+				if ( preg_match( '#^' . $slug . '(?:-[0-9]+)?(?:-scaled)?\\.' . $extq . '$#i', (string) $attached_file ) ) {
+					return (string) $attached_url;
+				}
+			}
+			return (string) $matches[0];
+		},
+		$html
+	);
+
+	return is_string( $localized ) ? $localized : $html;
 }
 
 /**

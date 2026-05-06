@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.13' );
+define( 'VILA_AKOYA_VERSION', '1.0.14' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
@@ -133,3 +133,19 @@ function vila_akoya_enqueue_block_editor_assets() {
 	);
 }
 add_action( 'enqueue_block_editor_assets', 'vila_akoya_enqueue_block_editor_assets' );
+
+/**
+ * Print favicon and web app icon links from brochure icon set.
+ */
+function vila_akoya_print_favicon_meta() {
+	$icons_uri = trailingslashit( VILA_AKOYA_URI . '/assets/icons' );
+	?>
+	<link rel="icon" type="image/png" href="<?php echo esc_url( $icons_uri . 'favicon-96x96.png' ); ?>" sizes="96x96" />
+	<link rel="icon" type="image/svg+xml" href="<?php echo esc_url( $icons_uri . 'favicon.svg' ); ?>" />
+	<link rel="shortcut icon" href="<?php echo esc_url( $icons_uri . 'favicon.ico' ); ?>" />
+	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( $icons_uri . 'apple-touch-icon.png' ); ?>" />
+	<meta name="apple-mobile-web-app-title" content="Vila Akoya" />
+	<link rel="manifest" href="<?php echo esc_url( $icons_uri . 'site.webmanifest' ); ?>" />
+	<?php
+}
+add_action( 'wp_head', 'vila_akoya_print_favicon_meta', 1 );

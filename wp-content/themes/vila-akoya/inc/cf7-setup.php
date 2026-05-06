@@ -8,6 +8,11 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Bump when seeded CF7 form markup changes.
+ */
+define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '2' );
+
+/**
  * Create or retrieve CF7 form IDs keyed by slug.
  *
  * @return array<string, int>
@@ -18,7 +23,8 @@ function vila_akoya_get_cf7_form_ids() {
 	}
 
 	$cached = get_option( 'vila_akoya_cf7_form_ids', array() );
-	if ( is_array( $cached ) && count( $cached ) >= 5 ) {
+	$schema = (string) get_option( 'vila_akoya_cf7_schema_ver', '' );
+	if ( is_array( $cached ) && count( $cached ) >= 5 && VILA_AKOYA_CF7_SCHEMA_VERSION === $schema ) {
 		return $cached;
 	}
 
@@ -144,11 +150,11 @@ function vila_akoya_get_cf7_form_ids() {
 				"\n",
 				array(
 					'<div class="grid grid-cols-1 md:grid-cols-2 gap-6">',
-					'<div><label for="contact-name">' . esc_html__( 'Your name', 'vila-akoya' ) . '</label>[text* your-name id:contact-name]</div>',
-					'<div><label for="contact-email">' . esc_html__( 'Email', 'vila-akoya' ) . '</label>[email* your-email id:contact-email]</div>',
+					'<div><label for="contact-name">' . esc_html__( 'Your name', 'vila-akoya' ) . '</label>[text* your-name id:contact-name placeholder "' . esc_attr__( 'Your name', 'vila-akoya' ) . '"]</div>',
+					'<div><label for="contact-email">' . esc_html__( 'Email', 'vila-akoya' ) . '</label>[email* your-email id:contact-email placeholder "' . esc_attr__( 'you@example.com', 'vila-akoya' ) . '"]</div>',
 					'</div>',
-					'<div><label for="contact-phone">' . esc_html__( 'Phone (optional)', 'vila-akoya' ) . '</label>[tel your-phone id:contact-phone]</div>',
-					'<div><label for="contact-message">' . esc_html__( 'Message', 'vila-akoya' ) . '</label>[textarea* your-message id:contact-message]</div>',
+					'<div><label for="contact-phone">' . esc_html__( 'Phone (optional)', 'vila-akoya' ) . '</label>[tel your-phone id:contact-phone placeholder "+351 …"]</div>',
+					'<div><label for="contact-message">' . esc_html__( 'Message', 'vila-akoya' ) . '</label>[textarea* your-message id:contact-message placeholder "' . esc_attr__( 'How can we help?', 'vila-akoya' ) . '"]</div>',
 					'[submit "' . esc_html__( 'Send message', 'vila-akoya' ) . '"]',
 				)
 			),
@@ -162,6 +168,7 @@ function vila_akoya_get_cf7_form_ids() {
 	$ids['contact'] = (int) $contact->id();
 
 	update_option( 'vila_akoya_cf7_form_ids', $ids );
+	update_option( 'vila_akoya_cf7_schema_ver', VILA_AKOYA_CF7_SCHEMA_VERSION );
 
 	return $ids;
 }
