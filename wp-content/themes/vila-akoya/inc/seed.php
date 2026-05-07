@@ -176,6 +176,7 @@ function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
 		'newsletter_home'    => 'vila-cf7 vila-cf7--newsletter',
 		'newsletter_village' => 'vila-cf7 vila-cf7--newsletter',
 		'booking'            => 'vila-cf7 vila-cf7--booking',
+		'village_inquiry'    => 'vila-cf7 vila-cf7--booking',
 		'campus'             => 'vila-cf7 vila-cf7--campus',
 		'contact'            => 'vila-cf7 vila-cf7--contact',
 	);

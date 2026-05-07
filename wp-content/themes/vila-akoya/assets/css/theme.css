@@ -806,26 +806,24 @@ body.vila-page-booking,
   }
 }
 
-@media (max-width: 1240px) {
-  #site-nav-desktop-links {
-    font-size: 0.84rem;
-    letter-spacing: 0.01em;
-  }
+#site-nav-desktop-links {
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+}
 
-  #site-nav-desktop-links a {
-    padding-left: 0.6rem;
-    padding-right: 0.6rem;
-  }
+#site-nav-desktop-links a {
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}
 
-  nav a[href*="/booking/"] {
-    font-size: 0.9rem;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
+nav a[href*="/booking/"] {
+  font-size: 1rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
 
-  .vila-footer-links a {
-    font-size: 0.9rem;
-  }
+.vila-footer-links a {
+  font-size: 0.9rem;
 }
 
 .material-symbols-outlined {
@@ -968,6 +966,28 @@ figure.vila-img-fill > a img,
 
 .vila-home .vila-home-hero-image > img {
   filter: brightness(0.85);
+}
+
+@media (min-width: 768px) {
+  .vila-home .vila-home-hero-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    aspect-ratio: auto !important;
+    margin: 0;
+  }
+
+  .vila-home .vila-home-hero-image > img {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100%;
+    -o-object-fit: cover;
+       object-fit: cover;
+    -o-object-position: center;
+       object-position: center;
+  }
 }
 
 .vila-home .vila-home-village-image > img {
@@ -1703,20 +1723,6 @@ body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell,
       0 10px 28px rgba(61, 42, 34, 0.05);
 }
 
-body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell::before,
-  body.vila-page-booking .va-booking-reserve-card::before {
-  content: '';
-  position: absolute;
-  top: -2rem;
-  right: -2rem;
-  width: 8rem;
-  height: 8rem;
-  pointer-events: none;
-  z-index: 1;
-  border-bottom-left-radius: 9999px;
-  background-color: rgb(154 64 33 / 0.05);
-}
-
 body.vila-page-booking .va-booking-reserve-card > *,
   body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell > * {
   position: relative;
@@ -1809,15 +1815,80 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
   transform: translateY(-1px);
 }
 
-/* CF7 inquiry — matches brochure-website/booking.html (surface-container-low, rounded-lg, ring focus, radio border) */
+/* Campsite vs Village tabs (booking reserve column) */
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form > :not([hidden]) ~ :not([hidden]) {
+body.vila-page-booking .va-booking-reserve-tabs__tab {
+  --tw-text-opacity: 1;
+  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+}
+
+body.vila-page-booking .va-booking-reserve-tabs__tab:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+  --tw-ring-color: rgb(154 64 33 / 0.25);
+  --tw-ring-offset-width: 2px;
+  --tw-ring-offset-color: #fff;
+}
+
+body.vila-page-booking .va-booking-reserve-tabs__tab.is-active {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+  --tw-text-opacity: 1;
+  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+/* CF7 in reserve column (campsite inquiry + village tab): same structural overrides as campus/contact */
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;
   margin-top: calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(1.5rem * var(--tw-space-y-reverse));
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form label {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 > p {
+  margin: 0px;
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 > p + p {
+  margin-top: 1.5rem;
+}
+
+/* CF7 wraps raw HTML oddly; unblock grid/layout when a row contains a grid.
+     Avoid `> .grid` inside :has() — Tailwind can merge that with other `.grid` rules. */
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 p:has(> [class*='grid-cols']) {
+  display: contents;
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .grid {
+  display: grid !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  gap: 1.5rem !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+@media (min-width: 768px) {
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .grid[class*='md:grid-cols-2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .grid > div {
+  min-width: 0 !important;
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 label {
+  display: block !important;
+  width: 100% !important;
+  margin-bottom: 0.5rem;
   font-family: Josefin Sans, system-ui, sans-serif;
   font-size: 0.75rem;
   line-height: 1rem;
@@ -1828,10 +1899,18 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
   color: rgb(86 66 60 / var(--tw-text-opacity, 1));
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='text'],
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='email'],
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='tel'],
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='url'] {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control-wrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin-top: 0px;
+  display: block;
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text'],
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email'],
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel'],
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url'] {
   min-height: 3.25rem;
   width: 100%;
   border-radius: 2rem;
@@ -1857,30 +1936,30 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='text']::-moz-placeholder, .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='email']::-moz-placeholder, .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='tel']::-moz-placeholder, .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='url']::-moz-placeholder {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']::-moz-placeholder, body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email']::-moz-placeholder, body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']::-moz-placeholder, body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']::-moz-placeholder {
   color: rgb(86 66 60 / 0.75);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='text']::placeholder,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='email']::placeholder,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='tel']::placeholder,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='url']::placeholder {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']::placeholder,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email']::placeholder,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']::placeholder,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']::placeholder {
   color: rgb(86 66 60 / 0.75);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='text']:hover,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='email']:hover,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='tel']:hover,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='url']:hover {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']:hover,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email']:hover,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']:hover,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']:hover {
   border-color: rgb(220 193 185 / 0.4);
   --tw-bg-opacity: 1;
   background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='text']:focus,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='email']:focus,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='tel']:focus,
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='url']:focus {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']:focus,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email']:focus,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']:focus,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']:focus {
   --tw-border-opacity: 1;
   border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
@@ -1892,7 +1971,7 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form textarea {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea {
   min-height: 10rem;
   width: 100%;
   resize: none;
@@ -1919,21 +1998,21 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form textarea::-moz-placeholder {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea::-moz-placeholder {
   color: rgb(86 66 60 / 0.75);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form textarea::placeholder {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea::placeholder {
   color: rgb(86 66 60 / 0.75);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form textarea:hover {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea:hover {
   border-color: rgb(220 193 185 / 0.4);
   --tw-bg-opacity: 1;
   background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-form textarea:focus {
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea:focus {
   --tw-border-opacity: 1;
   border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
@@ -1945,73 +2024,47 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
-.va-booking-reserve-card .vila-cf7--booking .vila-booking-primary-interest__explore a {
-  font-weight: 500;
-  --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
-  text-decoration-line: underline;
-  text-underline-offset: 2px;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+/* Hard override CF7/browser defaults on controls (campus/contact pattern) */
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-text,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-email,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-tel {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: 3.25rem !important;
+  border-radius: 0.5rem !important;
+  border-width: 2px !important;
+  border-style: solid !important;
+  border-color: transparent !important;
+  background-color: #f7f4e9 !important;
+  /* surface-container-low */
+  color: #1c1c16 !important;
+  /* on-background */
+  padding: 1rem 1.25rem !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+  box-shadow: none !important;
 }
 
-.va-booking-reserve-card .vila-cf7--booking .vila-booking-primary-interest__explore a:hover {
-  --tw-text-opacity: 1;
-  color: rgb(186 87 55 / var(--tw-text-opacity, 1));
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea {
+  min-height: 10rem !important;
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-list-item-label {
-  display: flex;
-  min-height: 3rem;
-  width: 100%;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  border-radius: 2rem;
-  border-width: 2px;
-  border-color: transparent;
-  --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  font-weight: 500;
-  --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
-  --tw-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 0 #0000;
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
-  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input.wpcf7-submit {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  border: 0 !important;
+  border-radius: 0.5rem !important;
+  background-color: #9a4021 !important;
+  /* primary */
+  color: #ffefeb !important;
+  /* on-primary */
 }
 
-.va-booking-reserve-card .vila-cf7--booking .wpcf7-list-item-label:hover {
-  border-color: rgb(220 193 185 / 0.2);
-  --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
-}
-
-.va-booking-reserve-card .vila-cf7--booking input[type='radio']:checked + .wpcf7-list-item-label {
-  --tw-border-opacity: 1;
-  border-color: rgb(154 64 33 / var(--tw-border-opacity, 1));
-  background-color: rgb(154 64 33 / 0.05);
-  --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
-  --tw-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 0 #0000;
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
-}
-
-.va-booking-reserve-card .vila-cf7 .wpcf7-submit {
+body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
   margin-top: 0.5rem;
   display: flex;
   width: 100%;
@@ -2046,7 +2099,7 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
-.va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
+body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
   transform: translateY(-2px);
@@ -2459,7 +2512,6 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   margin-bottom: 0px;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
 }
 
 .va-map-lightbox.vila-wc-booking .quantity {
@@ -2565,36 +2617,6 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
 }
 
-/* Primary interest — brochure booking.html */
-
-.vila-wc-booking .vila-primary-interest-option .vila-airbnb-booking__chip-body,
-  body.single-product .vila-primary-interest-option .vila-airbnb-booking__chip-body {
-  min-height: 3rem;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  border-radius: 2rem;
-  border-width: 2px;
-  border-color: transparent;
-  --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  text-align: center;
-  --tw-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 0 #0000;
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-}
-
-.vila-wc-booking .vila-primary-interest-option:hover .vila-airbnb-booking__chip-body,
-  body.single-product .vila-primary-interest-option:hover .vila-airbnb-booking__chip-body {
-  border-color: rgb(220 193 185 / 0.2);
-  --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
-}
-
 /* Vehicle / lodging chips */
 
 .vila-wc-booking .vila-vehicle-option .vila-airbnb-booking__chip-body,
@@ -2661,38 +2683,6 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   color: rgb(154 64 33 / var(--tw-text-opacity, 1));
 }
 
-.vila-wc-booking .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body,
-  body.single-product .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body {
-  --tw-border-opacity: 1;
-  border-color: rgb(154 64 33 / var(--tw-border-opacity, 1));
-  background-color: rgb(154 64 33 / 0.05);
-  --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
-  --tw-shadow: 0 0 #0000;
-  --tw-shadow-colored: 0 0 #0000;
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
-}
-
-.vila-wc-booking .vila-primary-interest-grid,
-  body.single-product .vila-primary-interest-grid {
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-  max-width: 36rem;
-  gap: 0.75rem;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 480px) {
-  .vila-wc-booking .vila-primary-interest-grid,
-    body.single-product .vila-primary-interest-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 .vila-wc-booking .vila-vehicle-grid.vila-airbnb-booking__chip-grid,
   body.single-product .vila-vehicle-grid.vila-airbnb-booking__chip-grid {
   margin-left: auto;
@@ -2702,64 +2692,12 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   gap: 0.75rem;
 }
 
-.vila-wc-booking .vila-primary-interest__explore,
-  body.single-product .vila-primary-interest__explore {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
-}
-
-@media (min-width: 640px) {
-  .vila-wc-booking .vila-primary-interest__explore,
-  body.single-product .vila-primary-interest__explore {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: baseline;
-    -moz-column-gap: 0.5rem;
-         column-gap: 0.5rem;
-  }
-}
-
-.vila-wc-booking .vila-primary-interest__explore a,
-  body.single-product .vila-primary-interest__explore a {
-  font-weight: 500;
-  --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
-  text-decoration-line: underline;
-  text-underline-offset: 2px;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.vila-wc-booking .vila-primary-interest__explore a:hover,
-  body.single-product .vila-primary-interest__explore a:hover {
-  --tw-text-opacity: 1;
-  color: rgb(186 87 55 / var(--tw-text-opacity, 1));
-}
-
 .vila-wc-booking .vila-airbnb-booking__chip-title,
   body.single-product .vila-airbnb-booking__chip-title {
   font-size: 0.9375rem;
   font-weight: 500;
   --tw-text-opacity: 1;
   color: rgb(28 28 22 / var(--tw-text-opacity, 1));
-}
-
-.vila-wc-booking .vila-primary-interest-option .vila-airbnb-booking__chip-title,
-  body.single-product .vila-primary-interest-option .vila-airbnb-booking__chip-title {
-  --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
-}
-
-.vila-wc-booking .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title,
-  body.single-product .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title {
-  --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking__chip-meta,
@@ -3218,6 +3156,10 @@ body.va-map-lightbox-open {
   background-color: rgb(19 14 3 / 0.8);
 }
 
+.woocommerce div.product form.cart::after, .woocommerce div.product form.cart::before {
+  content: none !important;
+}
+
 .vila-page-inner .va-map-lightbox__content.group figure.wp-block-image img {
   transition: transform 700ms ease;
 }
@@ -3231,7 +3173,7 @@ body.va-map-lightbox-open {
   z-index: 10;
   max-height: 94vh;
   width: 100%;
-  max-width: 96vw;
+  max-width: 1154px;
   border-radius: 1rem;
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
@@ -3723,6 +3665,31 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-b
   }
 }
 
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-billing-fields__field-wrapper,body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-shipping-fields__field-wrapper,body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields__field-wrapper {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-billing-fields__field-wrapper[class*='md:grid-cols-2'],body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-shipping-fields__field-wrapper[class*='md:grid-cols-2'],body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields__field-wrapper[class*='md:grid-cols-2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-billing-fields__field-wrapper > div,body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-shipping-fields__field-wrapper > div,body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields__field-wrapper > div {
+  min-width: 0;
+}
+
 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-billing-fields__field-wrapper,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-shipping-fields__field-wrapper,
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields__field-wrapper {
@@ -4105,6 +4072,28 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-info,
 
 /* Meta row: calm chips, no heavy outlines */
 
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-order-received ul.order_details,body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-order-received ul.order_details[class*='md:grid-cols-2'],body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview[class*='md:grid-cols-2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-order-received ul.order_details > div,body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 
+  body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview > div {
+  min-width: 0;
+}
+
 body.vila-wc-commerce.woocommerce-order-received ul.order_details,
   body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview {
   margin: 0px;
@@ -4331,6 +4320,25 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-column__title {
   }
 }
 
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-order-received .woocommerce-columns--addresses {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-order-received .woocommerce-columns--addresses[class*='md:grid-cols-2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 body.vila-wc-commerce.woocommerce-order-received .woocommerce-columns--addresses > div {
+  min-width: 0;
+}
+
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-columns--addresses {
   display: grid;
   gap: 2rem;
@@ -4421,7 +4429,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .wc-block-chec
   margin-left: auto;
   margin-right: auto;
   width: 100%;
-  max-width: 48rem;
+  max-width: 64rem;
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 3rem;
@@ -4444,8 +4452,42 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .wc-block-chec
 
 @media (min-width: 1024px) {
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .wc-block-checkout {
-    max-width: 56rem;
+    max-width: 64rem;
   }
+}
+
+.wc-block-components-sidebar {
+  width: 45%;
+}
+
+.wc-block-components-sidebar-layout .wc-block-components-main {
+  width: 55%;
+}
+
+@media (max-width: 768px) {
+  .wc-block-components-sidebar {
+    width: 100%;
+  }
+
+  .wc-block-components-sidebar-layout .wc-block-components-main {
+    width: 100%;
+  }
+}
+
+.wc-block-components-order-summary-item__image {
+  display: none !important;
+}
+
+.wp-block-woocommerce-store-notices {
+  display: none;
+}
+
+.wp-block-woocommerce-order-confirmation-status {
+  margin-top: 10rem !important;
+}
+
+.wp-block-woocommerce-order-confirmation-summary, .wp-block-woocommerce-order-confirmation-totals-wrapper, .wc-block-order-confirmation-address-wrapper, .wp-block-woocommerce-order-confirmation-additional-information{
+  max-width: 900px !important;
 }
 
 /* Block checkout: hide “Return to cart” (backup if block attrs still render it) */
@@ -4521,6 +4563,55 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-st
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status {
     font-size: 3rem;
     line-height: 1;
+  }
+}
+
+body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status {
+  position: relative;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::before {
+  content: "Booking successful";
+  display: block;
+  font-family: Marcellus, Georgia, serif;
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 400;
+  --tw-text-opacity: 1;
+  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+}
+
+@media (min-width: 768px) {
+  body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::before {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::before {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::after {
+  content: "We can't wait to meet you!";
+  display: block;
+  margin-top: 0.75rem;
+  font-family: Josefin Sans, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  --tw-text-opacity: 1;
+  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+}
+
+@media (min-width: 768px) {
+  body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::after {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
   }
 }
 
@@ -5062,6 +5153,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   aspect-ratio: 3/2;
 }
 
+.aspect-\[4\/2\] {
+  aspect-ratio: 4/2;
+}
+
 .aspect-\[4\/3\] {
   aspect-ratio: 4/3;
 }
@@ -5343,12 +5438,20 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   max-width: 56rem;
 }
 
+.max-w-5xl {
+  max-width: 64rem;
+}
+
 .max-w-6xl {
   max-width: 72rem;
 }
 
 .max-w-7xl {
   max-width: 80rem;
+}
+
+.max-w-\[1154px\] {
+  max-width: 1154px;
 }
 
 .max-w-\[1236px\] {
@@ -5377,10 +5480,6 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .max-w-\[50rem\] {
   max-width: 50rem;
-}
-
-.max-w-\[96vw\] {
-  max-width: 96vw;
 }
 
 .max-w-full {
@@ -6321,6 +6420,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   background-color: rgb(247 244 233 / 0.4);
 }
 
+.bg-surface-container-low\/50 {
+  background-color: rgb(247 244 233 / 0.5);
+}
+
 .bg-surface-container-low\/60 {
   background-color: rgb(247 244 233 / 0.6);
 }
@@ -6546,6 +6649,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .p-1 {
   padding: 0.25rem;
+}
+
+.p-1\.5 {
+  padding: 0.375rem;
 }
 
 .p-10 {
@@ -7249,6 +7356,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   text-decoration-color: rgb(154 64 33 / 0.3);
 }
 
+.decoration-primary\/70 {
+  text-decoration-color: rgb(154 64 33 / 0.7);
+}
+
 .decoration-secondary {
   text-decoration-color: #5c6348;
 }
@@ -7392,6 +7503,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   --tw-shadow: var(--tw-shadow-colored);
 }
 
+.outline-none {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
 .outline {
   outline-style: solid;
 }
@@ -7413,9 +7529,17 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   --tw-ring-color: rgb(154 64 33 / var(--tw-ring-opacity, 1));
 }
 
+.ring-primary\/25 {
+  --tw-ring-color: rgb(154 64 33 / 0.25);
+}
+
 .ring-white {
   --tw-ring-opacity: 1;
   --tw-ring-color: rgb(255 255 255 / var(--tw-ring-opacity, 1));
+}
+
+.ring-offset-2 {
+  --tw-ring-offset-width: 2px;
 }
 
 .blur {
@@ -8278,14 +8402,6 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
   .sm\:flex-row {
     flex-direction: row;
-  }
-
-  .sm\:flex-wrap {
-    flex-wrap: wrap;
-  }
-
-  .sm\:items-baseline {
-    align-items: baseline;
   }
 
   .sm\:p-8 {

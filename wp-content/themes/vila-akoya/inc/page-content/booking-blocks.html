@@ -2,7 +2,7 @@
 <div class="wp-block-group vila-page-inner pt-0 pb-20 px-6 max-w-screen-xl mx-auto">
 
 <!-- wp:group {"tagName":"section","className":"grid grid-cols-1 lg:grid-cols-12 gap-12 items-center content-center min-h-[calc(100vh-6rem)] mb-24","layout":{"type":"default"}} -->
-<section class="wp-block-group grid grid-cols-1 lg:grid-cols-12 gap-12 items-center content-center min-h-[calc(100vh-6rem)] mb-24">
+<section class="wp-block-group grid grid-cols-1 lg:grid-cols-12 gap-12 items-center content-center mb-24">
 <!-- wp:group {"className":"lg:col-span-7","layout":{"type":"default"}} -->
 <div class="wp-block-group lg:col-span-7">
 <!-- wp:paragraph {"className":"text-primary font-label uppercase tracking-[0.2em] text-xs mb-4"} -->
@@ -94,12 +94,20 @@
 <!-- wp:group {"className":"space-y-8","layout":{"type":"default"}} -->
 <div class="wp-block-group space-y-8">
 
-<h3 class="wp-block-heading font-headline text-2xl text-primary mb-0">Reserve your dates</h3>
+<div class="va-booking-reserve-tabs mb-2" data-va-booking-tabs>
+<div class="va-booking-reserve-tabs__list flex w-full gap-2 rounded-2xl border border-outline-variant/20 bg-surface-container-low/50 p-1.5" role="tablist" aria-label="Campsite booking or village inquiry">
+<button type="button" class="va-booking-reserve-tabs__tab is-active flex flex-1 items-center justify-center rounded-xl px-4 py-3 text-sm font-label font-semibold uppercase tracking-[0.12em] text-on-surface-variant transition-colors" role="tab" aria-selected="true" aria-controls="va-booking-panel-campsite" id="va-booking-tab-campsite" data-va-booking-tab="campsite">The Campsite</button>
+<button type="button" class="va-booking-reserve-tabs__tab flex flex-1 items-center justify-center rounded-xl px-4 py-3 text-sm font-label font-semibold uppercase tracking-[0.12em] text-on-surface-variant transition-colors" role="tab" aria-selected="false" aria-controls="va-booking-panel-village" id="va-booking-tab-village" tabindex="-1" data-va-booking-tab="village">The Village</button>
+</div>
+</div>
+
+<div id="va-booking-panel-campsite" class="va-booking-reserve-tabs__panel space-y-8" role="tabpanel" aria-labelledby="va-booking-tab-campsite" data-va-booking-panel="campsite">
+
 
 <!-- wp:group {"className":"va-booking-map-panel rounded-3xl bg-surface-container-low/60 p-5 md:p-6 border border-outline-variant/20 space-y-3 md:sticky md:top-24","layout":{"type":"default"}} -->
 <div class="wp-block-group va-booking-map-panel rounded-3xl bg-surface-container-low/60 p-5 md:p-6 border border-outline-variant/20 space-y-3 md:sticky md:top-24">
 <!-- wp:heading {"level":4,"className":"font-headline text-lg text-on-background mb-0"} -->
-<h4 class="wp-block-heading font-headline text-lg text-on-background mb-0">Choose your plot on the map</h4>
+<h4 class="wp-block-heading font-label text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant mb-0">View the map</h4>
 <!-- /wp:heading -->
 <!-- wp:paragraph {"className":"text-sm text-on-surface-variant mb-0"} -->
 <!-- <p class="text-sm text-on-surface-variant mb-0">Keep this map open while selecting your preferred plot in the booking form below.</p> -->
@@ -115,25 +123,26 @@
 <!-- wp:heading {"level":3,"className":"font-headline text-2xl text-primary mb-0"} -->
 <!-- /wp:heading -->
 <!-- wp:group {"className":"vila-wc-booking","layout":{"type":"default"}} -->
+
 <div class="wp-block-group vila-wc-booking">
 <!-- wp:shortcode -->
 {{wc:campsite_booking}}
 <!-- /wp:shortcode -->
 </div>
 <!-- /wp:group -->
-<!-- wp:group {"className":"pt-8 border-t border-outline-variant/25 space-y-4","layout":{"type":"default"}} -->
-<div class="wp-block-group pt-8 border-t border-outline-variant/25 space-y-4">
-<!-- wp:heading {"level":4,"className":"font-headline text-lg text-on-background mb-0"} -->
-<h4 class="wp-block-heading font-headline text-lg text-on-background mb-0">Questions before you book?</h4>
-<!-- /wp:heading -->
-<!-- wp:paragraph {"className":"text-sm text-on-surface-variant mb-0"} -->
-<p class="text-sm text-on-surface-variant mb-0">Send us a note and we will get back to you.</p>
+<!-- wp:paragraph {"className":"pt-4 text-center text-sm font-body text-primary mb-0"} -->
+<p class="pt-4 text-center text-sm font-body text-primary mb-0">Questions before you book? <a href="/contact/" class="underline decoration-primary/70 underline-offset-4 hover:text-primary-container transition-colors">Contact us here.</a></p>
 <!-- /wp:paragraph -->
-<!-- wp:shortcode -->
-{{cf7:booking}}
-<!-- /wp:shortcode -->
 </div>
 <!-- /wp:group -->
+</div>
+
+<div id="va-booking-panel-village" class="va-booking-reserve-tabs__panel space-y-6 pt-2" role="tabpanel" aria-labelledby="va-booking-tab-village" data-va-booking-panel="village" hidden aria-hidden="true">
+<!-- wp:shortcode -->
+{{cf7:village_inquiry}}
+<!-- /wp:shortcode -->
+</div>
+
 </div>
 <!-- /wp:group -->
 </div>

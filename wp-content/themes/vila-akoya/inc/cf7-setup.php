@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Bump when seeded CF7 form markup changes.
  */
-define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '2' );
+define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '5' );
 
 /**
  * Create or retrieve CF7 form IDs keyed by slug.
@@ -24,7 +24,7 @@ function vila_akoya_get_cf7_form_ids() {
 
 	$cached = get_option( 'vila_akoya_cf7_form_ids', array() );
 	$schema = (string) get_option( 'vila_akoya_cf7_schema_ver', '' );
-	if ( is_array( $cached ) && count( $cached ) >= 5 && VILA_AKOYA_CF7_SCHEMA_VERSION === $schema ) {
+	if ( is_array( $cached ) && count( $cached ) >= 6 && VILA_AKOYA_CF7_SCHEMA_VERSION === $schema ) {
 		return $cached;
 	}
 
@@ -97,19 +97,46 @@ function vila_akoya_get_cf7_form_ids() {
 					'<div><label for="booking-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:booking-email placeholder "elias@example.com"]</div>',
 					'</div>',
 					'<div><label for="booking-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel your-phone id:booking-phone placeholder "+351 000 000 000"]</div>',
-					'<div class="vila-booking-primary-interest"><span class="block mb-2 font-label uppercase tracking-widest text-on-surface-variant">' . esc_html__( 'Primary interest (optional)', 'vila-akoya' ) . '</span><p class="vila-booking-primary-interest__explore text-sm text-on-surface-variant mb-4 mt-0">' . esc_html__( 'Explore first:', 'vila-akoya' ) . ' <a class="text-primary underline-offset-2 hover:underline" href="' . esc_url( home_url( '/village/' ) ) . '">' . esc_html__( 'Village', 'vila-akoya' ) . '</a><span class="text-on-surface-variant/70" aria-hidden="true"> · </span><a class="text-primary underline-offset-2 hover:underline" href="' . esc_url( home_url( '/campsite/' ) ) . '">' . esc_html__( 'Campsite', 'vila-akoya' ) . '</a><span class="text-on-surface-variant/70" aria-hidden="true"> · </span><a class="text-primary underline-offset-2 hover:underline" href="' . esc_url( home_url( '/the-kids/' ) ) . '">' . esc_html__( 'The Kids', 'vila-akoya' ) . '</a></p><div class="grid grid-cols-1 sm:grid-cols-3 gap-3 vila-cf7-booking-radios" role="radiogroup">[radio primary-interest use_label_element "Village" "Campsite" "Both"]</div></div>',
-					'<div><label for="booking-message">' . esc_html__( 'Tell us your story', 'vila-akoya' ) . '</label>[textarea* your-message id:booking-message placeholder "' . esc_attr__( 'How do you see yourself spending time at Akoya?', 'vila-akoya' ) . '"]</div>',
+					'<div><label for="booking-message">' . esc_html__( 'Booking details', 'vila-akoya' ) . '</label>[textarea* your-message id:booking-message placeholder "' . esc_attr__( 'Share here your booking dates, with how many people you\'re coming, and anything else that might be relevant!', 'vila-akoya' ) . '"]</div>',
 					'[submit "' . esc_html__( 'Send Inquiry →', 'vila-akoya' ) . '"]',
 				)
 			),
 			'mail' => vila_akoya_cf7_default_mail(
 				__( 'Vila Akoya — booking inquiry', 'vila-akoya' ),
-				"Booking inquiry.\n\nName: [your-name]\nEmail: [your-email]\nPhone: [your-phone]\nInterest: [primary-interest]\n\nMessage:\n[your-message]"
+				"Booking inquiry (campsite).\n\nName: [your-name]\nEmail: [your-email]\nPhone: [your-phone]\n\nMessage:\n[your-message]"
 			),
 		)
 	);
 	$booking->save();
 	$ids['booking'] = (int) $booking->id();
+
+	$village_inquiry = WPCF7_ContactForm::get_template(
+		array(
+			'title' => __( 'Village inquiry', 'vila-akoya' ),
+		)
+	);
+	$village_inquiry->set_properties(
+		array(
+			'form' => implode(
+				"\n",
+				array(
+					'<div class="grid grid-cols-1 md:grid-cols-2 gap-6">',
+					'<div><label for="village-inq-name">' . esc_html__( 'Your Name', 'vila-akoya' ) . '</label>[text* your-name id:village-inq-name placeholder "Elias Duarte"]</div>',
+					'<div><label for="village-inq-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:village-inq-email placeholder "elias@example.com"]</div>',
+					'</div>',
+					'<div><label for="village-inq-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel your-phone id:village-inq-phone placeholder "+351 000 000 000"]</div>',
+					'<div><label for="village-inq-message">' . esc_html__( 'Tell us a little about yourself', 'vila-akoya' ) . '</label>[textarea* your-message id:village-inq-message placeholder "' . esc_attr__( 'Share a little about who you are, what draws you to this way of living, and why Vila Akoya feels like the right fit for you.', 'vila-akoya' ) . '"]</div>',
+					'[submit "' . esc_html__( 'Send Inquiry →', 'vila-akoya' ) . '"]',
+				)
+			),
+			'mail' => vila_akoya_cf7_default_mail(
+				__( 'Vila Akoya — village inquiry', 'vila-akoya' ),
+				"Village inquiry.\n\nName: [your-name]\nEmail: [your-email]\nPhone: [your-phone]\n\nMessage:\n[your-message]"
+			),
+		)
+	);
+	$village_inquiry->save();
+	$ids['village_inquiry'] = (int) $village_inquiry->id();
 
 	$campus = WPCF7_ContactForm::get_template(
 		array(

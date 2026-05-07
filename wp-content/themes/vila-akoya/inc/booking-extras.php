@@ -155,55 +155,6 @@ function vila_akoya_vehicle_labels_join( array $slugs ) {
 }
 
 /**
- * Primary interest options for the booking form (what guests are most curious about).
- *
- * @return array<string, string> slug => label
- */
-function vila_akoya_get_primary_interest_choices() {
-	return apply_filters(
-		'vila_akoya_primary_interest_choices',
-		array(
-			'village'  => __( 'Village', 'vila-akoya' ),
-			'campsite' => __( 'Campsite', 'vila-akoya' ),
-			'both'     => __( 'Both', 'vila-akoya' ),
-		)
-	);
-}
-
-/**
- * @return string[]
- */
-function vila_akoya_get_primary_interest_slugs() {
-	return array_keys( vila_akoya_get_primary_interest_choices() );
-}
-
-/**
- * @param mixed $raw Raw slug from request or storage.
- * @return string Empty string if unset/invalid; otherwise village|campsite|both.
- */
-function vila_akoya_normalize_primary_interest( $raw ) {
-	$allowed = vila_akoya_get_primary_interest_slugs();
-	$s       = sanitize_key( is_string( $raw ) ? $raw : (string) $raw );
-	if ( $s && in_array( $s, $allowed, true ) ) {
-		return $s;
-	}
-	return '';
-}
-
-/**
- * @param string $slug Normalized slug (may be empty).
- * @return string Display label or empty string.
- */
-function vila_akoya_primary_interest_label( $slug ) {
-	$choices = vila_akoya_get_primary_interest_choices();
-	$slug    = vila_akoya_normalize_primary_interest( $slug );
-	if ( '' === $slug ) {
-		return '';
-	}
-	return isset( $choices[ $slug ] ) ? $choices[ $slug ] : '';
-}
-
-/**
  * Unit types for a cart line (array), migrating legacy single slug.
  *
  * @param array<string, mixed> $cart_item Cart row.
@@ -386,7 +337,11 @@ function vila_akoya_add_vehicle_cart_item_data( $cart_item_data, $product_id, $v
 	}
 	$types = vila_akoya_normalize_vehicle_types_array( $raw_types );
 	$cart_item_data['vila_vehicle_types'] = $types;
-	$cart_item_data['vila_vehicle_type']  = $types[0];
+	if ( ! empty( $types ) ) {
+		$cart_item_data['vila_vehicle_type'] = $types[0];
+	} else {
+		unset( $cart_item_data['vila_vehicle_type'] );
+	}
 	$cart_item_data['vila_booking_nights'] = vila_akoya_nights_from_request();
 	return $cart_item_data;
 }
@@ -419,28 +374,6 @@ function vila_akoya_add_guest_breakdown_cart_item_data( $cart_item_data, $produc
 	return $cart_item_data;
 }
 add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_guest_breakdown_cart_item_data', 31, 3 );
-
-/**
- * Store “primary interest” on the cart line (MWB booking add-to-cart).
- *
- * @param array<string, mixed> $cart_item_data Cart item data.
- * @param int                  $product_id     Product ID.
- * @param int                  $variation_id   Variation ID.
- * @return array<string, mixed>
- */
-function vila_akoya_add_primary_interest_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
-	unset( $variation_id );
-	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
-		return $cart_item_data;
-	}
-	if ( ! isset( $_POST['_mwb_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( vila_akoya_scalar_request_string( $_POST['_mwb_nonce'] ) ) ), 'mwb_booking_frontend' ) ) {
-		return $cart_item_data;
-	}
-	$raw = isset( $_POST['vila_primary_interest'] ) ? vila_akoya_scalar_request_string( $_POST['vila_primary_interest'] ) : '';
-	$cart_item_data['vila_primary_interest'] = vila_akoya_normalize_primary_interest( $raw );
-	return $cart_item_data;
-}
-add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_primary_interest_cart_item_data', 32, 3 );
 
 /**
  * Validate guest breakdown vs MWB min/max people (capacity counts adults + children + infants; pets separate).
@@ -509,7 +442,7 @@ add_filter( 'woocommerce_add_to_cart_validation', 'vila_akoya_validate_guest_bre
  */
 function vila_akoya_get_cart_item_from_session_vehicle( $cart_item, $values, $cart_item_key ) {
 	unset( $cart_item_key );
-	foreach ( array( 'vila_vehicle_types', 'vila_vehicle_type', 'vila_booking_nights', 'vila_guest_children', 'vila_guest_infants', 'vila_guest_pets', 'vila_primary_interest' ) as $key ) {
+	foreach ( array( 'vila_vehicle_types', 'vila_vehicle_type', 'vila_booking_nights', 'vila_guest_children', 'vila_guest_infants', 'vila_guest_pets' ) as $key ) {
 		if ( isset( $values[ $key ] ) ) {
 			$cart_item[ $key ] = $values[ $key ];
 		}
@@ -518,9 +451,6 @@ function vila_akoya_get_cart_item_from_session_vehicle( $cart_item, $values, $ca
 		$cart_item['vila_vehicle_types'] = vila_akoya_normalize_vehicle_types_array( $cart_item['vila_vehicle_types'] );
 	} else	if ( ! empty( $cart_item['vila_vehicle_type'] ) ) {
 		$cart_item['vila_vehicle_types'] = vila_akoya_normalize_vehicle_types_array( array( $cart_item['vila_vehicle_type'] ) );
-	}
-	if ( array_key_exists( 'vila_primary_interest', $cart_item ) ) {
-		$cart_item['vila_primary_interest'] = vila_akoya_normalize_primary_interest( $cart_item['vila_primary_interest'] );
 	}
 	return $cart_item;
 }
@@ -660,30 +590,6 @@ function vila_akoya_get_item_data_guest_breakdown( $item_data, $cart_item ) {
 add_filter( 'woocommerce_get_item_data', 'vila_akoya_get_item_data_guest_breakdown', 16, 2 );
 
 /**
- * Cart / checkout: primary interest line.
- *
- * @param array<string, mixed> $item_data Item data.
- * @param array<string, mixed> $cart_item Cart item.
- * @return array<string, mixed>
- */
-function vila_akoya_get_item_data_primary_interest( $item_data, $cart_item ) {
-	if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
-		return $item_data;
-	}
-	$slug = isset( $cart_item['vila_primary_interest'] ) ? $cart_item['vila_primary_interest'] : '';
-	$slug = vila_akoya_normalize_primary_interest( $slug );
-	if ( '' === $slug ) {
-		return $item_data;
-	}
-	$item_data[] = array(
-		'name'    => __( 'Primary interest', 'vila-akoya' ),
-		'display' => esc_html( vila_akoya_primary_interest_label( $slug ) ),
-	);
-	return $item_data;
-}
-add_filter( 'woocommerce_get_item_data', 'vila_akoya_get_item_data_primary_interest', 18, 2 );
-
-/**
  * Save to order line items.
  *
  * @param WC_Order_Item $item      Order item.
@@ -728,28 +634,6 @@ function vila_akoya_checkout_save_guest_breakdown_meta( $item, $cart_key, $value
 	}
 }
 add_action( 'woocommerce_checkout_create_order_line_item', 'vila_akoya_checkout_save_guest_breakdown_meta', 16, 4 );
-
-/**
- * Persist primary interest on the order line item (admin, emails, customer order view).
- *
- * @param \WC_Order_Item $item     Order item.
- * @param string         $cart_key Cart key.
- * @param array          $values   Cart line values.
- * @param \WC_Order      $order    Order.
- */
-function vila_akoya_checkout_save_primary_interest_meta( $item, $cart_key, $values, $order ) {
-	unset( $cart_key, $order );
-	if ( empty( $values['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $values['product_id'] ) ) {
-		return;
-	}
-	$slug = isset( $values['vila_primary_interest'] ) ? $values['vila_primary_interest'] : '';
-	$slug = vila_akoya_normalize_primary_interest( $slug );
-	if ( '' === $slug ) {
-		return;
-	}
-	$item->add_meta_data( __( 'Primary interest', 'vila-akoya' ), vila_akoya_primary_interest_label( $slug ), true );
-}
-add_action( 'woocommerce_checkout_create_order_line_item', 'vila_akoya_checkout_save_primary_interest_meta', 17, 4 );
 
 /**
  * Whether to show the legacy “Plot 1 / Plot 2 …” radios (one WC product per pitch).
@@ -917,61 +801,7 @@ function vila_akoya_render_vehicle_selector( $product_id ) {
 	</div>
 	<?php
 }
-
-/**
- * Primary interest (Village / Campsite / Both) — optional; shown after unit type on the campsite booking form.
- *
- * @param int $product_id Product ID.
- */
-function vila_akoya_render_primary_interest_selector( $product_id ) {
-	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
-		return;
-	}
-	$choices = vila_akoya_get_primary_interest_choices();
-	if ( empty( $choices ) ) {
-		return;
-	}
-	?>
-	<div class="vila-airbnb-booking vila-airbnb-booking--primary-interest mb-8">
-		<fieldset class="vila-primary-interest-fieldset vila-airbnb-booking__card border-0 m-0 min-w-0">
-			<legend class="vila-airbnb-booking__legend">
-				<?php esc_html_e( 'Primary interest (optional)', 'vila-akoya' ); ?>
-			</legend>
-			<p class="vila-airbnb-booking__lead vila-primary-interest__explore text-sm text-on-surface-variant mb-4 mt-0">
-				<span class="vila-primary-interest__explore-label"><?php esc_html_e( 'Explore first:', 'vila-akoya' ); ?></span>
-				<span class="vila-primary-interest__explore-links">
-					<a class="text-primary underline-offset-2 hover:underline" href="<?php echo esc_url( home_url( '/village/' ) ); ?>"><?php esc_html_e( 'Village', 'vila-akoya' ); ?></a>
-					<span class="text-on-surface-variant/70" aria-hidden="true"><?php echo esc_html( ' · ' ); ?></span>
-					<a class="text-primary underline-offset-2 hover:underline" href="<?php echo esc_url( home_url( '/campsite/' ) ); ?>"><?php esc_html_e( 'Campsite', 'vila-akoya' ); ?></a>
-					<span class="text-on-surface-variant/70" aria-hidden="true"><?php echo esc_html( ' · ' ); ?></span>
-					<a class="text-primary underline-offset-2 hover:underline" href="<?php echo esc_url( home_url( '/the-kids/' ) ); ?>"><?php esc_html_e( 'The Kids', 'vila-akoya' ); ?></a>
-				</span>
-			</p>
-			<div class="vila-primary-interest-grid vila-airbnb-booking__chip-grid" role="radiogroup" aria-label="<?php esc_attr_e( 'Primary interest (optional)', 'vila-akoya' ); ?>" aria-required="false">
-				<?php
-				foreach ( $choices as $slug => $label ) :
-					$fid = 'vila-primary-interest-' . $slug;
-					?>
-					<label class="vila-primary-interest-option vila-airbnb-booking__chip">
-						<input
-							class="vila-primary-interest-input sr-only"
-							type="radio"
-							name="vila_primary_interest"
-							id="<?php echo esc_attr( $fid ); ?>"
-							value="<?php echo esc_attr( $slug ); ?>"
-						/>
-						<span class="vila-airbnb-booking__chip-body">
-							<span class="vila-airbnb-booking__chip-title"><?php echo esc_html( $label ); ?></span>
-						</span>
-					</label>
-				<?php endforeach; ?>
-			</div>
-		</fieldset>
-	</div>
-	<?php
-}
 add_action( 'mwb_booking_after_add_to_cart_form', 'vila_akoya_render_vehicle_selector', 12 );
-add_action( 'mwb_booking_after_add_to_cart_form', 'vila_akoya_render_primary_interest_selector', 18 );
 
 /**
  * MWB: hide a zero “Base cost” row in the AJAX totals so pricing reads clearly for campsite stays.

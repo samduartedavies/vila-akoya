@@ -161,10 +161,23 @@
   function getStayYmdFromMwbInputs() {
     var cin = dmyInputToYmd($('#mwb-mbfw-booking-from-time').val());
     var cout = dmyInputToYmd($('#mwb-mbfw-booking-to-time').val());
-    if (!cin || !cout || cout <= cin) {
-      return null;
+    if (cin && cout && cout > cin) {
+      return { check_in: cin, check_out: cout };
     }
-    return { check_in: cin, check_out: cout };
+    // MWB can transiently clear/rewrite hidden fields during AJAX recalcs.
+    // Keep CTA state in sync with the visible range picker selection.
+    var rangeEl = document.getElementById('vila-akoya-booking-range');
+    if (rangeEl && rangeEl._flatpickr && Array.isArray(rangeEl._flatpickr.selectedDates)) {
+      var picked = rangeEl._flatpickr.selectedDates;
+      if (picked.length === 2 && picked[0] instanceof Date && picked[1] instanceof Date) {
+        var a = ymdFromDate(picked[0]);
+        var b = ymdFromDate(picked[1]);
+        if (a && b && b > a) {
+          return { check_in: a, check_out: b };
+        }
+      }
+    }
+    return null;
   }
 
   function getRestUrlForRangeCheck() {
@@ -186,7 +199,7 @@
       return $el;
     }
     $el = $(
-      '<p class="vila-booking-availability-msg mt-3 mb-0 rounded-xl bg-red-50/80 px-4 py-2.5 text-sm font-medium text-red-700 hidden" role="alert" id="vila-booking-availability-msg"></p>'
+      '<p class="vila-booking-availability-msg mb-0 bg-red-50 px-4 py-5 text-sm font-bold text-primary mb-8 hidden" role="alert" id="vila-booking-availability-msg"></p>'
     );
     var $anchor = $('.vila-airbnb-booking--dates').first();
     if (!$anchor.length) {
@@ -201,11 +214,22 @@
   }
 
   function setAddToCartBlocked(blocked) {
-    var $btn = $('form.cart .single_add_to_cart_button, form.cart button[name="add-to-cart"]');
+    var $btn = $(
+      'form.cart .single_add_to_cart_button,' +
+      ' form.cart button[name="add-to-cart"],' +
+      ' form.cart input.single_add_to_cart_button[type="submit"],' +
+      ' form.cart input[name="add-to-cart"][type="submit"]'
+    );
     if (!$btn.length) {
       return;
     }
     $btn.prop('disabled', !!blocked);
+    if (blocked) {
+      $btn.attr('disabled', 'disabled');
+    } else {
+      $btn.removeAttr('disabled');
+    }
+    $btn.toggleClass('disabled', !!blocked);
     $btn.attr('aria-disabled', blocked ? 'true' : 'false');
   }
 
@@ -523,13 +547,34 @@
     if (!s || typeof s !== 'string') {
       return null;
     }
-    var p = s.split(/[-./]/);
+    var raw = String(s).trim();
+    if (!raw) {
+      return null;
+    }
+    var dateOnly = raw.split(' ')[0];
+    var p = dateOnly.split(/[-./]/);
     if (p.length !== 3) {
       return null;
     }
-    var day = parseInt(p[0], 10);
-    var month = parseInt(p[1], 10) - 1;
-    var year = parseInt(p[2], 10);
+    var a = parseInt(p[0], 10);
+    var b = parseInt(p[1], 10);
+    var c = parseInt(p[2], 10);
+    if (isNaN(a) || isNaN(b) || isNaN(c)) {
+      return null;
+    }
+    var day;
+    var month;
+    var year;
+    // Support both D-M-Y (theme range picker) and Y-M-D (some MWB outputs).
+    if (a > 31) {
+      year = a;
+      month = b - 1;
+      day = c;
+    } else {
+      day = a;
+      month = b - 1;
+      year = c;
+    }
     if (isNaN(day) || isNaN(month) || isNaN(year)) {
       return null;
     }
@@ -894,6 +939,76 @@
     scheduleStayRangeAvailabilityCheck();
   }
 
+  function syncInputsFromVisibleRange() {
+    var rangeEl = document.getElementById('vila-akoya-booking-range');
+    var fromEl = document.getElementById('mwb-mbfw-booking-from-time');
+    var toEl = document.getElementById('mwb-mbfw-booking-to-time');
+    if (!rangeEl || !rangeEl._flatpickr || !fromEl || !toEl) {
+      return false;
+    }
+    var picked = rangeEl._flatpickr.selectedDates || [];
+    if (!Array.isArray(picked) || picked.length !== 2 || !(picked[0] instanceof Date) || !(picked[1] instanceof Date)) {
+      return false;
+    }
+    var fromVal = formatDMY(picked[0]);
+    var toVal = formatDMY(picked[1]);
+    if (!fromVal || !toVal) {
+      return false;
+    }
+    $(fromEl).val(fromVal).trigger('change');
+    $(toEl).val(toVal).trigger('change');
+    return true;
+  }
+
+  function initBookingReserveModeTabs() {
+    var $card = $('.va-booking-reserve-card').first();
+    if (!$card.length || !$card.find('[data-va-booking-tabs]').length) {
+      return;
+    }
+
+    function activate(mode) {
+      $card.find('[data-va-booking-tab]').each(function () {
+        var sel = $(this).attr('data-va-booking-tab') === mode;
+        $(this).toggleClass('is-active', sel);
+        $(this).attr('aria-selected', sel ? 'true' : 'false');
+        $(this).attr('tabindex', sel ? '0' : '-1');
+      });
+      $card.find('[data-va-booking-panel]').each(function () {
+        var show = $(this).attr('data-va-booking-panel') === mode;
+        $(this).prop('hidden', !show);
+        $(this).attr('aria-hidden', show ? 'false' : 'true');
+      });
+    }
+
+    $card.on('click', '[data-va-booking-tab]', function (e) {
+      e.preventDefault();
+      var mode = $(this).attr('data-va-booking-tab');
+      if (!mode) {
+        return;
+      }
+      activate(mode);
+      if (window.history && typeof window.history.replaceState === 'function') {
+        var path = window.location.pathname + window.location.search;
+        var hash = mode === 'village' ? '#village' : '';
+        window.history.replaceState(null, '', path + hash);
+      }
+    });
+
+    $(window).on('hashchange.vilaBookingReserveTabs', function () {
+      if (/^#village$/i.test(String(window.location.hash || ''))) {
+        activate('village');
+      } else {
+        activate('campsite');
+      }
+    });
+
+    if (/^#village$/i.test(String(window.location.hash || ''))) {
+      activate('village');
+    } else {
+      activate('campsite');
+    }
+  }
+
   $(function () {
     setTimeout(bootstrapRangePicker, 120);
     initGuestPicker();
@@ -901,17 +1016,11 @@
     layoutDatesAndWhoRow();
     placePitchAboveStayDates();
     initBookingMapLightbox();
+    initBookingReserveModeTabs();
     setTimeout(layoutDatesAndWhoRow, 400);
     setTimeout(layoutDatesAndWhoRow, 1000);
     setTimeout(placePitchAboveStayDates, 420);
     setTimeout(placePitchAboveStayDates, 1020);
-
-    $(document).on('change', 'input[name="vila_vehicle_types[]"]', function () {
-      if (!$('input[name="vila_vehicle_types[]"]:checked').length) {
-        $('input[name="vila_vehicle_types[]"][value="tent"]').prop('checked', true);
-      }
-      updateVehicleHint();
-    });
 
     $(document).on(
       'change input',
@@ -935,6 +1044,15 @@
         scheduleStayRangeAvailabilityCheck();
       }
     );
+
+    // MWB can clear hidden date inputs during async recalculations.
+    // Ensure backend receives dates that are visibly selected in our range picker.
+    $(document).on('click', 'form.cart .single_add_to_cart_button, form.cart button[name="add-to-cart"], form.cart input[name="add-to-cart"]', function () {
+      syncInputsFromVisibleRange();
+    });
+    $(document).on('submit', 'form.cart', function () {
+      syncInputsFromVisibleRange();
+    });
 
     setTimeout(scheduleStayRangeAvailabilityCheck, 600);
     setTimeout(function () {

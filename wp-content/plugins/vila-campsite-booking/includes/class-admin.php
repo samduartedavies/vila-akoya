@@ -163,7 +163,8 @@ class Admin {
 			self::PAGE_BOOKING,
 			array( __CLASS__, 'render_booking_edit' )
 		);
-		remove_submenu_page( 'woocommerce', self::PAGE_BOOKING );
+		// Keep this page registered in the submenu table so direct links from the calendar
+		// pass WordPress capability routing on all admin setups.
 	}
 
 	/**

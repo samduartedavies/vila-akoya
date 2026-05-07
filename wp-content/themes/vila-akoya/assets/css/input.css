@@ -18,9 +18,8 @@
 }
 
 @layer components {
-  @media (max-width: 1240px) {
     #site-nav-desktop-links {
-      font-size: 0.84rem;
+      font-size: 0.9rem;
       letter-spacing: 0.01em;
     }
 
@@ -30,7 +29,7 @@
     }
 
     nav a[href*="/booking/"] {
-      font-size: 0.9rem;
+      font-size: 1rem;
       padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
@@ -38,7 +37,6 @@
     .vila-footer-links a {
       font-size: 0.9rem;
     }
-  }
 
   .material-symbols-outlined {
     font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
@@ -170,6 +168,26 @@
 
   .vila-home .vila-home-hero-image > img {
     filter: brightness(0.85);
+  }
+
+  @media (min-width: 768px) {
+    .vila-home .vila-home-hero-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      aspect-ratio: auto !important;
+      margin: 0;
+    }
+
+    .vila-home .vila-home-hero-image > img {
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
   }
 
   .vila-home .vila-home-village-image > img {
@@ -521,19 +539,6 @@
       0 10px 28px rgba(61, 42, 34, 0.05);
   }
 
-  body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell::before,
-  body.vila-page-booking .va-booking-reserve-card::before {
-    content: '';
-    position: absolute;
-    top: -2rem;
-    right: -2rem;
-    width: 8rem;
-    height: 8rem;
-    pointer-events: none;
-    z-index: 1;
-    @apply rounded-bl-full bg-primary/5;
-  }
-
   body.vila-page-booking .va-booking-reserve-card > *,
   body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell > * {
     position: relative;
@@ -581,49 +586,124 @@
     transform: translateY(-1px);
   }
 
-  /* CF7 inquiry — matches brochure-website/booking.html (surface-container-low, rounded-lg, ring focus, radio border) */
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form {
+  /* Campsite vs Village tabs (booking reserve column) */
+  body.vila-page-booking .va-booking-reserve-tabs__tab {
+    @apply text-on-surface-variant;
+  }
+
+  body.vila-page-booking .va-booking-reserve-tabs__tab:focus-visible {
+    @apply outline-none ring-2 ring-primary/25 ring-offset-2 ring-offset-white;
+  }
+
+  body.vila-page-booking .va-booking-reserve-tabs__tab.is-active {
+    @apply bg-white text-primary shadow-sm;
+  }
+
+  /* CF7 in reserve column (campsite inquiry + village tab): same structural overrides as campus/contact */
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 {
     @apply space-y-6;
   }
 
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form label {
-    @apply font-label text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant;
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 > p {
+    @apply m-0;
   }
 
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='text'],
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='email'],
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='tel'],
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form input[type='url'] {
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 > p + p {
+    @apply mt-6;
+  }
+
+  /* CF7 wraps raw HTML oddly; unblock grid/layout when a row contains a grid.
+     Avoid `> .grid` inside :has() — Tailwind can merge that with other `.grid` rules. */
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 p:has(> [class*='grid-cols']) {
+    display: contents;
+  }
+
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .grid {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    gap: 1.5rem !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  @media (min-width: 768px) {
+    body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .grid[class*='md:grid-cols-2'] {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .grid > div {
+    min-width: 0 !important;
+  }
+
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 label {
+    display: block !important;
+    width: 100% !important;
+    @apply font-label text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant mb-2;
+  }
+
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control-wrap {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    @apply mt-0 block;
+  }
+
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text'],
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email'],
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel'],
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url'] {
     @apply w-full min-h-[3.25rem] rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 font-body text-base text-on-background shadow-none transition-all duration-300 ease-out;
     @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:outline-none focus:border-outline-variant focus:ring-0;
   }
 
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-form textarea {
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea {
     @apply w-full min-h-[10rem] resize-none rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 font-body text-base text-on-background shadow-none transition-all duration-300 ease-out;
     @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:outline-none focus:border-outline-variant focus:ring-0;
   }
 
-  .va-booking-reserve-card .vila-cf7--booking .vila-booking-primary-interest__explore a {
-    @apply font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary-container;
+  /* Hard override CF7/browser defaults on controls (campus/contact pattern) */
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-text,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-email,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea,
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-tel {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 3.25rem !important;
+    border-radius: 0.5rem !important;
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: transparent !important;
+    background-color: #f7f4e9 !important; /* surface-container-low */
+    color: #1c1c16 !important; /* on-background */
+    padding: 1rem 1.25rem !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+    box-shadow: none !important;
   }
 
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-list-item-label {
-    @apply flex min-h-[3rem] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 text-sm font-medium text-on-surface-variant shadow-none transition-all duration-300 ease-out;
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea {
+    min-height: 10rem !important;
   }
 
-  .va-booking-reserve-card .vila-cf7--booking .wpcf7-list-item-label:hover {
-    @apply bg-surface-container-high border-outline-variant/20;
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input.wpcf7-submit {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    border-radius: 0.5rem !important;
+    background-color: #9a4021 !important; /* primary */
+    color: #ffefeb !important; /* on-primary */
   }
 
-  .va-booking-reserve-card .vila-cf7--booking input[type='radio']:checked + .wpcf7-list-item-label {
-    @apply border-primary bg-primary/5 text-primary shadow-none ring-0;
-  }
-
-  .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
+  body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
     @apply mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-primary px-8 py-5 font-label text-sm font-semibold uppercase tracking-[0.2em] text-on-primary shadow-lg shadow-primary/20 transition-all duration-300 ease-out;
   }
 
-  .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
+  body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
     @apply bg-primary-container;
     transform: translateY(-2px);
     box-shadow: 0 12px 32px rgba(154, 63, 33, 0.22);
@@ -789,7 +869,7 @@
   }
 
   .vila-wc-booking form.cart {
-    @apply mb-0 flex flex-col gap-5;
+    @apply mb-0 flex flex-col;
   }
 
   .vila-wc-booking .quantity {
@@ -849,17 +929,6 @@
     @apply bg-surface-container-high border-outline-variant/20;
   }
 
-  /* Primary interest — brochure booking.html */
-  .vila-wc-booking .vila-primary-interest-option .vila-airbnb-booking__chip-body,
-  body.single-product .vila-primary-interest-option .vila-airbnb-booking__chip-body {
-    @apply min-h-[3rem] flex-row items-center justify-center text-center rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 shadow-none;
-  }
-
-  .vila-wc-booking .vila-primary-interest-option:hover .vila-airbnb-booking__chip-body,
-  body.single-product .vila-primary-interest-option:hover .vila-airbnb-booking__chip-body {
-    @apply bg-surface-container-high border-outline-variant/20;
-  }
-
   /* Vehicle / lodging chips */
   .vila-wc-booking .vila-vehicle-option .vila-airbnb-booking__chip-body,
   body.single-product .vila-vehicle-option .vila-airbnb-booking__chip-body {
@@ -893,52 +962,14 @@
     @apply text-primary;
   }
 
-  .vila-wc-booking .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body,
-  body.single-product .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body {
-    @apply border-primary bg-primary/5 text-primary shadow-none ring-0;
-  }
-
-  .vila-wc-booking .vila-primary-interest-grid,
-  body.single-product .vila-primary-interest-grid {
-    @apply mx-auto w-full max-w-xl gap-3;
-    grid-template-columns: 1fr;
-  }
-
-  @media (min-width: 480px) {
-    .vila-wc-booking .vila-primary-interest-grid,
-    body.single-product .vila-primary-interest-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
   .vila-wc-booking .vila-vehicle-grid.vila-airbnb-booking__chip-grid,
   body.single-product .vila-vehicle-grid.vila-airbnb-booking__chip-grid {
     @apply mx-auto w-full max-w-xl gap-3;
   }
 
-  .vila-wc-booking .vila-primary-interest__explore,
-  body.single-product .vila-primary-interest__explore {
-    @apply flex flex-col gap-1 text-xs text-on-surface-variant sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2;
-  }
-
-  .vila-wc-booking .vila-primary-interest__explore a,
-  body.single-product .vila-primary-interest__explore a {
-    @apply font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary-container;
-  }
-
   .vila-wc-booking .vila-airbnb-booking__chip-title,
   body.single-product .vila-airbnb-booking__chip-title {
     @apply text-[0.9375rem] font-medium text-on-background;
-  }
-
-  .vila-wc-booking .vila-primary-interest-option .vila-airbnb-booking__chip-title,
-  body.single-product .vila-primary-interest-option .vila-airbnb-booking__chip-title {
-    @apply text-on-surface-variant;
-  }
-
-  .vila-wc-booking .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title,
-  body.single-product .vila-airbnb-booking__chip .vila-primary-interest-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title {
-    @apply text-primary;
   }
 
   .vila-wc-booking .vila-airbnb-booking__chip-meta,
@@ -1173,8 +1204,12 @@
     @apply absolute inset-0 border-0 bg-[#130e03]/80;
   }
 
+  .woocommerce div.product form.cart::after, .woocommerce div.product form.cart::before {
+    content: none !important;
+  }
+
   .va-map-lightbox__content {
-    @apply relative z-10 w-full max-w-[96vw] max-h-[94vh] rounded-2xl bg-white p-2 sm:p-3;
+    @apply relative z-10 w-full max-w-[1154px] max-h-[94vh] rounded-2xl bg-white p-2 sm:p-3;
     box-shadow: 0 20px 60px rgba(19, 14, 3, 0.4);
   }
 
@@ -1593,7 +1628,39 @@
 
   /* Block-based checkout / order confirmation */
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .wc-block-checkout {
-    @apply mx-auto w-full max-w-3xl px-5 py-12 sm:px-8 md:py-16 lg:max-w-4xl;
+    @apply mx-auto w-full max-w-5xl px-5 py-12 sm:px-8 md:py-16 lg:max-w-5xl;
+  }
+  
+  .wc-block-components-sidebar {
+    width: 45%;
+  }
+  .wc-block-components-sidebar-layout .wc-block-components-main {
+    width: 55%;
+  }
+
+  @media (max-width: 768px) {
+    .wc-block-components-sidebar {
+      width: 100%;
+    }
+    .wc-block-components-sidebar-layout .wc-block-components-main {
+      width: 100%;
+    }
+  }
+
+  .wc-block-components-order-summary-item__image {
+    display: none !important;
+  }
+
+  .wp-block-woocommerce-store-notices {
+    display: none;
+  }
+
+  .wp-block-woocommerce-order-confirmation-status {
+    margin-top: 10rem !important;
+  }
+
+  .wp-block-woocommerce-order-confirmation-summary, .wp-block-woocommerce-order-confirmation-totals-wrapper, .wc-block-order-confirmation-address-wrapper, .wp-block-woocommerce-order-confirmation-additional-information{
+    max-width: 900px !important;
   }
 
   /* Block checkout: hide “Return to cart” (backup if block attrs still render it) */
@@ -1609,6 +1676,21 @@
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status {
     @apply mb-10 rounded-3xl border-0 bg-transparent p-0 text-center font-headline text-3xl font-normal text-on-background md:text-4xl lg:text-5xl;
+    position: relative;
+    font-size: 0 !important;
+    line-height: 0 !important;
+  }
+
+  body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::before {
+    content: "Booking successful";
+    display: block;
+    @apply font-headline text-3xl font-normal text-on-background md:text-4xl lg:text-5xl;
+  }
+
+  body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::after {
+    content: "We can't wait to meet you!";
+    display: block;
+    @apply mt-3 font-body text-base text-on-surface-variant md:text-lg;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-summary {
