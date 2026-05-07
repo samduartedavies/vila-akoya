@@ -27,6 +27,62 @@
       padding-left: 0.6rem;
       padding-right: 0.6rem;
     }
+    .wp-block-cover .wp-block-cover__background {
+      opacity: 0.7 !important
+    }
+
+    #site-nav-desktop-links [data-nav] {
+      color: #57534e;
+    }
+
+    .items-center {
+      align-items: center !important;
+    }
+
+    #site-nav-desktop-links [data-nav]:hover,
+    #site-nav-desktop-links [data-nav][aria-current="page"] {
+      color: #8f3a1d;
+      background-color: rgb(154 64 33 / 0.12);
+      border-radius: 10px;
+    }
+
+    #site-nav-mobile-links [data-nav]:hover,
+    #site-nav-mobile-links [data-nav][aria-current="page"] {
+      background-color: rgb(154 64 33 / 0.05);
+    }
+
+    [data-nav] {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    #site-nav-toggle .site-nav-icon--close {
+      display: none;
+    }
+
+    #site-nav-toggle[aria-expanded="true"] .site-nav-icon--menu {
+      display: none;
+    }
+
+    #site-nav-toggle[aria-expanded="true"] .site-nav-icon--close {
+      display: inline-block;
+    }
+
+    #site-mobile-nav {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transform: translateY(-0.4rem);
+      pointer-events: none;
+      transition: max-height 280ms ease, opacity 220ms ease, transform 280ms ease;
+    }
+
+    #site-mobile-nav[data-open="true"] {
+      max-height: 85vh;
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
 
     nav a[href*="/booking/"] {
       font-size: 1rem;
@@ -1647,6 +1703,9 @@
     }
   }
 
+  :where(.wp-site-blocks) > * {
+    margin-block-start: 0 !important;
+  }
   .wc-block-components-order-summary-item__image {
     display: none !important;
   }

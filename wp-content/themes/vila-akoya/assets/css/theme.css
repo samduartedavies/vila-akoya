@@ -816,6 +816,63 @@ body.vila-page-booking,
   padding-right: 0.6rem;
 }
 
+.wp-block-cover .wp-block-cover__background {
+  opacity: 0.7 !important
+}
+
+#site-nav-desktop-links [data-nav] {
+  color: #57534e;
+}
+
+.items-center {
+  align-items: center !important;
+}
+
+#site-nav-desktop-links [data-nav]:hover,
+    #site-nav-desktop-links [data-nav][aria-current="page"] {
+  color: #8f3a1d;
+  background-color: rgb(154 64 33 / 0.12);
+  border-radius: 10px;
+}
+
+#site-nav-mobile-links [data-nav]:hover,
+    #site-nav-mobile-links [data-nav][aria-current="page"] {
+  background-color: rgb(154 64 33 / 0.05);
+}
+
+[data-nav] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+#site-nav-toggle .site-nav-icon--close {
+  display: none;
+}
+
+#site-nav-toggle[aria-expanded="true"] .site-nav-icon--menu {
+  display: none;
+}
+
+#site-nav-toggle[aria-expanded="true"] .site-nav-icon--close {
+  display: inline-block;
+}
+
+#site-mobile-nav {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-0.4rem);
+  pointer-events: none;
+  transition: max-height 280ms ease, opacity 220ms ease, transform 280ms ease;
+}
+
+#site-mobile-nav[data-open="true"] {
+  max-height: 85vh;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 nav a[href*="/booking/"] {
   font-size: 1rem;
   padding-left: 1.5rem;
@@ -4474,6 +4531,10 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .wc-block-chec
   }
 }
 
+:where(.wp-site-blocks) > * {
+  margin-block-start: 0 !important;
+}
+
 .wc-block-components-order-summary-item__image {
   display: none !important;
 }
@@ -6892,6 +6953,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   padding-bottom: 5rem;
 }
 
+.pb-28 {
+  padding-bottom: 7rem;
+}
+
 .pb-4 {
   padding-bottom: 1rem;
 }
@@ -6908,12 +6973,20 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   padding-top: 0.25rem;
 }
 
+.pt-10 {
+  padding-top: 2.5rem;
+}
+
 .pt-12 {
   padding-top: 3rem;
 }
 
 .pt-2 {
   padding-top: 0.5rem;
+}
+
+.pt-20 {
+  padding-top: 5rem;
 }
 
 .pt-24 {
@@ -7833,6 +7906,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 @media (min-width: 768px) {
+  .md\:items-center {
+    align-items: center !important;
+  }
+
   .md\:hidden.va-map-lightbox {
     display: none;
   }
@@ -8131,11 +8208,6 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 .hover\:bg-tertiary-dim:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(108 72 32 / var(--tw-bg-opacity, 1));
-}
-
-.hover\:text-\[\#8f3a1d\]:hover {
-  --tw-text-opacity: 1;
-  color: rgb(143 58 29 / var(--tw-text-opacity, 1));
 }
 
 .hover\:text-\[\#9a4021\]:hover {
@@ -8480,6 +8552,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
     margin-right: 2rem;
   }
 
+  .md\:mb-10 {
+    margin-bottom: 2.5rem;
+  }
+
   .md\:mb-20 {
     margin-bottom: 5rem;
   }
@@ -8558,10 +8634,6 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
   .md\:min-h-\[calc\(100vh-140px\)\] {
     min-height: calc(100vh - 140px);
-  }
-
-  .md\:min-h-\[calc\(100vh-6rem\)\] {
-    min-height: calc(100vh - 6rem);
   }
 
   .md\:min-h-\[min\(20rem\2c 50vh\)\] {
@@ -8792,6 +8864,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   .md\:py-28 {
     padding-top: 7rem;
     padding-bottom: 7rem;
+  }
+
+  .md\:py-8 {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
   }
 
   .md\:pb-0 {
