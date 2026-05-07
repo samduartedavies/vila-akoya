@@ -265,7 +265,7 @@ function vila_akoya_shortcode_header_nav() {
 	ob_start();
 	?>
 <nav class="fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
-<div class="flex justify-between items-center px-8 py-6 max-w-[1236px] box-border mx-auto">
+<div class="flex justify-between items-center px-4 md:px-8 py-2 max-w-[1236px] box-border mx-auto md:py-6">
 <a class="text-4xl font-normal text-orange-800 font-barrio shrink-0 leading-none" href="<?php echo $h( '' ); ?>">Vila Akoya</a>
 <div id="site-nav-desktop-links" class="hidden min-[1020px]:flex items-center ml-12 max-[1240px]:ml-6 space-x-4 max-[1240px]:space-x-2 font-body text-[0.95rem] max-[1240px]:text-[0.84rem] tracking-[0.01em]">
 <a <?php echo $nav_attrs( 'village', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'village' ); ?>">The Village</a>

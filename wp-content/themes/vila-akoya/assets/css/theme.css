@@ -1126,6 +1126,7 @@ figure.vila-img-fill > a img,
 
 .vila-home .wp-block-columns.va-home-digi-family.vila-split-flush {
   flex-wrap: nowrap !important;
+  max-width: 95%;
 }
 
 .vila-home .vila-home-hero-image > img {
@@ -1796,7 +1797,28 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   align-items: stretch !important;
 }
 
-@media (min-width: 768px) {
+@media (max-width: 1222px) {
+  /* On mobile this section should be a single stacked card, no media column. */
+
+  .va-home-digi-family.va-home-digi-family {
+    flex-wrap: wrap !important;
+  }
+
+  .va-home-digi-family.va-home-digi-family > .wp-block-column {
+    flex-basis: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .va-home-digi-family.va-home-digi-family > .wp-block-column.va-home-digi-family__media {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    flex-basis: 0 !important;
+  }
+}
+
+@media (min-width: 1223px) {
   .va-home-digi-family > .wp-block-column:first-child {
     flex-basis: 66.66% !important;
   }
@@ -6234,6 +6256,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   flex-direction: column;
 }
 
+.flex-col-reverse {
+  flex-direction: column-reverse;
+}
+
 .flex-wrap {
   flex-wrap: wrap;
 }
@@ -9487,6 +9513,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
     padding-right: 1.5rem;
   }
 
+  .md\:px-8 {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
   .md\:py-0 {
     padding-top: 0px;
     padding-bottom: 0px;
@@ -9510,6 +9541,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   .md\:py-28 {
     padding-top: 7rem;
     padding-bottom: 7rem;
+  }
+
+  .md\:py-6 {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
   }
 
   .md\:py-8 {
