@@ -1,0 +1,120 @@
+/**
+ * Brochure-aligned colour tokens (space-separated RGB for Tailwind opacity / alpha).
+ *
+ * Palette A — warm editorial: home, village, campsite, campus, the-kids (brochure *.html
+ * with background #fff6e1, on-surface #332e1e, coral primary-container / primary-fixed).
+ *
+ * Palette B — neutral cream: booking, about, contact, thank-you (brochure #fcf9ef canvas,
+ * on-surface #1c1c16, terracotta primary-container #ba5737).
+ */
+
+:root {
+  --vila-rgb-error-container: 251 81 81;
+  --vila-rgb-on-surface: 51 46 30;
+  --vila-rgb-tertiary-dim: 108 72 32;
+  --vila-rgb-on-primary-container: 83 20 0;
+  --vila-rgb-error-dim: 159 5 25;
+  --vila-rgb-inverse-on-surface: 165 156 134;
+  --vila-rgb-primary-dim: 138 52 22;
+  --vila-rgb-primary-fixed-dim: 234 124 89;
+  --vila-rgb-primary: 154 63 33;
+  --vila-rgb-on-secondary-fixed: 31 36 25;
+  --vila-rgb-on-tertiary-fixed-variant: 83 50 11;
+  --vila-rgb-primary-container: 251 137 101;
+  --vila-rgb-surface-bright: 255 246 225;
+  --vila-rgb-inverse-primary: 251 137 101;
+  --vila-rgb-on-secondary-container: 61 67 56;
+  --vila-rgb-tertiary-fixed: 217 167 119;
+  --vila-rgb-surface-dim: 224 212 178;
+  --vila-rgb-on-primary: 255 239 235;
+  --vila-rgb-error: 179 27 37;
+  --vila-rgb-surface-container: 242 232 203;
+  --vila-rgb-surface-variant: 232 220 188;
+  --vila-rgb-on-primary-fixed: 30 3 0;
+  --vila-rgb-primary-fixed: 251 137 101;
+  --vila-rgb-inverse-surface: 18 14 3;
+  --vila-rgb-secondary-fixed: 226 230 216;
+  --vila-rgb-surface-container-high: 237 226 195;
+  --vila-rgb-on-primary-fixed-variant: 98 25 0;
+  --vila-rgb-on-secondary-fixed-variant: 77 83 64;
+  --vila-rgb-on-tertiary-container: 72 41 4;
+  --vila-rgb-secondary: 92 99 72;
+  --vila-rgb-background: 255 246 225;
+  --vila-rgb-tertiary: 122 83 42;
+  --vila-rgb-on-error-container: 87 0 8;
+  --vila-rgb-on-tertiary-fixed: 39 19 0;
+  --vila-rgb-on-tertiary: 255 240 229;
+  --vila-rgb-surface-container-low: 251 240 213;
+  --vila-rgb-tertiary-fixed-dim: 202 154 107;
+  --vila-rgb-outline-variant: 181 173 150;
+  --vila-rgb-on-surface-variant: 98 91 72;
+  --vila-rgb-surface: 255 246 225;
+  --vila-rgb-on-background: 51 46 30;
+  --vila-rgb-on-secondary: 245 243 235;
+  --vila-rgb-surface-tint: 154 63 33;
+  --vila-rgb-on-error: 255 239 238;
+  --vila-rgb-surface-container-lowest: 255 255 255;
+  --vila-rgb-surface-container-highest: 232 220 188;
+  --vila-rgb-secondary-fixed-dim: 200 207 192;
+  --vila-rgb-outline: 126 118 98;
+  --vila-rgb-tertiary-container: 217 167 119;
+  --vila-rgb-secondary-container: 226 230 216;
+  --vila-rgb-secondary-dim: 74 82 64;
+}
+
+body.vila-page-booking,
+body.vila-page-contact,
+body.vila-page-about,
+body.vila-page-thank-you {
+  --vila-rgb-error-container: 255 218 214;
+  --vila-rgb-on-surface: 28 28 22;
+  --vila-rgb-tertiary-dim: 108 72 32;
+  --vila-rgb-on-primary-container: 255 251 255;
+  --vila-rgb-error-dim: 159 5 25;
+  --vila-rgb-inverse-on-surface: 244 241 231;
+  --vila-rgb-primary-dim: 138 52 22;
+  --vila-rgb-primary-fixed-dim: 255 181 158;
+  --vila-rgb-primary: 154 64 33;
+  --vila-rgb-on-secondary-fixed: 31 36 25;
+  --vila-rgb-on-tertiary-fixed-variant: 82 69 43;
+  --vila-rgb-primary-container: 186 87 55;
+  --vila-rgb-surface-bright: 252 249 239;
+  --vila-rgb-inverse-primary: 255 181 158;
+  --vila-rgb-on-secondary-container: 61 67 56;
+  --vila-rgb-tertiary-fixed: 245 224 189;
+  --vila-rgb-surface-dim: 221 218 208;
+  --vila-rgb-on-primary: 255 255 255;
+  --vila-rgb-error: 186 26 26;
+  --vila-rgb-surface-container: 241 238 228;
+  --vila-rgb-surface-variant: 229 226 217;
+  --vila-rgb-on-primary-fixed: 58 11 0;
+  --vila-rgb-primary-fixed: 255 219 208;
+  --vila-rgb-inverse-surface: 49 49 42;
+  --vila-rgb-secondary-fixed: 226 230 216;
+  --vila-rgb-surface-container-high: 235 232 222;
+  --vila-rgb-on-primary-fixed-variant: 126 43 14;
+  --vila-rgb-on-secondary-fixed-variant: 77 83 64;
+  --vila-rgb-on-tertiary-container: 255 251 255;
+  --vila-rgb-secondary: 92 99 72;
+  --vila-rgb-background: 252 249 239;
+  --vila-rgb-tertiary: 105 90 62;
+  --vila-rgb-on-error-container: 147 0 10;
+  --vila-rgb-on-tertiary-fixed: 36 26 5;
+  --vila-rgb-on-tertiary: 255 255 255;
+  --vila-rgb-surface-container-low: 247 244 233;
+  --vila-rgb-tertiary-fixed-dim: 216 196 162;
+  --vila-rgb-outline-variant: 220 193 185;
+  --vila-rgb-on-surface-variant: 86 66 60;
+  --vila-rgb-surface: 252 249 239;
+  --vila-rgb-on-background: 28 28 22;
+  --vila-rgb-on-secondary: 255 255 255;
+  --vila-rgb-surface-tint: 157 66 35;
+  --vila-rgb-on-error: 255 255 255;
+  --vila-rgb-surface-container-lowest: 255 255 255;
+  --vila-rgb-surface-container-highest: 229 226 217;
+  --vila-rgb-secondary-fixed-dim: 200 207 192;
+  --vila-rgb-outline: 137 114 107;
+  --vila-rgb-tertiary-container: 131 114 85;
+  --vila-rgb-secondary-container: 226 230 216;
+  --vila-rgb-secondary-dim: 74 82 64;
+}

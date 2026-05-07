@@ -1,3 +1,5 @@
+@import "./vila-palette.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,15 +7,6 @@
 @layer base {
   body {
     @apply font-body antialiased bg-surface text-on-surface;
-  }
-
-  /*
-   * Booking + contact: same warm page canvas as brochure-website/booking.html (`bg-background` / #fcf9ef).
-   * Reserve / inquiry cards stay white via block + component rules.
-   */
-  body.vila-page-booking,
-  body.vila-page-contact {
-    @apply bg-background text-on-background;
   }
 }
 
@@ -26,9 +19,6 @@
     #site-nav-desktop-links a {
       padding-left: 0.6rem;
       padding-right: 0.6rem;
-    }
-    .wp-block-cover .wp-block-cover__background {
-      opacity: 0.7 !important
     }
 
     #site-nav-desktop-links [data-nav] {
@@ -84,11 +74,11 @@
       pointer-events: auto;
     }
 
-    nav a[href*="/booking/"] {
+    /* nav a[href*="/booking/"] {
       font-size: 1rem;
       padding-left: 1.5rem;
       padding-right: 1.5rem;
-    }
+    } */
 
     .vila-footer-links a {
       font-size: 0.9rem;
@@ -222,6 +212,10 @@
     --wp--style--block-gap: 0 !important;
   }
 
+  .vila-home .wp-block-columns.va-home-digi-family.vila-split-flush {
+    flex-wrap: nowrap !important;
+  }
+
   .vila-home .vila-home-hero-image > img {
     filter: brightness(0.85);
   }
@@ -263,7 +257,7 @@
     transform: scale(1.02);
   }
 
-  @media (min-width: 782px) {
+  @media (min-width: 768px) {
     .vila-home .wp-block-columns.vila-split-flush {
       flex-wrap: nowrap !important;
     }
@@ -399,27 +393,251 @@
     @apply rounded-xl;
   }
 
+  /* Kids page CTA tout: brochure-style split card */
+  .vila-page-inner .va-kids-cta {
+    @apply px-6 md:px-12 lg:px-24 py-24;
+  }
+
+  .vila-page-inner .va-kids-cta__card {
+    background-color: #e8dcbc;
+    @apply rounded-[3rem] overflow-hidden max-w-[1300px] mx-auto m-0;
+    min-height: 28rem;
+  }
+
+  /* Remove default WP column gap and margin */
+  .vila-page-inner .va-kids-cta__card > .wp-block-column {
+    margin: 0 !important;
+  }
+
+  /* Left: content */
+  .vila-page-inner .va-kids-cta__content {
+    @apply flex flex-col justify-center px-12 py-16 md:px-20 md:py-24;
+  }
+
+  .vila-page-inner .va-kids-cta__content p {
+    @apply mb-4;
+  }
+
+  .vila-page-inner .va-kids-cta .wp-block-button .wp-block-button__link {
+    @apply rounded-full border-0 bg-primary px-10 py-5 font-label font-bold text-lg text-on-primary shadow-lg;
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+
+  /* Right: image — fill the column completely */
+  .vila-page-inner .va-kids-cta__media {
+    overflow: hidden;
+    position: relative;
+    min-height: 20rem;
+  }
+
+  /* Override the global figure.vila-img-fill rules that force position:relative */
+  .vila-page-inner .va-kids-cta__media figure.wp-block-image.vila-img-fill {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .vila-page-inner .va-kids-cta__media figure.wp-block-image.vila-img-fill img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    opacity: 0.8;
+  }
+
+  @media (max-width: 781px) {
+    .vila-page-inner .va-kids-cta {
+      @apply px-4 py-16;
+    }
+    .vila-page-inner .va-kids-cta__content {
+      @apply px-8 py-12;
+    }
+    .vila-page-inner .va-kids-cta__media {
+      min-height: 18rem;
+    }
+  }
+
   .vila-cf7 .wpcf7-response-output {
     @apply mt-4 rounded-lg text-sm;
   }
 
+  /* CF7 renders an empty response container by default; hide it until needed. */
+  .vila-cf7 .wpcf7-response-output:empty,
+  .vila-cf7 .wpcf7-response-output[aria-hidden='true'] {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
   /* Home newsletter tout: brochure-style pill field + cream CTA */
-  .va-home-digi-family .vila-cf7--newsletter .wpcf7-form {
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter {
     @apply mt-2;
   }
 
-  .va-home-digi-family .vila-cf7--newsletter .wpcf7-form > div {
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div {
     @apply flex flex-col gap-4 md:flex-row md:items-center;
   }
 
-  .va-home-digi-family .vila-cf7--newsletter .newsletter-email {
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div > p,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div > p {
+    @apply m-0;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    flex-wrap: nowrap;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div > p,
+    .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div > p {
+      flex-direction: row !important;
+      align-items: center !important;
+    }
+  }
+
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div > p > br,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div > p > br {
+    display: none !important;
+  }
+
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter .wpcf7-form-control-wrap,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .wpcf7-form-control-wrap {
+    display: block;
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-email,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email {
     @apply min-h-[3.25rem] w-full rounded-full border-2 border-transparent bg-white/20 px-6 py-3 text-base text-on-primary placeholder:text-on-primary/70;
     @apply hover:border-white/30 focus:border-white/50 focus:ring-0 focus:outline-none;
   }
 
-  .va-home-digi-family .vila-cf7--newsletter .newsletter-submit {
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
     @apply min-h-[3.25rem] rounded-full border-0 bg-surface px-10 py-3 text-base font-semibold text-primary shadow-md;
     @apply hover:bg-surface-container-low;
+    flex: 0 0 auto !important;
+    white-space: nowrap;
+  }
+
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
+    width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
+      width: auto;
+    }
+  }
+
+  /* Village newsletter: light card contrast */
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email {
+    @apply border-outline/30 bg-surface text-on-surface placeholder:text-on-surface-variant;
+    @apply hover:border-outline/55 focus:border-primary/60;
+  }
+
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
+    @apply bg-primary text-on-primary;
+    @apply hover:bg-primary-fixed-dim;
+  }
+
+  /* Inline layout for CF7 newsletter <p> (both home & village).
+     Uses :has() to target by input ID regardless of wrapper element type. */
+  .wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email),
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap;
+    align-items: stretch !important;
+    gap: 1rem !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  @media (min-width: 768px) {
+    .wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email),
+    .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) {
+      flex-direction: row !important;
+      align-items: center !important;
+    }
+  }
+
+  .wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email) > br,
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) > br {
+    display: none !important;
+  }
+
+  .wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email) .wpcf7-form-control-wrap,
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) .wpcf7-form-control-wrap {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email) .newsletter-submit,
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) .newsletter-submit {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
+  }
+
+  /* ──────────────────────────────────────────────────────────────────────────
+     Digi-family section layout
+     ────────────────────────────────────────────────────────────────────────── */
+  .va-home-digi-family {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    align-items: stretch !important;
+  }
+
+  @media (min-width: 768px) {
+    .va-home-digi-family > .wp-block-column:first-child {
+      flex-basis: 66.66% !important;
+    }
+  }
+
+  /* Image column: use CSS Grid so the figure fills naturally via vila-img-fill base rules. */
+  .va-home-digi-family > .va-home-digi-family__media {
+    display: grid !important;
+    grid-template: 1fr / 1fr;
+    align-self: stretch;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    flex-basis: 33.33% !important;
+    min-width: 0;
+    min-height: 14rem;
+  }
+
+  .va-home-digi-family > .va-home-digi-family__media > figure.vila-img-fill {
+    grid-area: 1 / 1;
+    position: relative;
+    display: grid;
+    grid-template: 1fr / 1fr;
+    margin: 0 !important;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .va-home-digi-family > .va-home-digi-family__media > figure.vila-img-fill > img {
+    grid-area: 1 / 1;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
+    display: block;
   }
 
   /* Contact page form card: mirror brochure contact form styling */
@@ -543,8 +761,8 @@
     width: 100% !important;
     border: 0 !important;
     border-radius: 9999px !important;
-    background: #f7f4e9 !important;
-    color: #1c1c16 !important;
+    background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+    color: rgb(var(--vila-rgb-on-background) / 1) !important;
     box-shadow: none !important;
   }
 
@@ -565,8 +783,8 @@
     width: 100% !important;
     border: 0 !important;
     border-radius: 9999px !important;
-    background: #9a4021 !important;
-    color: #fff !important;
+    background: rgb(var(--vila-rgb-primary) / 1) !important;
+    color: rgb(var(--vila-rgb-on-primary) / 1) !important;
     min-height: 3.25rem !important;
     padding: 0.875rem 2rem !important;
   }
@@ -620,7 +838,8 @@
   }
 
   body.vila-page-booking .va-booking-map-trigger {
-    @apply relative block overflow-hidden rounded-2xl;
+    @apply block overflow-hidden rounded-2xl;
+    position: relative;
   }
 
   body.vila-page-booking .va-booking-map-trigger__hint {
@@ -733,8 +952,8 @@
     border-width: 2px !important;
     border-style: solid !important;
     border-color: transparent !important;
-    background-color: #f7f4e9 !important; /* surface-container-low */
-    color: #1c1c16 !important; /* on-background */
+    background-color: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+    color: rgb(var(--vila-rgb-on-background) / 1) !important;
     padding: 1rem 1.25rem !important;
     font-size: 1rem !important;
     line-height: 1.5 !important;
@@ -751,8 +970,8 @@
     box-sizing: border-box !important;
     border: 0 !important;
     border-radius: 0.5rem !important;
-    background-color: #9a4021 !important; /* primary */
-    color: #ffefeb !important; /* on-primary */
+    background-color: rgb(var(--vila-rgb-primary) / 1) !important;
+    color: rgb(var(--vila-rgb-on-primary) / 1) !important;
   }
 
   body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
@@ -1099,7 +1318,8 @@
 
   .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__shell,
   body.single-product .vila-airbnb-booking--who .vila-guest-picker__shell {
-    @apply relative z-20 mt-0;
+    @apply z-20 mt-0;
+    position: relative;
   }
 
   .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar,
@@ -1265,7 +1485,8 @@
   }
 
   .va-map-lightbox__content {
-    @apply relative z-10 w-full max-w-[1154px] max-h-[94vh] rounded-2xl bg-white p-2 sm:p-3;
+    @apply z-10 w-full max-w-[1154px] max-h-[94vh] rounded-2xl bg-white p-2 sm:p-3;
+    position: relative;
     box-shadow: 0 20px 60px rgba(19, 14, 3, 0.4);
   }
 
@@ -1314,7 +1535,7 @@
   }
 
   .va-map-plot-hotspot.is-selected .va-map-plot-hotspot__dot {
-    background: #fcf9ef;
+    background: rgb(var(--vila-rgb-surface) / 1);
   }
 
   /* Checkout: wider layout for commerce pages */
@@ -1560,7 +1781,8 @@
   /* Success message: type-led hero, no heavy “alert” box */
   body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success {
-    @apply relative mb-0 border-0 bg-transparent p-0 text-center font-headline text-3xl font-normal leading-tight tracking-tight text-on-background shadow-none md:text-4xl lg:text-5xl;
+    @apply mb-0 border-0 bg-transparent p-0 text-center font-headline text-3xl font-normal leading-tight tracking-tight text-on-background shadow-none md:text-4xl lg:text-5xl;
+    position: relative;
   }
 
   body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received::before,
@@ -1875,7 +2097,7 @@
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #625b48;
+  color: rgb(var(--vila-rgb-on-surface-variant) / 1);
 }
 
 .va-campus-form-card .wpcf7-form-control-wrap {
@@ -1892,8 +2114,8 @@
   padding: 0.75rem 1.25rem !important;
   border: 0 !important;
   border-radius: 9999px !important;
-  background: #f7f4e9 !important;
-  color: #1c1c16 !important;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
   box-shadow: none !important;
 }
 
@@ -1903,8 +2125,8 @@
   padding: 1rem 1.25rem !important;
   border: 0 !important;
   border-radius: 1.5rem !important;
-  background: #f7f4e9 !important;
-  color: #1c1c16 !important;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
   box-shadow: none !important;
 }
 
@@ -1914,9 +2136,202 @@
   padding: 0.875rem 2rem !important;
   border: 0 !important;
   border-radius: 9999px !important;
-  background: #9a4021 !important;
-  color: #fff !important;
+  background: rgb(var(--vila-rgb-primary) / 1) !important;
+  color: rgb(var(--vila-rgb-on-primary) / 1) !important;
   font-weight: 400 !important;
   text-transform: uppercase;
   letter-spacing: 0.11em;
+}
+
+/* Campsite brochure-style desktop mosaic */
+@media (min-width: 1024px) {
+  .campsite-brochure-section .max-w-\[1236px\] {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+    gap: 1.5rem;
+    align-items: stretch;
+  }
+
+  .campsite-brochure-section .max-w-\[1236px\].space-y-16 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0;
+  }
+
+  .campsite-brochure-section .max-w-\[1236px\] > .wp-block-group:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .campsite-brochure-section .campsite-card {
+    margin: 0;
+  }
+
+  .campsite-brochure-section .campsite-card-river {
+    grid-column: span 4 / span 4;
+    grid-row: 2;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 1.25rem;
+    padding: 2rem;
+    overflow: hidden;
+  }
+
+  .campsite-brochure-section .campsite-card-river figure.wp-block-image {
+    margin-top: 0.5rem;
+    height: clamp(8.5rem, 12vw, 12rem);
+    min-height: 8.5rem;
+  }
+
+  .campsite-brochure-section .campsite-card-river figure.wp-block-image > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops {
+    grid-column: span 8 / span 8;
+    grid-row: 2;
+    margin-top: 0;
+    height: 100%;
+    background: rgb(var(--vila-rgb-surface) / 1);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    gap: 2rem;
+    align-items: stretch;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .campsite-brochure-section .campsite-card-littler {
+    grid-column: span 7 / span 7;
+    grid-row: 3;
+    margin-top: 0;
+    min-height: 0;
+  }
+
+  .campsite-brochure-section .campsite-card-trails-food {
+    grid-column: span 5 / span 5;
+    grid-row: 3;
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-content: stretch;
+  }
+
+  .campsite-brochure-section .campsite-card-trails-food > .wp-block-column {
+    margin-top: 0;
+    flex: 1 1 0;
+  }
+
+  .campsite-brochure-section .campsite-card-trails-food .wp-block-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column {
+    margin-top: 0;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:first-child {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.25rem;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:last-child,
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:last-child figure.wp-block-image {
+    height: 100%;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:last-child figure.wp-block-image {
+    margin: 0;
+  }
+}
+
+/* Campsite gallery: editor-friendly, infinite images */
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem !important;
+  align-items: stretch;
+}
+
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item {
+  position: relative;
+  display: block;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  overflow: hidden;
+  margin: 0 !important;
+  border-radius: 1.3rem;
+  background: #e9e6dc;
+  box-shadow: 0 14px 30px rgba(48, 41, 27, 0.08);
+  aspect-ratio: 4 / 5;
+}
+
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image::after,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(22, 19, 12, 0.16), rgba(22, 19, 12, 0));
+  opacity: 0;
+  transition: opacity 240ms ease;
+  pointer-events: none;
+}
+
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image > img,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item > img,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item figure > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.001);
+  transition: transform 500ms ease;
+}
+
+@media (hover: hover) {
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:hover > img,
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover > img,
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover figure > img {
+    transform: scale(1.05);
+  }
+
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:hover::after,
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover::after {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 768px) {
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.1rem !important;
+  }
+
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 1),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 4),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 1),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 4) {
+    grid-column: span 2;
+    aspect-ratio: 16 / 10;
+  }
+
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 2),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 3),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 5),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 2),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 3),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 5) {
+    grid-column: span 1;
+    aspect-ratio: 3 / 4;
+  }
 }

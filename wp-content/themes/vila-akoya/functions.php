@@ -20,7 +20,7 @@ require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';
 require_once VILA_AKOYA_DIR . '/inc/seed.php';
 
 /**
- * Body class for pages that use a white / neutral canvas (matches block content, e.g. booking reserve card).
+ * Body classes that select brochure Palette B (neutral cream / #fcf9ef family) via CSS variables in vila-palette.css.
  *
  * @param string[] $classes Body classes.
  * @return string[]
@@ -28,6 +28,12 @@ require_once VILA_AKOYA_DIR . '/inc/seed.php';
 function vila_akoya_body_class_neutral_canvas( $classes ) {
 	if ( is_page( 'contact' ) ) {
 		$classes[] = 'vila-page-contact';
+	}
+	if ( is_page( 'about' ) ) {
+		$classes[] = 'vila-page-about';
+	}
+	if ( is_page( 'thank-you' ) ) {
+		$classes[] = 'vila-page-thank-you';
 	}
 	return $classes;
 }
@@ -99,10 +105,26 @@ function vila_akoya_enqueue_assets() {
 			VILA_AKOYA_VERSION,
 			true
 		);
+		$form_ids = function_exists( 'vila_akoya_get_cf7_form_ids' ) ? vila_akoya_get_cf7_form_ids() : array();
 		$thank_you = home_url( '/thank-you/' );
+		$redirect_form_ids = array_values(
+			array_filter(
+				array(
+					isset( $form_ids['booking'] ) ? (string) $form_ids['booking'] : '',
+					isset( $form_ids['village_inquiry'] ) ? (string) $form_ids['village_inquiry'] : '',
+					isset( $form_ids['campus'] ) ? (string) $form_ids['campus'] : '',
+					isset( $form_ids['contact'] ) ? (string) $form_ids['contact'] : '',
+				)
+			)
+		);
 		wp_add_inline_script(
 			'vila-akoya-cf7-redirect',
-			'window.vilaAkoyaCf7 = ' . wp_json_encode( array( 'thankYouUrl' => $thank_you ) ) . ';',
+			'window.vilaAkoyaCf7 = ' . wp_json_encode(
+				array(
+					'thankYouUrl'     => $thank_you,
+					'redirectFormIds' => $redirect_form_ids,
+				)
+			) . ';',
 			'before'
 		);
 	}

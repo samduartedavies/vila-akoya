@@ -1,3 +1,124 @@
+/**
+ * Brochure-aligned colour tokens (space-separated RGB for Tailwind opacity / alpha).
+ *
+ * Palette A — warm editorial: home, village, campsite, campus, the-kids (brochure *.html
+ * with background #fff6e1, on-surface #332e1e, coral primary-container / primary-fixed).
+ *
+ * Palette B — neutral cream: booking, about, contact, thank-you (brochure #fcf9ef canvas,
+ * on-surface #1c1c16, terracotta primary-container #ba5737).
+ */
+
+:root {
+  --vila-rgb-error-container: 251 81 81;
+  --vila-rgb-on-surface: 51 46 30;
+  --vila-rgb-tertiary-dim: 108 72 32;
+  --vila-rgb-on-primary-container: 83 20 0;
+  --vila-rgb-error-dim: 159 5 25;
+  --vila-rgb-inverse-on-surface: 165 156 134;
+  --vila-rgb-primary-dim: 138 52 22;
+  --vila-rgb-primary-fixed-dim: 234 124 89;
+  --vila-rgb-primary: 154 63 33;
+  --vila-rgb-on-secondary-fixed: 31 36 25;
+  --vila-rgb-on-tertiary-fixed-variant: 83 50 11;
+  --vila-rgb-primary-container: 251 137 101;
+  --vila-rgb-surface-bright: 255 246 225;
+  --vila-rgb-inverse-primary: 251 137 101;
+  --vila-rgb-on-secondary-container: 61 67 56;
+  --vila-rgb-tertiary-fixed: 217 167 119;
+  --vila-rgb-surface-dim: 224 212 178;
+  --vila-rgb-on-primary: 255 239 235;
+  --vila-rgb-error: 179 27 37;
+  --vila-rgb-surface-container: 242 232 203;
+  --vila-rgb-surface-variant: 232 220 188;
+  --vila-rgb-on-primary-fixed: 30 3 0;
+  --vila-rgb-primary-fixed: 251 137 101;
+  --vila-rgb-inverse-surface: 18 14 3;
+  --vila-rgb-secondary-fixed: 226 230 216;
+  --vila-rgb-surface-container-high: 237 226 195;
+  --vila-rgb-on-primary-fixed-variant: 98 25 0;
+  --vila-rgb-on-secondary-fixed-variant: 77 83 64;
+  --vila-rgb-on-tertiary-container: 72 41 4;
+  --vila-rgb-secondary: 92 99 72;
+  --vila-rgb-background: 255 246 225;
+  --vila-rgb-tertiary: 122 83 42;
+  --vila-rgb-on-error-container: 87 0 8;
+  --vila-rgb-on-tertiary-fixed: 39 19 0;
+  --vila-rgb-on-tertiary: 255 240 229;
+  --vila-rgb-surface-container-low: 251 240 213;
+  --vila-rgb-tertiary-fixed-dim: 202 154 107;
+  --vila-rgb-outline-variant: 181 173 150;
+  --vila-rgb-on-surface-variant: 98 91 72;
+  --vila-rgb-surface: 255 246 225;
+  --vila-rgb-on-background: 51 46 30;
+  --vila-rgb-on-secondary: 245 243 235;
+  --vila-rgb-surface-tint: 154 63 33;
+  --vila-rgb-on-error: 255 239 238;
+  --vila-rgb-surface-container-lowest: 255 255 255;
+  --vila-rgb-surface-container-highest: 232 220 188;
+  --vila-rgb-secondary-fixed-dim: 200 207 192;
+  --vila-rgb-outline: 126 118 98;
+  --vila-rgb-tertiary-container: 217 167 119;
+  --vila-rgb-secondary-container: 226 230 216;
+  --vila-rgb-secondary-dim: 74 82 64;
+}
+
+body.vila-page-booking,
+body.vila-page-contact,
+body.vila-page-about,
+body.vila-page-thank-you {
+  --vila-rgb-error-container: 255 218 214;
+  --vila-rgb-on-surface: 28 28 22;
+  --vila-rgb-tertiary-dim: 108 72 32;
+  --vila-rgb-on-primary-container: 255 251 255;
+  --vila-rgb-error-dim: 159 5 25;
+  --vila-rgb-inverse-on-surface: 244 241 231;
+  --vila-rgb-primary-dim: 138 52 22;
+  --vila-rgb-primary-fixed-dim: 255 181 158;
+  --vila-rgb-primary: 154 64 33;
+  --vila-rgb-on-secondary-fixed: 31 36 25;
+  --vila-rgb-on-tertiary-fixed-variant: 82 69 43;
+  --vila-rgb-primary-container: 186 87 55;
+  --vila-rgb-surface-bright: 252 249 239;
+  --vila-rgb-inverse-primary: 255 181 158;
+  --vila-rgb-on-secondary-container: 61 67 56;
+  --vila-rgb-tertiary-fixed: 245 224 189;
+  --vila-rgb-surface-dim: 221 218 208;
+  --vila-rgb-on-primary: 255 255 255;
+  --vila-rgb-error: 186 26 26;
+  --vila-rgb-surface-container: 241 238 228;
+  --vila-rgb-surface-variant: 229 226 217;
+  --vila-rgb-on-primary-fixed: 58 11 0;
+  --vila-rgb-primary-fixed: 255 219 208;
+  --vila-rgb-inverse-surface: 49 49 42;
+  --vila-rgb-secondary-fixed: 226 230 216;
+  --vila-rgb-surface-container-high: 235 232 222;
+  --vila-rgb-on-primary-fixed-variant: 126 43 14;
+  --vila-rgb-on-secondary-fixed-variant: 77 83 64;
+  --vila-rgb-on-tertiary-container: 255 251 255;
+  --vila-rgb-secondary: 92 99 72;
+  --vila-rgb-background: 252 249 239;
+  --vila-rgb-tertiary: 105 90 62;
+  --vila-rgb-on-error-container: 147 0 10;
+  --vila-rgb-on-tertiary-fixed: 36 26 5;
+  --vila-rgb-on-tertiary: 255 255 255;
+  --vila-rgb-surface-container-low: 247 244 233;
+  --vila-rgb-tertiary-fixed-dim: 216 196 162;
+  --vila-rgb-outline-variant: 220 193 185;
+  --vila-rgb-on-surface-variant: 86 66 60;
+  --vila-rgb-surface: 252 249 239;
+  --vila-rgb-on-background: 28 28 22;
+  --vila-rgb-on-secondary: 255 255 255;
+  --vila-rgb-surface-tint: 157 66 35;
+  --vila-rgb-on-error: 255 255 255;
+  --vila-rgb-surface-container-lowest: 255 255 255;
+  --vila-rgb-surface-container-highest: 229 226 217;
+  --vila-rgb-secondary-fixed-dim: 200 207 192;
+  --vila-rgb-outline: 137 114 107;
+  --vila-rgb-tertiary-container: 131 114 85;
+  --vila-rgb-secondary-container: 226 230 216;
+  --vila-rgb-secondary-dim: 74 82 64;
+}
+
 *, ::before, ::after {
   --tw-border-spacing-x: 0;
   --tw-border-spacing-y: 0;
@@ -106,9 +227,8 @@
   --tw-contain-style:  ;
 }
 
-/*
-! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
-*/
+/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
+ */
 
 /*
 1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
@@ -751,25 +871,12 @@ input:where([type='file']):focus {
 
 body {
   --tw-bg-opacity: 1;
-  background-color: rgb(252 249 239 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface) / var(--tw-bg-opacity, 1));
   font-family: Josefin Sans, system-ui, sans-serif;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/*
-   * Booking + contact: same warm page canvas as brochure-website/booking.html (`bg-background` / #fcf9ef).
-   * Reserve / inquiry cards stay white via block + component rules.
-   */
-
-body.vila-page-booking,
-  body.vila-page-contact {
-  --tw-bg-opacity: 1;
-  background-color: rgb(252 249 239 / var(--tw-bg-opacity, 1));
-  --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
 }
 
 .container {
@@ -814,10 +921,6 @@ body.vila-page-booking,
 #site-nav-desktop-links a {
   padding-left: 0.6rem;
   padding-right: 0.6rem;
-}
-
-.wp-block-cover .wp-block-cover__background {
-  opacity: 0.7 !important
 }
 
 #site-nav-desktop-links [data-nav] {
@@ -873,11 +976,11 @@ body.vila-page-booking,
   pointer-events: auto;
 }
 
-nav a[href*="/booking/"] {
-  font-size: 1rem;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-}
+/* nav a[href*="/booking/"] {
+      font-size: 1rem;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    } */
 
 .vila-footer-links a {
   font-size: 0.9rem;
@@ -1021,6 +1124,10 @@ figure.vila-img-fill > a img,
   --wp--style--block-gap: 0 !important;
 }
 
+.vila-home .wp-block-columns.va-home-digi-family.vila-split-flush {
+  flex-wrap: nowrap !important;
+}
+
 .vila-home .vila-home-hero-image > img {
   filter: brightness(0.85);
 }
@@ -1064,7 +1171,7 @@ figure.vila-img-fill > a img,
   transform: scale(1.02);
 }
 
-@media (min-width: 782px) {
+@media (min-width: 768px) {
   .vila-home .wp-block-columns.vila-split-flush {
     flex-wrap: nowrap !important;
   }
@@ -1164,7 +1271,7 @@ figure.vila-img-fill > a img,
   text-transform: uppercase;
   letter-spacing: 0.1em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .vila-cf7 .wpcf7-form input[type="text"],
@@ -1178,14 +1285,14 @@ figure.vila-img-fill > a img,
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1rem;
   padding-right: 1rem;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
   font-family: Josefin Sans, system-ui, sans-serif;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -1197,7 +1304,7 @@ figure.vila-img-fill > a img,
   .vila-cf7 .wpcf7-form input[type="url"]:hover,
   .vila-cf7 .wpcf7-form textarea:hover,
   .vila-cf7 .wpcf7-form select:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
 }
 
 .vila-cf7 .wpcf7-form input[type="text"]:focus,
@@ -1207,7 +1314,7 @@ figure.vila-img-fill > a img,
   .vila-cf7 .wpcf7-form textarea:focus,
   .vila-cf7 .wpcf7-form select:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -1228,7 +1335,7 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   body.vila-page-booking .vila-cf7 .wpcf7-form textarea,
   body.vila-page-booking .vila-cf7 .wpcf7-form select {
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
 }
 
 .vila-cf7--booking .wpcf7-list-item {
@@ -1245,7 +1352,7 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1rem;
   padding-right: 1rem;
   padding-top: 0.75rem;
@@ -1254,7 +1361,7 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   line-height: 1.25rem;
   font-weight: 500;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -1262,10 +1369,10 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
 
 .vila-cf7--booking input[type="radio"]:checked + .wpcf7-list-item-label {
   --tw-border-opacity: 1;
-  border-color: rgb(154 64 33 / var(--tw-border-opacity, 1));
-  background-color: rgb(154 64 33 / 0.05);
+  border-color: rgb(var(--vila-rgb-primary) / var(--tw-border-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / 0.05);
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
 }
 
 .vila-cf7 .wpcf7-submit {
@@ -1276,7 +1383,7 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   border-radius: 9999px;
   border-width: 0px;
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   padding-left: 2rem;
   padding-right: 2rem;
   padding-top: 1rem;
@@ -1293,11 +1400,154 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
 
 .vila-cf7 .wpcf7-submit:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 .vila-cf7--newsletter .wpcf7-submit {
   border-radius: 3rem;
+}
+
+/* Kids page CTA tout: brochure-style split card */
+
+.vila-page-inner .va-kids-cta {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 6rem;
+  padding-bottom: 6rem;
+}
+
+@media (min-width: 768px) {
+  .vila-page-inner .va-kids-cta {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .vila-page-inner .va-kids-cta {
+    padding-left: 6rem;
+    padding-right: 6rem;
+  }
+}
+
+.vila-page-inner .va-kids-cta__card {
+  background-color: #e8dcbc;
+  margin: 0px;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1300px;
+  overflow: hidden;
+  border-radius: 3rem;
+  min-height: 28rem;
+}
+
+/* Remove default WP column gap and margin */
+
+.vila-page-inner .va-kids-cta__card > .wp-block-column {
+  margin: 0 !important;
+}
+
+/* Left: content */
+
+.vila-page-inner .va-kids-cta__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 3rem;
+  padding-right: 3rem;
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+@media (min-width: 768px) {
+  .vila-page-inner .va-kids-cta__content {
+    padding-left: 5rem;
+    padding-right: 5rem;
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+}
+
+.vila-page-inner .va-kids-cta__content p {
+  margin-bottom: 1rem;
+}
+
+.vila-page-inner .va-kids-cta .wp-block-button .wp-block-button__link {
+  border-radius: 9999px;
+  border-width: 0px;
+  --tw-bg-opacity: 1;
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  font-family: Josefin Sans, system-ui, sans-serif;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  --tw-text-opacity: 1;
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
+  --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+.vila-page-inner .va-kids-cta .wp-block-button .wp-block-button__link:hover {
+  --tw-scale-x: 1.05;
+  --tw-scale-y: 1.05;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+/* Right: image — fill the column completely */
+
+.vila-page-inner .va-kids-cta__media {
+  overflow: hidden;
+  position: relative;
+  min-height: 20rem;
+}
+
+/* Override the global figure.vila-img-fill rules that force position:relative */
+
+.vila-page-inner .va-kids-cta__media figure.wp-block-image.vila-img-fill {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  display: block !important;
+}
+
+.vila-page-inner .va-kids-cta__media figure.wp-block-image.vila-img-fill img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  -o-object-fit: cover !important;
+     object-fit: cover !important;
+  opacity: 0.8;
+}
+
+@media (max-width: 781px) {
+  .vila-page-inner .va-kids-cta {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  .vila-page-inner .va-kids-cta__content {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  .vila-page-inner .va-kids-cta__media {
+    min-height: 18rem;
+  }
 }
 
 .vila-cf7 .wpcf7-response-output {
@@ -1307,26 +1557,72 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   line-height: 1.25rem;
 }
 
+/* CF7 renders an empty response container by default; hide it until needed. */
+
+.vila-cf7 .wpcf7-response-output:empty,
+  .vila-cf7 .wpcf7-response-output[aria-hidden='true'] {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
 /* Home newsletter tout: brochure-style pill field + cream CTA */
 
-.va-home-digi-family .vila-cf7--newsletter .wpcf7-form {
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter {
   margin-top: 0.5rem;
 }
 
-.va-home-digi-family .vila-cf7--newsletter .wpcf7-form > div {
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
 @media (min-width: 768px) {
-  .va-home-digi-family .vila-cf7--newsletter .wpcf7-form > div {
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div {
     flex-direction: row;
     align-items: center;
   }
 }
 
-.va-home-digi-family .vila-cf7--newsletter .newsletter-email {
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div > p,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div > p {
+  margin: 0px;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  flex-wrap: nowrap;
+  gap: 1rem;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div > p,
+    .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div > p {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+}
+
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter > div > p > br,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter > div > p > br {
+  display: none !important;
+}
+
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .wpcf7-form-control-wrap,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .wpcf7-form-control-wrap {
+  display: block;
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-email,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email {
   min-height: 3.25rem;
   width: 100%;
   border-radius: 9999px;
@@ -1340,22 +1636,25 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
 }
 
-.va-home-digi-family .vila-cf7--newsletter .newsletter-email::-moz-placeholder {
-  color: rgb(255 239 235 / 0.7);
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-email::-moz-placeholder, .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email::-moz-placeholder {
+  color: rgb(var(--vila-rgb-on-primary) / 0.7);
 }
 
-.va-home-digi-family .vila-cf7--newsletter .newsletter-email::placeholder {
-  color: rgb(255 239 235 / 0.7);
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-email::placeholder,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email::placeholder {
+  color: rgb(var(--vila-rgb-on-primary) / 0.7);
 }
 
-.va-home-digi-family .vila-cf7--newsletter .newsletter-email:hover {
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-email:hover,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email:hover {
   border-color: rgb(255 255 255 / 0.3);
 }
 
-.va-home-digi-family .vila-cf7--newsletter .newsletter-email:focus {
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-email:focus,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email:focus {
   border-color: rgb(255 255 255 / 0.5);
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -1364,12 +1663,13 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
-.va-home-digi-family .vila-cf7--newsletter .newsletter-submit {
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
   min-height: 3.25rem;
   border-radius: 9999px;
   border-width: 0px;
   --tw-bg-opacity: 1;
-  background-color: rgb(252 249 239 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface) / var(--tw-bg-opacity, 1));
   padding-left: 2.5rem;
   padding-right: 2.5rem;
   padding-top: 0.75rem;
@@ -1378,15 +1678,165 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
   line-height: 1.5rem;
   font-weight: 600;
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
-.va-home-digi-family .vila-cf7--newsletter .newsletter-submit:hover {
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit:hover,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
+}
+
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit,
+  .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
+  flex: 0 0 auto !important;
+  white-space: nowrap;
+}
+
+.va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .va-home-digi-family .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
+    width: auto;
+  }
+}
+
+/* Village newsletter: light card contrast */
+
+.va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email {
+  border-color: rgb(var(--vila-rgb-outline) / 0.3);
+  --tw-bg-opacity: 1;
+  background-color: rgb(var(--vila-rgb-surface) / var(--tw-bg-opacity, 1));
+  --tw-text-opacity: 1;
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
+}
+
+.va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email::-moz-placeholder {
+  --tw-text-opacity: 1;
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
+}
+
+.va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email::placeholder {
+  --tw-text-opacity: 1;
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
+}
+
+.va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email:hover {
+  border-color: rgb(var(--vila-rgb-outline) / 0.55);
+}
+
+.va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-email:focus {
+  border-color: rgb(var(--vila-rgb-primary) / 0.6);
+}
+
+.va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
+  --tw-bg-opacity: 1;
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
+  --tw-text-opacity: 1;
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
+}
+
+.va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(var(--vila-rgb-primary-fixed-dim) / var(--tw-bg-opacity, 1));
+}
+
+/* Inline layout for CF7 newsletter <p> (both home & village).
+     Uses :has() to target by input ID regardless of wrapper element type. */
+
+.wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email),
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap;
+  align-items: stretch !important;
+  gap: 1rem !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email),
+    .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+}
+
+.wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email) > br,
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) > br {
+  display: none !important;
+}
+
+.wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email) .wpcf7-form-control-wrap,
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) .wpcf7-form-control-wrap {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+.wpcf7-form.vila-cf7--newsletter p:has(#village-waitlist-email) .newsletter-submit,
+  .wpcf7-form.vila-cf7--newsletter p:has(#home-newsletter-email) .newsletter-submit {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+     Digi-family section layout
+     ────────────────────────────────────────────────────────────────────────── */
+
+.va-home-digi-family {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  align-items: stretch !important;
+}
+
+@media (min-width: 768px) {
+  .va-home-digi-family > .wp-block-column:first-child {
+    flex-basis: 66.66% !important;
+  }
+}
+
+/* Image column: use CSS Grid so the figure fills naturally via vila-img-fill base rules. */
+
+.va-home-digi-family > .va-home-digi-family__media {
+  display: grid !important;
+  grid-template: 1fr / 1fr;
+  align-self: stretch;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  flex-basis: 33.33% !important;
+  min-width: 0;
+  min-height: 14rem;
+}
+
+.va-home-digi-family > .va-home-digi-family__media > figure.vila-img-fill {
+  grid-area: 1 / 1;
+  position: relative;
+  display: grid;
+  grid-template: 1fr / 1fr;
+  margin: 0 !important;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.va-home-digi-family > .va-home-digi-family__media > figure.vila-img-fill > img {
+  grid-area: 1 / 1;
+  width: 100% !important;
+  height: 100% !important;
+  -o-object-fit: cover !important;
+     object-fit: cover !important;
+  -o-object-position: center !important;
+     object-position: center !important;
+  display: block;
 }
 
 /* Contact page form card: mirror brochure contact form styling */
@@ -1394,9 +1844,9 @@ body.vila-page-contact .vila-cf7 .wpcf7-form input[type="text"],
 body.vila-page-contact .va-contact-form-card {
   border-radius: 1.75rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding: 2rem;
 }
 
@@ -1441,7 +1891,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-form label {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="text"],
@@ -1454,7 +1904,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="text"],
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(229 226 217 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-highest) / var(--tw-bg-opacity, 1));
   padding-left: 1rem;
   padding-right: 1rem;
   padding-top: 0.75rem;
@@ -1462,7 +1912,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="text"],
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -1476,7 +1926,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="text"]:hove
   body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="tel"]:hover,
   body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="url"]:hover,
   body.vila-page-contact .va-contact-form-card .wpcf7-form textarea:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
 }
 
 body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="text"]:focus,
@@ -1485,7 +1935,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="text"]:focu
   body.vila-page-contact .va-contact-form-card .wpcf7-form input[type="url"]:focus,
   body.vila-page-contact .va-contact-form-card .wpcf7-form textarea:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -1505,7 +1955,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-submit {
   justify-content: center;
   border-radius: 9999px;
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   padding-left: 2rem;
   padding-right: 2rem;
   padding-top: 0.875rem;
@@ -1517,12 +1967,12 @@ body.vila-page-contact .va-contact-form-card .wpcf7-submit {
   text-transform: uppercase;
   letter-spacing: 0.11em;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-contact .va-contact-form-card .wpcf7-submit:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
@@ -1530,7 +1980,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   font-size: 0.75rem;
   line-height: 1rem;
   --tw-text-opacity: 1;
-  color: rgb(179 27 37 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-error) / var(--tw-text-opacity, 1));
 }
 
 /* Campus form card: match brochure-style host inquiry form */
@@ -1570,7 +2020,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .va-campus-form-card .wpcf7-form input[type="text"],
@@ -1583,7 +2033,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 0.75rem;
@@ -1591,7 +2041,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -1604,9 +2054,9 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   .va-campus-form-card .wpcf7-form input[type="email"]:hover,
   .va-campus-form-card .wpcf7-form input[type="tel"]:hover,
   .va-campus-form-card .wpcf7-form input[type="url"]:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .va-campus-form-card .wpcf7-form input[type="text"]:focus,
@@ -1614,7 +2064,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   .va-campus-form-card .wpcf7-form input[type="tel"]:focus,
   .va-campus-form-card .wpcf7-form input[type="url"]:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -1630,7 +2080,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -1638,7 +2088,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -1648,14 +2098,14 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
 }
 
 .va-campus-form-card .wpcf7-form textarea:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .va-campus-form-card .wpcf7-form textarea:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -1673,7 +2123,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   line-height: 1.25rem;
   font-style: italic;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .va-campus-form-card .wpcf7-submit {
@@ -1686,7 +2136,7 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   border-radius: 9999px;
   border-width: 0px;
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   padding-left: 2rem;
   padding-right: 2rem;
   padding-top: 0.875rem;
@@ -1699,12 +2149,12 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   text-transform: uppercase;
   letter-spacing: 0.11em;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
 }
 
 .va-campus-form-card .wpcf7-submit:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 /* Hard override for CF7 default/browser styles on Campus form */
@@ -1726,8 +2176,8 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   width: 100% !important;
   border: 0 !important;
   border-radius: 9999px !important;
-  background: #f7f4e9 !important;
-  color: #1c1c16 !important;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
   box-shadow: none !important;
 }
 
@@ -1748,8 +2198,8 @@ body.vila-page-contact .va-contact-form-card .wpcf7-not-valid-tip {
   width: 100% !important;
   border: 0 !important;
   border-radius: 9999px !important;
-  background: #9a4021 !important;
-  color: #fff !important;
+  background: rgb(var(--vila-rgb-primary) / 1) !important;
+  color: rgb(var(--vila-rgb-on-primary) / 1) !important;
   min-height: 3.25rem !important;
   padding: 0.875rem 2rem !important;
 }
@@ -1801,23 +2251,15 @@ body.vila-page-booking .wp-block-column:has(.va-booking-reserve-card),
 }
 
 body.vila-page-booking .va-booking-reserve-card .va-booking-map-panel {
-  border-color: rgb(220 193 185 / 0.25);
-  background-color: rgb(247 244 233 / 0.7);
-}
-
-.vila-page-inner body.vila-page-booking .va-booking-map-trigger.group figure.wp-block-image img {
-  transition: transform 700ms ease;
-}
-
-.vila-page-inner body.vila-page-booking .va-booking-map-trigger.group:hover figure.wp-block-image img {
-  transform: scale(1.05);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.25);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.7);
 }
 
 body.vila-page-booking .va-booking-map-trigger {
-  position: relative;
   display: block;
   overflow: hidden;
   border-radius: 1rem;
+  position: relative;
 }
 
 body.vila-page-booking .va-booking-map-trigger__hint {
@@ -1829,8 +2271,8 @@ body.vila-page-booking .va-booking-map-trigger__hint {
   gap: 0.375rem;
   border-radius: 9999px;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.3);
-  background-color: rgb(235 232 222 / 0.9);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.3);
+  background-color: rgb(var(--vila-rgb-surface-container-high) / 0.9);
   padding-left: 0.75rem;
   padding-right: 0.75rem;
   padding-top: 0.375rem;
@@ -1839,7 +2281,7 @@ body.vila-page-booking .va-booking-map-trigger__hint {
   line-height: 1rem;
   font-weight: 500;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -1864,11 +2306,11 @@ body.vila-page-booking .va-booking-map-trigger__label {
 
 body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hint,
   body.vila-page-booking .va-booking-map-trigger:focus-visible .va-booking-map-trigger__hint {
-  border-color: rgb(154 64 33 / 0.3);
+  border-color: rgb(var(--vila-rgb-primary) / 0.3);
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   transform: translateY(-1px);
 }
 
@@ -1876,7 +2318,7 @@ body.vila-page-booking .va-booking-map-trigger:hover .va-booking-map-trigger__hi
 
 body.vila-page-booking .va-booking-reserve-tabs__tab {
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-booking .va-booking-reserve-tabs__tab:focus-visible {
@@ -1885,7 +2327,7 @@ body.vila-page-booking .va-booking-reserve-tabs__tab:focus-visible {
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
-  --tw-ring-color: rgb(154 64 33 / 0.25);
+  --tw-ring-color: rgb(var(--vila-rgb-primary) / 0.25);
   --tw-ring-offset-width: 2px;
   --tw-ring-offset-color: #fff;
 }
@@ -1894,7 +2336,7 @@ body.vila-page-booking .va-booking-reserve-tabs__tab.is-active {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -1953,7 +2395,7 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 label {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-form-control-wrap {
@@ -1974,7 +2416,7 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[t
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -1983,7 +2425,7 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[t
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -1994,23 +2436,23 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[t
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']::-moz-placeholder, body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email']::-moz-placeholder, body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']::-moz-placeholder, body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']::-moz-placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']::placeholder,
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email']::placeholder,
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']::placeholder,
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']::placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']:hover,
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='email']:hover,
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']:hover,
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='text']:focus,
@@ -2018,9 +2460,9 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[t
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='tel']:focus,
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input[type='url']:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -2036,7 +2478,7 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textare
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -2045,7 +2487,7 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textare
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -2056,24 +2498,24 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textare
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea::-moz-placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea::placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 textarea:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -2095,10 +2537,8 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .wpcf7-
   border-width: 2px !important;
   border-style: solid !important;
   border-color: transparent !important;
-  background-color: #f7f4e9 !important;
-  /* surface-container-low */
-  color: #1c1c16 !important;
-  /* on-background */
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
   padding: 1rem 1.25rem !important;
   font-size: 1rem !important;
   line-height: 1.5 !important;
@@ -2115,10 +2555,8 @@ body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input.w
   box-sizing: border-box !important;
   border: 0 !important;
   border-radius: 0.5rem !important;
-  background-color: #9a4021 !important;
-  /* primary */
-  color: #ffefeb !important;
-  /* on-primary */
+  background-color: rgb(var(--vila-rgb-primary) / 1) !important;
+  color: rgb(var(--vila-rgb-on-primary) / 1) !important;
 }
 
 body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
@@ -2132,7 +2570,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
   border-radius: 2rem;
   border-width: 0px;
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   padding-left: 2rem;
   padding-right: 2rem;
   padding-top: 1.25rem;
@@ -2144,11 +2582,11 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
   text-transform: uppercase;
   letter-spacing: 0.2em;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  --tw-shadow-color: rgb(154 64 33 / 0.2);
+  --tw-shadow-color: rgb(var(--vila-rgb-primary) / 0.2);
   --tw-shadow: var(--tw-shadow-colored);
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -2158,7 +2596,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit {
 
 body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(154, 63, 33, 0.22);
 }
@@ -2189,7 +2627,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   padding: 0px;
   font-family: Josefin Sans, system-ui, sans-serif;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
 }
 
 .va-map-lightbox.vila-wc-booking .woocommerce div.product .woocommerce-product-gallery {
@@ -2322,7 +2760,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -2337,24 +2775,24 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
 }
 
 .vila-wc-booking .vila-booking-range-ui input::-moz-placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 .vila-wc-booking .vila-booking-range-ui input::placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 .vila-wc-booking .vila-booking-range-ui input:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .vila-wc-booking .vila-booking-range-ui input:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -2379,7 +2817,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .mbfw-date-picker-section input,
@@ -2391,7 +2829,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -2401,7 +2839,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   --tw-shadow: 0 0 #0000;
@@ -2414,30 +2852,30 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
 }
 
 .vila-wc-booking .mbfw-date-picker-section input::-moz-placeholder, .vila-wc-booking .mbfw-date-picker-section__wrapper .flatpickr-input::-moz-placeholder, .vila-wc-booking .mwb-mbfw-cart-page-data input[type="text"]::-moz-placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 .vila-wc-booking .mbfw-date-picker-section input::placeholder,
   .vila-wc-booking .mbfw-date-picker-section__wrapper .flatpickr-input::placeholder,
   .vila-wc-booking .mwb-mbfw-cart-page-data input[type="text"]::placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 .vila-wc-booking .mbfw-date-picker-section input:hover,
   .vila-wc-booking .mbfw-date-picker-section__wrapper .flatpickr-input:hover,
   .vila-wc-booking .mwb-mbfw-cart-page-data input[type="text"]:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .vila-wc-booking .mbfw-date-picker-section input:focus,
   .vila-wc-booking .mbfw-date-picker-section__wrapper .flatpickr-input:focus,
   .vila-wc-booking .mwb-mbfw-cart-page-data input[type="text"]:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -2457,7 +2895,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .bfwp-people-options__wrapper {
@@ -2478,7 +2916,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -2486,7 +2924,7 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -2499,18 +2937,18 @@ body.vila-page-booking .va-booking-reserve-card .vila-cf7 .wpcf7-submit:hover {
 .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-type:hover,
   .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-number:hover,
   .vila-wc-booking #mwb_mbfw_people_number:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-type:focus,
   .vila-wc-booking .bfwp-people-options__wrapper .bfwp-people-number:focus,
   .vila-wc-booking #mwb_mbfw_people_number:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   outline: 2px solid transparent;
   outline-offset: 2px;
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
@@ -2554,13 +2992,13 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   line-height: 1.25rem;
   line-height: 1.625;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .mbfw-total-cost__wrapper {
   margin-top: 0.75rem;
   border-top-width: 1px;
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
   background-color: transparent;
   padding-top: 0.75rem;
 }
@@ -2587,7 +3025,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   body.single-product .vila-airbnb-booking {
   font-family: Josefin Sans, system-ui, sans-serif;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking__legend,
@@ -2603,7 +3041,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking__lead,
@@ -2656,7 +3094,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1rem;
   padding-right: 1rem;
   padding-top: 0.75rem;
@@ -2669,9 +3107,9 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
 
 .vila-wc-booking .vila-airbnb-booking__chip:hover .vila-airbnb-booking__chip-body,
   body.single-product .vila-airbnb-booking__chip:hover .vila-airbnb-booking__chip-body {
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 /* Vehicle / lodging chips */
@@ -2688,7 +3126,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1rem;
   padding-right: 1rem;
   padding-top: 0.75rem;
@@ -2714,18 +3152,18 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
 
 .vila-wc-booking .vila-vehicle-option:hover .vila-airbnb-booking__chip-body,
   body.single-product .vila-vehicle-option:hover .vila-airbnb-booking__chip-body {
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body,
   body.single-product .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body {
   --tw-border-opacity: 1;
-  border-color: rgb(154 64 33 / var(--tw-border-opacity, 1));
-  background-color: rgb(154 64 33 / 0.05);
+  border-color: rgb(var(--vila-rgb-primary) / var(--tw-border-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / 0.05);
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -2737,7 +3175,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
 .vila-wc-booking .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title,
   body.single-product .vila-airbnb-booking__chip .vila-vehicle-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title {
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .vila-vehicle-grid.vila-airbnb-booking__chip-grid,
@@ -2754,14 +3192,14 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   font-size: 0.9375rem;
   font-weight: 500;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking__chip-meta,
   body.single-product .vila-airbnb-booking__chip-meta {
   font-size: 0.8125rem;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking__hint,
@@ -2786,7 +3224,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   border-radius: 2rem;
   border-width: 0px;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -2797,7 +3235,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   font-weight: 500;
   line-height: 1.375;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -2814,18 +3252,18 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
 .vila-wc-booking .vila-airbnb-booking__date-input:hover,
   body.single-product .vila-airbnb-booking__date-input:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking__date-input:focus,
   body.single-product .vila-airbnb-booking__date-input:focus {
   outline: none;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
-  --tw-ring-color: rgb(154 64 33 / 0.2);
+  --tw-ring-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .vila-wc-booking .vila-plot-select,
@@ -2842,7 +3280,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding-left: 1.25rem;
   padding-top: 1rem;
   padding-bottom: 1rem;
@@ -2852,7 +3290,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   font-weight: 500;
   line-height: 1.375;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -2869,9 +3307,9 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
 .vila-wc-booking .vila-plot-select:hover,
   body.single-product .vila-plot-select:hover {
   border-width: 2px;
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .vila-wc-booking .vila-plot-select:focus,
@@ -2879,9 +3317,9 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   outline: none;
   border-width: 2px;
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
@@ -2909,21 +3347,11 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   overflow: visible;
 }
 
-.vila-page-inner .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__shell.group figure.wp-block-image img,.vila-page-inner 
-  body.single-product .vila-airbnb-booking--who .vila-guest-picker__shell.group figure.wp-block-image img {
-  transition: transform 700ms ease;
-}
-
-.vila-page-inner .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__shell.group:hover figure.wp-block-image img,.vila-page-inner 
-  body.single-product .vila-airbnb-booking--who .vila-guest-picker__shell.group:hover figure.wp-block-image img {
-  transform: scale(1.05);
-}
-
 .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__shell,
   body.single-product .vila-airbnb-booking--who .vila-guest-picker__shell {
-  position: relative;
   z-index: 20;
   margin-top: 0px;
+  position: relative;
 }
 
 .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar,
@@ -2934,7 +3362,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   border-width: 2px;
   border-color: transparent;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   padding: 0px;
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
@@ -2947,17 +3375,17 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
 
 .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar:hover,
   body.single-product .vila-airbnb-booking--who .vila-guest-picker__bar:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .vila-wc-booking .vila-airbnb-booking--who .vila-guest-picker__bar:focus-within,
   body.single-product .vila-airbnb-booking--who .vila-guest-picker__bar:focus-within {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
@@ -2978,7 +3406,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   body.single-product .vila-airbnb-booking--who .vila-guest-picker__panel {
   border-radius: 1rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
   padding: 0.25rem;
@@ -3025,7 +3453,7 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   border-radius: 2rem;
   border-width: 0px;
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   padding-left: 2rem;
   padding-right: 2rem;
   padding-top: 1.25rem;
@@ -3037,11 +3465,11 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   text-transform: uppercase;
   letter-spacing: 0.2em;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  --tw-shadow-color: rgb(154 64 33 / 0.2);
+  --tw-shadow-color: rgb(var(--vila-rgb-primary) / 0.2);
   --tw-shadow: var(--tw-shadow-colored);
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -3071,9 +3499,9 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   .vila-wc-booking .woocommerce button.button.alt:hover,
   .vila-wc-booking .woocommerce a.button.alt:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   box-shadow: 0 16px 34px rgba(154, 63, 33, 0.22);
   transform: translateY(-2px);
 }
@@ -3091,11 +3519,11 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
   .vila-wc-booking .woocommerce-error {
   border-radius: 1rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.15);
-  background-color: rgb(247 244 233 / 0.8);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.15);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.8);
   padding: 1rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   font-size: 0.875rem;
   line-height: 1.25rem;
   line-height: 1.625;
@@ -3106,9 +3534,9 @@ body:not(.vila-booking-dates-selected) .vila-wc-booking .mwb-mbfw-total-area {
 body.vila-page-booking .flatpickr-calendar {
   border-radius: 1rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   font-family: Josefin Sans, system-ui, sans-serif;
   box-shadow: 0 20px 60px rgba(61, 42, 34, 0.08), 0 8px 24px rgba(61, 42, 34, 0.04);
   min-width: min(100vw - 2rem, 38rem);
@@ -3120,14 +3548,14 @@ body.vila-page-booking .flatpickr-calendar.hasTime {
 
 body.vila-page-booking .flatpickr-months .flatpickr-month {
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
 }
 
 body.vila-page-booking .flatpickr-day.inRange {
   border-style: none;
-  background-color: rgb(154 64 33 / 0.1);
+  background-color: rgb(var(--vila-rgb-primary) / 0.1);
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -3138,21 +3566,21 @@ body.vila-page-booking .flatpickr-day.startRange,
   background: var(--wp--preset--color--primary) !important;
   border-color: var(--wp--preset--color--primary) !important;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-booking .flatpickr-months {
   border-top-left-radius: 1rem;
   border-top-right-radius: 1rem;
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-booking .flatpickr-weekdays {
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
 }
 
 body.vila-page-booking .flatpickr-weekday {
@@ -3162,7 +3590,7 @@ body.vila-page-booking .flatpickr-weekday {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-booking .flatpickr-day.selected,
@@ -3171,15 +3599,15 @@ body.vila-page-booking .flatpickr-day.selected,
   background: var(--wp--preset--color--primary) !important;
   border-color: var(--wp--preset--color--primary) !important;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
 }
 
 body.vila-page-booking .flatpickr-day:hover {
-  background-color: rgb(154 64 33 / 0.1);
+  background-color: rgb(var(--vila-rgb-primary) / 0.1);
 }
 
 body.vila-page-booking .flatpickr-day.flatpickr-disabled {
-  color: rgb(86 66 60 / 0.3);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.3);
 }
 
 body.va-map-lightbox-open {
@@ -3217,16 +3645,7 @@ body.va-map-lightbox-open {
   content: none !important;
 }
 
-.vila-page-inner .va-map-lightbox__content.group figure.wp-block-image img {
-  transition: transform 700ms ease;
-}
-
-.vila-page-inner .va-map-lightbox__content.group:hover figure.wp-block-image img {
-  transform: scale(1.05);
-}
-
 .va-map-lightbox__content {
-  position: relative;
   z-index: 10;
   max-height: 94vh;
   width: 100%;
@@ -3244,6 +3663,7 @@ body.va-map-lightbox-open {
 }
 
 .va-map-lightbox__content {
+  position: relative;
   box-shadow: 0 20px 60px rgba(19, 14, 3, 0.4);
 }
 
@@ -3264,13 +3684,13 @@ body.va-map-lightbox-open {
   line-height: 2.25rem;
   line-height: 1;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   box-shadow: 0 8px 20px rgba(19, 14, 3, 0.2);
 }
 
 .va-map-lightbox__close:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
 }
 
 .va-map-lightbox__image {
@@ -3341,7 +3761,7 @@ body.va-map-lightbox-open {
 }
 
 .va-map-plot-hotspot.is-selected .va-map-plot-hotspot__dot {
-  background: #fcf9ef;
+  background: rgb(var(--vila-rgb-surface) / 1);
 }
 
 /* Checkout: wider layout for commerce pages */
@@ -3359,19 +3779,19 @@ body.vila-wc-commerce .woocommerce,
   body.woocommerce-account .woocommerce {
   font-family: Josefin Sans, system-ui, sans-serif;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce .woocommerce a:not(.button):not(.wp-block-button__link) {
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
   text-decoration-line: none;
   text-underline-offset: 2px;
 }
 
 body.vila-wc-commerce .woocommerce a:not(.button):not(.wp-block-button__link):hover {
   --tw-text-opacity: 1;
-  color: rgb(186 87 55 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary-container) / var(--tw-text-opacity, 1));
   text-decoration-line: underline;
 }
 
@@ -3400,13 +3820,13 @@ body.vila-wc-commerce .woocommerce table.shop_table th {
   text-transform: uppercase;
   letter-spacing: 0.14em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce .woocommerce table.shop_table td {
   border-width: 0px;
   border-top-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -3414,14 +3834,14 @@ body.vila-wc-commerce .woocommerce table.shop_table td {
   font-size: 0.875rem;
   line-height: 1.25rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce .woocommerce .cart_totals,
   body.vila-wc-commerce .woocommerce-checkout-review-order {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.7);
   padding: 1.5rem;
   --tw-shadow: 0 0 #0000;
@@ -3445,7 +3865,7 @@ body.vila-wc-commerce .woocommerce .button,
   border-radius: 9999px;
   border-width: 0px;
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   padding-left: 1.75rem;
   padding-right: 1.75rem;
   padding-top: 0.875rem;
@@ -3456,7 +3876,7 @@ body.vila-wc-commerce .woocommerce .button,
   font-weight: 600;
   letter-spacing: 0.025em;
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -3467,7 +3887,7 @@ body.vila-wc-commerce .woocommerce .button:hover,
   body.vila-wc-commerce .woocommerce a.button:hover,
   body.vila-wc-commerce .woocommerce input.button:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(154, 63, 33, 0.15);
 }
@@ -3476,9 +3896,9 @@ body.vila-wc-commerce .woocommerce .button.alt,
   body.vila-wc-commerce .woocommerce button.button.alt,
   body.vila-wc-commerce #place_order {
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   box-shadow: 0 6px 20px rgba(154, 63, 33, 0.15);
 }
 
@@ -3487,7 +3907,7 @@ body.vila-wc-commerce .woocommerce form .form-row input.input-text,
   body.vila-wc-commerce .woocommerce form .form-row select {
   border-radius: 3rem;
   border-width: 2px;
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
   background-color: rgb(255 255 255 / 0.8);
   padding-left: 1rem;
   padding-right: 1rem;
@@ -3497,7 +3917,7 @@ body.vila-wc-commerce .woocommerce form .form-row input.input-text,
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -3506,14 +3926,14 @@ body.vila-wc-commerce .woocommerce form .form-row input.input-text,
 body.vila-wc-commerce .woocommerce form .form-row input.input-text:hover,
   body.vila-wc-commerce .woocommerce form .form-row textarea:hover,
   body.vila-wc-commerce .woocommerce form .form-row select:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
 }
 
 body.vila-wc-commerce .woocommerce form .form-row input.input-text:focus,
   body.vila-wc-commerce .woocommerce form .form-row textarea:focus,
   body.vila-wc-commerce .woocommerce form .form-row select:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
   outline: 2px solid transparent;
@@ -3532,7 +3952,7 @@ body.vila-wc-commerce .woocommerce form .form-row label {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce .woocommerce-info,
@@ -3540,7 +3960,7 @@ body.vila-wc-commerce .woocommerce-info,
   body.vila-wc-commerce .woocommerce-error {
   border-radius: 1rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.25rem;
   font-size: 0.875rem;
@@ -3557,7 +3977,7 @@ body.vila-wc-commerce .woocommerce-checkout #payment,
   body.vila-wc-commerce #add_payment_method {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.7);
   --tw-backdrop-blur: blur(4px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
@@ -3574,19 +3994,19 @@ body.vila-wc-commerce .wc-block-components-text-input input,
   body.vila-wc-commerce .wc-block-components-textarea textarea {
   border-radius: 3rem;
   border-width: 2px;
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
   background-color: rgb(255 255 255 / 0.8);
 }
 
 body.vila-wc-commerce .wc-block-components-text-input input:hover,
   body.vila-wc-commerce .wc-block-components-textarea textarea:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
 }
 
 body.vila-wc-commerce .wc-block-components-text-input input:focus,
   body.vila-wc-commerce .wc-block-components-textarea textarea:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
@@ -3595,9 +4015,9 @@ body.vila-wc-commerce .wc-block-components-text-input input:focus,
 body.vila-wc-commerce .wc-block-components-button:not(.is-link) {
   border-radius: 9999px;
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -3606,7 +4026,7 @@ body.vila-wc-commerce .wc-block-components-button:not(.is-link) {
 
 body.vila-wc-commerce .wc-block-components-button:not(.is-link):hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
   transform: translateY(-1px);
 }
 
@@ -3664,7 +4084,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce h
   font-family: Marcellus, Georgia, serif;
   font-weight: 400;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce h3 {
@@ -3672,7 +4092,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce h
   line-height: 1.75rem;
   letter-spacing: -0.025em;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -3707,7 +4127,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-b
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-additional-fields {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-backdrop-blur: blur(4px);
@@ -3777,7 +4197,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #order_review_
   font-size: 1.5rem;
   line-height: 2rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -3807,7 +4227,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_tab
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_table tbody td {
   border-width: 0px;
   border-bottom-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -3830,7 +4250,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_tab
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) table.shop_table tfoot td {
   border-width: 0px;
   border-top-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -3855,7 +4275,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-c
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout-review-order .order-total td {
   font-weight: 600;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout-review-order .order-total td {
@@ -3867,7 +4287,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-c
   body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #order_review .woocommerce-checkout-review-order {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-shadow: 0 0 #0000;
@@ -3887,7 +4307,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-c
 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout #payment {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-shadow: 0 0 #0000;
@@ -3907,12 +4327,12 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-c
   margin-top: 0.75rem;
   border-radius: 1rem;
   border-width: 0px;
-  background-color: rgb(247 244 233 / 0.6);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.6);
   padding: 1rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-checkout #payment ul.payment_methods {
@@ -3925,8 +4345,8 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-c
   margin-bottom: 0.75rem;
   border-radius: 1rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
-  background-color: rgb(247 244 233 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.4);
   padding: 1.25rem;
 }
 
@@ -3941,7 +4361,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-c
   line-height: 1.5rem;
   font-weight: 500;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) #place_order {
@@ -3983,7 +4403,7 @@ body.vila-wc-commerce.woocommerce-checkout:not(.woocommerce-cart) .woocommerce-t
   line-height: 1.25rem;
   line-height: 1.625;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 /* Thank you / order received — modern minimalist (overrides global WC table + notice defaults) */
@@ -4034,19 +4454,8 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-order > :not([hidd
 
 /* Success message: type-led hero, no heavy “alert” box */
 
-.vila-page-inner body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received.group figure.wp-block-image img,.vila-page-inner 
-  body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success.group figure.wp-block-image img {
-  transition: transform 700ms ease;
-}
-
-.vila-page-inner body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received.group:hover figure.wp-block-image img,.vila-page-inner 
-  body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success.group:hover figure.wp-block-image img {
-  transform: scale(1.05);
-}
-
 body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success {
-  position: relative;
   margin-bottom: 0px;
   border-width: 0px;
   background-color: transparent;
@@ -4059,7 +4468,7 @@ body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.w
   line-height: 1.25;
   letter-spacing: -0.025em;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -4081,6 +4490,11 @@ body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.w
   }
 }
 
+body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received,
+  body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success {
+  position: relative;
+}
+
 body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received::before,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-thankyou-order-received.woocommerce-notice--success::before {
   content: '\2713';
@@ -4093,11 +4507,11 @@ body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.w
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  background-color: rgb(92 99 72 / 0.15);
+  background-color: rgb(var(--vila-rgb-secondary) / 0.15);
   font-size: 1.5rem;
   line-height: 2rem;
   --tw-text-opacity: 1;
-  color: rgb(92 99 72 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-secondary) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.woocommerce-thankyou-order-received::after,
@@ -4109,7 +4523,7 @@ body.vila-wc-commerce.woocommerce-order-received p.woocommerce-notice--success.w
   display: block;
   height: 1px;
   width: 4rem;
-  background-color: rgb(154 64 33 / 0.25);
+  background-color: rgb(var(--vila-rgb-primary) / 0.25);
 }
 
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-info,
@@ -4119,7 +4533,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-info,
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.25rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -4174,7 +4588,7 @@ body.vila-wc-commerce.woocommerce-order-received ul.order_details li,
   body.vila-wc-commerce.woocommerce-order-received ul.woocommerce-order-overview li {
   border-radius: 1rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding-left: 1rem;
   padding-right: 1rem;
@@ -4185,7 +4599,7 @@ body.vila-wc-commerce.woocommerce-order-received ul.order_details li,
   font-size: 0.875rem;
   line-height: 1.25rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
   --tw-shadow: 0 0 #0000;
   --tw-shadow-colored: 0 0 #0000;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -4204,7 +4618,7 @@ body.vila-wc-commerce.woocommerce-order-received ul.order_details li strong,
   text-transform: uppercase;
   letter-spacing: 0.14em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 /* Drop default table chrome from global commerce rules */
@@ -4224,7 +4638,7 @@ body.vila-wc-commerce.woocommerce-order-received section.woocommerce-order-detai
   margin-bottom: 0px;
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-shadow: 0 0 #0000;
@@ -4250,7 +4664,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-details__tit
   line-height: 1.75rem;
   font-weight: 400;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -4284,14 +4698,14 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-detai
   text-transform: uppercase;
   letter-spacing: 0.14em;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table tbody td,
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table tbody th {
   border-width: 0px;
   border-bottom-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -4299,7 +4713,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-detai
   font-size: 0.875rem;
   line-height: 1.25rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -4314,7 +4728,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-detai
   body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details.shop_table tfoot td {
   border-width: 0px;
   border-top-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
@@ -4323,19 +4737,19 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-detai
   line-height: 1.25rem;
   font-weight: 600;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details .product-name a {
   font-weight: 500;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
   text-decoration-line: none;
 }
 
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-table--order-details .product-name a:hover {
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
 }
 
 /* Billing / shipping */
@@ -4344,7 +4758,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-customer-details,
   body.vila-wc-commerce.woocommerce-order-received section.woocommerce-customer-details {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-shadow: 0 0 #0000;
@@ -4367,7 +4781,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-column__title {
   font-size: 1.125rem;
   line-height: 1.75rem;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -4423,7 +4837,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-customer-details a
   font-style: normal;
   line-height: 1.625;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-customer-details .woocommerce-customer-details--phone,
@@ -4432,13 +4846,13 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce-customer-details .
   font-size: 0.875rem;
   line-height: 1.25rem;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-downloads {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-backdrop-blur: blur(4px);
@@ -4459,7 +4873,7 @@ body.vila-wc-commerce.woocommerce-order-received .woocommerce .woocommerce-notic
   line-height: 1.5rem;
   line-height: 1.625;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 body.vila-wc-commerce.woocommerce-order-received .woocommerce-order-again {
@@ -4610,7 +5024,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-st
   line-height: 2.25rem;
   font-weight: 400;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -4641,7 +5055,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-st
   line-height: 2.25rem;
   font-weight: 400;
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -4666,7 +5080,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-st
   font-size: 1rem;
   line-height: 1.5rem;
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 @media (min-width: 768px) {
@@ -4680,7 +5094,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-su
   margin-bottom: 2rem;
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-backdrop-blur: blur(4px);
@@ -4702,7 +5116,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-to
 body.vila-wc-commerce.woocommerce-order-received .wp-block-woocommerce-order-confirmation-totals-wrapper {
   border-radius: 1.5rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   padding: 1.5rem;
   --tw-shadow: 0 0 #0000;
@@ -4721,7 +5135,7 @@ body.vila-wc-commerce.woocommerce-order-received .wp-block-woocommerce-order-con
 body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   border-radius: 1rem;
   border-width: 1px;
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
   background-color: rgb(255 255 255 / 0.6);
   --tw-backdrop-blur: blur(4px);
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
@@ -5134,6 +5548,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   margin-top: 3rem;
 }
 
+.mt-14 {
+  margin-top: 3.5rem;
+}
+
 .mt-2 {
   margin-top: 0.5rem;
 }
@@ -5511,6 +5929,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   max-width: 80rem;
 }
 
+.max-w-\[1100px\] {
+  max-width: 1100px;
+}
+
 .max-w-\[1154px\] {
   max-width: 1154px;
 }
@@ -5802,6 +6224,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .flex-row {
   flex-direction: row;
+}
+
+.flex-row-reverse {
+  flex-direction: row-reverse;
 }
 
 .flex-col {
@@ -6187,42 +6613,51 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   border-style: none;
 }
 
+.border-outline {
+  --tw-border-opacity: 1;
+  border-color: rgb(var(--vila-rgb-outline) / var(--tw-border-opacity, 1));
+}
+
 .border-outline-variant {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
 }
 
 .border-outline-variant\/10 {
-  border-color: rgb(220 193 185 / 0.1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.1);
 }
 
 .border-outline-variant\/15 {
-  border-color: rgb(220 193 185 / 0.15);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.15);
 }
 
 .border-outline-variant\/20 {
-  border-color: rgb(220 193 185 / 0.2);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.2);
 }
 
 .border-outline-variant\/25 {
-  border-color: rgb(220 193 185 / 0.25);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.25);
 }
 
 .border-outline-variant\/30 {
-  border-color: rgb(220 193 185 / 0.3);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.3);
+}
+
+.border-outline\/30 {
+  border-color: rgb(var(--vila-rgb-outline) / 0.3);
 }
 
 .border-primary {
   --tw-border-opacity: 1;
-  border-color: rgb(154 64 33 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-primary) / var(--tw-border-opacity, 1));
 }
 
 .border-primary\/20 {
-  border-color: rgb(154 64 33 / 0.2);
+  border-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .border-primary\/30 {
-  border-color: rgb(154 64 33 / 0.3);
+  border-color: rgb(var(--vila-rgb-primary) / 0.3);
 }
 
 .border-red-400 {
@@ -6237,15 +6672,15 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .border-secondary {
   --tw-border-opacity: 1;
-  border-color: rgb(92 99 72 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-secondary) / var(--tw-border-opacity, 1));
 }
 
 .border-secondary\/10 {
-  border-color: rgb(92 99 72 / 0.1);
+  border-color: rgb(var(--vila-rgb-secondary) / 0.1);
 }
 
 .border-secondary\/20 {
-  border-color: rgb(92 99 72 / 0.2);
+  border-color: rgb(var(--vila-rgb-secondary) / 0.2);
 }
 
 .border-stone-200 {
@@ -6264,26 +6699,26 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .border-surface {
   --tw-border-opacity: 1;
-  border-color: rgb(252 249 239 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-surface) / var(--tw-border-opacity, 1));
 }
 
 .border-surface-container {
   --tw-border-opacity: 1;
-  border-color: rgb(241 238 228 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-surface-container) / var(--tw-border-opacity, 1));
 }
 
 .border-surface-container-high {
   --tw-border-opacity: 1;
-  border-color: rgb(235 232 222 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-border-opacity, 1));
 }
 
 .border-tertiary {
   --tw-border-opacity: 1;
-  border-color: rgb(105 90 62 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-tertiary) / var(--tw-border-opacity, 1));
 }
 
 .border-tertiary\/20 {
-  border-color: rgb(105 90 62 / 0.2);
+  border-color: rgb(var(--vila-rgb-tertiary) / 0.2);
 }
 
 .border-transparent {
@@ -6327,7 +6762,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .bg-background {
   --tw-bg-opacity: 1;
-  background-color: rgb(252 249 239 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-background) / var(--tw-bg-opacity, 1));
 }
 
 .bg-black {
@@ -6341,50 +6776,50 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .bg-on-surface {
   --tw-bg-opacity: 1;
-  background-color: rgb(28 28 22 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-on-surface) / var(--tw-bg-opacity, 1));
 }
 
 .bg-on-surface\/5 {
-  background-color: rgb(28 28 22 / 0.05);
+  background-color: rgb(var(--vila-rgb-on-surface) / 0.05);
 }
 
 .bg-primary {
   --tw-bg-opacity: 1;
-  background-color: rgb(154 64 33 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary) / var(--tw-bg-opacity, 1));
 }
 
 .bg-primary-container {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 .bg-primary-container\/10 {
-  background-color: rgb(186 87 55 / 0.1);
+  background-color: rgb(var(--vila-rgb-primary-container) / 0.1);
 }
 
 .bg-primary-container\/30 {
-  background-color: rgb(186 87 55 / 0.3);
+  background-color: rgb(var(--vila-rgb-primary-container) / 0.3);
 }
 
 .bg-primary-fixed {
   --tw-bg-opacity: 1;
-  background-color: rgb(251 137 101 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-fixed) / var(--tw-bg-opacity, 1));
 }
 
 .bg-primary\/10 {
-  background-color: rgb(154 64 33 / 0.1);
+  background-color: rgb(var(--vila-rgb-primary) / 0.1);
 }
 
 .bg-primary\/20 {
-  background-color: rgb(154 64 33 / 0.2);
+  background-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .bg-primary\/35 {
-  background-color: rgb(154 64 33 / 0.35);
+  background-color: rgb(var(--vila-rgb-primary) / 0.35);
 }
 
 .bg-primary\/5 {
-  background-color: rgb(154 64 33 / 0.05);
+  background-color: rgb(var(--vila-rgb-primary) / 0.05);
 }
 
 .bg-red-50 {
@@ -6398,40 +6833,40 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .bg-secondary {
   --tw-bg-opacity: 1;
-  background-color: rgb(92 99 72 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-secondary) / var(--tw-bg-opacity, 1));
 }
 
 .bg-secondary-container {
   --tw-bg-opacity: 1;
-  background-color: rgb(226 230 216 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-secondary-container) / var(--tw-bg-opacity, 1));
 }
 
 .bg-secondary-container\/20 {
-  background-color: rgb(226 230 216 / 0.2);
+  background-color: rgb(var(--vila-rgb-secondary-container) / 0.2);
 }
 
 .bg-secondary-container\/30 {
-  background-color: rgb(226 230 216 / 0.3);
+  background-color: rgb(var(--vila-rgb-secondary-container) / 0.3);
 }
 
 .bg-secondary\/10 {
-  background-color: rgb(92 99 72 / 0.1);
+  background-color: rgb(var(--vila-rgb-secondary) / 0.1);
 }
 
 .bg-secondary\/15 {
-  background-color: rgb(92 99 72 / 0.15);
+  background-color: rgb(var(--vila-rgb-secondary) / 0.15);
 }
 
 .bg-secondary\/20 {
-  background-color: rgb(92 99 72 / 0.2);
+  background-color: rgb(var(--vila-rgb-secondary) / 0.2);
 }
 
 .bg-secondary\/30 {
-  background-color: rgb(92 99 72 / 0.3);
+  background-color: rgb(var(--vila-rgb-secondary) / 0.3);
 }
 
 .bg-secondary\/5 {
-  background-color: rgb(92 99 72 / 0.05);
+  background-color: rgb(var(--vila-rgb-secondary) / 0.05);
 }
 
 .bg-stone-900 {
@@ -6441,99 +6876,99 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .bg-surface {
   --tw-bg-opacity: 1;
-  background-color: rgb(252 249 239 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface) / var(--tw-bg-opacity, 1));
 }
 
 .bg-surface-bright {
   --tw-bg-opacity: 1;
-  background-color: rgb(252 249 239 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-bright) / var(--tw-bg-opacity, 1));
 }
 
 .bg-surface-bright\/80 {
-  background-color: rgb(252 249 239 / 0.8);
+  background-color: rgb(var(--vila-rgb-surface-bright) / 0.8);
 }
 
 .bg-surface-container {
   --tw-bg-opacity: 1;
-  background-color: rgb(241 238 228 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container) / var(--tw-bg-opacity, 1));
 }
 
 .bg-surface-container-high {
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .bg-surface-container-high\/90 {
-  background-color: rgb(235 232 222 / 0.9);
+  background-color: rgb(var(--vila-rgb-surface-container-high) / 0.9);
 }
 
 .bg-surface-container-highest {
   --tw-bg-opacity: 1;
-  background-color: rgb(229 226 217 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-highest) / var(--tw-bg-opacity, 1));
 }
 
 .bg-surface-container-low {
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
 }
 
 .bg-surface-container-low\/40 {
-  background-color: rgb(247 244 233 / 0.4);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.4);
 }
 
 .bg-surface-container-low\/50 {
-  background-color: rgb(247 244 233 / 0.5);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.5);
 }
 
 .bg-surface-container-low\/60 {
-  background-color: rgb(247 244 233 / 0.6);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.6);
 }
 
 .bg-surface-container-low\/80 {
-  background-color: rgb(247 244 233 / 0.8);
+  background-color: rgb(var(--vila-rgb-surface-container-low) / 0.8);
 }
 
 .bg-surface-container-lowest {
   --tw-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-lowest) / var(--tw-bg-opacity, 1));
 }
 
 .bg-surface-container-lowest\/90 {
-  background-color: rgb(255 255 255 / 0.9);
+  background-color: rgb(var(--vila-rgb-surface-container-lowest) / 0.9);
 }
 
 .bg-surface\/40 {
-  background-color: rgb(252 249 239 / 0.4);
+  background-color: rgb(var(--vila-rgb-surface) / 0.4);
 }
 
 .bg-surface\/70 {
-  background-color: rgb(252 249 239 / 0.7);
+  background-color: rgb(var(--vila-rgb-surface) / 0.7);
 }
 
 .bg-tertiary {
   --tw-bg-opacity: 1;
-  background-color: rgb(105 90 62 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-tertiary) / var(--tw-bg-opacity, 1));
 }
 
 .bg-tertiary-container {
   --tw-bg-opacity: 1;
-  background-color: rgb(217 167 119 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-tertiary-container) / var(--tw-bg-opacity, 1));
 }
 
 .bg-tertiary-container\/30 {
-  background-color: rgb(217 167 119 / 0.3);
+  background-color: rgb(var(--vila-rgb-tertiary-container) / 0.3);
 }
 
 .bg-tertiary\/20 {
-  background-color: rgb(105 90 62 / 0.2);
+  background-color: rgb(var(--vila-rgb-tertiary) / 0.2);
 }
 
 .bg-tertiary\/25 {
-  background-color: rgb(105 90 62 / 0.25);
+  background-color: rgb(var(--vila-rgb-tertiary) / 0.25);
 }
 
 .bg-tertiary\/5 {
-  background-color: rgb(105 90 62 / 0.05);
+  background-color: rgb(var(--vila-rgb-tertiary) / 0.05);
 }
 
 .bg-transparent {
@@ -6612,44 +7047,44 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .from-on-surface {
-  --tw-gradient-from: #1c1c16 var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(28 28 22 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--vila-rgb-on-surface) / 1) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-on-surface) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .from-primary {
-  --tw-gradient-from: #9a4021 var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(154 64 33 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--vila-rgb-primary) / 1) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-primary) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .from-primary\/20 {
-  --tw-gradient-from: rgb(154 64 33 / 0.2) var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(154 64 33 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--vila-rgb-primary) / 0.2) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-primary) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .from-primary\/40 {
-  --tw-gradient-from: rgb(154 64 33 / 0.4) var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(154 64 33 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--vila-rgb-primary) / 0.4) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-primary) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .from-surface-container {
-  --tw-gradient-from: #f1eee4 var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(241 238 228 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--vila-rgb-surface-container) / 1) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-surface-container) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .from-surface-container\/80 {
-  --tw-gradient-from: rgb(241 238 228 / 0.8) var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(241 238 228 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--vila-rgb-surface-container) / 0.8) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-surface-container) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 .from-surface-container\/95 {
-  --tw-gradient-from: rgb(241 238 228 / 0.95) var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(241 238 228 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgb(var(--vila-rgb-surface-container) / 0.95) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-surface-container) / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
@@ -6659,18 +7094,18 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .via-on-surface {
-  --tw-gradient-to: rgb(28 28 22 / 0)  var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), #1c1c16 var(--tw-gradient-via-position), var(--tw-gradient-to);
+  --tw-gradient-to: rgb(var(--vila-rgb-on-surface) / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), rgb(var(--vila-rgb-on-surface) / 1) var(--tw-gradient-via-position), var(--tw-gradient-to);
 }
 
 .via-surface-container {
-  --tw-gradient-to: rgb(241 238 228 / 0)  var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), #f1eee4 var(--tw-gradient-via-position), var(--tw-gradient-to);
+  --tw-gradient-to: rgb(var(--vila-rgb-surface-container) / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), rgb(var(--vila-rgb-surface-container) / 1) var(--tw-gradient-via-position), var(--tw-gradient-to);
 }
 
 .via-surface-container\/95 {
-  --tw-gradient-to: rgb(241 238 228 / 0)  var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), rgb(241 238 228 / 0.95) var(--tw-gradient-via-position), var(--tw-gradient-to);
+  --tw-gradient-to: rgb(var(--vila-rgb-surface-container) / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), rgb(var(--vila-rgb-surface-container) / 0.95) var(--tw-gradient-via-position), var(--tw-gradient-to);
 }
 
 .via-transparent {
@@ -6683,11 +7118,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .to-primary-container {
-  --tw-gradient-to: #ba5737 var(--tw-gradient-to-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-primary-container) / 1) var(--tw-gradient-to-position);
 }
 
 .to-surface-container {
-  --tw-gradient-to: #f1eee4 var(--tw-gradient-to-position);
+  --tw-gradient-to: rgb(var(--vila-rgb-surface-container) / 1) var(--tw-gradient-to-position);
 }
 
 .to-transparent {
@@ -7259,68 +7694,68 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .text-on-background {
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-background) / var(--tw-text-opacity, 1));
 }
 
 .text-on-primary {
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
 }
 
 .text-on-primary-container {
   --tw-text-opacity: 1;
-  color: rgb(83 20 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-container) / var(--tw-text-opacity, 1));
 }
 
 .text-on-primary-fixed {
   --tw-text-opacity: 1;
-  color: rgb(30 3 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-fixed) / var(--tw-text-opacity, 1));
 }
 
 .text-on-secondary {
   --tw-text-opacity: 1;
-  color: rgb(245 243 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-secondary) / var(--tw-text-opacity, 1));
 }
 
 .text-on-secondary-container {
   --tw-text-opacity: 1;
-  color: rgb(61 67 56 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-secondary-container) / var(--tw-text-opacity, 1));
 }
 
 .text-on-secondary\/80 {
-  color: rgb(245 243 235 / 0.8);
+  color: rgb(var(--vila-rgb-on-secondary) / 0.8);
 }
 
 .text-on-secondary\/90 {
-  color: rgb(245 243 235 / 0.9);
+  color: rgb(var(--vila-rgb-on-secondary) / 0.9);
 }
 
 .text-on-surface {
   --tw-text-opacity: 1;
-  color: rgb(28 28 22 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface) / var(--tw-text-opacity, 1));
 }
 
 .text-on-surface-variant {
   --tw-text-opacity: 1;
-  color: rgb(86 66 60 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-surface-variant) / var(--tw-text-opacity, 1));
 }
 
 .text-on-surface-variant\/70 {
-  color: rgb(86 66 60 / 0.7);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.7);
 }
 
 .text-on-surface-variant\/90 {
-  color: rgb(86 66 60 / 0.9);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.9);
 }
 
 .text-on-tertiary {
   --tw-text-opacity: 1;
-  color: rgb(255 240 229 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-tertiary) / var(--tw-text-opacity, 1));
 }
 
 .text-on-tertiary-container {
   --tw-text-opacity: 1;
-  color: rgb(72 41 4 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-tertiary-container) / var(--tw-text-opacity, 1));
 }
 
 .text-orange-100 {
@@ -7353,26 +7788,26 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .text-primary {
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
 }
 
 .text-secondary {
   --tw-text-opacity: 1;
-  color: rgb(92 99 72 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-secondary) / var(--tw-text-opacity, 1));
 }
 
 .text-secondary-dim {
   --tw-text-opacity: 1;
-  color: rgb(74 82 64 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-secondary-dim) / var(--tw-text-opacity, 1));
 }
 
 .text-secondary-fixed {
   --tw-text-opacity: 1;
-  color: rgb(226 230 216 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-secondary-fixed) / var(--tw-text-opacity, 1));
 }
 
 .text-secondary-fixed\/60 {
-  color: rgb(226 230 216 / 0.6);
+  color: rgb(var(--vila-rgb-secondary-fixed) / 0.6);
 }
 
 .text-stone-400 {
@@ -7387,17 +7822,17 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .text-tertiary {
   --tw-text-opacity: 1;
-  color: rgb(105 90 62 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-tertiary) / var(--tw-text-opacity, 1));
 }
 
 .text-tertiary-dim {
   --tw-text-opacity: 1;
-  color: rgb(108 72 32 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-tertiary-dim) / var(--tw-text-opacity, 1));
 }
 
 .text-tertiary-fixed {
   --tw-text-opacity: 1;
-  color: rgb(217 167 119 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-tertiary-fixed) / var(--tw-text-opacity, 1));
 }
 
 .text-white {
@@ -7422,35 +7857,35 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .decoration-primary {
-  text-decoration-color: #9a4021;
+  text-decoration-color: rgb(var(--vila-rgb-primary) / 1);
 }
 
 .decoration-primary\/30 {
-  text-decoration-color: rgb(154 64 33 / 0.3);
+  text-decoration-color: rgb(var(--vila-rgb-primary) / 0.3);
 }
 
 .decoration-primary\/70 {
-  text-decoration-color: rgb(154 64 33 / 0.7);
+  text-decoration-color: rgb(var(--vila-rgb-primary) / 0.7);
 }
 
 .decoration-secondary {
-  text-decoration-color: #5c6348;
+  text-decoration-color: rgb(var(--vila-rgb-secondary) / 1);
 }
 
 .decoration-secondary\/40 {
-  text-decoration-color: rgb(92 99 72 / 0.4);
+  text-decoration-color: rgb(var(--vila-rgb-secondary) / 0.4);
 }
 
 .decoration-tertiary {
-  text-decoration-color: #695a3e;
+  text-decoration-color: rgb(var(--vila-rgb-tertiary) / 1);
 }
 
 .decoration-tertiary\/30 {
-  text-decoration-color: rgb(105 90 62 / 0.3);
+  text-decoration-color: rgb(var(--vila-rgb-tertiary) / 0.3);
 }
 
 .decoration-tertiary\/40 {
-  text-decoration-color: rgb(105 90 62 / 0.4);
+  text-decoration-color: rgb(var(--vila-rgb-tertiary) / 0.4);
 }
 
 .underline-offset-2 {
@@ -7484,6 +7919,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .opacity-50 {
   opacity: 0.5;
+}
+
+.opacity-55 {
+  opacity: 0.55;
 }
 
 .opacity-60 {
@@ -7567,12 +8006,12 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .shadow-primary {
-  --tw-shadow-color: #9a4021;
+  --tw-shadow-color: rgb(var(--vila-rgb-primary) / 1);
   --tw-shadow: var(--tw-shadow-colored);
 }
 
 .shadow-primary\/20 {
-  --tw-shadow-color: rgb(154 64 33 / 0.2);
+  --tw-shadow-color: rgb(var(--vila-rgb-primary) / 0.2);
   --tw-shadow: var(--tw-shadow-colored);
 }
 
@@ -7599,11 +8038,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .ring-primary {
   --tw-ring-opacity: 1;
-  --tw-ring-color: rgb(154 64 33 / var(--tw-ring-opacity, 1));
+  --tw-ring-color: rgb(var(--vila-rgb-primary) / var(--tw-ring-opacity, 1));
 }
 
 .ring-primary\/25 {
-  --tw-ring-color: rgb(154 64 33 / 0.25);
+  --tw-ring-color: rgb(var(--vila-rgb-primary) / 0.25);
 }
 
 .ring-white {
@@ -7716,6 +8155,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   transition-property: transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+.duration-200 {
+  transition-duration: 200ms;
 }
 
 .duration-300 {
@@ -7859,7 +8302,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #625b48;
+  color: rgb(var(--vila-rgb-on-surface-variant) / 1);
 }
 
 .va-campus-form-card .wpcf7-form-control-wrap {
@@ -7876,8 +8319,8 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   padding: 0.75rem 1.25rem !important;
   border: 0 !important;
   border-radius: 9999px !important;
-  background: #f7f4e9 !important;
-  color: #1c1c16 !important;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
   box-shadow: none !important;
 }
 
@@ -7887,8 +8330,8 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   padding: 1rem 1.25rem !important;
   border: 0 !important;
   border-radius: 1.5rem !important;
-  background: #f7f4e9 !important;
-  color: #1c1c16 !important;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
   box-shadow: none !important;
 }
 
@@ -7898,14 +8341,209 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   padding: 0.875rem 2rem !important;
   border: 0 !important;
   border-radius: 9999px !important;
-  background: #9a4021 !important;
-  color: #fff !important;
+  background: rgb(var(--vila-rgb-primary) / 1) !important;
+  color: rgb(var(--vila-rgb-on-primary) / 1) !important;
   font-weight: 400 !important;
   text-transform: uppercase;
   letter-spacing: 0.11em;
 }
 
+/* Campsite brochure-style desktop mosaic */
+
+@media (min-width: 1024px) {
+  .campsite-brochure-section .max-w-\[1236px\] {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+    gap: 1.5rem;
+    align-items: stretch;
+  }
+
+  .campsite-brochure-section .max-w-\[1236px\].space-y-16 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0;
+  }
+
+  .campsite-brochure-section .max-w-\[1236px\] > .wp-block-group:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .campsite-brochure-section .campsite-card {
+    margin: 0;
+  }
+
+  .campsite-brochure-section .campsite-card-river {
+    grid-column: span 4 / span 4;
+    grid-row: 2;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 1.25rem;
+    padding: 2rem;
+    overflow: hidden;
+  }
+
+  .campsite-brochure-section .campsite-card-river figure.wp-block-image {
+    margin-top: 0.5rem;
+    height: clamp(8.5rem, 12vw, 12rem);
+    min-height: 8.5rem;
+  }
+
+  .campsite-brochure-section .campsite-card-river figure.wp-block-image > img {
+    width: 100%;
+    height: 100%;
+    -o-object-fit: cover;
+       object-fit: cover;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops {
+    grid-column: span 8 / span 8;
+    grid-row: 2;
+    margin-top: 0;
+    height: 100%;
+    background: rgb(var(--vila-rgb-surface) / 1);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    gap: 2rem;
+    align-items: stretch;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .campsite-brochure-section .campsite-card-littler {
+    grid-column: span 7 / span 7;
+    grid-row: 3;
+    margin-top: 0;
+    min-height: 0;
+  }
+
+  .campsite-brochure-section .campsite-card-trails-food {
+    grid-column: span 5 / span 5;
+    grid-row: 3;
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-content: stretch;
+  }
+
+  .campsite-brochure-section .campsite-card-trails-food > .wp-block-column {
+    margin-top: 0;
+    flex: 1 1 0;
+  }
+
+  .campsite-brochure-section .campsite-card-trails-food .wp-block-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column {
+    margin-top: 0;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:first-child {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.25rem;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:last-child,
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:last-child figure.wp-block-image {
+    height: 100%;
+  }
+
+  .campsite-brochure-section .campsite-card-workshops > .wp-block-column:last-child figure.wp-block-image {
+    margin: 0;
+  }
+}
+
+/* Campsite gallery: editor-friendly, infinite images */
+
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem !important;
+  align-items: stretch;
+}
+
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item {
+  position: relative;
+  display: block;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  overflow: hidden;
+  margin: 0 !important;
+  border-radius: 1.3rem;
+  background: #e9e6dc;
+  box-shadow: 0 14px 30px rgba(48, 41, 27, 0.08);
+  aspect-ratio: 4 / 5;
+}
+
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image::after,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(22, 19, 12, 0.16), rgba(22, 19, 12, 0));
+  opacity: 0;
+  transition: opacity 240ms ease;
+  pointer-events: none;
+}
+
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image > img,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item > img,
+.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item figure > img {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+     object-fit: cover;
+  transform: scale(1.001);
+  transition: transform 500ms ease;
+}
+
+@media (hover: hover) {
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:hover > img,
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover > img,
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover figure > img {
+    transform: scale(1.05);
+  }
+
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:hover::after,
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover::after {
+    opacity: 1;
+  }
+}
+
 @media (min-width: 768px) {
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.1rem !important;
+  }
+
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 1),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 4),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 1),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 4) {
+    grid-column: span 2;
+    aspect-ratio: 16 / 10;
+  }
+
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 2),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 3),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 5),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 2),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 3),
+  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 5) {
+    grid-column: span 1;
+    aspect-ratio: 3 / 4;
+  }
+
   .md\:items-center {
     align-items: center !important;
   }
@@ -7937,154 +8575,154 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .selection\:bg-primary-container *::-moz-selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary-container *::selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary-fixed *::-moz-selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(251 137 101 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-fixed) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary-fixed *::selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(251 137 101 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-fixed) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary\/20 *::-moz-selection {
-  background-color: rgb(154 64 33 / 0.2);
+  background-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .selection\:bg-primary\/20 *::selection {
-  background-color: rgb(154 64 33 / 0.2);
+  background-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .selection\:bg-secondary-container *::-moz-selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(226 230 216 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-secondary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-secondary-container *::selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(226 230 216 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-secondary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:text-on-primary-container *::-moz-selection {
   --tw-text-opacity: 1;
-  color: rgb(83 20 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-container) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-primary-container *::selection {
   --tw-text-opacity: 1;
-  color: rgb(83 20 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-container) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-primary-fixed *::-moz-selection {
   --tw-text-opacity: 1;
-  color: rgb(30 3 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-fixed) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-primary-fixed *::selection {
   --tw-text-opacity: 1;
-  color: rgb(30 3 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-fixed) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-secondary-container *::-moz-selection {
   --tw-text-opacity: 1;
-  color: rgb(61 67 56 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-secondary-container) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-secondary-container *::selection {
   --tw-text-opacity: 1;
-  color: rgb(61 67 56 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-secondary-container) / var(--tw-text-opacity, 1));
 }
 
 .selection\:bg-primary-container::-moz-selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary-container::selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary-fixed::-moz-selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(251 137 101 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-fixed) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary-fixed::selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(251 137 101 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-fixed) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-primary\/20::-moz-selection {
-  background-color: rgb(154 64 33 / 0.2);
+  background-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .selection\:bg-primary\/20::selection {
-  background-color: rgb(154 64 33 / 0.2);
+  background-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .selection\:bg-secondary-container::-moz-selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(226 230 216 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-secondary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:bg-secondary-container::selection {
   --tw-bg-opacity: 1;
-  background-color: rgb(226 230 216 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-secondary-container) / var(--tw-bg-opacity, 1));
 }
 
 .selection\:text-on-primary-container::-moz-selection {
   --tw-text-opacity: 1;
-  color: rgb(83 20 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-container) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-primary-container::selection {
   --tw-text-opacity: 1;
-  color: rgb(83 20 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-container) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-primary-fixed::-moz-selection {
   --tw-text-opacity: 1;
-  color: rgb(30 3 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-fixed) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-primary-fixed::selection {
   --tw-text-opacity: 1;
-  color: rgb(30 3 0 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary-fixed) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-secondary-container::-moz-selection {
   --tw-text-opacity: 1;
-  color: rgb(61 67 56 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-secondary-container) / var(--tw-text-opacity, 1));
 }
 
 .selection\:text-on-secondary-container::selection {
   --tw-text-opacity: 1;
-  color: rgb(61 67 56 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-secondary-container) / var(--tw-text-opacity, 1));
 }
 
 .placeholder\:text-on-surface-variant\/40::-moz-placeholder {
-  color: rgb(86 66 60 / 0.4);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.4);
 }
 
 .placeholder\:text-on-surface-variant\/40::placeholder {
-  color: rgb(86 66 60 / 0.4);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.4);
 }
 
 .placeholder\:text-on-surface-variant\/75::-moz-placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 .placeholder\:text-on-surface-variant\/75::placeholder {
-  color: rgb(86 66 60 / 0.75);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.75);
 }
 
 .placeholder\:text-white\/60::-moz-placeholder {
@@ -8134,7 +8772,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .hover\:border-outline-variant\/40:hover {
-  border-color: rgb(220 193 185 / 0.4);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
+}
+
+.hover\:border-outline\/55:hover {
+  border-color: rgb(var(--vila-rgb-outline) / 0.55);
 }
 
 .hover\:border-white\/30:hover {
@@ -8156,58 +8798,58 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .hover\:bg-primary-container:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(186 87 55 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-container) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-primary-dim:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(138 52 22 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-primary-dim) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-primary\/15:hover {
-  background-color: rgb(154 64 33 / 0.15);
+  background-color: rgb(var(--vila-rgb-primary) / 0.15);
 }
 
 .hover\:bg-primary\/5:hover {
-  background-color: rgb(154 64 33 / 0.05);
+  background-color: rgb(var(--vila-rgb-primary) / 0.05);
 }
 
 .hover\:bg-secondary-container:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(226 230 216 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-secondary-container) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-secondary-container\/30:hover {
-  background-color: rgb(226 230 216 / 0.3);
+  background-color: rgb(var(--vila-rgb-secondary-container) / 0.3);
 }
 
 .hover\:bg-secondary-container\/50:hover {
-  background-color: rgb(226 230 216 / 0.5);
+  background-color: rgb(var(--vila-rgb-secondary-container) / 0.5);
 }
 
 .hover\:bg-surface-bright:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(252 249 239 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-bright) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-surface-container:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(241 238 228 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-surface-container-high:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(235 232 222 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-high) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-tertiary-container:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(217 167 119 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-tertiary-container) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-tertiary-dim:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(108 72 32 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-tertiary-dim) / var(--tw-bg-opacity, 1));
 }
 
 .hover\:text-\[\#9a4021\]:hover {
@@ -8222,7 +8864,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .hover\:text-primary-container:hover {
   --tw-text-opacity: 1;
-  color: rgb(186 87 55 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary-container) / var(--tw-text-opacity, 1));
 }
 
 .hover\:underline:hover {
@@ -8230,11 +8872,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .hover\:decoration-secondary:hover {
-  text-decoration-color: #5c6348;
+  text-decoration-color: rgb(var(--vila-rgb-secondary) / 1);
 }
 
 .hover\:decoration-tertiary:hover {
-  text-decoration-color: #695a3e;
+  text-decoration-color: rgb(var(--vila-rgb-tertiary) / 1);
 }
 
 .hover\:opacity-100:hover {
@@ -8258,7 +8900,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .hover\:shadow-primary\/20:hover {
-  --tw-shadow-color: rgb(154 64 33 / 0.2);
+  --tw-shadow-color: rgb(var(--vila-rgb-primary) / 0.2);
   --tw-shadow: var(--tw-shadow-colored);
 }
 
@@ -8269,7 +8911,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .focus\:border-outline-variant:focus {
   --tw-border-opacity: 1;
-  border-color: rgb(220 193 185 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-outline-variant) / var(--tw-border-opacity, 1));
 }
 
 .focus\:border-white\/50:focus {
@@ -8278,7 +8920,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .focus\:bg-surface-container-low:focus {
   --tw-bg-opacity: 1;
-  background-color: rgb(247 244 233 / var(--tw-bg-opacity, 1));
+  background-color: rgb(var(--vila-rgb-surface-container-low) / var(--tw-bg-opacity, 1));
 }
 
 .focus\:bg-white:focus {
@@ -8305,11 +8947,11 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .focus\:ring-primary:focus {
   --tw-ring-opacity: 1;
-  --tw-ring-color: rgb(154 64 33 / var(--tw-ring-opacity, 1));
+  --tw-ring-color: rgb(var(--vila-rgb-primary) / var(--tw-ring-opacity, 1));
 }
 
 .focus\:ring-primary\/20:focus {
-  --tw-ring-color: rgb(154 64 33 / 0.2);
+  --tw-ring-color: rgb(var(--vila-rgb-primary) / 0.2);
 }
 
 .focus\:ring-white\/40:focus {
@@ -8370,29 +9012,29 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 }
 
 .group:hover .group-hover\:bg-primary\/10 {
-  background-color: rgb(154 64 33 / 0.1);
+  background-color: rgb(var(--vila-rgb-primary) / 0.1);
 }
 
 .group:hover .group-hover\:bg-secondary\/10 {
-  background-color: rgb(92 99 72 / 0.1);
+  background-color: rgb(var(--vila-rgb-secondary) / 0.1);
 }
 
 .group:hover .group-hover\:bg-tertiary\/10 {
-  background-color: rgb(105 90 62 / 0.1);
+  background-color: rgb(var(--vila-rgb-tertiary) / 0.1);
 }
 
 .group:hover .group-hover\:text-on-primary {
   --tw-text-opacity: 1;
-  color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
 }
 
 .group:hover .group-hover\:text-on-primary\/80 {
-  color: rgb(255 239 235 / 0.8);
+  color: rgb(var(--vila-rgb-on-primary) / 0.8);
 }
 
 .group:hover .group-hover\:text-primary {
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
 }
 
 .group:hover .group-hover\:opacity-60 {
@@ -8401,25 +9043,25 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
 .peer:checked ~ .peer-checked\:border-primary {
   --tw-border-opacity: 1;
-  border-color: rgb(154 64 33 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-primary) / var(--tw-border-opacity, 1));
 }
 
 .peer:checked ~ .peer-checked\:bg-primary\/5 {
-  background-color: rgb(154 64 33 / 0.05);
+  background-color: rgb(var(--vila-rgb-primary) / 0.05);
 }
 
 .peer:checked ~ .peer-checked\:text-primary {
   --tw-text-opacity: 1;
-  color: rgb(154 64 33 / var(--tw-text-opacity, 1));
+  color: rgb(var(--vila-rgb-primary) / var(--tw-text-opacity, 1));
 }
 
 .has-\[\:checked\]\:border-primary:has(:checked) {
   --tw-border-opacity: 1;
-  border-color: rgb(154 64 33 / var(--tw-border-opacity, 1));
+  border-color: rgb(var(--vila-rgb-primary) / var(--tw-border-opacity, 1));
 }
 
 .has-\[\:checked\]\:bg-primary\/5:has(:checked) {
-  background-color: rgb(154 64 33 / 0.05);
+  background-color: rgb(var(--vila-rgb-primary) / 0.05);
 }
 
 @media (max-width: 1240px) {
@@ -8554,6 +9196,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
   .md\:mb-10 {
     margin-bottom: 2.5rem;
+  }
+
+  .md\:mb-16 {
+    margin-bottom: 4rem;
   }
 
   .md\:mb-20 {
@@ -8766,7 +9412,7 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   }
 
   .md\:bg-surface-bright\/20 {
-    background-color: rgb(252 249 239 / 0.2);
+    background-color: rgb(var(--vila-rgb-surface-bright) / 0.2);
   }
 
   .md\:bg-gradient-to-t {
@@ -8774,20 +9420,20 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   }
 
   .md\:from-on-surface\/35 {
-    --tw-gradient-from: rgb(28 28 22 / 0.35) var(--tw-gradient-from-position);
-    --tw-gradient-to: rgb(28 28 22 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-from: rgb(var(--vila-rgb-on-surface) / 0.35) var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(var(--vila-rgb-on-surface) / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
   }
 
   .md\:from-on-surface\/40 {
-    --tw-gradient-from: rgb(28 28 22 / 0.4) var(--tw-gradient-from-position);
-    --tw-gradient-to: rgb(28 28 22 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-from: rgb(var(--vila-rgb-on-surface) / 0.4) var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(var(--vila-rgb-on-surface) / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
   }
 
   .md\:via-on-surface\/15 {
-    --tw-gradient-to: rgb(28 28 22 / 0)  var(--tw-gradient-to-position);
-    --tw-gradient-stops: var(--tw-gradient-from), rgb(28 28 22 / 0.15) var(--tw-gradient-via-position), var(--tw-gradient-to);
+    --tw-gradient-to: rgb(var(--vila-rgb-on-surface) / 0)  var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), rgb(var(--vila-rgb-on-surface) / 0.15) var(--tw-gradient-via-position), var(--tw-gradient-to);
   }
 
   .md\:to-transparent {
@@ -8939,15 +9585,15 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
   .md\:text-on-primary {
     --tw-text-opacity: 1;
-    color: rgb(255 239 235 / var(--tw-text-opacity, 1));
+    color: rgb(var(--vila-rgb-on-primary) / var(--tw-text-opacity, 1));
   }
 
   .md\:text-on-primary\/90 {
-    color: rgb(255 239 235 / 0.9);
+    color: rgb(var(--vila-rgb-on-primary) / 0.9);
   }
 
   .md\:hover\:bg-surface-bright\/30:hover {
-    background-color: rgb(252 249 239 / 0.3);
+    background-color: rgb(var(--vila-rgb-surface-bright) / 0.3);
   }
 }
 
@@ -9008,6 +9654,10 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
 
   .lg\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lg\:flex-row-reverse {
+    flex-direction: row-reverse;
   }
 
   .lg\:gap-20 {
@@ -9083,9 +9733,4 @@ body.vila-wc-commerce.woocommerce-order-received .wc-block-components-panel {
   .dark\:hover\:bg-\[\#ba5737\]\/10:hover {
     background-color: rgb(186 87 55 / 0.1);
   }
-}
-
-.\[\&\>img\]\:object-center>img {
-  -o-object-position: center;
-     object-position: center;
 }

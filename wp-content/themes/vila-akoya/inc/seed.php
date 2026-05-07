@@ -182,9 +182,9 @@ function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
 	);
 
 	foreach ( $classes as $key => $class ) {
-		$id      = isset( $cf7[ $key ] ) ? (int) $cf7[ $key ] : 0;
-		$replace = $id
-			? sprintf( '[contact-form-7 id="%d" html_class="%s"]', $id, esc_attr( $class ) )
+		$id      = isset( $cf7[ $key ] ) ? (string) $cf7[ $key ] : '';
+		$replace = '' !== $id
+			? sprintf( '[contact-form-7 id="%s" html_class="%s"]', esc_attr( $id ), esc_attr( $class ) )
 			: '';
 		$html    = str_replace( '{{cf7:' . $key . '}}', $replace, $html );
 	}
