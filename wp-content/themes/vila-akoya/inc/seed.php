@@ -8,6 +8,7 @@
 defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/permalink-nav.php';
+require_once __DIR__ . '/seo-brochure-meta.php';
 
 /**
  * Run seed when an admin visits the dashboard (idempotent).
@@ -99,6 +100,8 @@ function vila_akoya_run_seed() {
 		update_option( 'show_on_front', 'page' );
 		update_option( 'page_on_front', $page_ids['home'] );
 	}
+
+	vila_akoya_seed_apply_brochure_seo_meta( $page_ids );
 }
 
 /**
