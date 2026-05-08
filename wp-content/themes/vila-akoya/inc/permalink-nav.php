@@ -317,12 +317,13 @@ function vila_akoya_shortcode_footer_nav() {
 	ob_start();
 	?>
 <footer class="w-full rounded-t-[3rem] mt-20 bg-[#2f3628] text-orange-50">
-<div class="flex flex-col md:flex-row justify-between items-center w-full px-12 py-16 gap-8 text-center md:text-left">
+<div class="max-w-[1236px] box-border mx-auto px-4 md:px-8">
+<div class="flex flex-col md:flex-row justify-between items-center w-full py-16 gap-8 text-center md:text-left">
 <div class="space-y-4">
 <a class="text-2xl font-normal text-orange-50 font-barrio block hover:opacity-90" href="<?php echo $h( '' ); ?>">Vila Akoya</a>
 <p class="text-sm font-medium font-body text-orange-50/60 uppercase tracking-widest">A tiny house village and creative campsite</p>
 </div>
-<div class="vila-footer-links flex flex-wrap justify-center md:justify-end gap-x-8 gap-y-4">
+<div class="vila-footer-links flex flex-wrap justify-center md:justify-end gap-x-5 gap-y-2">
 <a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'village' ); ?>">The Village</a>
 <a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
 <a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'booking' ); ?>">Join us</a>
@@ -332,7 +333,8 @@ function vila_akoya_shortcode_footer_nav() {
 <a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'contact' ); ?>">Contact</a>
 </div>
 </div>
-<div class="w-full px-12 py-8 border-t border-white/5 text-center text-xs font-medium font-body opacity-40">© 2026 Vila Akoya. All rights reserved.</div>
+<div class="w-full py-8 border-t border-white/5 text-center text-xs font-medium font-body opacity-40">© 2026 Vila Akoya. All rights reserved.</div>
+</div>
 </footer>
 	<?php
 	return (string) ob_get_clean();

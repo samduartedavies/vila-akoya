@@ -585,6 +585,19 @@ class WooCommerce_Integration {
 			return $name;
 		}
 		$merged = self::cart_item_flattened_for_stay_check( $cart_item );
+		$plot_id = isset( $merged['vila_cb_preferred_plot'] ) ? (int) $merged['vila_cb_preferred_plot'] : 0;
+		if ( $plot_id <= 0 && isset( $merged['vila_cb_plot_id'] ) ) {
+			$plot_id = (int) $merged['vila_cb_plot_id'];
+		}
+		if ( $plot_id > 0 ) {
+			$plot_row   = ( new Plot_Repository() )->get( $plot_id );
+			$plot_label = ( is_array( $plot_row ) && ! empty( $plot_row['label'] ) ) ? (string) $plot_row['label'] : (string) $plot_id;
+			$count      = 0;
+			$replaced   = preg_replace( '/Plot\s+\d+\b/iu', $plot_label, $name, 1, $count );
+			if ( is_string( $replaced ) && $count > 0 ) {
+				$name = $replaced;
+			}
+		}
 		$cin    = isset( $merged['vila_cb_check_in'] ) ? trim( (string) $merged['vila_cb_check_in'] ) : '';
 		$cout   = isset( $merged['vila_cb_check_out'] ) ? trim( (string) $merged['vila_cb_check_out'] ) : '';
 		if ( self::validate_date_ymd( $cin ) && self::validate_date_ymd( $cout ) ) {
@@ -1478,6 +1491,9 @@ class WooCommerce_Integration {
 		}
 		if ( ( empty( $cart_item['vila_cb_guests'] ) || ! is_array( $cart_item['vila_cb_guests'] ) ) && ! empty( $ext['vila_cb_guests'] ) && is_array( $ext['vila_cb_guests'] ) ) {
 			$cart_item['vila_cb_guests'] = $ext['vila_cb_guests'];
+		}
+		if ( empty( $cart_item['vila_cb_preferred_plot'] ) && ! empty( $ext['vila_cb_preferred_plot'] ) ) {
+			$cart_item['vila_cb_preferred_plot'] = absint( $ext['vila_cb_preferred_plot'] );
 		}
 		self::debug_log(
 			'add_cart_item_merge_store_extensions',
@@ -2744,17 +2760,33 @@ class WooCommerce_Integration {
 			$item_data = array();
 		}
 
-		$stay_label   = __( 'Stay', 'vila-campsite-booking' );
-		$guests_label = __( 'Guests', 'vila-campsite-booking' );
+		$details_label = __( 'Booking details', 'vila-campsite-booking' );
 		$filtered     = array();
 		foreach ( $item_data as $row ) {
 			if ( ! is_array( $row ) ) {
 				$filtered[] = $row;
 				continue;
 			}
+			$row_key = isset( $row['key'] ) ? trim( (string) $row['key'] ) : '';
+			if ( '' !== $row_key && 0 === strpos( $row_key, 'vila_cb_' ) ) {
+				continue;
+			}
 			$name = isset( $row['name'] ) ? trim( wp_strip_all_tags( (string) $row['name'] ) ) : '';
-			// MWB Bookings and other extensions often add "Guests" / "Stay" lines; blocks key by name+display → duplicates.
-			if ( $name === $stay_label || $name === $guests_label || 'Stay' === $name || 'Guests' === $name ) {
+			$name_lc = strtolower( $name );
+			$skip_names = array(
+				'stay',
+				'guests',
+				'plot',
+				'extras',
+				'nights (for extras)',
+				'from',
+				'to',
+				'people',
+				'peoples',
+				'booking details',
+			);
+			// Remove booking-related rows from MWB/theme to avoid duplicate/noisy checkout metadata.
+			if ( in_array( $name_lc, $skip_names, true ) ) {
 				continue;
 			}
 			$filtered[] = $row;
@@ -2764,26 +2796,42 @@ class WooCommerce_Integration {
 		$merged = self::cart_item_flattened_for_stay_check( $cart_item );
 		$cin    = isset( $merged['vila_cb_check_in'] ) ? trim( (string) $merged['vila_cb_check_in'] ) : '';
 		$cout   = isset( $merged['vila_cb_check_out'] ) ? trim( (string) $merged['vila_cb_check_out'] ) : '';
-		if ( self::validate_date_ymd( $cin ) && self::validate_date_ymd( $cout ) ) {
-			$item_data[] = array(
-				'key'     => 'vila_cb_stay',
-				'name'    => $stay_label,
-				'display' => esc_html( self::format_stay_range_display( $cin, $cout ) ),
-			);
-		} else {
-			$item_data[] = array(
-				'key'     => 'vila_cb_stay',
-				'name'    => $stay_label,
-				'display' => esc_html__( '(dates not set — booking may fail at checkout)', 'vila-campsite-booking' ),
-			);
-		}
 		$guests = isset( $merged['vila_cb_guests'] ) && is_array( $merged['vila_cb_guests'] ) ? $merged['vila_cb_guests'] : array();
-		$g      = self::guest_summary( $guests );
-		if ( $g ) {
+		$guests = self::normalize_guests_for_storage( $guests );
+		$plot_id = isset( $merged['vila_cb_preferred_plot'] ) ? (int) $merged['vila_cb_preferred_plot'] : 0;
+		if ( $plot_id <= 0 && isset( $merged['vila_cb_plot_id'] ) ) {
+			$plot_id = (int) $merged['vila_cb_plot_id'];
+		}
+		$details = array();
+		if ( $plot_id > 0 ) {
+			$plot_row  = ( new Plot_Repository() )->get( $plot_id );
+			$plot_text = ( is_array( $plot_row ) && ! empty( $plot_row['label'] ) ) ? (string) $plot_row['label'] : (string) $plot_id;
+			$details[] = sprintf( __( 'Plot: %s', 'vila-campsite-booking' ), $plot_text );
+		}
+		$people = (int) $guests['adults'] + (int) $guests['children'] + (int) $guests['infants'];
+		if ( $people > 0 ) {
+			$details[] = sprintf( __( 'Peoples: %d', 'vila-campsite-booking' ), $people );
+		}
+		if ( self::validate_date_ymd( $cin ) ) {
+			$details[] = sprintf( __( 'From: %s', 'vila-campsite-booking' ), date_i18n( get_option( 'date_format' ), strtotime( $cin . ' 00:00:00' ) ) );
+		}
+		if ( self::validate_date_ymd( $cout ) ) {
+			$details[] = sprintf( __( 'To: %s', 'vila-campsite-booking' ), date_i18n( get_option( 'date_format' ), strtotime( $cout . ' 00:00:00' ) ) );
+		}
+		$extras_text = '';
+		if ( ! empty( $guests['extras_label'] ) && is_string( $guests['extras_label'] ) ) {
+			$extras_text = trim( $guests['extras_label'] );
+		} elseif ( ! empty( $guests['vehicle_slugs'] ) && is_array( $guests['vehicle_slugs'] ) ) {
+			$extras_text = self::labels_join_from_slugs( array_values( array_filter( array_map( 'sanitize_key', $guests['vehicle_slugs'] ) ) ) );
+		}
+		if ( '' !== $extras_text ) {
+			$details[] = sprintf( __( 'Extras: %s', 'vila-campsite-booking' ), $extras_text );
+		}
+		if ( ! empty( $details ) ) {
 			$item_data[] = array(
-				'key'     => 'vila_cb_guests',
-				'name'    => $guests_label,
-				'display' => esc_html( $g ),
+				'key'     => 'booking_details',
+				'name'    => $details_label,
+				'display' => esc_html( implode( ' / ', $details ) ),
 			);
 		}
 		return $item_data;

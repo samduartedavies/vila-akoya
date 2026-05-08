@@ -519,7 +519,7 @@ class Admin {
 			return;
 		}
 		$product_id = isset( $_POST['vila_cb_product_id'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_product_id'] ) ) : 0;
-		$plot_count = isset( $_POST['vila_cb_plot_count'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_plot_count'] ) ) : 5;
+		$plot_count = isset( $_POST['vila_cb_plot_count'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_plot_count'] ) ) : 14;
 
 		update_option( 'vila_cb_product_id', max( 0, $product_id ) );
 		update_option( 'vila_cb_plot_count', max( 1, $plot_count ) );
@@ -1222,7 +1222,7 @@ class Admin {
 		self::enqueue_admin_assets();
 
 		$product_id = (int) get_option( 'vila_cb_product_id', 0 );
-		$plot_count = (int) get_option( 'vila_cb_plot_count', 5 );
+		$plot_count = (int) get_option( 'vila_cb_plot_count', 14 );
 		$pricing    = Pricing_Settings::get();
 
 		?>

@@ -490,6 +490,27 @@ function vila_akoya_booking_product_short_description( $desc ) {
 add_filter( 'woocommerce_short_description', 'vila_akoya_booking_product_short_description', 15 );
 
 /**
+ * Hide campsite short description on cart/checkout line rendering (Checkout block uses product short_description).
+ *
+ * @param string     $desc    Product short description.
+ * @param WC_Product $product Product object.
+ * @return string
+ */
+function vila_akoya_campsite_cart_checkout_short_description( $desc, $product ) {
+	if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
+		return is_string( $desc ) ? $desc : (string) ( $desc ?? '' );
+	}
+	if ( ! ( is_cart() || is_checkout() ) ) {
+		return is_string( $desc ) ? $desc : (string) ( $desc ?? '' );
+	}
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product->get_id() ) ) {
+		return is_string( $desc ) ? $desc : (string) ( $desc ?? '' );
+	}
+	return '';
+}
+add_filter( 'woocommerce_product_get_short_description', 'vila_akoya_campsite_cart_checkout_short_description', 15, 2 );
+
+/**
  * Product ID from the current add-to-cart request (classic form or WC AJAX).
  *
  * @return int
@@ -603,6 +624,61 @@ function vila_akoya_checkout_actions_hide_return_to_cart( $parsed_block, $source
 	return $parsed_block;
 }
 add_filter( 'render_block_data', 'vila_akoya_checkout_actions_hide_return_to_cart', 10, 2 );
+
+/**
+ * Resolve the booking page URL.
+ *
+ * @return string
+ */
+function vila_akoya_booking_page_url() {
+	$page = get_page_by_path( 'booking' );
+	if ( $page && ! is_wp_error( $page ) ) {
+		$url = get_permalink( (int) $page->ID );
+		if ( is_string( $url ) && '' !== $url ) {
+			return $url;
+		}
+	}
+	return home_url( '/booking/' );
+}
+
+/**
+ * Keep empty checkout sessions on the booking flow (checkout -> booking), not cart.
+ *
+ * @return bool
+ */
+function vila_akoya_disable_checkout_empty_cart_default_redirect() {
+	return false;
+}
+add_filter( 'woocommerce_checkout_redirect_empty_cart', 'vila_akoya_disable_checkout_empty_cart_default_redirect' );
+
+/**
+ * Redirect direct visits to checkout with an empty cart back to the booking page.
+ *
+ * @return void
+ */
+function vila_akoya_redirect_empty_checkout_to_booking() {
+	if ( is_admin() || wp_doing_ajax() ) {
+		return;
+	}
+	if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+		return;
+	}
+	if ( function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
+		return;
+	}
+	if ( function_exists( 'is_checkout_pay_page' ) && is_checkout_pay_page() ) {
+		return;
+	}
+	if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+		return;
+	}
+	if ( ! WC()->cart->is_empty() ) {
+		return;
+	}
+	wp_safe_redirect( vila_akoya_booking_page_url() );
+	exit;
+}
+add_action( 'template_redirect', 'vila_akoya_redirect_empty_checkout_to_booking', 5 );
 
 /**
  * WooCommerce only includes a redirect in the AJAX add-to-cart JSON when this option is "yes".

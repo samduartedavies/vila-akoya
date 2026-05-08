@@ -116,7 +116,7 @@ class Install {
 	 * Ensure plot rows exist for configured count.
 	 */
 	private static function seed_plots() {
-		$count = (int) get_option( 'vila_cb_plot_count', 5 );
+		$count = (int) get_option( 'vila_cb_plot_count', 14 );
 		$count = max( 1, $count );
 		$repo  = new Plot_Repository();
 		$plots = $repo->get_all();
