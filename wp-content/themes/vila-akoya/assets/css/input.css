@@ -43,6 +43,7 @@
     #site-nav-mobile-links [data-nav]:hover,
     #site-nav-mobile-links [data-nav][aria-current="page"] {
       background-color: rgb(154 64 33 / 0.05);
+      border-radius: 7px;
     }
 
     [data-nav] {

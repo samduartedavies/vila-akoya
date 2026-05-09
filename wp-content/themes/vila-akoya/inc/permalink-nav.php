@@ -277,7 +277,7 @@ function vila_akoya_shortcode_header_nav() {
 <a <?php echo $nav_attrs( 'contact', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'contact' ); ?>">Contact</a>
 </div>
 <div class="flex items-center gap-2">
-<button type="button" id="site-nav-toggle" class="min-[1020px]:hidden inline-flex rounded-lg p-2 text-[#9a4021] hover:bg-[#9a4021]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Toggle menu">
+<button type="button" id="site-nav-toggle" class="min-[1020px]:hidden inline-flex p-2 text-[#9a4021] hover:bg-[#9a4021]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50 items-center rounded" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Toggle menu">
 <span class="material-symbols-outlined site-nav-icon site-nav-icon--menu text-3xl" aria-hidden="true">menu</span>
 <span class="material-symbols-outlined site-nav-icon site-nav-icon--close text-3xl" aria-hidden="true">close</span>
 </button>
@@ -287,13 +287,13 @@ function vila_akoya_shortcode_header_nav() {
 <div id="site-mobile-nav" class="min-[1020px]:hidden border-t border-stone-200/80 bg-[#fcf9ef]/95 backdrop-blur-xl" data-open="false" aria-hidden="true">
 <div class="max-w-[1236px] box-border mx-auto px-8">
 <div id="site-nav-mobile-links" class="flex flex-col space-y-0.5 font-body text-base tracking-wide py-1">
-<a <?php echo $nav_attrs( 'village', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'village' ); ?>">The Village</a>
-<a <?php echo $nav_attrs( 'campsite', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
-<a <?php echo $nav_attrs( 'booking', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'booking' ); ?>">Join us</a>
-<a <?php echo $nav_attrs( 'campus', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'campus' ); ?>">The Campus</a>
-<a <?php echo $nav_attrs( 'the-kids', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'the-kids' ); ?>">The Kids</a>
-<a <?php echo $nav_attrs( 'about', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'about' ); ?>">About Us</a>
-<a <?php echo $nav_attrs( 'contact', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'contact' ); ?>">Contact</a>
+<a <?php echo $nav_attrs( 'village', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'village' ); ?>">The Village</a>
+<a <?php echo $nav_attrs( 'campsite', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
+<a <?php echo $nav_attrs( 'booking', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'booking' ); ?>">Join us</a>
+<a <?php echo $nav_attrs( 'campus', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'campus' ); ?>">The Campus</a>
+<a <?php echo $nav_attrs( 'the-kids', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'the-kids' ); ?>">The Kids</a>
+<a <?php echo $nav_attrs( 'about', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'about' ); ?>">About Us</a>
+<a <?php echo $nav_attrs( 'contact', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'contact' ); ?>">Contact</a>
 </div>
 <a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-6 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
 </div>
