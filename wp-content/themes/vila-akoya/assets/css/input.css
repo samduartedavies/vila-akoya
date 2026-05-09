@@ -33,7 +33,11 @@
     #site-nav-desktop-links [data-nav][aria-current="page"] {
       color: #8f3a1d;
       background-color: rgb(154 64 33 / 0.12);
-      border-radius: 10px;
+      border-radius: 7px;
+    }
+
+    .font-medium {
+      font-weight: 400;
     }
 
     #site-nav-mobile-links [data-nav]:hover,
@@ -214,7 +218,6 @@
 
   .vila-home .wp-block-columns.va-home-digi-family.vila-split-flush {
     flex-wrap: nowrap !important;
-    max-width: 95%;
   }
 
   .vila-home .vila-home-hero-image > img {
@@ -599,6 +602,7 @@
     padding-left: 0 !important;
     padding-right: 0 !important;
     align-items: stretch !important;
+    width: 95%;
   }
 
   @media (max-width: 1222px) {
@@ -742,13 +746,13 @@
   .va-campus-form-card .wpcf7-form input[type="email"],
   .va-campus-form-card .wpcf7-form input[type="tel"],
   .va-campus-form-card .wpcf7-form input[type="url"] {
-    @apply w-full min-h-[3rem] rounded-full border-2 border-transparent bg-surface-container-low px-5 py-3 text-base text-on-background shadow-none transition-all duration-300;
-    @apply hover:bg-surface-container-high hover:border-outline-variant/40 focus:border-outline-variant focus:ring-0 focus:outline-none;
+    @apply w-full min-h-[3rem] rounded-full border border-outline-variant/35 bg-surface-container-low px-5 py-3 text-base text-on-background shadow-none transition-all duration-300;
+    @apply hover:bg-surface-container-high hover:border-outline-variant/55 focus:border-outline focus:ring-0 focus:outline-none;
   }
 
   .va-campus-form-card .wpcf7-form textarea {
-    @apply w-full min-h-[8.5rem] rounded-[1.5rem] border-2 border-transparent bg-surface-container-low px-5 py-4 text-base text-on-background shadow-none transition-all duration-300 resize-y;
-    @apply hover:bg-surface-container-high hover:border-outline-variant/40 focus:border-outline-variant focus:ring-0 focus:outline-none;
+    @apply w-full min-h-[8.5rem] rounded-[1.5rem] border border-outline-variant/35 bg-surface-container-low px-5 py-4 text-base text-on-background shadow-none transition-all duration-300 resize-y;
+    @apply hover:bg-surface-container-high hover:border-outline-variant/55 focus:border-outline focus:ring-0 focus:outline-none;
   }
 
   .va-campus-form-card .wpcf7-checkbox .wpcf7-list-item {
@@ -780,11 +784,32 @@
   .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-textarea,
   .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-tel {
     width: 100% !important;
-    border: 0 !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgb(var(--vila-rgb-outline-variant) / 0.35) !important;
     border-radius: 9999px !important;
     background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
     color: rgb(var(--vila-rgb-on-background) / 1) !important;
     box-shadow: none !important;
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-text:hover,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-email:hover,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-textarea:hover,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-tel:hover {
+    border-color: rgb(var(--vila-rgb-outline-variant) / 0.55) !important;
+    background: rgb(var(--vila-rgb-surface-container-high) / 1) !important;
+  }
+
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-text:focus,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-email:focus,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-textarea:focus,
+  .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-tel:focus {
+    border-color: rgb(var(--vila-rgb-outline) / 0.65) !important;
+    outline: none !important;
   }
 
   .va-campus-form-card .wpcf7-form .wpcf7-form-control.wpcf7-text,

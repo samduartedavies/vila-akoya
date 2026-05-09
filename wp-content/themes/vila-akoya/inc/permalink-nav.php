@@ -281,7 +281,7 @@ function vila_akoya_shortcode_header_nav() {
 <span class="material-symbols-outlined site-nav-icon site-nav-icon--menu text-3xl" aria-hidden="true">menu</span>
 <span class="material-symbols-outlined site-nav-icon site-nav-icon--close text-3xl" aria-hidden="true">close</span>
 </button>
-<a class="hidden min-[1020px]:inline-block bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] scale-95 active:scale-90 transition-all duration-300 text-center" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
+<a class="hidden min-[1020px]:inline-block bg-[#9a4021] text-white px-6 py-3 rounded-full font-medium hover:bg-[#ba5737] scale-95 active:scale-90 transition-all duration-300 text-center" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
 </div>
 </div>
 <div id="site-mobile-nav" class="min-[1020px]:hidden border-t border-stone-200/80 bg-[#fcf9ef]/95 backdrop-blur-xl" data-open="false" aria-hidden="true">
@@ -295,7 +295,7 @@ function vila_akoya_shortcode_header_nav() {
 <a <?php echo $nav_attrs( 'about', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'about' ); ?>">About Us</a>
 <a <?php echo $nav_attrs( 'contact', 'block rounded-lg px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'contact' ); ?>">Contact</a>
 </div>
-<a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-8 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
+<a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-6 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
 </div>
 </div>
 </nav>
