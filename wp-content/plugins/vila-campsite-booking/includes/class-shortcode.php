@@ -137,10 +137,10 @@ class Shortcode {
 					'adultsSub'       => __( 'Ages 13 or above', 'vila-campsite-booking' ),
 					'children'        => __( 'Children', 'vila-campsite-booking' ),
 					'childrenSub'     => __( 'Ages 2 – 12', 'vila-campsite-booking' ),
-					'infants'         => __( 'Infants', 'vila-campsite-booking' ),
+					'infants'         => __( 'Babies', 'vila-campsite-booking' ),
 					'infantsSub'      => __( 'Under 2', 'vila-campsite-booking' ),
 					'pets'            => __( 'Pets', 'vila-campsite-booking' ),
-					'petsSub'         => __( 'Service animals welcome', 'vila-campsite-booking' ),
+					'petsSub'         => '',
 					'clear'           => __( 'Clear', 'vila-campsite-booking' ),
 					'flexExact'       => __( 'Exact dates', 'vila-campsite-booking' ),
 					'selectStayDates' => __( 'Please select a check-in and check-out date before booking.', 'vila-campsite-booking' ),
@@ -218,7 +218,7 @@ class Shortcode {
 					<div class="vila-cb__popover-inner vila-cb-guests">
 						<?php echo self::guest_row( 'adults', __( 'Adults', 'vila-campsite-booking' ), __( 'Ages 13 or above', 'vila-campsite-booking' ) ); ?>
 						<?php echo self::guest_row( 'children', __( 'Children', 'vila-campsite-booking' ), __( 'Ages 2 – 12', 'vila-campsite-booking' ) ); ?>
-						<?php echo self::guest_row( 'infants', __( 'Infants', 'vila-campsite-booking' ), __( 'Under 2', 'vila-campsite-booking' ) ); ?>
+						<?php echo self::guest_row( 'infants', __( 'Babies', 'vila-campsite-booking' ), __( 'Under 2', 'vila-campsite-booking' ) ); ?>
 						<?php echo self::guest_row( 'pets', __( 'Pets', 'vila-campsite-booking' ), '' ); ?>
 					</div>
 				</div>

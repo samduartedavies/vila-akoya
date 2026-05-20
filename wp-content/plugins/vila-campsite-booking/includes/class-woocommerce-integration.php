@@ -485,6 +485,11 @@ class WooCommerce_Integration {
 		}
 
 		if ( $preferred_plot > 0 ) {
+			$plot_repo = new Plot_Repository();
+			if ( ! $plot_repo->is_bookable_plot_id( $preferred_plot ) ) {
+				wc_add_notice( __( 'That pitch cannot be selected online. Please choose another pitch or use auto-assign.', 'vila-campsite-booking' ), 'error' );
+				return false;
+			}
 			if ( ! $svc->is_plot_available_for_range( $preferred_plot, $check_in, $check_out ) ) {
 				wc_add_notice( __( 'The selected pitch is not available for those dates. Please choose a different pitch or different dates.', 'vila-campsite-booking' ), 'error' );
 				return false;
@@ -2308,8 +2313,8 @@ class WooCommerce_Integration {
 		}
 		if ( $i > 0 ) {
 			$parts[] = sprintf(
-				/* translators: %d: infant count */
-				_n( '%d infant', '%d infants', $i, 'vila-campsite-booking' ),
+				/* translators: %d: baby count */
+				_n( '%d baby', '%d babies', $i, 'vila-campsite-booking' ),
 				$i
 			);
 		}
@@ -2349,7 +2354,7 @@ class WooCommerce_Integration {
 		return array(
 			'tent'         => __( 'Tent', 'vila-campsite-booking' ),
 			'caravan'      => __( 'Caravan', 'vila-campsite-booking' ),
-			'camper'       => __( 'Camper van', 'vila-campsite-booking' ),
+			'camper'       => __( 'Campervan', 'vila-campsite-booking' ),
 			'electricity'  => __( 'Include electricity', 'vila-campsite-booking' ),
 			'car'          => __( 'Car', 'vila-campsite-booking' ),
 		);

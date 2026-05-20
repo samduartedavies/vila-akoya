@@ -40,9 +40,9 @@ class Booking_Service {
 	 */
 	public static function guest_category_rates( $product_id ) {
 		$defaults = array(
-			'children' => 12.0,
-			'infants'  => 0.0,
-			'pets'     => 6.0,
+			'children' => 6.0,
+			'infants'  => 3.0,
+			'pets'     => 2.0,
 		);
 		return apply_filters( 'vila_cb_guest_category_nightly_rates', $defaults, (int) $product_id );
 	}
@@ -85,7 +85,7 @@ class Booking_Service {
 	 * @return int|null Plot ID or null.
 	 */
 	public function find_available_plot( $check_in, $check_out ) {
-		foreach ( $this->plots->get_all() as $p ) {
+		foreach ( $this->plots->get_bookable() as $p ) {
 			$pid = (int) $p['id'];
 			if ( $this->is_plot_blocked_for_range( $pid, $check_in, $check_out ) ) {
 				continue;
@@ -228,7 +228,8 @@ class Booking_Service {
 	 */
 	public function get_fully_booked_dates( $from, $to ) {
 		global $wpdb;
-		$plot_count = $this->plots->count();
+		$bookable_ids = $this->plots->get_bookable_ids();
+		$plot_count   = count( $bookable_ids );
 		if ( $plot_count <= 0 ) {
 			return Dates::enumerate_inclusive( $from, $to );
 		}
@@ -240,10 +241,11 @@ class Booking_Service {
 		$bt       = Database::bookings_table();
 		$statuses = Booking_Repository::occupying_statuses();
 		$st_ph    = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+		$id_ph    = implode( ',', array_fill( 0, $plot_count, '%d' ) );
 		$out      = array();
 		foreach ( $days as $ymd ) {
-			$sql = "SELECT COUNT(DISTINCT n.plot_id) FROM $nt n INNER JOIN $bt b ON b.id = n.booking_id WHERE n.night_ymd = %s AND b.status IN ($st_ph)";
-			$args = array_merge( array( $ymd ), $statuses );
+			$sql  = "SELECT COUNT(DISTINCT n.plot_id) FROM $nt n INNER JOIN $bt b ON b.id = n.booking_id WHERE n.plot_id IN ($id_ph) AND n.night_ymd = %s AND b.status IN ($st_ph)";
+			$args = array_merge( $bookable_ids, array( $ymd ), $statuses );
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders match $args.
 			$c = (int) $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
 			if ( $c >= $plot_count ) {
@@ -282,9 +284,12 @@ class Booking_Service {
 		$wpdb->query( 'START TRANSACTION' );
 
 		try {
-			$plot_rows = $this->plots->get_all();
+			$plot_rows = $this->plots->get_bookable();
 
 			$preferred_plot_id = (int) $preferred_plot_id;
+			if ( $preferred_plot_id > 0 && ! $this->plots->is_bookable_plot_id( $preferred_plot_id ) ) {
+				$preferred_plot_id = 0;
+			}
 			if ( $preferred_plot_id > 0 ) {
 				$reordered = array();
 				$rest      = array();

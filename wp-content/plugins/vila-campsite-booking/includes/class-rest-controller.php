@@ -114,6 +114,16 @@ class Rest_Controller {
 		$plot_id = (int) $request->get_param( 'plot_id' );
 
 		if ( $plot_id > 0 ) {
+			$plot_repo = new Plot_Repository();
+			if ( ! $plot_repo->is_bookable_plot_id( $plot_id ) ) {
+				return rest_ensure_response(
+					array(
+						'fully_booked_dates' => Dates::enumerate_inclusive( $from, $to ),
+						'bookable'           => false,
+						'assigned_plot_id'   => null,
+					)
+				);
+			}
 			$unavailable = $svc->get_plot_unavailable_dates( $plot_id, $from, $to );
 
 			$bookable = null;
@@ -157,7 +167,7 @@ class Rest_Controller {
 	 */
 	public static function plots() {
 		$repo = new Plot_Repository();
-		$rows = $repo->get_all();
+		$rows = $repo->get_bookable();
 		$out  = array();
 		foreach ( $rows as $row ) {
 			$out[] = array(

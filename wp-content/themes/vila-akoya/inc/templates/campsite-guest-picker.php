@@ -24,7 +24,19 @@ if ( $max_people < $min_people ) {
 	$max_people = max( $min_people, 8 );
 }
 
-$rates   = vila_akoya_get_guest_category_nightly_rates( $product_id );
+$rates      = vila_akoya_get_guest_category_nightly_rates( $product_id );
+$adult_rate = 0.0;
+if ( class_exists( '\Vila_CB\Pricing_Settings' ) ) {
+	$pricing_cfg = \Vila_CB\Pricing_Settings::get();
+	$adult_rate  = isset( $pricing_cfg['adult_per_night'] ) ? (float) $pricing_cfg['adult_per_night'] : 0.0;
+}
+if ( $adult_rate <= 0 && function_exists( 'wc_get_product' ) ) {
+	$wc_product = wc_get_product( $product_id );
+	if ( $wc_product ) {
+		$adult_rate = (float) $wc_product->get_regular_price();
+	}
+}
+$adult_rate = (float) apply_filters( 'vila_cb_adult_rate_per_night', $adult_rate, $product_id );
 $def_ad  = max( $min_people, 2 );
 $def_ad  = min( $def_ad, $max_people );
 
@@ -87,7 +99,7 @@ $uid = 'vila-guest-' . $product_id;
 					'min'      => $min_people,
 					'max'      => $max_people,
 					'value'    => $def_ad,
-					'rate_key' => null,
+					'rate'     => $adult_rate,
 				),
 				'children' => array(
 					'label'    => __( 'Children', 'vila-akoya' ),
@@ -98,7 +110,7 @@ $uid = 'vila-guest-' . $product_id;
 					'rate_key' => 'children',
 				),
 				'infants'  => array(
-					'label'    => __( 'Infants', 'vila-akoya' ),
+					'label'    => __( 'Babies', 'vila-akoya' ),
 					'subtitle' => __( 'Under 2', 'vila-akoya' ),
 					'min'      => 0,
 					'max'      => $max_people,
@@ -107,7 +119,7 @@ $uid = 'vila-guest-' . $product_id;
 				),
 				'pets'     => array(
 					'label'    => __( 'Pets', 'vila-akoya' ),
-					'subtitle' => __( 'Service animals welcome — contact us if you need assistance.', 'vila-akoya' ),
+					'subtitle' => '',
 					'min'      => 0,
 					'max'      => 5,
 					'value'    => 0,
@@ -116,7 +128,13 @@ $uid = 'vila-guest-' . $product_id;
 			);
 			foreach ( $rows as $slug => $row ) :
 				$rate_note = '';
-				if ( ! empty( $row['rate_key'] ) && isset( $rates[ $row['rate_key'] ] ) && (float) $rates[ $row['rate_key'] ] > 0 && function_exists( 'wc_price' ) ) {
+				if ( isset( $row['rate'] ) && (float) $row['rate'] > 0 && function_exists( 'wc_price' ) ) {
+					$rate_note = sprintf(
+						/* translators: %s: formatted price per night */
+						__( '+ %s / night', 'vila-akoya' ),
+						wp_strip_all_tags( wc_price( (float) $row['rate'] ) )
+					);
+				} elseif ( ! empty( $row['rate_key'] ) && isset( $rates[ $row['rate_key'] ] ) && (float) $rates[ $row['rate_key'] ] > 0 && function_exists( 'wc_price' ) ) {
 					$rate_note = sprintf(
 						/* translators: %s: formatted price per night */
 						__( '+ %s / night', 'vila-akoya' ),
@@ -129,7 +147,9 @@ $uid = 'vila-guest-' . $product_id;
 				<div class="vila-guest-picker__row flex flex-wrap items-center justify-between gap-4 border-b border-outline-variant/15 px-4 py-4 last:border-b-0" data-vila-row="<?php echo esc_attr( $slug ); ?>">
 					<div class="min-w-0 flex-1">
 						<div class="font-body font-semibold text-on-surface"><?php echo esc_html( $row['label'] ); ?></div>
+						<?php if ( ! empty( $row['subtitle'] ) ) : ?>
 						<div class="text-sm text-on-surface-variant"><?php echo esc_html( $row['subtitle'] ); ?></div>
+						<?php endif; ?>
 						<?php if ( $rate_note ) : ?>
 							<div class="mt-1 text-xs text-on-surface-variant/90"><?php echo wp_kses_post( $rate_note ); ?></div>
 						<?php endif; ?>

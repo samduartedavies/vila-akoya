@@ -20,8 +20,8 @@
     "wp:sync-seo": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seo-sync-cli.php'"
   },
   "devDependencies": {
-    "@wordpress/env": "^10.0.0",
     "@tailwindcss/forms": "^0.5.9",
+    "@wordpress/env": "^11.6.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15"

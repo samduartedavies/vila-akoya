@@ -466,17 +466,41 @@
     }
   }
 
-  .vila-cf7 .wpcf7-response-output {
-    @apply mt-4 rounded-lg text-sm;
-  }
-
-  /* CF7 renders an empty response container by default; hide it until needed. */
-  .vila-cf7 .wpcf7-response-output:empty,
-  .vila-cf7 .wpcf7-response-output[aria-hidden='true'] {
+  /* CF7 6.x: response box lives inside the form. Hide until submit has a result. */
+  .wpcf7 form.vila-cf7 .wpcf7-response-output {
     display: none !important;
     margin: 0 !important;
     padding: 0 !important;
     border: 0 !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Validation / mail errors: show message, keep fields visible. */
+  .wpcf7.invalid form.vila-cf7 .wpcf7-response-output,
+  .wpcf7.failed form.vila-cf7 .wpcf7-response-output,
+  .wpcf7.spam form.vila-cf7 .wpcf7-response-output {
+    display: block !important;
+    @apply mt-4 rounded-xl border-2 border-error/40 bg-error/5 px-5 py-4 text-sm text-on-surface;
+  }
+
+  /* Success: hide every form row except the response message. */
+  .wpcf7.sent form.vila-cf7 > *:not(.wpcf7-response-output),
+  form.vila-cf7.vila-cf7--success > *:not(.wpcf7-response-output) {
+    display: none !important;
+  }
+
+  .wpcf7.sent form.vila-cf7 .wpcf7-response-output,
+  form.vila-cf7.vila-cf7--success .wpcf7-response-output {
+    display: block !important;
+    @apply w-full rounded-xl border-2 border-primary bg-surface/80 px-6 py-8 text-center text-base md:text-lg font-body leading-relaxed text-on-surface;
+  }
+
+  .va-home-digi-family .wpcf7.sent form.vila-cf7 .wpcf7-response-output,
+  .va-home-digi-family form.vila-cf7.vila-cf7--success .wpcf7-response-output,
+  .va-village-newsletter .wpcf7.sent form.vila-cf7 .wpcf7-response-output,
+  .va-village-newsletter form.vila-cf7.vila-cf7--success .wpcf7-response-output {
+    @apply border-on-primary bg-primary/20 text-on-primary;
   }
 
   /* Home newsletter tout: brochure-style pill field + cream CTA */
@@ -1994,6 +2018,23 @@
   /* Block checkout: hide “Return to cart” (backup if block attrs still render it) */
   body.vila-wc-commerce.woocommerce-checkout .wc-block-components-checkout-return-to-cart-button,
   body.vila-wc-commerce.woocommerce-checkout .wc-block-checkout__return-to-cart {
+    @apply hidden;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout .vila-checkout-visitor-intro__lead,
+  body.vila-wc-commerce.woocommerce-checkout .woocommerce-checkout .vila-checkout-visitor-intro__lead {
+    @apply mb-3 text-sm leading-relaxed text-on-surface-variant;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout .vila-checkout-visitor-intro__textarea {
+    @apply w-full resize-y;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout .vila-checkout-visitor-intro--enhanced label {
+    @apply hidden;
+  }
+
+  body.vila-wc-commerce.woocommerce-checkout .vila-checkout-visitor-intro--enhanced input[type='hidden'] {
     @apply hidden;
   }
 

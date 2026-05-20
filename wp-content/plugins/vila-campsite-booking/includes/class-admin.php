@@ -467,7 +467,7 @@ class Admin {
 							<label><?php esc_html_e( 'Children', 'vila-campsite-booking' ); ?>
 								<input type="number" name="vila_cb_children" min="0" step="1" class="small-text" value="<?php echo esc_attr( (string) (int) $guests['children'] ); ?>" />
 							</label>
-							<label><?php esc_html_e( 'Infants', 'vila-campsite-booking' ); ?>
+							<label><?php esc_html_e( 'Babies', 'vila-campsite-booking' ); ?>
 								<input type="number" name="vila_cb_infants" min="0" step="1" class="small-text" value="<?php echo esc_attr( (string) (int) $guests['infants'] ); ?>" />
 							</label>
 							<label><?php esc_html_e( 'Pets', 'vila-campsite-booking' ); ?>
@@ -1282,9 +1282,9 @@ class Admin {
 							</td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Infants', 'vila-campsite-booking' ); ?></th>
+							<th scope="row"><?php esc_html_e( 'Babies', 'vila-campsite-booking' ); ?></th>
 							<td>
-								<input name="vila_cb_pricing[guest_rates][infants]" type="number" min="0" step="0.01" value="<?php echo esc_attr( (string) $pricing['guest_rates']['infants'] ); ?>" class="small-text" /> <?php esc_html_e( 'EUR / infant / night', 'vila-campsite-booking' ); ?>
+								<input name="vila_cb_pricing[guest_rates][infants]" type="number" min="0" step="0.01" value="<?php echo esc_attr( (string) $pricing['guest_rates']['infants'] ); ?>" class="small-text" /> <?php esc_html_e( 'EUR / baby / night', 'vila-campsite-booking' ); ?>
 							</td>
 						</tr>
 						<tr>
@@ -1307,7 +1307,7 @@ class Admin {
 						$vlabels_fallback = array(
 							'tent'        => __( 'Tent', 'vila-campsite-booking' ),
 							'caravan'     => __( 'Caravan', 'vila-campsite-booking' ),
-							'camper'      => __( 'Camper van', 'vila-campsite-booking' ),
+							'camper'      => __( 'Campervan', 'vila-campsite-booking' ),
 							'electricity' => __( 'Include electricity', 'vila-campsite-booking' ),
 							'car'         => __( 'Car', 'vila-campsite-booking' ),
 						);

@@ -16,6 +16,10 @@ class Pricing_Settings {
 
 	const OPTION_KEY = 'vila_cb_pricing';
 
+	const PRICING_SCHEMA_VERSION_OPTION = 'vila_cb_pricing_schema_version';
+
+	const PRICING_SCHEMA_VERSION = '2026-05';
+
 	/**
 	 * Bootstrap hooks.
 	 */
@@ -38,18 +42,18 @@ class Pricing_Settings {
 	 */
 	public static function defaults() {
 		return array(
-			'adult_per_night' => 0.0,
+			'adult_per_night' => 9.0,
 			'guest_rates'     => array(
-				'children' => 12.0,
-				'infants'  => 0.0,
-				'pets'     => 6.0,
+				'children' => 6.0,
+				'infants'  => 3.0,
+				'pets'     => 2.0,
 			),
 			'vehicle_fees'    => array(
 				'tent'         => 0.0,
-				'caravan'      => 8.0,
-				'camper'       => 10.0,
-				'electricity'  => 5.0,
-				'car'          => 5.0,
+				'caravan'      => 6.0,
+				'camper'       => 6.0,
+				'electricity'  => 2.0,
+				'car'          => 2.0,
 			),
 		);
 	}
@@ -61,6 +65,32 @@ class Pricing_Settings {
 	 */
 	private static function deprecated_vehicle_fee_slugs() {
 		return array( 'four_by_four' );
+	}
+
+	/**
+	 * One-time merge of May 2026 public rate card into saved Campsite → Settings.
+	 */
+	public static function migrate_pricing_rates_2026() {
+		$ver = get_option( self::PRICING_SCHEMA_VERSION_OPTION, '' );
+		if ( is_string( $ver ) && version_compare( $ver, self::PRICING_SCHEMA_VERSION, '>=' ) ) {
+			return;
+		}
+
+		$defaults = self::defaults();
+		$cfg      = get_option( self::OPTION_KEY, array() );
+		if ( ! is_array( $cfg ) ) {
+			$cfg = array();
+		}
+
+		$cfg['adult_per_night'] = $defaults['adult_per_night'];
+		$cfg['guest_rates']     = $defaults['guest_rates'];
+		$cfg['vehicle_fees']    = array_merge(
+			isset( $cfg['vehicle_fees'] ) && is_array( $cfg['vehicle_fees'] ) ? $cfg['vehicle_fees'] : array(),
+			$defaults['vehicle_fees']
+		);
+
+		update_option( self::OPTION_KEY, $cfg );
+		update_option( self::PRICING_SCHEMA_VERSION_OPTION, self::PRICING_SCHEMA_VERSION );
 	}
 
 	/**

@@ -7,12 +7,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.14' );
+define( 'VILA_AKOYA_VERSION', '1.0.16' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
 require_once VILA_AKOYA_DIR . '/inc/redirects.php';
 require_once VILA_AKOYA_DIR . '/inc/woocommerce-campsite.php';
+require_once VILA_AKOYA_DIR . '/inc/campsite-booking-email.php';
 require_once VILA_AKOYA_DIR . '/inc/booking-extras.php';
 require_once VILA_AKOYA_DIR . '/inc/campsite-plots-admin.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
@@ -99,33 +100,11 @@ function vila_akoya_enqueue_assets() {
 	);
 	if ( function_exists( 'wpcf7_contact_form' ) ) {
 		wp_enqueue_script(
-			'vila-akoya-cf7-redirect',
+			'vila-akoya-cf7-success',
 			VILA_AKOYA_URI . '/assets/js/cf7-redirect.js',
 			array(),
 			VILA_AKOYA_VERSION,
 			true
-		);
-		$form_ids = function_exists( 'vila_akoya_get_cf7_form_ids' ) ? vila_akoya_get_cf7_form_ids() : array();
-		$thank_you = home_url( '/thank-you/' );
-		$redirect_form_ids = array_values(
-			array_filter(
-				array(
-					isset( $form_ids['booking'] ) ? (string) $form_ids['booking'] : '',
-					isset( $form_ids['village_inquiry'] ) ? (string) $form_ids['village_inquiry'] : '',
-					isset( $form_ids['campus'] ) ? (string) $form_ids['campus'] : '',
-					isset( $form_ids['contact'] ) ? (string) $form_ids['contact'] : '',
-				)
-			)
-		);
-		wp_add_inline_script(
-			'vila-akoya-cf7-redirect',
-			'window.vilaAkoyaCf7 = ' . wp_json_encode(
-				array(
-					'thankYouUrl'     => $thank_you,
-					'redirectFormIds' => $redirect_form_ids,
-				)
-			) . ';',
-			'before'
 		);
 	}
 }

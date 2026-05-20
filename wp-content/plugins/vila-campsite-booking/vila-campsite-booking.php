@@ -74,6 +74,7 @@ add_action( 'plugins_loaded', 'vila_cb_wc_missing_notice', 1 );
 function vila_cb_bootstrap() {
 	Vila_CB\Install::maybe_upgrade();
 	Vila_CB\Pricing_Settings::migrate_legacy_pricing_option();
+	Vila_CB\Pricing_Settings::migrate_pricing_rates_2026();
 	Vila_CB\Pricing_Settings::init();
 	Vila_CB\WooCommerce_Integration::init();
 	Vila_CB\Rest_Controller::init();

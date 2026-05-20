@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Bump when seeded CF7 form markup changes.
  */
-define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '6' );
+define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '7' );
 define( 'VILA_AKOYA_CF7_MAIL_FROM', 'info@vila-akoya.com' );
 define( 'VILA_AKOYA_CF7_MAIL_TO', 'samduarte-davies@hotmail.com' );
 
@@ -220,7 +220,7 @@ function vila_akoya_get_cf7_form_ids() {
 					'<div><label for="village-inq-name">' . esc_html__( 'Your Name', 'vila-akoya' ) . '</label>[text* your-name id:village-inq-name placeholder "Elias Duarte"]</div>',
 					'<div><label for="village-inq-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:village-inq-email placeholder "elias@example.com"]</div>',
 					'</div>',
-					'<div><label for="village-inq-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel your-phone id:village-inq-phone placeholder "+351 000 000 000"]</div>',
+					'<div><label for="village-inq-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel* your-phone id:village-inq-phone placeholder "+351 000 000 000"]</div>',
 					'<div><label for="village-inq-message">' . esc_html__( 'Tell us a little about yourself', 'vila-akoya' ) . '</label>[textarea* your-message id:village-inq-message placeholder "' . esc_attr__( 'Share a little about who you are, what draws you to this way of living, and why Vila Akoya feels like the right fit for you.', 'vila-akoya' ) . '"]</div>',
 					'[submit "' . esc_html__( 'Send Inquiry →', 'vila-akoya' ) . '"]',
 				)

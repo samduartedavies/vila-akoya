@@ -175,7 +175,7 @@ function vila_akoya_campsite_apply_mwb_booking_defaults( $post_id, $max_concurre
 	$max_p   = (int) apply_filters( 'vila_akoya_campsite_max_people', 8 );
 	$min_p   = max( 1, $min_p );
 	$max_p   = max( $min_p, $max_p );
-	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '35' );
+	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '9' );
 
 	$meta = array(
 		'mwb_mbfw_max_bookings'                    => (string) $max_concurrent_for_this_product,
@@ -291,7 +291,7 @@ function vila_akoya_ensure_campsite_booking_product() {
 		return;
 	}
 
-	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '35' );
+	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '9' );
 	$plot_ids    = array();
 
 	for ( $i = 1; $i <= $plot_count; $i++ ) {
@@ -698,3 +698,266 @@ function vila_akoya_campsite_option_cart_redirect_after_add( $value ) {
 	return $value;
 }
 add_filter( 'option_woocommerce_cart_redirect_after_add', 'vila_akoya_campsite_option_cart_redirect_after_add', 20 );
+
+/**
+ * Require phone number at checkout (classic + block checkout locale).
+ *
+ * @param array<string, mixed> $fields Address fields.
+ * @return array<string, mixed>
+ */
+function vila_akoya_checkout_require_phone( $fields ) {
+	if ( isset( $fields['phone'] ) && is_array( $fields['phone'] ) ) {
+		$fields['phone']['required'] = true;
+	}
+	return $fields;
+}
+add_filter( 'woocommerce_default_address_fields', 'vila_akoya_checkout_require_phone', 20 );
+
+/**
+ * @param array<string, array<string, mixed>> $fields Checkout fields.
+ * @return array<string, array<string, mixed>>
+ */
+function vila_akoya_checkout_billing_require_phone( $fields ) {
+	if ( isset( $fields['billing']['billing_phone'] ) ) {
+		$fields['billing']['billing_phone']['required'] = true;
+	}
+	return $fields;
+}
+add_filter( 'woocommerce_checkout_fields', 'vila_akoya_checkout_billing_require_phone', 20 );
+
+/**
+ * @param array<string, array<string, mixed>> $locale Country locale fields.
+ * @return array<string, array<string, mixed>>
+ */
+function vila_akoya_checkout_country_locale_require_phone( $locale ) {
+	foreach ( $locale as $country => $fields ) {
+		if ( ! is_array( $fields ) ) {
+			continue;
+		}
+		if ( ! isset( $locale[ $country ]['phone'] ) || ! is_array( $locale[ $country ]['phone'] ) ) {
+			$locale[ $country ]['phone'] = array();
+		}
+		$locale[ $country ]['phone']['required'] = true;
+	}
+	return $locale;
+}
+add_filter( 'woocommerce_get_country_locale', 'vila_akoya_checkout_country_locale_require_phone', 20 );
+
+/**
+ * @param array<string, mixed> $locale Default locale.
+ * @return array<string, mixed>
+ */
+function vila_akoya_checkout_default_locale_require_phone( $locale ) {
+	if ( ! isset( $locale['phone'] ) || ! is_array( $locale['phone'] ) ) {
+		$locale['phone'] = array();
+	}
+	$locale['phone']['required'] = true;
+	return $locale;
+}
+add_filter( 'woocommerce_get_country_locale_default', 'vila_akoya_checkout_default_locale_require_phone', 20 );
+
+/**
+ * Whether the checkout page uses the WooCommerce Checkout block.
+ *
+ * @return bool
+ */
+function vila_akoya_checkout_uses_blocks() {
+	if ( ! function_exists( 'has_block' ) || ! function_exists( 'wc_get_page_id' ) ) {
+		return false;
+	}
+	$page_id = (int) wc_get_page_id( 'checkout' );
+	return $page_id > 0 && has_block( 'woocommerce/checkout', $page_id );
+}
+
+/**
+ * Block checkout: visitor intro (WC additional fields API supports text, not textarea).
+ */
+function vila_akoya_register_checkout_visitor_intro_field() {
+	if ( ! function_exists( 'woocommerce_register_additional_checkout_field' ) || ! vila_akoya_checkout_uses_blocks() ) {
+		return;
+	}
+
+	woocommerce_register_additional_checkout_field(
+		array(
+			'id'         => 'vila-akoya/visitor-intro',
+			'label'      => __( 'About your group', 'vila-akoya' ),
+			'location'   => 'contact',
+			'type'       => 'text',
+			'required'   => false,
+			'attributes' => array(
+				'maxLength'            => '2000',
+				'data-vila-placeholder' => __( 'We would like to know our visitors a little. Please, if you have a moment, do tell us more about us and the people and creatures that belong with you...', 'vila-akoya' ),
+			),
+		)
+	);
+}
+add_action( 'woocommerce_init', 'vila_akoya_register_checkout_visitor_intro_field' );
+
+/**
+ * Block checkout: multiline UI for visitor intro (registered as type text for API compatibility).
+ */
+function vila_akoya_enqueue_checkout_visitor_intro_script() {
+	if ( ! function_exists( 'is_checkout' ) || ! is_checkout() || ! vila_akoya_checkout_uses_blocks() ) {
+		return;
+	}
+	if ( function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
+		return;
+	}
+	wp_enqueue_script(
+		'vila-akoya-checkout-visitor-intro',
+		get_template_directory_uri() . '/assets/js/checkout-visitor-intro.js',
+		array(),
+		defined( 'VILA_AKOYA_VERSION' ) ? VILA_AKOYA_VERSION : '1.0.0',
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'vila_akoya_enqueue_checkout_visitor_intro_script', 30 );
+
+/**
+ * Classic checkout: multiline visitor intro (not used when the Checkout block is active).
+ *
+ * @param array<string, array<string, mixed>> $fields Checkout fields.
+ * @return array<string, array<string, mixed>>
+ */
+function vila_akoya_checkout_visitor_intro_classic_field( $fields ) {
+	if ( vila_akoya_checkout_uses_blocks() ) {
+		return $fields;
+	}
+	$fields['order']['vila_visitor_intro'] = array(
+		'type'              => 'textarea',
+		'class'             => array( 'form-row-wide', 'vila-checkout-visitor-intro' ),
+		'label'             => __( 'About your group', 'vila-akoya' ),
+		'description'       => __( 'We would like to know our visitors a little. Please, if you have a moment, do tell us more about you and the people and creatures that belong with you.', 'vila-akoya' ),
+		'placeholder'       => __( 'We would like to know our visitors a little. Please, if you have a moment, do tell us more about us and the people and creatures that belong with you...', 'vila-akoya' ),
+		'custom_attributes' => array(
+			'rows' => '5',
+		),
+		'required'          => false,
+		'priority'          => 120,
+	);
+	return $fields;
+}
+add_filter( 'woocommerce_checkout_fields', 'vila_akoya_checkout_visitor_intro_classic_field', 25 );
+
+/**
+ * @param int $order_id Order ID.
+ */
+function vila_akoya_save_checkout_visitor_intro_classic( $order_id ) {
+	if ( vila_akoya_checkout_uses_blocks() ) {
+		return;
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- WC checkout nonce.
+	if ( empty( $_POST['vila_visitor_intro'] ) ) {
+		return;
+	}
+	$text = sanitize_textarea_field( wp_unslash( vila_akoya_scalar_request_string( $_POST['vila_visitor_intro'] ) ) );
+	if ( '' === $text ) {
+		return;
+	}
+	update_post_meta( $order_id, '_vila_visitor_intro', $text );
+}
+add_action( 'woocommerce_checkout_update_order_meta', 'vila_akoya_save_checkout_visitor_intro_classic' );
+
+/**
+ * Mirror block-checkout visitor intro into a stable order meta key for emails/admin.
+ *
+ * @param int $order_id Order ID.
+ */
+function vila_akoya_sync_checkout_visitor_intro_meta( $order_id ) {
+	if ( ! function_exists( 'wc_get_order' ) ) {
+		return;
+	}
+	$order = wc_get_order( $order_id );
+	if ( ! $order instanceof WC_Order ) {
+		return;
+	}
+	$text = (string) $order->get_meta( 'vila-akoya/visitor-intro' );
+	if ( '' === trim( $text ) ) {
+		return;
+	}
+	$order->update_meta_data( '_vila_visitor_intro', $text );
+	$order->save();
+}
+add_action( 'woocommerce_checkout_update_order_meta', 'vila_akoya_sync_checkout_visitor_intro_meta', 30 );
+
+/**
+ * Show visitor intro in admin and customer order views.
+ *
+ * @param WC_Order $order Order.
+ */
+function vila_akoya_display_visitor_intro_in_admin( $order ) {
+	if ( ! $order instanceof WC_Order ) {
+		return;
+	}
+	$text = (string) $order->get_meta( '_vila_visitor_intro' );
+	if ( '' === $text && function_exists( 'wc_get_order' ) ) {
+		$text = (string) $order->get_meta( 'vila-akoya/visitor-intro' );
+	}
+	if ( '' === trim( $text ) ) {
+		return;
+	}
+	echo '<p><strong>' . esc_html__( 'About your group', 'vila-akoya' ) . '</strong></p>';
+	echo '<p style="white-space:pre-wrap;">' . esc_html( $text ) . '</p>';
+}
+add_action( 'woocommerce_admin_order_data_after_billing_address', 'vila_akoya_display_visitor_intro_in_admin', 15 );
+
+/**
+ * @param WC_Order $order Order.
+ */
+function vila_akoya_email_visitor_intro( $order ) {
+	if ( ! $order instanceof WC_Order ) {
+		return;
+	}
+	$text = (string) $order->get_meta( '_vila_visitor_intro' );
+	if ( '' === $text ) {
+		$text = (string) $order->get_meta( 'vila-akoya/visitor-intro' );
+	}
+	if ( '' === trim( $text ) ) {
+		return;
+	}
+	echo '<h2>' . esc_html__( 'About your group', 'vila-akoya' ) . '</h2>';
+	echo '<p style="white-space:pre-wrap;">' . esc_html( $text ) . '</p>';
+}
+add_action( 'woocommerce_email_after_order_table', 'vila_akoya_email_visitor_intro', 15, 1 );
+
+/**
+ * Description under the block-checkout visitor intro field.
+ *
+ * @param string $html       Field HTML.
+ * @param string $field_id   Field id.
+ * @param array  $field_data Field config.
+ * @return string
+ */
+function vila_akoya_checkout_visitor_intro_field_html( $html, $field_id, $field_data ) {
+	unset( $field_data );
+	if ( 'vila-akoya/visitor-intro' !== $field_id ) {
+		return $html;
+	}
+	$intro = '<p class="vila-checkout-visitor-intro__lead">' . esc_html__(
+		'We would like to know our visitors a little. Please, if you have a moment, do tell us more about you and the people and creatures that belong with you.',
+		'vila-akoya'
+	) . '</p>';
+	return $intro . $html;
+}
+add_filter( 'woocommerce_additional_checkout_field_html', 'vila_akoya_checkout_visitor_intro_field_html', 10, 3 );
+
+/**
+ * Classic checkout: lead copy above the visitor intro textarea.
+ */
+function vila_akoya_checkout_visitor_intro_classic_description() {
+	if ( ! function_exists( 'is_checkout' ) || ! is_checkout() || vila_akoya_checkout_uses_blocks() ) {
+		return;
+	}
+	static $done = false;
+	if ( $done ) {
+		return;
+	}
+	$done = true;
+	echo '<p class="vila-checkout-visitor-intro__lead form-row form-row-wide">';
+	echo esc_html__(
+		'We would like to know our visitors a little. Please, if you have a moment, do tell us more about you and the people and creatures that belong with you.',
+		'vila-akoya'
+	);
+	echo '</p>';
+}
+add_action( 'woocommerce_before_order_notes', 'vila_akoya_checkout_visitor_intro_classic_description', 5 );

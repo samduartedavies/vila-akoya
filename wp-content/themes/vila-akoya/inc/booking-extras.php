@@ -51,19 +51,19 @@ function vila_akoya_get_vehicle_types() {
 		array(
 			'caravan'      => array(
 				'label' => __( 'Caravan', 'vila-akoya' ),
-				'fee'   => 8,
+				'fee'   => 6,
 			),
 			'camper'       => array(
-				'label' => __( 'Camper van', 'vila-akoya' ),
-				'fee'   => 10,
+				'label' => __( 'Campervan', 'vila-akoya' ),
+				'fee'   => 6,
 			),
 			'electricity'  => array(
 				'label' => __( 'Include electricity', 'vila-akoya' ),
-				'fee'   => 5,
+				'fee'   => 2,
 			),
 			'car'          => array(
 				'label' => __( 'Car', 'vila-akoya' ),
-				'fee'   => 5,
+				'fee'   => 2,
 			),
 		)
 	);
@@ -179,9 +179,9 @@ function vila_akoya_cart_vehicle_types( array $cart_item ) {
 function vila_akoya_get_guest_category_nightly_rates( $product_id ) {
 	$product_id = (int) $product_id;
 	$defaults   = array(
-		'children' => 12.0,
-		'infants'  => 0.0,
-		'pets'     => 6.0,
+		'children' => 6.0,
+		'infants'  => 3.0,
+		'pets'     => 2.0,
 	);
 	return apply_filters( 'vila_akoya_guest_category_nightly_rates', $defaults, $product_id );
 }
@@ -526,13 +526,13 @@ function vila_akoya_cart_guest_category_fees() {
 	}
 
 	if ( $totals['children'] > 0 ) {
-		WC()->cart->add_fee( __( 'Children — nightly supplement', 'vila-akoya' ), $totals['children'] );
+		WC()->cart->add_fee( __( 'Children', 'vila-akoya' ), $totals['children'] );
 	}
 	if ( $totals['infants'] > 0 ) {
-		WC()->cart->add_fee( __( 'Infants — nightly supplement', 'vila-akoya' ), $totals['infants'] );
+		WC()->cart->add_fee( __( 'Babies — nightly supplement', 'vila-akoya' ), $totals['infants'] );
 	}
 	if ( $totals['pets'] > 0 ) {
-		WC()->cart->add_fee( __( 'Pets — nightly supplement', 'vila-akoya' ), $totals['pets'] );
+		WC()->cart->add_fee( __( 'Pets', 'vila-akoya' ), $totals['pets'] );
 	}
 }
 add_action( 'woocommerce_cart_calculate_fees', 'vila_akoya_cart_guest_category_fees', 25 );
@@ -720,7 +720,7 @@ function vila_akoya_render_plot_dropdown( $product_id ) {
 		return;
 	}
 	$repo  = new \Vila_CB\Plot_Repository();
-	$plots = $repo->get_all();
+	$plots = $repo->get_bookable();
 	if ( empty( $plots ) ) {
 		return;
 	}
@@ -973,7 +973,7 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 		$new['vila_guest_infants'] = array(
 			'title' => sprintf(
 				/* translators: 1: infants count, 2: price/night each, 3: nights, 4: night/nights */
-				__( 'Infants — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
+				__( 'Babies — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
 				$inf,
 				vila_akoya_format_price_plain( $r ),
 				$nights,
@@ -1053,7 +1053,7 @@ function vila_akoya_enqueue_booking_ui_script() {
 	$vila_cb_plots = array();
 	if ( $vila_cb && class_exists( '\Vila_CB\Plot_Repository' ) ) {
 		$plot_repo = new \Vila_CB\Plot_Repository();
-		foreach ( $plot_repo->get_all() as $prow ) {
+		foreach ( $plot_repo->get_bookable() as $prow ) {
 			$vila_cb_plots[] = array(
 				'id'    => (int) $prow['id'],
 				'label' => (string) $prow['label'],
@@ -1110,7 +1110,7 @@ function vila_akoya_enqueue_booking_ui_script() {
 			'vilaCbPlots'               => $vila_cb_plots,
 			'mapPlotHotspots'           => $map_hotspots,
 			'strings'                   => array(
-				'stayDates'               => __( 'Stay dates', 'vila-akoya' ),
+				'stayDates'               => __( 'Your dates', 'vila-akoya' ),
 				'rangeUnavailable'        => __( 'No pitch is free for this full stay on those dates. Choose different check-in and check-out — some nights can look available when each pitch is booked on different nights.', 'vila-akoya' ),
 				'plotUnavailable'         => __( 'This pitch is not available for your selected dates. Try a different pitch or choose different dates.', 'vila-akoya' ),
 				'placeholder'             => __( 'Check-in — Check-out', 'vila-akoya' ),
