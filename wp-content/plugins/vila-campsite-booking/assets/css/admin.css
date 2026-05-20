@@ -675,6 +675,11 @@
 	border-color: var(--vila-cb-ui-busy-border);
 }
 
+.vila-cb-ui-swatch--blocked {
+	background: var(--vila-cb-ui-blocked, #f3e8e4);
+	border-color: var(--vila-cb-ui-blocked-border, #c4a89a);
+}
+
 .vila-cb-ui-swatch--today {
 	background: var(--vila-cb-ui-accent-soft);
 	border-color: var(--vila-cb-ui-accent);
@@ -711,6 +716,32 @@
 .vila-cb-grid__busy {
 	background: #e7f0ff;
 	font-weight: 600;
+}
+
+.vila-cb-grid__blocked,
+.vila-cb-grid__blocked-bar {
+	background: var(--vila-cb-ui-blocked, #f3e8e4);
+	color: #5c4a42;
+	font-weight: 600;
+}
+
+.vila-cb-grid__blocked-label {
+	display: block;
+	padding: 6px 8px;
+	font-size: 12px;
+	line-height: 1.35;
+	text-align: center;
+}
+
+.vila-cb-blocks-add-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 12px 20px;
+	margin-bottom: 8px;
+}
+
+.vila-cb-blocks-add-grid__note {
+	grid-column: 1 / -1;
 }
 
 .vila-cb-grid__day {

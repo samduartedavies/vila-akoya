@@ -25,11 +25,17 @@ class Booking_Service {
 	private $bookings;
 
 	/**
+	 * @var Plot_Block_Repository
+	 */
+	private $blocks;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
 		$this->plots    = new Plot_Repository();
 		$this->bookings = new Booking_Repository();
+		$this->blocks   = new Plot_Block_Repository();
 	}
 
 	/**
@@ -98,9 +104,20 @@ class Booking_Service {
 	}
 
 	/**
-	 * Stub: maintenance blocks from wp_vila_plot_blocks.
+	 * Whether any night in [check_in, check_out) is blocked site-wide (all plots).
 	 *
-	 * @param int    $plot_id Plot ID.
+	 * @param string $check_in Y-m-d.
+	 * @param string $check_out Y-m-d exclusive.
+	 * @return bool
+	 */
+	public function is_globally_blocked_for_range( $check_in, $check_out ) {
+		return $this->is_plot_blocked_for_range( Plot_Block_Repository::PLOT_ID_ALL, $check_in, $check_out );
+	}
+
+	/**
+	 * Maintenance / closure blocks from wp_vila_plot_blocks (plot-specific and site-wide).
+	 *
+	 * @param int    $plot_id Plot ID (ignored when checking global-only via PLOT_ID_ALL).
 	 * @param string $check_in Y-m-d.
 	 * @param string $check_out Y-m-d exclusive.
 	 * @return bool True if any night overlaps a block.
@@ -113,31 +130,57 @@ class Booking_Service {
 			return true;
 		}
 		$t = Database::plot_blocks_table();
-		// Block overlaps night if block.start < check_out AND block.end > check_in (using half-open: block [start, end) ).
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT start_ymd, end_ymd FROM $t WHERE plot_id = %d",
-				$plot_id
-			),
-			ARRAY_A
-		);
+		if ( Plot_Block_Repository::PLOT_ID_ALL === $plot_id ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT start_ymd, end_ymd FROM $t WHERE plot_id = %d AND end_ymd > %s AND start_ymd < %s",
+					Plot_Block_Repository::PLOT_ID_ALL,
+					$check_in,
+					$check_out
+				),
+				ARRAY_A
+			);
+		} else {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT start_ymd, end_ymd FROM $t WHERE plot_id IN (%d, %d) AND end_ymd > %s AND start_ymd < %s",
+					Plot_Block_Repository::PLOT_ID_ALL,
+					$plot_id,
+					$check_in,
+					$check_out
+				),
+				ARRAY_A
+			);
+		}
 		if ( empty( $rows ) ) {
 			return false;
 		}
 		foreach ( $nights as $ymd ) {
-			$d = Dates::parse_ymd( $ymd );
-			if ( ! $d ) {
+			if ( self::night_overlaps_block_rows( $ymd, $rows ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @param string               $ymd  Y-m-d night.
+	 * @param array<int, array<string, mixed>> $rows Block rows with start_ymd, end_ymd.
+	 * @return bool
+	 */
+	private static function night_overlaps_block_rows( $ymd, array $rows ) {
+		$d = Dates::parse_ymd( $ymd );
+		if ( ! $d ) {
+			return false;
+		}
+		foreach ( $rows as $row ) {
+			$bs = Dates::parse_ymd( $row['start_ymd'] );
+			$be = Dates::parse_ymd( $row['end_ymd'] );
+			if ( ! $bs || ! $be ) {
 				continue;
 			}
-			foreach ( $rows as $row ) {
-				$bs = Dates::parse_ymd( $row['start_ymd'] );
-				$be = Dates::parse_ymd( $row['end_ymd'] );
-				if ( ! $bs || ! $be ) {
-					continue;
-				}
-				if ( $d >= $bs && $d < $be ) {
-					return true;
-				}
+			if ( $d >= $bs && $d < $be ) {
+				return true;
 			}
 		}
 		return false;
@@ -190,7 +233,13 @@ class Booking_Service {
 
 		$pbt  = Database::plot_blocks_table();
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT start_ymd, end_ymd FROM $pbt WHERE plot_id = %d AND end_ymd > %s AND start_ymd <= %s", $plot_id, $from, $to ),
+			$wpdb->prepare(
+				"SELECT start_ymd, end_ymd FROM $pbt WHERE plot_id IN (%d, %d) AND end_ymd > %s AND start_ymd <= %s",
+				Plot_Block_Repository::PLOT_ID_ALL,
+				$plot_id,
+				$from,
+				$to
+			),
 			ARRAY_A
 		);
 
@@ -237,6 +286,22 @@ class Booking_Service {
 		if ( empty( $days ) ) {
 			return array();
 		}
+
+		$block_rows = $this->blocks->get_overlapping( $from, $to );
+		$global_blocks = array();
+		$plot_blocks   = array();
+		foreach ( $block_rows as $row ) {
+			$pid = (int) $row['plot_id'];
+			if ( Plot_Block_Repository::PLOT_ID_ALL === $pid ) {
+				$global_blocks[] = $row;
+			} else {
+				if ( ! isset( $plot_blocks[ $pid ] ) ) {
+					$plot_blocks[ $pid ] = array();
+				}
+				$plot_blocks[ $pid ][] = $row;
+			}
+		}
+
 		$nt       = Database::booking_nights_table();
 		$bt       = Database::bookings_table();
 		$statuses = Booking_Repository::occupying_statuses();
@@ -244,11 +309,27 @@ class Booking_Service {
 		$id_ph    = implode( ',', array_fill( 0, $plot_count, '%d' ) );
 		$out      = array();
 		foreach ( $days as $ymd ) {
-			$sql  = "SELECT COUNT(DISTINCT n.plot_id) FROM $nt n INNER JOIN $bt b ON b.id = n.booking_id WHERE n.plot_id IN ($id_ph) AND n.night_ymd = %s AND b.status IN ($st_ph)";
+			if ( self::night_overlaps_block_rows( $ymd, $global_blocks ) ) {
+				$out[] = $ymd;
+				continue;
+			}
+			$sql  = "SELECT DISTINCT n.plot_id FROM $nt n INNER JOIN $bt b ON b.id = n.booking_id WHERE n.plot_id IN ($id_ph) AND n.night_ymd = %s AND b.status IN ($st_ph)";
 			$args = array_merge( $bookable_ids, array( $ymd ), $statuses );
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders match $args.
-			$c = (int) $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
-			if ( $c >= $plot_count ) {
+			$booked_plot_ids = $wpdb->get_col( $wpdb->prepare( $sql, $args ) );
+			$booked_plot_ids = is_array( $booked_plot_ids ) ? array_map( 'intval', $booked_plot_ids ) : array();
+			$available       = 0;
+			foreach ( $bookable_ids as $pid ) {
+				if ( in_array( (int) $pid, $booked_plot_ids, true ) ) {
+					continue;
+				}
+				$prow = isset( $plot_blocks[ (int) $pid ] ) ? $plot_blocks[ (int) $pid ] : array();
+				if ( self::night_overlaps_block_rows( $ymd, $prow ) ) {
+					continue;
+				}
+				$available++;
+			}
+			if ( $available <= 0 ) {
 				$out[] = $ymd;
 			}
 		}
@@ -540,6 +621,12 @@ class Booking_Service {
 			);
 		}
 
+		if ( $this->is_globally_blocked_for_range( $check_in, $check_out ) ) {
+			return array(
+				'success' => false,
+				'message' => __( 'The campsite is closed for part of that date range.', 'vila-campsite-booking' ),
+			);
+		}
 		if ( $this->is_plot_blocked_for_range( $plot_id, $check_in, $check_out ) ) {
 			return array(
 				'success' => false,

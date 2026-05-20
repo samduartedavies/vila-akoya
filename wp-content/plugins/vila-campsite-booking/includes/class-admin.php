@@ -17,6 +17,7 @@ class Admin {
 	const PAGE_OVERVIEW = 'vila-cb-overview';
 	const PAGE_CAL      = 'vila-cb-calendar';
 	const PAGE_PLOTS    = 'vila-cb-plots';
+	const PAGE_BLOCKS   = 'vila-cb-blocks';
 	const PAGE_SETTINGS = 'vila-cb-settings';
 	const PAGE_BOOKING  = 'vila-cb-booking';
 
@@ -33,6 +34,7 @@ class Admin {
 		add_action( 'current_screen', array( __CLASS__, 'ensure_admin_page_title_global' ), 0 );
 		add_action( 'admin_init', array( __CLASS__, 'handle_settings_save' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_plots_save' ) );
+		add_action( 'admin_init', array( __CLASS__, 'handle_blocks_save' ) );
 		add_action( 'admin_post_vila_cb_save_booking', array( __CLASS__, 'handle_booking_edit_save' ) );
 	}
 
@@ -142,6 +144,15 @@ class Admin {
 			'manage_woocommerce',
 			self::PAGE_PLOTS,
 			array( __CLASS__, 'render_plots' )
+		);
+
+		add_submenu_page(
+			'woocommerce',
+			__( 'Block campsite dates', 'vila-campsite-booking' ),
+			__( 'Campsite · Block dates', 'vila-campsite-booking' ),
+			'manage_woocommerce',
+			self::PAGE_BLOCKS,
+			array( __CLASS__, 'render_blocks' )
 		);
 
 		add_submenu_page(
@@ -818,6 +829,7 @@ class Admin {
 		$bookings     = $booking_repo->get_in_range( $from, $to );
 		$plot_repo    = new Plot_Repository();
 		$plots        = $plot_repo->get_all();
+		$blocks_index = self::calendar_blocks_index( ( new Plot_Block_Repository() )->get_overlapping( $from, $to ) );
 
 		$by_plot = array();
 		foreach ( $plots as $p ) {
@@ -901,6 +913,32 @@ class Admin {
 									$ymd = $days[ $j ]['ymd'];
 									$seg = self::calendar_booking_for_plot_day( $by_plot, $pid, $ymd );
 									if ( null === $seg ) {
+										$block_seg = self::calendar_block_for_plot_day( $blocks_index, $pid, $ymd );
+										if ( null !== $block_seg ) {
+											$bid  = (int) $block_seg['id'];
+											$span = 0;
+											for ( $k = $j; $k < $day_count; $k++ ) {
+												$sk = self::calendar_block_for_plot_day( $blocks_index, $pid, $days[ $k ]['ymd'] );
+												if ( null === $sk || (int) $sk['id'] !== $bid ) {
+													break;
+												}
+												$span++;
+											}
+											$range_includes_today = self::calendar_day_range_includes( $days, $j, $span, $today_ymd );
+											$cell_classes         = array_filter(
+												array(
+													'vila-cb-grid__blocked',
+													'vila-cb-grid__blocked-bar',
+													$range_includes_today ? 'vila-cb-grid__cell--today' : '',
+												)
+											);
+											$title = self::calendar_block_cell_title( $block_seg );
+											echo '<td class="' . esc_attr( implode( ' ', $cell_classes ) ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $title ) . '">';
+											echo '<span class="vila-cb-grid__blocked-label">' . esc_html( self::calendar_block_cell_label( $block_seg ) ) . '</span>';
+											echo '</td>';
+											$j += $span;
+											continue;
+										}
 										$span = 1;
 										for ( $k = $j + 1; $k < $day_count; $k++ ) {
 											if ( null !== self::calendar_booking_for_plot_day( $by_plot, $pid, $days[ $k ]['ymd'] ) ) {
@@ -962,6 +1000,10 @@ class Admin {
 				<span class="vila-cb-ui-legend-item">
 					<span class="vila-cb-ui-swatch vila-cb-ui-swatch--busy"></span>
 					<?php esc_html_e( 'Booked (click to edit booking)', 'vila-campsite-booking' ); ?>
+				</span>
+				<span class="vila-cb-ui-legend-item">
+					<span class="vila-cb-ui-swatch vila-cb-ui-swatch--blocked"></span>
+					<?php esc_html_e( 'Blocked (maintenance / closed)', 'vila-campsite-booking' ); ?>
 				</span>
 				<span class="vila-cb-ui-legend-item">
 					<span class="vila-cb-ui-swatch vila-cb-ui-swatch--today"></span>
@@ -1206,9 +1248,307 @@ class Admin {
 					<?php submit_button( __( 'Save plots', 'vila-campsite-booking' ), 'primary', '', false, array( 'class' => 'vila-cb-ui-submit' ) ); ?>
 				</div>
 			</form>
-			<p class="vila-cb-ui-footnote"><?php esc_html_e( 'Maintenance blocks per plot can be added in a future release; the database table is already installed.', 'vila-campsite-booking' ); ?></p>
+			<p class="vila-cb-ui-footnote">
+				<?php
+				$blocks_link = '<a href="' . esc_url( admin_url( 'admin.php?page=' . self::PAGE_BLOCKS ) ) . '">' . esc_html__( 'Campsite · Block dates', 'vila-campsite-booking' ) . '</a>';
+				echo wp_kses_post(
+					sprintf(
+						/* translators: %s: link to Block dates admin screen */
+						__( 'To close dates for one pitch or the whole campsite, use %s.', 'vila-campsite-booking' ),
+						$blocks_link
+					)
+				);
+				?>
+			</p>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Block dates (per plot or all plots).
+	 */
+	public static function render_blocks() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		self::enqueue_admin_assets();
+
+		$repo   = new Plot_Block_Repository();
+		$blocks = $repo->get_all();
+		$plots  = ( new Plot_Repository() )->get_all();
+		$df     = self::wp_date_format_pattern();
+
+		?>
+		<div class="wrap vila-cb-admin vila-cb-blocks">
+			<?php if ( isset( $_GET['updated'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Date blocks saved.', 'vila-campsite-booking' ); ?></p></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['error'] ) ) : ?>
+				<div class="notice notice-error is-dismissible"><p><?php echo esc_html( sanitize_text_field( wp_unslash( Request_String::scalar( $_GET['error'] ) ) ) ); ?></p></div>
+			<?php endif; ?>
+			<div class="vila-cb-ui-hero">
+				<div class="vila-cb-ui-hero__text">
+					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Block dates', 'vila-campsite-booking' ); ?></h1>
+					<p class="vila-cb-ui-lead">
+						<?php esc_html_e( 'Close pitches for maintenance or block the whole campsite. Blocked nights cannot be booked online and appear on the calendar.', 'vila-campsite-booking' ); ?>
+					</p>
+				</div>
+			</div>
+
+			<div class="vila-cb-ui-panel vila-cb-ui-panel--compact">
+				<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Add block', 'vila-campsite-booking' ); ?></h2>
+				<form method="post" class="vila-cb-blocks-add-form">
+					<?php wp_nonce_field( 'vila_cb_blocks', 'vila_cb_blocks_nonce' ); ?>
+					<input type="hidden" name="vila_cb_blocks_action" value="add" />
+					<div class="vila-cb-blocks-add-grid">
+						<p class="vila-cb-ui-field">
+							<label for="vila_cb_block_scope"><?php esc_html_e( 'Applies to', 'vila-campsite-booking' ); ?></label>
+							<select name="vila_cb_block_plot_id" id="vila_cb_block_scope" class="regular-text">
+								<option value="0"><?php esc_html_e( 'All plots (whole campsite)', 'vila-campsite-booking' ); ?></option>
+								<?php foreach ( $plots as $p ) : ?>
+									<option value="<?php echo esc_attr( (string) (int) $p['id'] ); ?>"><?php echo esc_html( (string) $p['label'] ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</p>
+						<p class="vila-cb-ui-field">
+							<label for="vila_cb_block_start"><?php esc_html_e( 'First blocked night', 'vila-campsite-booking' ); ?></label>
+							<input type="date" name="vila_cb_block_start" id="vila_cb_block_start" required />
+						</p>
+						<p class="vila-cb-ui-field">
+							<label for="vila_cb_block_end"><?php esc_html_e( 'Reopens on (checkout day)', 'vila-campsite-booking' ); ?></label>
+							<input type="date" name="vila_cb_block_end" id="vila_cb_block_end" required />
+						</p>
+						<p class="vila-cb-ui-field vila-cb-blocks-add-grid__note">
+							<label for="vila_cb_block_note"><?php esc_html_e( 'Note (optional)', 'vila-campsite-booking' ); ?></label>
+							<input type="text" name="vila_cb_block_note" id="vila_cb_block_note" class="large-text" maxlength="255" placeholder="<?php esc_attr_e( 'e.g. Maintenance, private event', 'vila-campsite-booking' ); ?>" />
+						</p>
+					</div>
+					<p class="description"><?php esc_html_e( 'Uses the same dates as bookings: the last blocked night is the day before “Reopens on”. Guests cannot check in or out on a blocked night.', 'vila-campsite-booking' ); ?></p>
+					<?php submit_button( __( 'Add block', 'vila-campsite-booking' ), 'primary', '', false, array( 'class' => 'vila-cb-ui-submit' ) ); ?>
+				</form>
+			</div>
+
+			<form method="post" class="vila-cb-blocks-list-form">
+				<?php wp_nonce_field( 'vila_cb_blocks', 'vila_cb_blocks_nonce' ); ?>
+				<input type="hidden" name="vila_cb_blocks_action" value="delete" />
+				<div class="vila-cb-ui-panel">
+					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Active blocks', 'vila-campsite-booking' ); ?></h2>
+					<?php if ( empty( $blocks ) ) : ?>
+						<p class="description"><?php esc_html_e( 'No date blocks yet.', 'vila-campsite-booking' ); ?></p>
+					<?php else : ?>
+						<div class="vila-cb-ui-table-wrap">
+							<table class="widefat striped vila-cb-form-table">
+								<thead>
+									<tr>
+										<th scope="col"><?php esc_html_e( 'Plot', 'vila-campsite-booking' ); ?></th>
+										<th scope="col"><?php esc_html_e( 'Blocked nights', 'vila-campsite-booking' ); ?></th>
+										<th scope="col"><?php esc_html_e( 'Note', 'vila-campsite-booking' ); ?></th>
+										<th scope="col"><?php esc_html_e( 'Remove', 'vila-campsite-booking' ); ?></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php
+									$plot_labels = array();
+									foreach ( $plots as $p ) {
+										$plot_labels[ (int) $p['id'] ] = (string) $p['label'];
+									}
+									foreach ( $blocks as $b ) :
+										$pid   = (int) $b['plot_id'];
+										$scope = Plot_Block_Repository::PLOT_ID_ALL === $pid
+											? __( 'All plots', 'vila-campsite-booking' )
+											: ( isset( $plot_labels[ $pid ] ) ? $plot_labels[ $pid ] : sprintf( __( 'Plot #%d', 'vila-campsite-booking' ), $pid ) );
+										$start = Dates::parse_ymd( (string) $b['start_ymd'] );
+										$end   = Dates::parse_ymd( (string) $b['end_ymd'] );
+										$range = ( $start && $end )
+											? sprintf(
+												/* translators: 1: first blocked night, 2: reopening day */
+												__( '%1$s → %2$s', 'vila-campsite-booking' ),
+												date_i18n( $df, $start->getTimestamp() ),
+												date_i18n( $df, $end->getTimestamp() )
+											)
+											: (string) $b['start_ymd'] . ' → ' . (string) $b['end_ymd'];
+										?>
+										<tr>
+											<td><?php echo esc_html( $scope ); ?></td>
+											<td><?php echo esc_html( $range ); ?></td>
+											<td><?php echo esc_html( (string) ( $b['note'] ?? '' ) ); ?></td>
+											<td>
+												<label class="vila-cb-ui-check">
+													<input type="checkbox" name="vila_cb_block_delete[]" value="<?php echo esc_attr( (string) (int) $b['id'] ); ?>" />
+													<?php esc_html_e( 'Delete', 'vila-campsite-booking' ); ?>
+												</label>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						</div>
+						<?php submit_button( __( 'Remove selected blocks', 'vila-campsite-booking' ), 'secondary', '', false, array( 'class' => 'vila-cb-ui-submit' ) ); ?>
+					<?php endif; ?>
+				</div>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Save / delete date blocks.
+	 */
+	public static function handle_blocks_save() {
+		if ( ! isset( $_POST['vila_cb_blocks_nonce'] ) || ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_blocks_nonce'] ) ) ), 'vila_cb_blocks' ) ) {
+			return;
+		}
+
+		$repo   = new Plot_Block_Repository();
+		$action = isset( $_POST['vila_cb_blocks_action'] ) ? sanitize_key( wp_unslash( Request_String::scalar( $_POST['vila_cb_blocks_action'] ) ) ) : '';
+		$base   = admin_url( 'admin.php?page=' . self::PAGE_BLOCKS );
+
+		if ( 'delete' === $action ) {
+			if ( ! empty( $_POST['vila_cb_block_delete'] ) && is_array( $_POST['vila_cb_block_delete'] ) ) {
+				foreach ( $_POST['vila_cb_block_delete'] as $raw_id ) {
+					$repo->delete( (int) wp_unslash( Request_String::scalar( $raw_id ) ) );
+				}
+			}
+			wp_safe_redirect( add_query_arg( 'updated', '1', $base ) );
+			exit;
+		}
+
+		if ( 'add' !== $action ) {
+			return;
+		}
+
+		$plot_id = isset( $_POST['vila_cb_block_plot_id'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_block_plot_id'] ) ) : 0;
+		$start   = isset( $_POST['vila_cb_block_start'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_block_start'] ) ) ) : '';
+		$end     = isset( $_POST['vila_cb_block_end'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_block_end'] ) ) ) : '';
+		$note    = isset( $_POST['vila_cb_block_note'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_cb_block_note'] ) ) ) : '';
+
+		$range = Plot_Block_Repository::normalize_range( $start, $end );
+		if ( ! $range ) {
+			wp_safe_redirect(
+				add_query_arg(
+					'error',
+					rawurlencode( __( 'Invalid dates. Check-out (reopens on) must be after the first blocked night.', 'vila-campsite-booking' ) ),
+					$base
+				)
+			);
+			exit;
+		}
+
+		if ( $plot_id > 0 && ! ( new Plot_Repository() )->get( $plot_id ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					'error',
+					rawurlencode( __( 'Unknown plot.', 'vila-campsite-booking' ) ),
+					$base
+				)
+			);
+			exit;
+		}
+
+		$repo->insert(
+			array(
+				'plot_id'    => max( 0, $plot_id ),
+				'start_ymd'  => $range['start'],
+				'end_ymd'    => $range['end'],
+				'note'       => '' !== $note ? $note : null,
+				'created_at' => current_time( 'mysql' ),
+			)
+		);
+
+		wp_safe_redirect( add_query_arg( 'updated', '1', $base ) );
+		exit;
+	}
+
+	/**
+	 * @param array<int, array<string, mixed>> $rows Block rows.
+	 * @return array{global: array<int, array<string, mixed>>, by_plot: array<int, array<int, array<string, mixed>>>}
+	 */
+	private static function calendar_blocks_index( array $rows ) {
+		$index = array(
+			'global'  => array(),
+			'by_plot' => array(),
+		);
+		foreach ( $rows as $row ) {
+			$pid = (int) $row['plot_id'];
+			if ( Plot_Block_Repository::PLOT_ID_ALL === $pid ) {
+				$index['global'][] = $row;
+			} else {
+				if ( ! isset( $index['by_plot'][ $pid ] ) ) {
+					$index['by_plot'][ $pid ] = array();
+				}
+				$index['by_plot'][ $pid ][] = $row;
+			}
+		}
+		return $index;
+	}
+
+	/**
+	 * @param array{global: array<int, array<string, mixed>>, by_plot: array<int, array<int, array<string, mixed>>>} $index Blocks index.
+	 * @param int    $plot_id Plot ID.
+	 * @param string $ymd     Y-m-d.
+	 * @return array<string, mixed>|null
+	 */
+	private static function calendar_block_for_plot_day( array $index, $plot_id, $ymd ) {
+		$plot_id = (int) $plot_id;
+		$ymd     = (string) $ymd;
+		foreach ( $index['global'] as $row ) {
+			if ( self::calendar_night_in_block( $ymd, $row ) ) {
+				return $row;
+			}
+		}
+		if ( isset( $index['by_plot'][ $plot_id ] ) ) {
+			foreach ( $index['by_plot'][ $plot_id ] as $row ) {
+				if ( self::calendar_night_in_block( $ymd, $row ) ) {
+					return $row;
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @param string               $ymd Y-m-d.
+	 * @param array<string, mixed> $row Block row.
+	 * @return bool
+	 */
+	private static function calendar_night_in_block( $ymd, array $row ) {
+		$d = Dates::parse_ymd( $ymd );
+		$bs = Dates::parse_ymd( (string) $row['start_ymd'] );
+		$be = Dates::parse_ymd( (string) $row['end_ymd'] );
+		return $d && $bs && $be && $d >= $bs && $d < $be;
+	}
+
+	/**
+	 * @param array<string, mixed> $row Block row.
+	 * @return string
+	 */
+	private static function calendar_block_cell_label( array $row ) {
+		$note = isset( $row['note'] ) ? trim( (string) $row['note'] ) : '';
+		if ( '' !== $note ) {
+			return $note;
+		}
+		return Plot_Block_Repository::PLOT_ID_ALL === (int) $row['plot_id']
+			? __( 'Site closed', 'vila-campsite-booking' )
+			: __( 'Blocked', 'vila-campsite-booking' );
+	}
+
+	/**
+	 * @param array<string, mixed> $row Block row.
+	 * @return string
+	 */
+	private static function calendar_block_cell_title( array $row ) {
+		$df    = self::wp_date_format_pattern();
+		$start = Dates::parse_ymd( (string) $row['start_ymd'] );
+		$end   = Dates::parse_ymd( (string) $row['end_ymd'] );
+		$range = ( $start && $end )
+			? date_i18n( $df, $start->getTimestamp() ) . ' → ' . date_i18n( $df, $end->getTimestamp() )
+			: (string) $row['start_ymd'] . ' → ' . (string) $row['end_ymd'];
+		$label = self::calendar_block_cell_label( $row );
+		return $label . ' · ' . $range;
 	}
 
 	/**

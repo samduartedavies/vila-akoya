@@ -37,7 +37,15 @@
 
 ## Operations dashboard
 
-Use **WooCommerce → Campsite** for overview KPIs and the daily list, **Campsite · Calendar** for the plot × day grid, and **Campsite · Plots** for labels.
+Use **WooCommerce → Campsite** for overview KPIs and the daily list, **Campsite · Calendar** for the plot × day grid, **Campsite · Plots** for labels, and **Campsite · Block dates** to close one pitch or the whole campsite for maintenance.
+
+## Block dates (maintenance / closure)
+
+1. Open **WooCommerce → Campsite · Block dates**.
+2. Choose **All plots** or a single pitch, then set **First blocked night** and **Reopens on** (checkout day — same rules as guest bookings: the reopening day is not a blocked night).
+3. Optional **Note** appears on the admin calendar (e.g. “Maintenance”).
+4. Blocked nights are rejected at checkout and greyed on the public booking calendar when every bookable pitch is unavailable (all plots blocked, or each pitch booked/blocked).
+5. Remove blocks by ticking **Delete** and saving **Remove selected blocks**.
 
 ## wp-env: “Plugin file does not exist” (WooCommerce, CF7, etc.)
 
