@@ -822,8 +822,9 @@ class Admin {
 			);
 		}
 
-		$from = $days[0]['ymd'];
-		$to   = ( clone $base )->modify( '+14 days' )->format( 'Y-m-d' );
+		$from      = $days[0]['ymd'];
+		$last_ymd  = $days[ count( $days ) - 1 ]['ymd'];
+		$to        = $last_ymd;
 
 		$booking_repo = new Booking_Repository();
 		$bookings     = $booking_repo->get_in_range( $from, $to );
@@ -901,7 +902,50 @@ class Admin {
 					</thead>
 					<tbody>
 						<?php
-						$day_count = count( $days );
+						$day_count      = count( $days );
+						$has_site_row   = ! empty( $blocks_index['global'] );
+						if ( $has_site_row ) :
+							?>
+							<tr class="vila-cb-grid__row-site-closure">
+								<th class="vila-cb-grid__plot-cell vila-cb-grid__plot-cell--closure" scope="row"><?php esc_html_e( 'All plots', 'vila-campsite-booking' ); ?></th>
+								<?php
+								$j = 0;
+								while ( $j < $day_count ) :
+									$ymd       = $days[ $j ]['ymd'];
+									$block_seg = self::calendar_global_block_for_day( $blocks_index, $ymd );
+									if ( null === $block_seg ) {
+										echo '<td class="vila-cb-grid__cell--free vila-cb-grid__cell--closure-gap"><span class="vila-cb-grid__empty">' . esc_html( '—' ) . '</span></td>';
+										$j++;
+										continue;
+									}
+									$bid  = (int) $block_seg['id'];
+									$span = 0;
+									for ( $k = $j; $k < $day_count; $k++ ) {
+										$sk = self::calendar_global_block_for_day( $blocks_index, $days[ $k ]['ymd'] );
+										if ( null === $sk || (int) $sk['id'] !== $bid ) {
+											break;
+										}
+										$span++;
+									}
+									$range_includes_today = self::calendar_day_range_includes( $days, $j, $span, $today_ymd );
+									$cell_classes         = array_filter(
+										array(
+											'vila-cb-grid__blocked',
+											'vila-cb-grid__blocked-bar',
+											'vila-cb-grid__blocked-bar--site',
+											$range_includes_today ? 'vila-cb-grid__cell--today' : '',
+										)
+									);
+									$title = self::calendar_block_cell_title( $block_seg );
+									echo '<td class="' . esc_attr( implode( ' ', $cell_classes ) ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $title ) . '">';
+									echo '<span class="vila-cb-grid__blocked-label">' . esc_html( self::calendar_block_cell_label( $block_seg ) ) . '</span>';
+									echo '</td>';
+									$j += $span;
+								endwhile;
+								?>
+							</tr>
+							<?php
+						endif;
 						foreach ( $plots as $plot ) :
 							$pid = (int) $plot['id'];
 							?>
@@ -913,12 +957,16 @@ class Admin {
 									$ymd = $days[ $j ]['ymd'];
 									$seg = self::calendar_booking_for_plot_day( $by_plot, $pid, $ymd );
 									if ( null === $seg ) {
-										$block_seg = self::calendar_block_for_plot_day( $blocks_index, $pid, $ymd );
+										$block_seg = $has_site_row
+											? self::calendar_plot_only_block_for_day( $blocks_index, $pid, $ymd )
+											: self::calendar_block_for_plot_day( $blocks_index, $pid, $ymd );
 										if ( null !== $block_seg ) {
 											$bid  = (int) $block_seg['id'];
 											$span = 0;
 											for ( $k = $j; $k < $day_count; $k++ ) {
-												$sk = self::calendar_block_for_plot_day( $blocks_index, $pid, $days[ $k ]['ymd'] );
+												$sk = $has_site_row
+													? self::calendar_plot_only_block_for_day( $blocks_index, $pid, $days[ $k ]['ymd'] )
+													: self::calendar_block_for_plot_day( $blocks_index, $pid, $days[ $k ]['ymd'] );
 												if ( null === $sk || (int) $sk['id'] !== $bid ) {
 													break;
 												}
@@ -942,6 +990,15 @@ class Admin {
 										$span = 1;
 										for ( $k = $j + 1; $k < $day_count; $k++ ) {
 											if ( null !== self::calendar_booking_for_plot_day( $by_plot, $pid, $days[ $k ]['ymd'] ) ) {
+												break;
+											}
+											$next_block = $has_site_row
+												? self::calendar_plot_only_block_for_day( $blocks_index, $pid, $days[ $k ]['ymd'] )
+												: self::calendar_block_for_plot_day( $blocks_index, $pid, $days[ $k ]['ymd'] );
+											if ( null !== $next_block ) {
+												break;
+											}
+											if ( $has_site_row && null !== self::calendar_global_block_for_day( $blocks_index, $days[ $k ]['ymd'] ) ) {
 												break;
 											}
 											$span++;
@@ -1484,6 +1541,44 @@ class Admin {
 			}
 		}
 		return $index;
+	}
+
+	/**
+	 * @param array{global: array<int, array<string, mixed>>, by_plot: array<int, array<int, array<string, mixed>>>} $index Blocks index.
+	 * @param int    $plot_id Plot ID.
+	 * @param string $ymd     Y-m-d.
+	 * @return array<string, mixed>|null
+	 */
+	private static function calendar_global_block_for_day( array $index, $ymd ) {
+		$ymd = (string) $ymd;
+		foreach ( $index['global'] as $row ) {
+			if ( self::calendar_night_in_block( $ymd, $row ) ) {
+				return $row;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Plot-specific block only (not site-wide).
+	 *
+	 * @param array{global: array<int, array<string, mixed>>, by_plot: array<int, array<int, array<string, mixed>>>} $index Blocks index.
+	 * @param int    $plot_id Plot ID.
+	 * @param string $ymd     Y-m-d.
+	 * @return array<string, mixed>|null
+	 */
+	private static function calendar_plot_only_block_for_day( array $index, $plot_id, $ymd ) {
+		$plot_id = (int) $plot_id;
+		$ymd     = (string) $ymd;
+		if ( ! isset( $index['by_plot'][ $plot_id ] ) ) {
+			return null;
+		}
+		foreach ( $index['by_plot'][ $plot_id ] as $row ) {
+			if ( self::calendar_night_in_block( $ymd, $row ) ) {
+				return $row;
+			}
+		}
+		return null;
 	}
 
 	/**

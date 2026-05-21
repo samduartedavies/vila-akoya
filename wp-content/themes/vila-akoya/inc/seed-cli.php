@@ -35,6 +35,16 @@ require_once VILA_AKOYA_DIR . '/inc/woocommerce-campsite.php';
 require_once VILA_AKOYA_DIR . '/inc/seed.php';
 
 vila_akoya_run_seed();
+if ( function_exists( 'vila_akoya_cf7_upgrade_mail_templates' ) ) {
+	vila_akoya_cf7_upgrade_mail_templates();
+}
+if ( function_exists( 'vila_akoya_cf7_delete_unused_forms' ) ) {
+	$removed = vila_akoya_cf7_delete_unused_forms();
+	update_option( 'vila_akoya_cf7_unused_cleaned_ver', VILA_AKOYA_CF7_SCHEMA_VERSION );
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		WP_CLI::log( sprintf( 'Removed %d unused CF7 form(s).', (int) $removed ) );
+	}
+}
 vila_akoya_flush_rewrite_rules_hard();
 update_option( 'vila_akoya_content_seeded', '1' );
 

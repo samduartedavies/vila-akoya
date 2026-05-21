@@ -718,19 +718,38 @@
 	font-weight: 600;
 }
 
-.vila-cb-grid__blocked,
-.vila-cb-grid__blocked-bar {
-	background: var(--vila-cb-ui-blocked, #f3e8e4);
+.vila-cb-cal .vila-cb-grid td.vila-cb-grid__blocked-bar {
+	background: var(--vila-cb-ui-blocked, #f3e8e4) !important;
 	color: #5c4a42;
 	font-weight: 600;
+	border: 1px solid var(--vila-cb-ui-blocked-border, #c4a89a);
+	border-radius: 8px;
+	box-shadow: inset 0 0 0 1px rgba(92, 74, 66, 0.08);
+	padding: 8px 10px;
+	vertical-align: middle;
 }
 
-.vila-cb-grid__blocked-label {
+.vila-cb-cal .vila-cb-grid td.vila-cb-grid__blocked-bar--site {
+	background: #ead9cf !important;
+	border-color: #a67c6a;
+}
+
+.vila-cb-cal .vila-cb-grid td.vila-cb-grid__blocked-bar.vila-cb-grid__cell--today {
+	background: #e8d0c4 !important;
+	box-shadow: inset 0 0 0 1px #a67c6a;
+}
+
+.vila-cb-cal .vila-cb-grid__row-site-closure .vila-cb-grid__plot-cell--closure {
+	font-weight: 700;
+	color: #5c4a42;
+	background: #faf6f4;
+}
+
+.vila-cb-cal .vila-cb-grid__blocked-label {
 	display: block;
-	padding: 6px 8px;
-	font-size: 12px;
+	font-size: 11px;
 	line-height: 1.35;
-	text-align: center;
+	text-align: left;
 }
 
 .vila-cb-blocks-add-grid {
