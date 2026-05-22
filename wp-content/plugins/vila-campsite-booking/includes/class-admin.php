@@ -530,7 +530,7 @@ class Admin {
 			return;
 		}
 		$product_id = isset( $_POST['vila_cb_product_id'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_product_id'] ) ) : 0;
-		$plot_count = isset( $_POST['vila_cb_plot_count'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_plot_count'] ) ) : 14;
+		$plot_count = isset( $_POST['vila_cb_plot_count'] ) ? (int) wp_unslash( Request_String::scalar( $_POST['vila_cb_plot_count'] ) ) : count( Plot_Repository::default_plot_numbers() );
 
 		update_option( 'vila_cb_product_id', max( 0, $product_id ) );
 		update_option( 'vila_cb_plot_count', max( 1, $plot_count ) );
@@ -1657,7 +1657,7 @@ class Admin {
 		self::enqueue_admin_assets();
 
 		$product_id = (int) get_option( 'vila_cb_product_id', 0 );
-		$plot_count = (int) get_option( 'vila_cb_plot_count', 14 );
+		$plot_count = (int) get_option( 'vila_cb_plot_count', count( Plot_Repository::default_plot_numbers() ) );
 		$pricing    = Pricing_Settings::get();
 
 		?>
@@ -1687,7 +1687,7 @@ class Admin {
 							<th scope="row"><label for="vila_cb_plot_count"><?php esc_html_e( 'Default plot count (seed)', 'vila-campsite-booking' ); ?></label></th>
 							<td>
 								<input name="vila_cb_plot_count" id="vila_cb_plot_count" type="number" min="1" step="1" value="<?php echo esc_attr( (string) $plot_count ); ?>" class="small-text" />
-								<p class="description"><?php esc_html_e( 'Used when seeding new plot rows on upgrade (e.g. set to 15 once, save, then tweak labels under Campsite → Plots).', 'vila-campsite-booking' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Used when seeding new plot rows on upgrade. Defaults match plots 1–34 on the map (skipping 6, 16–17, 20, 22, 25–27, 29). Save settings to add any missing rows.', 'vila-campsite-booking' ); ?></p>
 							</td>
 						</tr>
 					</table>

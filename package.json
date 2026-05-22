@@ -16,6 +16,7 @@
     "wp:sync-theme": "bash scripts/sync-theme-to-wp-env.sh",
     "wp:sync-plugin": "bash scripts/sync-vila-plugin-to-wp-env.sh",
     "wp:sync-campsite-bookings": "bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/plugins/vila-campsite-booking/resync-orders-cli.php",
+    "wp:clear-bookings": "bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/plugins/vila-campsite-booking/clear-bookings-cli.php",
     "wp:seed": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/sync-vila-plugin-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seed-cli.php && wp theme activate vila-akoya'",
     "wp:sync-seo": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seo-sync-cli.php'"
   },

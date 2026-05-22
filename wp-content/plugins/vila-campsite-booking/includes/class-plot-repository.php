@@ -15,12 +15,71 @@ defined( 'ABSPATH' ) || exit;
 class Plot_Repository {
 
 	/**
+	 * Highest plot number on the campsite map (inclusive).
+	 */
+	const DEFAULT_PLOT_MAX = 34;
+
+	/**
+	 * Plot numbers that do not exist on the campsite (gaps in 1..DEFAULT_PLOT_MAX).
+	 *
+	 * @return int[]
+	 */
+	public static function excluded_plot_numbers() {
+		$numbers = array( 6, 16, 17, 20, 22, 25, 26, 27, 29 );
+		/**
+		 * Plot numbers omitted from seeding and guest booking (not physical pitches).
+		 *
+		 * @param int[] $numbers Plot numbers 1..DEFAULT_PLOT_MAX to skip.
+		 */
+		$numbers = apply_filters( 'vila_cb_excluded_plot_numbers', $numbers );
+		$numbers = apply_filters( 'vila_akoya_excluded_plot_numbers', $numbers );
+		$out     = array();
+		foreach ( (array) $numbers as $n ) {
+			$n = (int) $n;
+			if ( $n > 0 ) {
+				$out[] = $n;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
+	 * Default campsite plot numbers to seed (1..34 minus excluded).
+	 *
+	 * @return int[]
+	 */
+	public static function default_plot_numbers() {
+		$max      = (int) apply_filters( 'vila_cb_default_plot_max', self::DEFAULT_PLOT_MAX );
+		$max      = max( 1, $max );
+		$excluded = self::excluded_plot_numbers();
+		$numbers  = array();
+		for ( $i = 1; $i <= $max; $i++ ) {
+			if ( ! in_array( $i, $excluded, true ) ) {
+				$numbers[] = $i;
+			}
+		}
+		/**
+		 * @param int[] $numbers Plot numbers to create as "Plot N" rows.
+		 */
+		$numbers = apply_filters( 'vila_cb_default_plot_numbers', $numbers );
+		$numbers = apply_filters( 'vila_akoya_default_plot_numbers', $numbers );
+		$out     = array();
+		foreach ( (array) $numbers as $n ) {
+			$n = (int) $n;
+			if ( $n > 0 ) {
+				$out[] = $n;
+			}
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/**
 	 * Plot numbers (from labels like "Plot 17") hidden on the public booking form and auto-assign pool.
 	 *
 	 * @return int[]
 	 */
 	public static function hidden_booking_plot_numbers() {
-		$numbers = array( 17, 19, 20, 25, 27 );
+		$numbers = self::excluded_plot_numbers();
 		/**
 		 * Plot numbers to hide from the campsite booking form and exclude from guest auto-assign.
 		 *

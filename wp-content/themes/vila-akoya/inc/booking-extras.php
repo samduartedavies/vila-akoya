@@ -678,9 +678,15 @@ function vila_akoya_render_plot_selector( $product_id ) {
 		</p>
 		<div class="vila-plot-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 			<?php
-			foreach ( $plots as $idx => $plot_pid ) :
+			foreach ( $plots as $plot_pid ) :
 				$plot_pid = (int) $plot_pid;
 				$fid      = 'vila-plot-' . $plot_pid;
+				$plot_num = function_exists( 'vila_akoya_campsite_plot_number_from_product_id' )
+					? vila_akoya_campsite_plot_number_from_product_id( $plot_pid )
+					: 0;
+				if ( $plot_num <= 0 ) {
+					$plot_num = $plot_pid;
+				}
 				?>
 				<label class="vila-plot-option flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-transparent bg-surface-container-low px-3 py-3 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
 					<input
@@ -696,7 +702,7 @@ function vila_akoya_render_plot_selector( $product_id ) {
 						printf(
 							/* translators: %d: plot number */
 							esc_html__( 'Plot %d', 'vila-akoya' ),
-							(int) $idx + 1
+							$plot_num
 						);
 						?>
 					</span>

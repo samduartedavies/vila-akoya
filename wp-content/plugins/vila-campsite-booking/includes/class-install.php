@@ -113,44 +113,38 @@ class Install {
 	}
 
 	/**
-	 * Ensure plot rows exist for configured count.
+	 * Ensure plot rows exist for each default plot number (1..34 minus excluded).
 	 */
 	private static function seed_plots() {
-		$count = (int) get_option( 'vila_cb_plot_count', 14 );
-		$count = max( 1, $count );
+		$numbers = Plot_Repository::default_plot_numbers();
+		if ( empty( $numbers ) ) {
+			return;
+		}
+		update_option( 'vila_cb_plot_count', count( $numbers ) );
+
 		$repo  = new Plot_Repository();
 		$plots = $repo->get_all();
 		$now   = current_time( 'mysql' );
 
-		if ( empty( $plots ) ) {
-			for ( $i = 1; $i <= $count; $i++ ) {
-				$repo->insert(
-					array(
-						/* translators: %d: plot number */
-						'label'      => sprintf( __( 'Plot %d', 'vila-campsite-booking' ), $i ),
-						'sort_order' => $i,
-						'created_at' => $now,
-						'updated_at' => $now,
-					)
-				);
+		$by_number = array();
+		foreach ( $plots as $p ) {
+			$num = Plot_Repository::plot_number_from_row( $p );
+			if ( $num > 0 ) {
+				$by_number[ $num ] = $p;
 			}
-			return;
 		}
 
-		// Add missing rows if count increased.
-		$plots = $repo->get_all();
-		$max_sort = 0;
-		foreach ( $plots as $p ) {
-			$max_sort = max( $max_sort, (int) $p['sort_order'] );
-		}
-		$n = count( $plots );
-		while ( $n < $count ) {
-			++$max_sort;
-			++$n;
+		$sort = 0;
+		foreach ( $numbers as $num ) {
+			++$sort;
+			if ( isset( $by_number[ $num ] ) ) {
+				continue;
+			}
 			$repo->insert(
 				array(
-					'label'      => sprintf( __( 'Plot %d', 'vila-campsite-booking' ), $n ),
-					'sort_order' => $max_sort,
+					/* translators: %d: plot number */
+					'label'      => sprintf( __( 'Plot %d', 'vila-campsite-booking' ), $num ),
+					'sort_order' => $sort,
 					'created_at' => $now,
 					'updated_at' => $now,
 				)

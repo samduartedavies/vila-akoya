@@ -36,6 +36,64 @@ function vila_akoya_campsite_plot_sku( $n ) {
 }
 
 /**
+ * Default campsite plot numbers (1..34 minus gaps). Matches vila-campsite-booking plugin when active.
+ *
+ * @return int[]
+ */
+function vila_akoya_default_campsite_plot_numbers() {
+	if ( class_exists( '\Vila_CB\Plot_Repository' ) ) {
+		return \Vila_CB\Plot_Repository::default_plot_numbers();
+	}
+	$excluded = array( 6, 16, 17, 20, 22, 25, 26, 27, 29 );
+	$numbers  = array();
+	for ( $i = 1; $i <= 34; $i++ ) {
+		if ( ! in_array( $i, $excluded, true ) ) {
+			$numbers[] = $i;
+		}
+	}
+	/**
+	 * @param int[] $numbers Plot numbers for WooCommerce plot products.
+	 */
+	return apply_filters( 'vila_akoya_default_plot_numbers', $numbers );
+}
+
+/**
+ * Plot number from a plot product SKU (`vila-akoya-plot-12` → 12).
+ *
+ * @param int $product_id Product ID.
+ * @return int
+ */
+function vila_akoya_campsite_plot_number_from_product_id( $product_id ) {
+	$product_id = (int) $product_id;
+	if ( ! $product_id || ! function_exists( 'wc_get_product' ) || ! did_action( 'woocommerce_init' ) ) {
+		return 0;
+	}
+	$product = wc_get_product( $product_id );
+	if ( ! $product ) {
+		return 0;
+	}
+	$sku = (string) $product->get_sku();
+	if ( preg_match( '/^' . preg_quote( VILA_AKOYA_CAMPSITE_PLOT_SKU_PREFIX, '/' ) . '(\d+)$/', $sku, $m ) ) {
+		return (int) $m[1];
+	}
+	return 0;
+}
+
+/**
+ * @return int
+ */
+function vila_akoya_default_campsite_plot_count() {
+	return count( vila_akoya_default_campsite_plot_numbers() );
+}
+
+add_filter(
+	'vila_akoya_campsite_plot_count',
+	static function () {
+		return vila_akoya_default_campsite_plot_count();
+	}
+);
+
+/**
  * Product IDs for each campsite plot (parallel bookable products; each has max_bookings = 1).
  *
  * @return int[]
@@ -282,11 +340,13 @@ function vila_akoya_ensure_campsite_booking_product() {
 		return;
 	}
 
-	$plot_count = (int) apply_filters( 'vila_akoya_campsite_plot_count', 5 );
-	$plot_count = max( 1, $plot_count );
+	$plot_numbers = vila_akoya_default_campsite_plot_numbers();
+	if ( empty( $plot_numbers ) ) {
+		return;
+	}
 
 	$existing_ids = vila_akoya_get_campsite_plot_product_ids();
-	if ( count( $existing_ids ) === $plot_count ) {
+	if ( count( $existing_ids ) === count( $plot_numbers ) ) {
 		update_option( 'vila_akoya_campsite_product_id', (int) $existing_ids[0] );
 		return;
 	}
@@ -294,7 +354,8 @@ function vila_akoya_ensure_campsite_booking_product() {
 	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '9' );
 	$plot_ids    = array();
 
-	for ( $i = 1; $i <= $plot_count; $i++ ) {
+	foreach ( $plot_numbers as $i ) {
+		$i   = (int) $i;
 		$sku = vila_akoya_campsite_plot_sku( $i );
 		$found = wc_get_product_id_by_sku( $sku );
 		if ( $found ) {
