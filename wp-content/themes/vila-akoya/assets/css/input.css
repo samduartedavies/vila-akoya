@@ -1035,6 +1035,10 @@
     min-height: 10rem !important;
   }
 
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 #village-inq-message {
+    min-height: 32rem !important;
+  }
+
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 input.wpcf7-submit {
     width: 100% !important;
     max-width: 100% !important;

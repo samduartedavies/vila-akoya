@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Bump when seeded CF7 form markup changes.
  */
-define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '9' );
+define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '15' );
 define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '3' );
 define( 'VILA_AKOYA_CF7_MAIL_FROM', 'info@vila-akoya.com' );
 define( 'VILA_AKOYA_CF7_MAIL_TO', 'samduarte-davies@hotmail.com' );
@@ -111,6 +111,29 @@ function vila_akoya_cf7_required_form_keys() {
 		'village_inquiry',
 		'campus',
 		'contact',
+	);
+}
+
+/**
+ * Placeholder copy for the village inquiry message field.
+ *
+ * @return string
+ */
+function vila_akoya_cf7_village_inquiry_placeholder() {
+	return esc_attr__(
+		'Looking for accommodation?
+
+If you’re looking to rent accommodation with us, please let us know here.
+
+Do share a little about yourself, who will be coming with you, your dates and what kind of accommodation you’d need. We will get back to you with options!
+
+Looking for a village?
+
+If you’ve ended up here because you’re interested in joining our project as a villager for a longer period of time, do write us a little bit about yourself and the humans that belong with you, and we will get back to you with options and info!
+
+Love,
+Sammy and the family.',
+		'vila-akoya'
 	);
 }
 
@@ -271,6 +294,77 @@ function vila_akoya_cf7_upgrade_mail_templates() {
 }
 
 /**
+ * Push small, versioned form markup changes into existing seeded CF7 forms.
+ *
+ * @param array<string, string> $seeded_form_ids Seeded CF7 form IDs keyed by slug.
+ * @return int Number of forms updated.
+ */
+function vila_akoya_cf7_upgrade_form_markup( array $seeded_form_ids ) {
+	if ( empty( $seeded_form_ids['village_inquiry'] ) ) {
+		return 0;
+	}
+
+	$form = vila_akoya_cf7_get_form( $seeded_form_ids['village_inquiry'] );
+	if ( ! $form instanceof WPCF7_ContactForm ) {
+		return 0;
+	}
+
+	$properties = $form->get_properties();
+	$markup     = isset( $properties['form'] ) ? (string) $properties['form'] : (string) $form->prop( 'form' );
+	if ( '' === $markup ) {
+		return 0;
+	}
+
+	$old_placeholder = esc_attr__(
+		'Share a little about who you are, what draws you to this way of living, and why Vila Akoya feels like the right fit for you.',
+		'vila-akoya'
+	);
+
+	$updated_markup = str_replace(
+		'placeholder "' . $old_placeholder . '"',
+		'placeholder "' . vila_akoya_cf7_village_inquiry_placeholder() . '"',
+		$markup,
+		$replacement_count
+	);
+
+	$updated_markup = str_replace(
+		esc_html__( 'Tell us a little about yourself', 'vila-akoya' ),
+		esc_html__( 'Want to join our little village?', 'vila-akoya' ),
+		$updated_markup,
+		$label_replacement_count
+	);
+
+	$updated_markup = str_replace(
+		'[textarea* your-message id:village-inq-message placeholder "',
+		'[textarea* your-message 40x22 id:village-inq-message placeholder "',
+		$updated_markup,
+		$textarea_replacement_count
+	);
+
+	$updated_markup = str_replace(
+		array(
+			'[textarea* your-message 40x8 id:village-inq-message placeholder "',
+			'[textarea* your-message 40x12 id:village-inq-message placeholder "',
+			'[textarea* your-message 40x15 id:village-inq-message placeholder "',
+			'[textarea* your-message 40x20 id:village-inq-message placeholder "',
+		),
+		'[textarea* your-message 40x22 id:village-inq-message placeholder "',
+		$updated_markup,
+		$textarea_size_replacement_count
+	);
+
+	if ( 0 === $replacement_count + $label_replacement_count + $textarea_replacement_count + $textarea_size_replacement_count || $updated_markup === $markup ) {
+		return 0;
+	}
+
+	$properties['form'] = $updated_markup;
+	$form->set_properties( $properties );
+	$form->save();
+
+	return 1;
+}
+
+/**
  * Ensure all CF7 forms use consistent mail sender/recipient.
  *
  * @param array<string, string> $seeded_form_ids Seeded CF7 form IDs keyed by slug.
@@ -333,6 +427,7 @@ function vila_akoya_get_cf7_form_ids() {
 	if ( vila_akoya_cf7_cached_ids_are_valid( $cached ) ) {
 		$cached = vila_akoya_cf7_resolve_active_form_ids();
 		if ( VILA_AKOYA_CF7_SCHEMA_VERSION !== $schema ) {
+			vila_akoya_cf7_upgrade_form_markup( $cached );
 			vila_akoya_cf7_upgrade_mail_templates();
 			$cached = vila_akoya_cf7_prune_stored_form_ids();
 			if ( ( defined( 'WP_CLI' ) && WP_CLI ) || current_user_can( 'manage_options' ) ) {
@@ -401,6 +496,7 @@ function vila_akoya_get_cf7_form_ids() {
 			'title' => __( 'Village inquiry', 'vila-akoya' ),
 		)
 	);
+	$village_inquiry_placeholder = vila_akoya_cf7_village_inquiry_placeholder();
 	$village_inquiry->set_properties(
 		array_merge(
 			array(
@@ -412,7 +508,7 @@ function vila_akoya_get_cf7_form_ids() {
 						'<div><label for="village-inq-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:village-inq-email placeholder "elias@example.com"]</div>',
 						'</div>',
 						'<div><label for="village-inq-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel* your-phone id:village-inq-phone placeholder "+351 000 000 000"]</div>',
-						'<div><label for="village-inq-message">' . esc_html__( 'Tell us a little about yourself', 'vila-akoya' ) . '</label>[textarea* your-message id:village-inq-message placeholder "' . esc_attr__( 'Share a little about who you are, what draws you to this way of living, and why Vila Akoya feels like the right fit for you.', 'vila-akoya' ) . '"]</div>',
+						'<div><label for="village-inq-message">' . esc_html__( 'Want to join our little village?', 'vila-akoya' ) . '</label>[textarea* your-message 40x22 id:village-inq-message placeholder "' . $village_inquiry_placeholder . '"]</div>',
 						'[submit "' . esc_html__( 'Send Inquiry →', 'vila-akoya' ) . '"]',
 					)
 				),

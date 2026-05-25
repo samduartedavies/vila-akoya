@@ -768,7 +768,7 @@ function vila_akoya_render_vehicle_selector( $product_id ) {
 	<div class="vila-airbnb-booking vila-airbnb-booking--units mb-8">
 		<fieldset class="vila-vehicle-fieldset vila-airbnb-booking__card border-0 m-0 min-w-0">
 			<legend class="vila-airbnb-booking__legend">
-				<?php esc_html_e( 'Extras', 'vila-akoya' ); ?>
+				<?php esc_html_e( 'Your setup', 'vila-akoya' ); ?>
 			</legend>
 			<div class="vila-vehicle-grid vila-airbnb-booking__chip-grid">
 				<?php
