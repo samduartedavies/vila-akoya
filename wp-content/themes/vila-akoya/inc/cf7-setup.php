@@ -11,9 +11,9 @@ defined( 'ABSPATH' ) || exit;
  * Bump when seeded CF7 form markup changes.
  */
 define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '15' );
-define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '3' );
+define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '4' );
 define( 'VILA_AKOYA_CF7_MAIL_FROM', 'info@vila-akoya.com' );
-define( 'VILA_AKOYA_CF7_MAIL_TO', 'samduarte-davies@hotmail.com' );
+define( 'VILA_AKOYA_CF7_MAIL_TO', 'info@vila-akoya.com' );
 
 require_once VILA_AKOYA_DIR . '/inc/cf7-emails.php';
 
