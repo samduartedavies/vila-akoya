@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.16' );
+define( 'VILA_AKOYA_VERSION', '1.0.26' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
@@ -17,7 +17,12 @@ require_once VILA_AKOYA_DIR . '/inc/campsite-booking-email.php';
 require_once VILA_AKOYA_DIR . '/inc/booking-extras.php';
 require_once VILA_AKOYA_DIR . '/inc/campsite-plots-admin.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
+require_once VILA_AKOYA_DIR . '/inc/nav-walkers.php';
 require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';
+require_once VILA_AKOYA_DIR . '/inc/blog.php';
+require_once VILA_AKOYA_DIR . '/inc/template-reset.php';
+require_once VILA_AKOYA_DIR . '/inc/page-editor.php';
+require_once VILA_AKOYA_DIR . '/inc/block-patterns.php';
 require_once VILA_AKOYA_DIR . '/inc/seed.php';
 
 /**
@@ -53,6 +58,13 @@ function vila_akoya_setup() {
 	add_theme_support( 'appearance-tools' );
 	add_theme_support( 'custom-spacing' );
 	add_theme_support( 'custom-line-height' );
+
+	register_nav_menus(
+		array(
+			'header' => __( 'Header Navigation', 'vila-akoya' ),
+			'footer' => __( 'Footer Navigation', 'vila-akoya' ),
+		)
+	);
 }
 add_action( 'after_setup_theme', 'vila_akoya_setup' );
 

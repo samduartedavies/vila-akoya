@@ -6,6 +6,9 @@ module.exports = {
   content: [
     "./brochure-website/**/*.html",
     "./wp-content/themes/vila-akoya/**/*.{php,html,css}",
+    "./wp-content/themes/vila-akoya/templates/**/*.html",
+    "./wp-content/themes/vila-akoya/parts/**/*.html",
+    "./wp-content/themes/vila-akoya/inc/block-patterns.php",
   ],
   theme: {
     extend: {

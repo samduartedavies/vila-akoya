@@ -61,6 +61,7 @@ function vila_akoya_run_seed() {
 		'the-kids'  => array( 'title' => 'The Kids', 'file' => 'the-kids-blocks.html' ),
 		'contact'   => array( 'title' => 'Contact', 'file' => 'contact-blocks.html' ),
 		'thank-you' => array( 'title' => 'Thank You', 'file' => 'thank-you-blocks.html' ),
+		'blog'      => array( 'title' => 'Blog', 'file' => 'blog-blocks.html' ),
 	);
 
 	$page_ids = array();
@@ -101,6 +102,11 @@ function vila_akoya_run_seed() {
 		update_option( 'page_on_front', $page_ids['home'] );
 	}
 
+	if ( ! empty( $page_ids['blog'] ) ) {
+		update_option( 'page_for_posts', $page_ids['blog'] );
+	}
+
+	vila_akoya_seed_nav_menus( $page_ids );
 	vila_akoya_seed_apply_brochure_seo_meta( $page_ids );
 }
 
@@ -223,4 +229,95 @@ function vila_akoya_seed_replace_wc_placeholders( $html ) {
 	}
 
 	return $html;
+}
+
+/**
+ * Create or refresh default header/footer nav menus from seeded pages.
+ *
+ * @param array<string, int> $page_ids Page IDs keyed by slug.
+ */
+function vila_akoya_seed_nav_menus( array $page_ids ) {
+	$header_items = array(
+		array( 'slug' => 'village', 'label' => 'The Village' ),
+		array( 'slug' => 'campsite', 'label' => 'The Campsite' ),
+		array( 'slug' => 'booking', 'label' => 'Join us' ),
+		array( 'slug' => 'campus', 'label' => 'The Campus' ),
+		array( 'slug' => 'the-kids', 'label' => 'The Kids' ),
+		array( 'slug' => 'about', 'label' => 'About Us' ),
+		array( 'slug' => 'contact', 'label' => 'Contact' ),
+	);
+
+	$footer_items = $header_items;
+	$footer_items[] = array( 'slug' => 'blog', 'label' => 'Blog' );
+
+	$header_menu_id = vila_akoya_ensure_nav_menu( 'Vila Akoya Header', 'header', $header_items, $page_ids );
+	$footer_menu_id = vila_akoya_ensure_nav_menu( 'Vila Akoya Footer', 'footer', $footer_items, $page_ids );
+
+	$locations = get_theme_mod( 'nav_menu_locations', array() );
+	if ( is_array( $locations ) ) {
+		if ( $header_menu_id ) {
+			$locations['header'] = (int) $header_menu_id;
+		}
+		if ( $footer_menu_id ) {
+			$locations['footer'] = (int) $footer_menu_id;
+		}
+		set_theme_mod( 'nav_menu_locations', $locations );
+	}
+}
+
+/**
+ * Ensure a nav menu exists with the given page items (idempotent).
+ *
+ * @param string                                $menu_name Menu name.
+ * @param string                                $location  Theme location slug (for logging only).
+ * @param list<array{slug:string,label:string}> $items     Menu item definitions.
+ * @param array<string, int>                    $page_ids  Page IDs keyed by slug.
+ * @return int Menu term ID or 0.
+ */
+function vila_akoya_ensure_nav_menu( $menu_name, $location, array $items, array $page_ids ) {
+	unset( $location );
+	$menu = wp_get_nav_menu_object( $menu_name );
+	$menu_id = $menu ? (int) $menu->term_id : 0;
+	if ( ! $menu_id ) {
+		$created = wp_create_nav_menu( $menu_name );
+		if ( is_wp_error( $created ) ) {
+			return 0;
+		}
+		$menu_id = (int) $created;
+	}
+
+	$existing_items = wp_get_nav_menu_items( $menu_id );
+	$by_page_id     = array();
+	foreach ( (array) $existing_items as $existing ) {
+		if ( 'post_type' === $existing->type && 'page' === $existing->object && $existing->object_id ) {
+			$by_page_id[ (int) $existing->object_id ] = (int) $existing->ID;
+		}
+	}
+
+	$position = 1;
+	foreach ( $items as $item ) {
+		$slug    = $item['slug'];
+		$page_id = isset( $page_ids[ $slug ] ) ? (int) $page_ids[ $slug ] : 0;
+		if ( ! $page_id ) {
+			continue;
+		}
+
+		$args = array(
+			'menu-item-title'     => $item['label'],
+			'menu-item-object'    => 'page',
+			'menu-item-object-id' => $page_id,
+			'menu-item-type'      => 'post_type',
+			'menu-item-status'    => 'publish',
+			'menu-item-position'  => $position,
+		);
+
+		if ( isset( $by_page_id[ $page_id ] ) ) {
+			wp_update_nav_menu_item( $menu_id, $by_page_id[ $page_id ], $args );
+		} else {
+			wp_update_nav_menu_item( $menu_id, 0, $args );
+		}
+		++$position;
+	}
+
+	return $menu_id;
 }

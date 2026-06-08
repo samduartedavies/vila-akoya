@@ -1,0 +1,42 @@
+<!-- wp:template-part {"slug":"header","tagName":"header"} /-->
+
+<!-- wp:group {"tagName":"main","className":"pt-28 overflow-x-hidden vila-blog-archive","layout":{"type":"default"}} -->
+<main class="wp-block-group overflow-x-hidden vila-blog-archive" style="padding-top:76px">
+<!-- wp:group {"className":"max-w-[1236px] mx-auto px-8 py-12 md:py-16","layout":{"type":"default"}} -->
+<div class="wp-block-group max-w-[1236px] mx-auto px-8 py-12 md:py-16">
+<!-- wp:query-title {"type":"archive","className":"font-headline text-4xl md:text-5xl text-on-surface text-center mb-4"} /-->
+<!-- wp:term-description {"textAlign":"center","className":"font-body text-lg text-on-surface-variant max-w-2xl mx-auto mb-12 md:mb-16"} /-->
+<!-- wp:query {"queryId":2,"query":{"perPage":9,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true}} -->
+<div class="wp-block-query vila-blog-query">
+<!-- wp:post-template {"className":"vila-blog-grid","layout":{"type":"grid","columnCount":3}} -->
+<!-- wp:group {"tagName":"article","className":"vila-blog-card editorial-shadow","layout":{"type":"default"}} -->
+<article class="wp-block-group vila-blog-card editorial-shadow">
+<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"16/10","className":"vila-blog-card__image rounded-t-xl overflow-hidden"} /-->
+<!-- wp:group {"className":"vila-blog-card__body p-6 md:p-8 bg-surface rounded-b-xl","layout":{"type":"default"}} -->
+<div class="wp-block-group vila-blog-card__body p-6 md:p-8 bg-surface rounded-b-xl">
+<!-- wp:post-date {"className":"font-label text-xs uppercase tracking-[0.14em] text-on-surface-variant mb-3"} /-->
+<!-- wp:post-title {"level":3,"isLink":true,"className":"font-headline text-xl md:text-2xl text-on-surface mb-3 leading-snug"} /-->
+<!-- wp:post-excerpt {"moreText":"Read more","excerptLength":22,"className":"font-body text-sm md:text-base text-on-surface-variant leading-relaxed mb-0"} /-->
+</div>
+<!-- /wp:group -->
+</article>
+<!-- /wp:group -->
+<!-- /wp:post-template -->
+<!-- wp:query-no-results -->
+<!-- wp:paragraph {"align":"center","className":"font-body text-on-surface-variant py-16"} -->
+<p class="has-text-align-center font-body text-on-surface-variant py-16">No posts found in this archive.</p>
+<!-- /wp:paragraph -->
+<!-- /wp:query-no-results -->
+<!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"center"},"className":"vila-blog-pagination mt-12 md:mt-16"} -->
+<!-- wp:query-pagination-previous {"label":"Previous"} /-->
+<!-- wp:query-pagination-numbers /-->
+<!-- wp:query-pagination-next {"label":"Next"} /-->
+<!-- /wp:query-pagination -->
+</div>
+<!-- /wp:query -->
+</div>
+<!-- /wp:group -->
+</main>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","tagName":"footer"} /-->

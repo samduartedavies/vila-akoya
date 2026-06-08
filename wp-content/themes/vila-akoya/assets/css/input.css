@@ -97,6 +97,156 @@
     box-shadow: 0 20px 40px rgba(51, 46, 30, 0.06);
   }
 
+  /* Blog archive — post card grid */
+  .vila-blog-query .vila-blog-grid {
+    display: grid;
+    gap: 1.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (min-width: 640px) {
+    .vila-blog-query .vila-blog-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .vila-blog-query .vila-blog-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 2rem;
+    }
+  }
+
+  .vila-blog-card {
+    @apply flex h-full flex-col overflow-hidden rounded-xl bg-surface transition-transform duration-300;
+  }
+
+  .vila-blog-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 24px 48px rgba(51, 46, 30, 0.1);
+  }
+
+  .vila-blog-card__image {
+    @apply m-0 block w-full overflow-hidden;
+  }
+
+  .vila-blog-card__image img {
+    @apply block h-full w-full object-cover transition-transform duration-500;
+  }
+
+  .vila-blog-card:hover .vila-blog-card__image img {
+    transform: scale(1.04);
+  }
+
+  .vila-blog-card__body {
+    @apply flex flex-1 flex-col;
+  }
+
+  .vila-blog-card .wp-block-post-title a {
+    @apply text-on-surface no-underline transition-colors;
+  }
+
+  .vila-blog-card .wp-block-post-title a:hover {
+    @apply text-primary;
+  }
+
+  .vila-blog-card .wp-block-post-excerpt__more-link {
+    @apply mt-3 inline-block font-label text-sm font-semibold uppercase tracking-[0.12em] text-primary no-underline;
+  }
+
+  .vila-blog-card .wp-block-post-excerpt__more-link:hover {
+    @apply text-primary-container;
+  }
+
+  .vila-blog-pagination .wp-block-query-pagination-previous,
+  .vila-blog-pagination .wp-block-query-pagination-next,
+  .vila-blog-pagination .page-numbers {
+    @apply inline-flex min-h-[2.75rem] items-center justify-center rounded-full border-0 bg-surface-container-low px-5 py-2 font-label text-sm font-medium text-on-surface no-underline transition-all;
+  }
+
+  .vila-blog-pagination .wp-block-query-pagination-previous:hover,
+  .vila-blog-pagination .wp-block-query-pagination-next:hover,
+  .vila-blog-pagination .page-numbers:hover {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .vila-blog-pagination .page-numbers.current {
+    @apply bg-primary text-on-primary;
+  }
+
+  /* Single post — readable prose */
+  .vila-single-post .wp-block-post-content {
+    @apply font-body text-lg leading-relaxed text-on-surface;
+  }
+
+  .vila-single-post .wp-block-post-content > * + * {
+    @apply mt-6;
+  }
+
+  .vila-single-post .wp-block-post-content h2 {
+    @apply mt-10 font-headline text-3xl font-normal text-on-surface;
+  }
+
+  .vila-single-post .wp-block-post-content h3 {
+    @apply mt-8 font-headline text-2xl font-normal text-on-surface;
+  }
+
+  .vila-single-post .wp-block-post-content a {
+    @apply text-primary underline underline-offset-2;
+  }
+
+  .vila-single-post .wp-block-post-content a:hover {
+    @apply text-primary-container;
+  }
+
+  .vila-single-post .wp-block-post-content img {
+    @apply rounded-xl;
+  }
+
+  .vila-single-post .wp-block-post-content blockquote {
+    @apply border-l-4 border-primary/30 pl-6 italic text-on-surface-variant;
+  }
+
+  .vila-single-post__featured img {
+    @apply w-full object-cover;
+  }
+
+  /* Default page body — same readable prose as single posts */
+  .vila-page-prose {
+    @apply font-body text-lg leading-relaxed text-on-surface;
+  }
+
+  .vila-page-prose > * + * {
+    @apply mt-6;
+  }
+
+  .vila-page-prose h2 {
+    @apply mt-10 font-headline text-3xl font-normal text-on-surface;
+  }
+
+  .vila-page-prose h3 {
+    @apply mt-8 font-headline text-2xl font-normal text-on-surface;
+  }
+
+  .vila-page-prose a {
+    @apply text-primary underline underline-offset-2;
+  }
+
+  .vila-page-prose a:hover {
+    @apply text-primary-container;
+  }
+
+  .vila-page-prose img {
+    @apply rounded-xl;
+  }
+
+  .vila-page-prose blockquote {
+    @apply border-l-4 border-primary/30 pl-6 italic text-on-surface-variant;
+  }
+
   /* Brochure campus.html — subtle noise over background */
   .textured-bg {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='noise' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");

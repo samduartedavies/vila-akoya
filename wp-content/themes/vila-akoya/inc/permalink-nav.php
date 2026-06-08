@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Bump when brochure rewrite registration changes; triggers one hard flush.
  */
-define( 'VILA_AKOYA_BROCHURE_REWRITE_VER', '2' );
+define( 'VILA_AKOYA_BROCHURE_REWRITE_VER', '3' );
 
 /**
  * Hard-flush rewrite rules and write .htaccess for Apache (mod_rewrite).
@@ -43,6 +43,7 @@ function vila_akoya_internal_page_slugs() {
 		'about',
 		'contact',
 		'thank-you',
+		'blog',
 		'home',
 	);
 }
@@ -252,29 +253,19 @@ function vila_akoya_shortcode_header_nav() {
 		'the-kids' => 'the-kids',
 		'about'    => 'about',
 		'contact'  => 'contact',
+		'blog'     => 'blog',
 	);
 	$current_nav = isset( $route_map[ $last_part ] ) ? $route_map[ $last_part ] : '';
-	$nav_attrs   = static function ( $slug, $base_class ) use ( $current_nav ) {
-		$is_current = ( $slug === $current_nav );
-		$attrs      = 'data-nav="' . esc_attr( $slug ) . '" class="' . esc_attr( $base_class ) . '"';
-		if ( $is_current ) {
-			$attrs .= ' aria-current="page"';
-		}
-		return $attrs;
-	};
+	if ( is_singular( 'post' ) ) {
+		$current_nav = 'blog';
+	}
 	ob_start();
 	?>
 <nav class="fixed top-0 left-0 right-0 z-50 bg-[#fcf9ef]/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.04)]">
 <div class="flex justify-between items-center px-4 md:px-8 py-2 max-w-[1236px] box-border mx-auto md:py-6">
 <a class="text-4xl font-normal text-orange-800 font-barrio shrink-0 leading-none" href="<?php echo $h( '' ); ?>">Vila Akoya</a>
 <div id="site-nav-desktop-links" class="hidden min-[1020px]:flex items-center ml-12 max-[1240px]:ml-6 space-x-4 max-[1240px]:space-x-2 font-body text-[0.95rem] max-[1240px]:text-[0.84rem] tracking-[0.01em]">
-<a <?php echo $nav_attrs( 'village', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'village' ); ?>">The Village</a>
-<a <?php echo $nav_attrs( 'campsite', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
-<a <?php echo $nav_attrs( 'booking', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'booking' ); ?>">Join us</a>
-<a <?php echo $nav_attrs( 'campus', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'campus' ); ?>">The Campus</a>
-<a <?php echo $nav_attrs( 'the-kids', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'the-kids' ); ?>">The Kids</a>
-<a <?php echo $nav_attrs( 'about', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'about' ); ?>">About Us</a>
-<a <?php echo $nav_attrs( 'contact', 'text-stone-600 transition-colors px-3 py-1.5 rounded-full' ); ?> href="<?php echo $h( 'contact' ); ?>">Contact</a>
+<?php vila_akoya_render_header_nav_links( 'header', 'desktop', $current_nav, $h ); ?>
 </div>
 <div class="flex items-center gap-2">
 <button type="button" id="site-nav-toggle" class="min-[1020px]:hidden inline-flex p-2 text-[#9a4021] hover:bg-[#9a4021]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9a4021]/50 items-center rounded" aria-expanded="false" aria-controls="site-mobile-nav" aria-label="Toggle menu">
@@ -287,13 +278,7 @@ function vila_akoya_shortcode_header_nav() {
 <div id="site-mobile-nav" class="min-[1020px]:hidden border-t border-stone-200/80 bg-[#fcf9ef]/95 backdrop-blur-xl" data-open="false" aria-hidden="true">
 <div class="max-w-[1236px] box-border mx-auto px-8">
 <div id="site-nav-mobile-links" class="flex flex-col space-y-0.5 font-body text-base tracking-wide py-1">
-<a <?php echo $nav_attrs( 'village', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'village' ); ?>">The Village</a>
-<a <?php echo $nav_attrs( 'campsite', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
-<a <?php echo $nav_attrs( 'booking', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'booking' ); ?>">Join us</a>
-<a <?php echo $nav_attrs( 'campus', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'campus' ); ?>">The Campus</a>
-<a <?php echo $nav_attrs( 'the-kids', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'the-kids' ); ?>">The Kids</a>
-<a <?php echo $nav_attrs( 'about', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'about' ); ?>">About Us</a>
-<a <?php echo $nav_attrs( 'contact', 'block px-2 py-3 text-stone-600 transition-colors' ); ?> href="<?php echo $h( 'contact' ); ?>">Contact</a>
+<?php vila_akoya_render_header_nav_links( 'header', 'mobile', $current_nav, $h ); ?>
 </div>
 <a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-6 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
 </div>
@@ -324,13 +309,7 @@ function vila_akoya_shortcode_footer_nav() {
 <p class="text-sm font-medium font-body text-orange-50/60 uppercase tracking-widest">A tiny house village and creative campsite</p>
 </div>
 <div class="vila-footer-links flex flex-wrap justify-center md:justify-end gap-x-5 gap-y-2">
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'village' ); ?>">The Village</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'campsite' ); ?>">The Campsite</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'booking' ); ?>">Join us</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'campus' ); ?>">The Campus</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'the-kids' ); ?>">The Kids</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'about' ); ?>">About Us</a>
-<a class="text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300" href="<?php echo $h( 'contact' ); ?>">Contact</a>
+<?php vila_akoya_render_footer_nav_links( 'footer', $h ); ?>
 </div>
 </div>
 <div class="w-full py-8 border-t border-white/5 text-center text-xs font-medium font-body opacity-40">© 2026 Vila Akoya. All rights reserved.</div>

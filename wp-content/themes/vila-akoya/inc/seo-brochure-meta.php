@@ -69,6 +69,11 @@ function vila_akoya_brochure_seo_config() {
 			'description' => 'Vila Akoya has received your message and we will be in touch soon.',
 			'image_file'  => 'home-hero.jpg',
 		),
+		'blog'      => array(
+			'title'       => 'Vila Akoya | Stories from the Village',
+			'description' => 'News, updates and reflections from life at Vila Akoya — the campsite, the campus, the kids and everything in between.',
+			'image_file'  => 'home-hero.jpg',
+		),
 	);
 }
 
