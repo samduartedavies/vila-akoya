@@ -35,8 +35,8 @@ function vila_akoya_default_page_block_markup() {
 <div class="wp-block-column relative" style="flex-basis:41.66%">
 <!-- wp:group {"className":"aspect-[4/5] rounded-xl overflow-hidden editorial-shadow","layout":{"type":"default"}} -->
 <div class="wp-block-group aspect-[4/5] rounded-xl overflow-hidden editorial-shadow">
-<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"w-full h-full object-cover"} -->
-<figure class="wp-block-image size-large w-full h-full object-cover"><img alt="Hero image"/></figure>
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img alt="Hero image"/></figure>
 <!-- /wp:image -->
 </div>
 <!-- /wp:group -->

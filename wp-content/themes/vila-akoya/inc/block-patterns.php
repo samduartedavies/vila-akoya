@@ -102,8 +102,8 @@ function vila_akoya_pattern_hero_section() {
 <div class="wp-block-column relative" style="flex-basis:41.66%">
 <!-- wp:group {"className":"rounded-xl overflow-hidden aspect-[4/5] shadow-2xl","layout":{"type":"default"}} -->
 <div class="wp-block-group rounded-xl overflow-hidden aspect-[4/5] shadow-2xl">
-<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"w-full h-full object-cover"} -->
-<figure class="wp-block-image size-large w-full h-full object-cover"><img alt="Hero image"/></figure>
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img alt="Hero image"/></figure>
 <!-- /wp:image -->
 </div>
 <!-- /wp:group -->
@@ -135,8 +135,8 @@ function vila_akoya_pattern_two_column_text_image() {
 <div class="wp-block-column order-2 md:order-1">
 <!-- wp:group {"className":"rounded-lg overflow-hidden h-[500px]","layout":{"type":"default"}} -->
 <div class="wp-block-group rounded-lg overflow-hidden h-[500px]">
-<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"w-full h-full object-cover"} -->
-<figure class="wp-block-image size-large w-full h-full object-cover"><img alt="Section image"/></figure>
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img alt="Section image"/></figure>
 <!-- /wp:image -->
 </div>
 <!-- /wp:group -->
@@ -182,9 +182,13 @@ function vila_akoya_pattern_feature_card_grid() {
 <div class="wp-block-column">
 <!-- wp:group {"className":"rounded-xl overflow-hidden bg-surface-container-low p-6 h-full","layout":{"type":"default"}} -->
 <div class="wp-block-group rounded-xl overflow-hidden bg-surface-container-low p-6 h-full">
-<!-- wp:image {"aspectRatio":"4/3","scale":"cover","sizeSlug":"large","linkDestination":"none","className":"rounded-lg mb-6"} -->
-<figure class="wp-block-image size-large rounded-lg mb-6"><img alt="Feature one"/></figure>
+<!-- wp:group {"className":"aspect-[4/3] rounded-lg overflow-hidden mb-6","layout":{"type":"default"}} -->
+<div class="wp-block-group aspect-[4/3] rounded-lg overflow-hidden mb-6">
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img alt="Feature one"/></figure>
 <!-- /wp:image -->
+</div>
+<!-- /wp:group -->
 <!-- wp:heading {"level":3,"className":"font-headline text-2xl text-on-surface mb-3"} -->
 <h3 class="wp-block-heading font-headline text-2xl text-on-surface mb-3">Feature one</h3>
 <!-- /wp:heading -->
@@ -199,9 +203,13 @@ function vila_akoya_pattern_feature_card_grid() {
 <div class="wp-block-column">
 <!-- wp:group {"className":"rounded-xl overflow-hidden bg-surface-container-low p-6 h-full","layout":{"type":"default"}} -->
 <div class="wp-block-group rounded-xl overflow-hidden bg-surface-container-low p-6 h-full">
-<!-- wp:image {"aspectRatio":"4/3","scale":"cover","sizeSlug":"large","linkDestination":"none","className":"rounded-lg mb-6"} -->
-<figure class="wp-block-image size-large rounded-lg mb-6"><img alt="Feature two"/></figure>
+<!-- wp:group {"className":"aspect-[4/3] rounded-lg overflow-hidden mb-6","layout":{"type":"default"}} -->
+<div class="wp-block-group aspect-[4/3] rounded-lg overflow-hidden mb-6">
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img alt="Feature two"/></figure>
 <!-- /wp:image -->
+</div>
+<!-- /wp:group -->
 <!-- wp:heading {"level":3,"className":"font-headline text-2xl text-on-surface mb-3"} -->
 <h3 class="wp-block-heading font-headline text-2xl text-on-surface mb-3">Feature two</h3>
 <!-- /wp:heading -->
@@ -216,9 +224,13 @@ function vila_akoya_pattern_feature_card_grid() {
 <div class="wp-block-column">
 <!-- wp:group {"className":"rounded-xl overflow-hidden bg-surface-container-low p-6 h-full","layout":{"type":"default"}} -->
 <div class="wp-block-group rounded-xl overflow-hidden bg-surface-container-low p-6 h-full">
-<!-- wp:image {"aspectRatio":"4/3","scale":"cover","sizeSlug":"large","linkDestination":"none","className":"rounded-lg mb-6"} -->
-<figure class="wp-block-image size-large rounded-lg mb-6"><img alt="Feature three"/></figure>
+<!-- wp:group {"className":"aspect-[4/3] rounded-lg overflow-hidden mb-6","layout":{"type":"default"}} -->
+<div class="wp-block-group aspect-[4/3] rounded-lg overflow-hidden mb-6">
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img alt="Feature three"/></figure>
 <!-- /wp:image -->
+</div>
+<!-- /wp:group -->
 <!-- wp:heading {"level":3,"className":"font-headline text-2xl text-on-surface mb-3"} -->
 <h3 class="wp-block-heading font-headline text-2xl text-on-surface mb-3">Feature three</h3>
 <!-- /wp:heading -->
@@ -326,8 +338,8 @@ function vila_akoya_pattern_newsletter_section() {
 <!-- /wp:column -->
 <!-- wp:column {"width":"33.33%","className":"va-home-digi-family__media hidden md:block"} -->
 <div class="wp-block-column va-home-digi-family__media hidden md:block" style="flex-basis:33.33%">
-<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill w-full h-full object-cover"} -->
-<figure class="wp-block-image size-large vila-img-fill w-full h-full object-cover"><img alt="Newsletter"/></figure>
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img alt="Newsletter"/></figure>
 <!-- /wp:image -->
 </div>
 <!-- /wp:column -->

@@ -2,6 +2,12 @@
   "name": "vila-akoya",
   "private": true,
   "scripts": {
+    "monday:setup": "node scripts/setup-vila-akoya-monday.js",
+    "monday:seed-rota": "node scripts/seed-community-chore-rota.js",
+    "telegram:bot": "node scripts/vila-akoya-telegram-bot.js",
+    "whatsapp:import": "node scripts/import-whatsapp-to-telegram.js",
+    "telegram:chats": "node scripts/telegram-list-chats.js",
+    "docs:index": "node scripts/index-vila-akoya-docs.js",
     "build:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --minify",
     "watch:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --watch",
     "wp-env": "bash scripts/wp-env.sh",
@@ -18,6 +24,10 @@
     "wp:sync-campsite-bookings": "bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/plugins/vila-campsite-booking/resync-orders-cli.php",
     "wp:clear-bookings": "bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/plugins/vila-campsite-booking/clear-bookings-cli.php",
     "wp:seed": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/sync-vila-plugin-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seed-cli.php && wp theme activate vila-akoya'",
+    "wp:export-pages": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/themes/vila-akoya/inc/export-pages-cli.php",
+    "wp:pull-pages": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/themes/vila-akoya/inc/import-pages-cli.php",
+    "wp:pull-pages:repo": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/themes/vila-akoya/inc/import-pages-cli.php -- wp-content/themes/vila-akoya/exports/vila-pages-export.json --repo",
+    "wp:migrate-images": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli wp eval-file wp-content/themes/vila-akoya/inc/migrate-image-blocks-cli.php",
     "wp:sync-seo": "bash scripts/sync-theme-to-wp-env.sh && bash scripts/wp-env.sh start && bash scripts/wp-env.sh run cli sh -c 'cd /var/www/html && wp eval-file /var/www/html/wp-content/themes/vila-akoya/inc/seo-sync-cli.php'"
   },
   "devDependencies": {

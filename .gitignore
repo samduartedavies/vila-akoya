@@ -19,3 +19,17 @@ wp-content/debug.log
 
 # Local Netlify folder
 .netlify
+
+# Telegram bot local state + docs index
+scripts/.vila-akoya-telegram-state.json
+scripts/lib/.vila-akoya-docs-index.json
+
+# WhatsApp → Telegram import (private chat export + cache)
+scripts/WhatsApp*.zip
+scripts/.wa-import-cache/
+scripts/.wa-import-tmp/
+scripts/.wa-telegram-import-state.json
+
+# Live page exports (site-specific; keep local)
+scripts/exports/vila-pages-export.json
+wp-content/themes/vila-akoya/exports/vila-pages-export.json

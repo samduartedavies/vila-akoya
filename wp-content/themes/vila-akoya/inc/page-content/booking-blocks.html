@@ -21,10 +21,10 @@
 <!-- /wp:group -->
 <!-- wp:group {"className":"lg:col-span-5 relative","layout":{"type":"default"}} -->
 <div class="wp-block-group lg:col-span-5 relative">
-<!-- wp:group {"className":"aspect-[4/5] rounded-xl overflow-hidden shadow-2xl","layout":{"type":"default"}} -->
-<div class="wp-block-group aspect-[4/5] rounded-xl overflow-hidden shadow-2xl">
-<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"w-full h-full object-cover transform hover:scale-105 transition-transform duration-700"} -->
-<figure class="wp-block-image size-large w-full h-full object-cover transform hover:scale-105 transition-transform duration-700"><img src="https://vila-akoya.com/images/booking-hero.jpg" alt="Alentejo cork oak trees at golden hour"/></figure>
+<!-- wp:group {"className":"va-booking-hero-shell aspect-[4/5] rounded-xl overflow-hidden shadow-2xl","layout":{"type":"default"}} -->
+<div class="wp-block-group va-booking-hero-shell aspect-[4/5] rounded-xl overflow-hidden shadow-2xl">
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><img src="https://vila-akoya.com/images/booking-hero.jpg" alt="Alentejo cork oak trees at golden hour"/></figure>
 <!-- /wp:image -->
 </div>
 <!-- /wp:group -->
@@ -112,9 +112,13 @@
 <!-- wp:paragraph {"className":"text-sm text-on-surface-variant mb-0"} -->
 <!-- <p class="text-sm text-on-surface-variant mb-0">Keep this map open while selecting your preferred plot in the booking form below.</p> -->
 <!-- /wp:paragraph -->
-<!-- wp:image {"sizeSlug":"large","linkDestination":"media","className":"rounded-2xl overflow-hidden shadow-sm"} -->
-<figure class="wp-block-image size-large rounded-2xl overflow-hidden shadow-sm"><a class="va-booking-map-trigger" href="/wp-content/uploads/2026/05/campsite-map-may.jpeg" aria-label="Open campsite map fullscreen popup"><img src="/wp-content/uploads/2026/05/campsite-map-may.jpeg" alt="Map of campsite plots"/><span class="va-booking-map-trigger__hint" aria-hidden="true"><span class="material-symbols-outlined va-booking-map-trigger__icon">visibility</span><span class="va-booking-map-trigger__label">View</span></span></a></figure>
+<!-- wp:group {"className":"va-booking-map-shell rounded-2xl overflow-hidden shadow-sm","layout":{"type":"default"}} -->
+<div class="wp-block-group va-booking-map-shell rounded-2xl overflow-hidden shadow-sm">
+<!-- wp:image {"sizeSlug":"large","linkDestination":"media","className":"vila-img-fill"} -->
+<figure class="wp-block-image size-large vila-img-fill"><a class="va-booking-map-trigger" href="/wp-content/uploads/2026/05/campsite-map-may.jpeg" aria-label="Open campsite map fullscreen popup"><img src="/wp-content/uploads/2026/05/campsite-map-may.jpeg" alt="Map of campsite plots"/><span class="va-booking-map-trigger__hint" aria-hidden="true"><span class="material-symbols-outlined va-booking-map-trigger__icon">visibility</span><span class="va-booking-map-trigger__label">View</span></span></a></figure>
 <!-- /wp:image -->
+</div>
+<!-- /wp:group -->
 <!-- wp:paragraph {"className":"text-xs font-label uppercase tracking-widest text-on-surface-variant mb-0"} -->
 <!-- <p class="text-xs font-label uppercase tracking-widest text-on-surface-variant mb-0">Tap map, then click a plot number to choose it</p> -->
 <!-- /wp:paragraph -->
