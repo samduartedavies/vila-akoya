@@ -19,6 +19,7 @@ class WooCommerce_Integration {
 	const META_PLOT_ID       = '_vila_cb_plot_id';
 	const META_BOOKING_ID    = '_vila_cb_booking_id';
 	const META_GUESTS        = '_vila_cb_guest_json';
+	const META_BOOKING_NOTES = '_vila_cb_booking_notes';
 	const PRODUCT_META_FLAG  = '_vila_cb_campsite_product';
 
 	/**
@@ -105,6 +106,7 @@ class WooCommerce_Integration {
 		// Late: strip MWB/other duplicate Stay & Guests rows, then append ours (avoids duplicate React keys in Cart/Checkout blocks).
 		add_filter( 'woocommerce_get_item_data', array( __CLASS__, 'display_cart_item_data' ), 999, 2 );
 		add_filter( 'woocommerce_cart_item_name', array( __CLASS__, 'cart_item_product_name' ), 15, 3 );
+		add_filter( 'woocommerce_product_get_name', array( __CLASS__, 'guest_facing_campsite_product_name' ), 20, 2 );
 		add_filter( 'woocommerce_order_item_name', array( __CLASS__, 'order_item_name' ), 20, 3 );
 		add_filter( 'woocommerce_is_sold_individually', array( __CLASS__, 'campsite_sold_individually' ), 10, 2 );
 		add_filter( 'woocommerce_quantity_input_args', array( __CLASS__, 'campsite_quantity_input_args' ), 10, 2 );
@@ -113,6 +115,7 @@ class WooCommerce_Integration {
 		add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( __CLASS__, 'order_item_formatted_meta_data' ), 20, 2 );
 		add_action( 'woocommerce_admin_order_data_after_order_details', array( __CLASS__, 'render_order_admin_extras_after_order_details' ), 10, 1 );
 		add_action( 'woocommerce_admin_order_data_after_payment_info', array( __CLASS__, 'render_order_admin_extras_after_order_details' ), 10, 1 );
+		add_action( 'woocommerce_after_order_itemmeta', array( __CLASS__, 'render_order_item_admin_booking_notes' ), 12, 3 );
 		add_action( 'woocommerce_after_order_itemmeta', array( __CLASS__, 'render_order_item_admin_extras' ), 15, 3 );
 		add_action( 'woocommerce_saved_order_items', array( __CLASS__, 'save_order_admin_item_extras' ), 99, 2 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_order_edit_admin_assets' ), 10, 1 );
@@ -477,24 +480,7 @@ class WooCommerce_Integration {
 
 		$svc = new Booking_Service();
 
-		$preferred_plot = 0;
-		if ( ! empty( $_POST['vila_cb_preferred_plot_id'] ) ) {
-			$preferred_plot = absint( $_POST['vila_cb_preferred_plot_id'] );
-		} elseif ( ! empty( $_POST['vila_cb_preferred_plot'] ) ) {
-			$preferred_plot = absint( $_POST['vila_cb_preferred_plot'] );
-		}
-
-		if ( $preferred_plot > 0 ) {
-			$plot_repo = new Plot_Repository();
-			if ( ! $plot_repo->is_bookable_plot_id( $preferred_plot ) ) {
-				wc_add_notice( __( 'That pitch cannot be selected online. Please choose another pitch or use auto-assign.', 'vila-campsite-booking' ), 'error' );
-				return false;
-			}
-			if ( ! $svc->is_plot_available_for_range( $preferred_plot, $check_in, $check_out ) ) {
-				wc_add_notice( __( 'The selected pitch is not available for those dates. Please choose a different pitch or different dates.', 'vila-campsite-booking' ), 'error' );
-				return false;
-			}
-		} elseif ( null === $svc->find_available_plot( $check_in, $check_out ) ) {
+		if ( null === $svc->find_available_plot( $check_in, $check_out ) ) {
 			wc_add_notice( __( 'No pitch is available for those dates. Please choose a different stay.', 'vila-campsite-booking' ), 'error' );
 			return false;
 		}
@@ -569,6 +555,38 @@ class WooCommerce_Integration {
 	}
 
 	/**
+	 * Generic product label for guests (cart, checkout, Store API) — plot is assigned in the backend only.
+	 *
+	 * @param string      $name    Product name.
+	 * @param \WC_Product $product Product.
+	 * @return string
+	 */
+	public static function guest_facing_campsite_product_name( $name, $product ) {
+		if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
+			return $name;
+		}
+		if ( ! self::is_campsite_product( (int) $product->get_id() ) ) {
+			return $name;
+		}
+		if ( is_admin() && ! wp_doing_ajax() ) {
+			return $name;
+		}
+		if ( function_exists( 'is_cart' ) && ( is_cart() || is_checkout() || ( function_exists( 'is_order_received_page' ) && is_order_received_page() ) ) ) {
+			return __( 'Campsite booking', 'vila-campsite-booking' );
+		}
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			$route = '';
+			if ( isset( $_SERVER['REQUEST_URI'] ) ) {
+				$route = (string) wp_unslash( Request_String::scalar( $_SERVER['REQUEST_URI'] ) );
+			}
+			if ( false !== strpos( $route, '/wc/store/' ) ) {
+				return __( 'Campsite booking', 'vila-campsite-booking' );
+			}
+		}
+		return $name;
+	}
+
+	/**
 	 * Append stay range to line title (classic cart + anywhere this filter runs).
 	 *
 	 * @param string               $name      Product name HTML.
@@ -589,20 +607,8 @@ class WooCommerce_Integration {
 		if ( ! self::is_campsite_product( $pid ) && ! ( $vid && self::is_campsite_product( $vid ) ) ) {
 			return $name;
 		}
+		$name   = esc_html( __( 'Campsite booking', 'vila-campsite-booking' ) );
 		$merged = self::cart_item_flattened_for_stay_check( $cart_item );
-		$plot_id = isset( $merged['vila_cb_preferred_plot'] ) ? (int) $merged['vila_cb_preferred_plot'] : 0;
-		if ( $plot_id <= 0 && isset( $merged['vila_cb_plot_id'] ) ) {
-			$plot_id = (int) $merged['vila_cb_plot_id'];
-		}
-		if ( $plot_id > 0 ) {
-			$plot_row   = ( new Plot_Repository() )->get( $plot_id );
-			$plot_label = ( is_array( $plot_row ) && ! empty( $plot_row['label'] ) ) ? (string) $plot_row['label'] : (string) $plot_id;
-			$count      = 0;
-			$replaced   = preg_replace( '/Plot\s+\d+\b/iu', $plot_label, $name, 1, $count );
-			if ( is_string( $replaced ) && $count > 0 ) {
-				$name = $replaced;
-			}
-		}
 		$cin    = isset( $merged['vila_cb_check_in'] ) ? trim( (string) $merged['vila_cb_check_in'] ) : '';
 		$cout   = isset( $merged['vila_cb_check_out'] ) ? trim( (string) $merged['vila_cb_check_out'] ) : '';
 		if ( self::validate_date_ymd( $cin ) && self::validate_date_ymd( $cout ) ) {
@@ -631,22 +637,7 @@ class WooCommerce_Integration {
 		if ( ! self::is_campsite_product( $pid ) ) {
 			return $item_name;
 		}
-		$plot_id = (int) $item->get_meta( self::META_PLOT_ID, true );
-		if ( $plot_id <= 0 ) {
-			$plot_id = (int) $item->get_meta( '_vila_cb_preferred_plot', true );
-		}
-		$label = '';
-		if ( $plot_id > 0 ) {
-			$row = ( new Plot_Repository() )->get( $plot_id );
-			if ( is_array( $row ) && ! empty( $row['label'] ) ) {
-				$label = (string) $row['label'];
-			}
-		}
-		$base = __( 'Campsite booking', 'vila-campsite-booking' );
-		if ( '' !== $label ) {
-			return esc_html( $base . ' — ' . $label );
-		}
-		return esc_html( $base );
+		return esc_html( __( 'Campsite booking', 'vila-campsite-booking' ) );
 	}
 
 	/**
@@ -995,14 +986,11 @@ class WooCommerce_Integration {
 		$cart_item_data['vila_cb_check_out'] = $stay['check_out'];
 		$cart_item_data['vila_cb_guests']    = $guests;
 
-		$preferred_plot = 0;
-		if ( ! empty( $_POST['vila_cb_preferred_plot_id'] ) ) {
-			$preferred_plot = absint( $_POST['vila_cb_preferred_plot_id'] );
-		} elseif ( ! empty( $_POST['vila_cb_preferred_plot'] ) ) {
-			$preferred_plot = absint( $_POST['vila_cb_preferred_plot'] );
-		}
-		if ( $preferred_plot > 0 ) {
-			$cart_item_data['vila_cb_preferred_plot'] = $preferred_plot;
+		if ( isset( $_POST['vila_cb_booking_notes'] ) ) {
+			$notes = self::sanitize_booking_notes( wp_unslash( Request_String::scalar( $_POST['vila_cb_booking_notes'] ) ) );
+			if ( '' !== $notes ) {
+				$cart_item_data['vila_cb_booking_notes'] = $notes;
+			}
 		}
 
 		return $cart_item_data;
@@ -1016,7 +1004,7 @@ class WooCommerce_Integration {
 	 */
 	public static function get_cart_item_from_session( $cart_item, $values, $key ) {
 		unset( $key );
-		foreach ( array( 'vila_cb_check_in', 'vila_cb_check_out', 'vila_cb_guests', 'vila_cb_preferred_plot' ) as $k ) {
+		foreach ( array( 'vila_cb_check_in', 'vila_cb_check_out', 'vila_cb_guests', 'vila_cb_booking_notes' ) as $k ) {
 			if ( isset( $values[ $k ] ) ) {
 				$cart_item[ $k ] = $values[ $k ];
 			}
@@ -1035,6 +1023,9 @@ class WooCommerce_Integration {
 			if ( ( empty( $cart_item['vila_cb_guests'] ) || ! is_array( $cart_item['vila_cb_guests'] ) ) && ! empty( $ex['vila_cb_guests'] ) && is_array( $ex['vila_cb_guests'] ) ) {
 				$cart_item['vila_cb_guests'] = $ex['vila_cb_guests'];
 			}
+		}
+		if ( empty( $cart_item['vila_cb_booking_notes'] ) && ! empty( $values['extensions']['vila-campsite-booking']['vila_cb_booking_notes'] ) ) {
+			$cart_item['vila_cb_booking_notes'] = self::sanitize_booking_notes( (string) $values['extensions']['vila-campsite-booking']['vila_cb_booking_notes'] );
 		}
 		return $cart_item;
 	}
@@ -1134,9 +1125,9 @@ class WooCommerce_Integration {
 		$item->update_meta_data( self::META_CHECK_OUT, $cout );
 		$item->update_meta_data( self::META_GUESTS, wp_json_encode( $guests ) );
 
-		$preferred_plot = isset( $merged['vila_cb_preferred_plot'] ) ? (int) $merged['vila_cb_preferred_plot'] : 0;
-		if ( $preferred_plot > 0 ) {
-			$item->update_meta_data( '_vila_cb_preferred_plot', (string) $preferred_plot );
+		$notes = isset( $merged['vila_cb_booking_notes'] ) ? self::sanitize_booking_notes( (string) $merged['vila_cb_booking_notes'] ) : '';
+		if ( '' !== $notes ) {
+			$item->update_meta_data( self::META_BOOKING_NOTES, $notes );
 		}
 
 		self::backfill_mwb_line_meta_from_cart( $item, $merged );
@@ -1378,11 +1369,15 @@ class WooCommerce_Integration {
 			return array();
 		}
 		$guests = isset( $cart_item['vila_cb_guests'] ) && is_array( $cart_item['vila_cb_guests'] ) ? $cart_item['vila_cb_guests'] : array();
-		return array(
+		$payload = array(
 			'vila_cb_check_in'  => isset( $cart_item['vila_cb_check_in'] ) ? (string) $cart_item['vila_cb_check_in'] : '',
 			'vila_cb_check_out' => isset( $cart_item['vila_cb_check_out'] ) ? (string) $cart_item['vila_cb_check_out'] : '',
 			'vila_cb_guests'    => $guests,
 		);
+		if ( ! empty( $cart_item['vila_cb_booking_notes'] ) ) {
+			$payload['vila_cb_booking_notes'] = self::sanitize_booking_notes( (string) $cart_item['vila_cb_booking_notes'] );
+		}
+		return $payload;
 	}
 
 	/**
@@ -1403,6 +1398,11 @@ class WooCommerce_Integration {
 			'vila_cb_guests'    => array(
 				'description' => __( 'Guest counts object.', 'vila-campsite-booking' ),
 				'type'        => 'object',
+				'context'     => array( 'view', 'edit' ),
+			),
+			'vila_cb_booking_notes' => array(
+				'description' => __( 'Optional guest notes from the booking form.', 'vila-campsite-booking' ),
+				'type'        => 'string',
 				'context'     => array( 'view', 'edit' ),
 			),
 		);
@@ -1446,8 +1446,8 @@ class WooCommerce_Integration {
 		if ( isset( $v['vila_cb_guests'] ) && is_array( $v['vila_cb_guests'] ) ) {
 			$cid['vila_cb_guests'] = $v['vila_cb_guests'];
 		}
-		if ( ! empty( $v['vila_cb_preferred_plot'] ) ) {
-			$cid['vila_cb_preferred_plot'] = absint( $v['vila_cb_preferred_plot'] );
+		if ( ! empty( $v['vila_cb_booking_notes'] ) ) {
+			$cid['vila_cb_booking_notes'] = self::sanitize_booking_notes( (string) $v['vila_cb_booking_notes'] );
 		}
 		$add_to_cart_data['cart_item_data'] = $cid;
 		self::debug_log(
@@ -1497,8 +1497,8 @@ class WooCommerce_Integration {
 		if ( ( empty( $cart_item['vila_cb_guests'] ) || ! is_array( $cart_item['vila_cb_guests'] ) ) && ! empty( $ext['vila_cb_guests'] ) && is_array( $ext['vila_cb_guests'] ) ) {
 			$cart_item['vila_cb_guests'] = $ext['vila_cb_guests'];
 		}
-		if ( empty( $cart_item['vila_cb_preferred_plot'] ) && ! empty( $ext['vila_cb_preferred_plot'] ) ) {
-			$cart_item['vila_cb_preferred_plot'] = absint( $ext['vila_cb_preferred_plot'] );
+		if ( empty( $cart_item['vila_cb_booking_notes'] ) && ! empty( $ext['vila_cb_booking_notes'] ) ) {
+			$cart_item['vila_cb_booking_notes'] = self::sanitize_booking_notes( (string) $ext['vila_cb_booking_notes'] );
 		}
 		self::debug_log(
 			'add_cart_item_merge_store_extensions',
@@ -1643,7 +1643,12 @@ class WooCommerce_Integration {
 			$have_in  = (string) $item->get_meta( self::META_CHECK_IN, true );
 			$have_out = (string) $item->get_meta( self::META_CHECK_OUT, true );
 			$needs    = ! self::validate_date_ymd( $have_in ) || ! self::validate_date_ymd( $have_out );
+			$row_changed = self::persist_line_booking_notes_from_merged( $item, $merged );
 			if ( ! $needs ) {
+				if ( $row_changed ) {
+					$item->save();
+					$changed = true;
+				}
 				continue;
 			}
 			$cin  = isset( $merged['vila_cb_check_in'] ) ? (string) $merged['vila_cb_check_in'] : '';
@@ -1654,15 +1659,17 @@ class WooCommerce_Integration {
 				$gv = isset( $merged['vila_cb_guests'] ) && is_array( $merged['vila_cb_guests'] ) ? $merged['vila_cb_guests'] : array();
 				$item->update_meta_data( self::META_GUESTS, wp_json_encode( self::normalize_guests_for_storage( $gv ) ) );
 				self::backfill_mwb_line_meta_from_cart( $item, $merged );
+				$row_changed = self::persist_line_booking_notes_from_merged( $item, $merged ) || $row_changed;
 				$item->save();
 				$changed = true;
 				continue;
 			}
 			self::backfill_mwb_line_meta_from_cart( $item, $merged );
+			$row_changed = self::persist_line_booking_notes_from_merged( $item, $merged ) || $row_changed;
 			if ( is_callable( array( $item, 'save' ) ) ) {
 				$item->save();
 			}
-			$changed = true;
+			$changed = $row_changed || $changed;
 		}
 		if ( $changed ) {
 			self::debug_log( 'backfill: updated line meta', array( 'order_id' => $order->get_id() ) );
@@ -1696,6 +1703,11 @@ class WooCommerce_Integration {
 		}
 		$gv = isset( $merged['vila_cb_guests'] ) && is_array( $merged['vila_cb_guests'] ) ? $merged['vila_cb_guests'] : array();
 		$item->update_meta_data( self::META_GUESTS, wp_json_encode( self::normalize_guests_for_storage( $gv ) ) );
+
+		$have_notes = self::sanitize_booking_notes( (string) $item->get_meta( self::META_BOOKING_NOTES, true ) );
+		if ( '' === $have_notes ) {
+			self::persist_line_booking_notes_from_merged( $item, $merged );
+		}
 
 		self::backfill_mwb_line_meta_from_cart( $item, $merged );
 
@@ -2106,6 +2118,90 @@ class WooCommerce_Integration {
 			return;
 		}
 		wp_enqueue_style( 'vila-cb-admin-order-extras', VILA_CB_URL . 'assets/css/admin.css', array(), VILA_CB_VERSION );
+	}
+
+	/**
+	 * Sanitize optional guest notes from the booking form.
+	 *
+	 * @param string $raw Raw notes.
+	 * @return string
+	 */
+	public static function sanitize_booking_notes( $raw ) {
+		$notes = sanitize_textarea_field( (string) $raw );
+		if ( strlen( $notes ) > 2000 ) {
+			$notes = substr( $notes, 0, 2000 );
+		}
+		return trim( $notes );
+	}
+
+	/**
+	 * Copy guest notes from cart/session data onto an order line when missing.
+	 *
+	 * @param \WC_Order_Item_Product $item   Line item.
+	 * @param array<string, mixed>   $merged Cart line.
+	 * @return bool Whether meta was updated.
+	 */
+	private static function persist_line_booking_notes_from_merged( $item, $merged ) {
+		if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_meta' ) ) || ! is_callable( array( $item, 'update_meta_data' ) ) ) {
+			return false;
+		}
+		$have = self::sanitize_booking_notes( (string) $item->get_meta( self::META_BOOKING_NOTES, true ) );
+		if ( '' !== $have ) {
+			return false;
+		}
+		$notes = isset( $merged['vila_cb_booking_notes'] ) ? self::sanitize_booking_notes( (string) $merged['vila_cb_booking_notes'] ) : '';
+		if ( '' === $notes ) {
+			return false;
+		}
+		$item->update_meta_data( self::META_BOOKING_NOTES, $notes );
+		return true;
+	}
+
+	/**
+	 * Read guest booking notes from a campsite order line.
+	 *
+	 * @param \WC_Order|null           $order        Order.
+	 * @param int                      $line_item_id Line item ID.
+	 * @param \WC_Order_Item|null      $item         Optional line item.
+	 * @return string
+	 */
+	public static function get_line_booking_notes( $order, $line_item_id, $item = null ) {
+		$line_item_id = (int) $line_item_id;
+		if ( $line_item_id <= 0 ) {
+			return '';
+		}
+		if ( ! $item && $order instanceof \WC_Order ) {
+			$item = $order->get_item( $line_item_id );
+		}
+		if ( ! $item || ! is_callable( array( $item, 'get_meta' ) ) ) {
+			return '';
+		}
+		return self::sanitize_booking_notes( (string) $item->get_meta( self::META_BOOKING_NOTES, true ) );
+	}
+
+	/**
+	 * WooCommerce order edit: show guest booking notes (admin only).
+	 *
+	 * @param int                 $item_id Item ID.
+	 * @param \WC_Order_Item      $item    Line item.
+	 * @param \WC_Product|mixed   $product Product or null.
+	 */
+	public static function render_order_item_admin_booking_notes( $item_id, $item, $product ) {
+		unset( $product, $item_id );
+		if ( ! is_admin() || ! $item || ! is_callable( array( $item, 'get_product_id' ) ) ) {
+			return;
+		}
+		if ( ! self::is_campsite_product( (int) $item->get_product_id() ) ) {
+			return;
+		}
+		$notes = self::sanitize_booking_notes( (string) $item->get_meta( self::META_BOOKING_NOTES, true ) );
+		if ( '' === $notes ) {
+			return;
+		}
+		echo '<div class="vila-cb-order-item-notes" style="margin:8px 0;">';
+		echo '<p style="margin:0 0 4px;"><strong>' . esc_html__( 'Guest notes', 'vila-campsite-booking' ) . '</strong></p>';
+		echo '<p class="description" style="margin:0;white-space:pre-wrap;">' . esc_html( $notes ) . '</p>';
+		echo '</div>';
 	}
 
 	/**
@@ -2803,16 +2899,7 @@ class WooCommerce_Integration {
 		$cout   = isset( $merged['vila_cb_check_out'] ) ? trim( (string) $merged['vila_cb_check_out'] ) : '';
 		$guests = isset( $merged['vila_cb_guests'] ) && is_array( $merged['vila_cb_guests'] ) ? $merged['vila_cb_guests'] : array();
 		$guests = self::normalize_guests_for_storage( $guests );
-		$plot_id = isset( $merged['vila_cb_preferred_plot'] ) ? (int) $merged['vila_cb_preferred_plot'] : 0;
-		if ( $plot_id <= 0 && isset( $merged['vila_cb_plot_id'] ) ) {
-			$plot_id = (int) $merged['vila_cb_plot_id'];
-		}
 		$details = array();
-		if ( $plot_id > 0 ) {
-			$plot_row  = ( new Plot_Repository() )->get( $plot_id );
-			$plot_text = ( is_array( $plot_row ) && ! empty( $plot_row['label'] ) ) ? (string) $plot_row['label'] : (string) $plot_id;
-			$details[] = sprintf( __( 'Plot: %s', 'vila-campsite-booking' ), $plot_text );
-		}
 		$people = (int) $guests['adults'] + (int) $guests['children'] + (int) $guests['infants'];
 		if ( $people > 0 ) {
 			$details[] = sprintf( __( 'Peoples: %d', 'vila-campsite-booking' ), $people );
@@ -3047,6 +3134,7 @@ class WooCommerce_Integration {
 		$hidden[] = self::META_BOOKING_ID;
 		$hidden[] = self::META_PLOT_ID;
 		$hidden[] = '_vila_cb_preferred_plot';
+		$hidden[] = self::META_BOOKING_NOTES;
 		// Theme/plugin JSON for multi-select; managed via Campsite extras UI (do not edit raw JSON in the line meta box).
 		$hidden[] = '_vila_vehicle_slugs';
 		return array_values( array_unique( array_map( 'strval', $hidden ) ) );
@@ -3078,7 +3166,6 @@ class WooCommerce_Integration {
 		);
 		$stay_label   = __( 'Stay', 'vila-campsite-booking' );
 		$guests_label = __( 'Guests', 'vila-campsite-booking' );
-		$plot_label_key = __( 'Plot', 'vila-campsite-booking' );
 		$extras_label_key = __( 'Extras', 'vila-campsite-booking' );
 		$out              = array();
 		foreach ( $formatted_meta as $m ) {
@@ -3100,9 +3187,6 @@ class WooCommerce_Integration {
 					continue;
 				}
 				if ( $dk === $guests_label || $dk === 'Guests' ) {
-					continue;
-				}
-				if ( $dk === $plot_label_key || $dk === 'Plot' ) {
 					continue;
 				}
 			}
@@ -3138,21 +3222,6 @@ class WooCommerce_Integration {
 				'value'         => $gtext,
 				'display_key'   => $guests_label,
 				'display_value' => wc_clean( $gtext ),
-			);
-		}
-		$plot_id = (int) $item->get_meta( self::META_PLOT_ID, true );
-		if ( $plot_id <= 0 ) {
-			$plot_id = (int) $item->get_meta( '_vila_cb_preferred_plot', true );
-		}
-		if ( $plot_id > 0 ) {
-			$plot_row = ( new Plot_Repository() )->get( $plot_id );
-			$plot_text = ( is_array( $plot_row ) && ! empty( $plot_row['label'] ) ) ? (string) $plot_row['label'] : (string) $plot_id;
-			$out[] = (object) array(
-				'id'            => 'vila-cb-plot-' . $line_id,
-				'key'           => '_vila_cb_display_plot',
-				'value'         => $plot_text,
-				'display_key'   => $plot_label_key,
-				'display_value' => wc_clean( $plot_text ),
 			);
 		}
 		$extras_order = null;

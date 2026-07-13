@@ -69,7 +69,7 @@ $uid = 'vila-guest-' . $product_id;
 
 	<div class="mbfw-additionl-detail-listing-section__wrapper vila-guest-picker__shell">
 		<p class="vila-airbnb-booking__legend mb-2 mt-0">
-			<?php esc_html_e( 'Who', 'vila-akoya' ); ?>
+			<?php esc_html_e( 'Guests', 'vila-akoya' ); ?>
 		</p>
 		<div class="vila-guest-picker__bar rounded-[12px] border border-outline-variant/30 bg-surface-container-low flex flex-wrap items-center gap-3 min-h-[3.25rem]">
 			<button

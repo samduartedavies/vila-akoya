@@ -1012,7 +1012,10 @@
 
   /* Booking page: white card + don't clip guest popover (columns often default to overflow hidden) */
   body.vila-page-booking .wp-block-columns:has(.va-booking-reserve-card),
-  body.vila-page-booking .wp-block-column:has(.va-booking-reserve-card) {
+  body.vila-page-booking .wp-block-column:has(.va-booking-reserve-card),
+  body.vila-page-booking .va-booking-reserve-card,
+  body.vila-page-booking .vila-wc-booking,
+  body.vila-page-booking .vila-wc-booking form.cart {
     overflow: visible;
   }
 
@@ -1268,23 +1271,46 @@
     @apply mb-0 flex min-w-0 flex-1 flex-wrap gap-4;
   }
 
-  /* Plot + Who: one row on desktop (see booking-ui.js layoutDatesAndWhoRow) */
+  /* Guests + dates: one row on desktop (see booking-ui.js layoutBookingFormSections) */
+  .vila-booking-dates-who,
   .vila-booking-plot-who {
     @apply mb-8 flex w-full min-w-0 flex-col gap-5 overflow-visible;
   }
 
   @media (min-width: 768px) {
+    .vila-booking-dates-who,
     .vila-booking-plot-who {
       @apply flex-row items-start gap-8;
     }
 
+    .vila-booking-dates-who > .vila-airbnb-booking--who,
+    .vila-booking-dates-who > .mbfw-date-picker-section__wrapper,
     .vila-booking-plot-who > .vila-plot-dropdown-wrap {
       @apply mb-0 min-w-0 flex-1;
+    }
+
+    .vila-booking-dates-who > .vila-airbnb-booking--who {
+      overflow: visible;
     }
 
     .vila-booking-plot-who > .vila-airbnb-booking--who {
       @apply min-w-0 flex-1;
     }
+  }
+
+  .vila-booking-dates-who .vila-airbnb-booking--dates,
+  .vila-booking-dates-who .mbfw-date-picker-section__wrapper {
+    @apply mb-0;
+  }
+
+  .vila-booking-notes-wrap {
+    @apply mb-8 w-full min-w-0;
+  }
+
+  .vila-wc-booking .vila-booking-notes,
+  body.single-product .vila-booking-notes {
+    @apply min-h-[5.5rem] w-full resize-y rounded-lg border-2 border-transparent bg-surface-container-low px-5 py-4 text-base text-on-background shadow-none transition-all duration-300 ease-out;
+    @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/40 focus:bg-surface-container-low focus:border-outline-variant focus:outline-none focus:ring-0;
   }
 
   .vila-wc-booking .vila-booking-range-wrap-enhanced .mbfw-date-picker-section {
@@ -1596,6 +1622,18 @@
       width: min(26rem, calc(100vw - 2rem));
       min-width: min(18rem, calc(100vw - 2rem));
       max-width: min(28rem, calc(100vw - 1.5rem));
+    }
+
+    /*
+     * Guests + dates side-by-side: anchor panel from the left so it is not clipped
+     * when the guests column is narrow (tablet / narrow desktop).
+     */
+    .vila-booking-dates-who .vila-airbnb-booking--who .vila-guest-picker__panel {
+      left: 0;
+      right: auto;
+      width: max(100%, min(18rem, calc(100vw - 2rem)));
+      min-width: 100%;
+      max-width: min(26rem, calc(100vw - 2rem));
     }
   }
 

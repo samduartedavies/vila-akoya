@@ -26,6 +26,7 @@ const ACTIONS = [
   "complete_task",
   "cancel_event",
   "create_decision",
+  "create_documentation",
   "offer_help",
   "help_wanted",
   "availability",
@@ -60,6 +61,7 @@ const CHAT_ACTIVITY_KIND = {
   create_task: "task_logged",
   guest_issue: "guest_logged",
   create_decision: "decision_logged",
+  create_documentation: "doc_logged",
   complete_task: "task_completed",
   cancel_event: "event_cancelled",
   offer_help: "offer_help",
@@ -213,6 +215,14 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "- complete_task: reports a job is DONE or fixed — populate target.title",
     "- cancel_event: gathering called off — populate target.title",
     "- create_decision: governance item needing discussion or vote",
+    "- create_documentation: speaker wants to WRITE or RECORD knowledge for others — how a system works,",
+    "    a procedure, troubleshooting guide, guest process, or steward notes (often a voice brain dump).",
+    "    NOT a one-off repair job (create_task) and NOT a question (question_doc).",
+    "",
+    "create_documentation examples:",
+    '  EN: "document how the compost toilet works", "write up the wifi router setup",',
+    '       "here\'s how the water shutoff valves work" (voice or text dump)',
+    '  PT: "documenta como funciona o sistema de água", "escreve o procedimento do wifi"',
     "",
     "── Recap only (no monday item) ──",
     "- offer_help, help_wanted, availability, announcement",
@@ -233,6 +243,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "event": { "title", "date", "event_type" } | null,',
     '  "target": { "title", "item_id" } | null,',
     '  "decision": { "title", "category", "summary" } | null,',
+    '  "documentation": { "title", "area", "summary" } | null,',
     '  "community": { "title", "summary", "date" } | null }',
     "",
     "route_maintenance=true when task is infrastructure not admin.",
@@ -252,6 +263,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     proposal: "create_event",
     confirm: "create_event",
     decision: "create_decision",
+    documentation: "create_documentation",
+    write_documentation: "create_documentation",
+    document: "create_documentation",
   };
   let action = ACTIONS.includes(legacyMap[rawAction] || rawAction)
     ? legacyMap[rawAction] || rawAction
@@ -309,6 +323,17 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
         }
       : null;
 
+  const documentation =
+    result.documentation && action === "create_documentation"
+      ? {
+          title: String(result.documentation.title || "").slice(0, 80),
+          area: areas.includes(result.documentation.area)
+            ? result.documentation.area
+            : "Other",
+          summary: String(result.documentation.summary || ""),
+        }
+      : null;
+
   const community =
     result.community &&
     ["offer_help", "help_wanted", "availability", "announcement"].includes(action)
@@ -332,6 +357,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_event: action === "create_event" && Boolean(event?.title),
     is_complete: action === "complete_task" && Boolean(target?.title || target?.item_id),
     is_cancel_event: action === "cancel_event" && Boolean(target?.title || target?.item_id),
+    is_documentation: action === "create_documentation",
     question_kind:
       action === "question_doc" ? "documentation" : action === "question_schedule" ? "schedule" : null,
     schedule_range: scheduleRange,
@@ -340,6 +366,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     event,
     target,
     decision,
+    documentation,
     community,
   };
 }

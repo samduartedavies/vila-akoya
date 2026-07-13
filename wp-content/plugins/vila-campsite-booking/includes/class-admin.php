@@ -369,6 +369,7 @@ class Admin {
 		$dec_guest      = json_decode( $gj, true );
 		$orphan_slugs   = array_values( array_diff( $vslugs_checked, array_keys( $opts ) ) );
 		$current_unit   = WooCommerce_Integration::get_booking_extras_display_label( $gj, $order, $line_item_id );
+		$booking_notes  = WooCommerce_Integration::get_line_booking_notes( $order, $line_item_id );
 
 		WooCommerce_Integration::log_debug(
 			'extras.admin_booking_edit_render',
@@ -486,6 +487,14 @@ class Admin {
 							</label>
 						</td>
 					</tr>
+					<?php if ( '' !== $booking_notes ) : ?>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Guest notes', 'vila-campsite-booking' ); ?></th>
+						<td>
+							<p class="description" style="margin:0;max-width:36em;white-space:pre-wrap;"><?php echo esc_html( $booking_notes ); ?></p>
+						</td>
+					</tr>
+					<?php endif; ?>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Extras', 'vila-campsite-booking' ); ?></th>
 						<td>

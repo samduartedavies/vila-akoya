@@ -284,10 +284,6 @@
       encodeURIComponent(stay.check_in) +
       '&check_out=' +
       encodeURIComponent(stay.check_out);
-    var plotId = getSelectedPlotId();
-    if (plotId) {
-      q += '&plot_id=' + encodeURIComponent(plotId);
-    }
     fetch(base + q, { credentials: 'same-origin', signal: signal })
       .then(function (r) {
         return r.json();
@@ -298,9 +294,7 @@
         }
         if (data && data.bookable === false) {
           var msg;
-          if (plotId && vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.plotUnavailable) {
-            msg = vilaAkoyaBooking.strings.plotUnavailable;
-          } else if (vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.rangeUnavailable) {
+          if (vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.rangeUnavailable) {
             msg = vilaAkoyaBooking.strings.rangeUnavailable;
           } else {
             msg = 'No pitch is available for those dates.';
@@ -308,14 +302,6 @@
           showAvailabilityWarning(msg);
         } else {
           clearAvailabilityWarning();
-          if (!plotId && data && data.assigned_plot_id) {
-            var $sel = $('#vila-plot-select');
-            if ($sel.length && !$sel.val()) {
-              $sel.val(String(data.assigned_plot_id));
-              vilaSelectedPlotId = String(data.assigned_plot_id);
-              $('#vila-cb-preferred-plot-id').val(String(data.assigned_plot_id));
-            }
-          }
         }
       })
       .catch(function (err) {
@@ -335,64 +321,45 @@
   }
 
   /**
-   * Puts plot and guest picker side by side on desktop
-   * (theme CSS: .vila-booking-plot-who), while stay dates remains full width.
+   * Desktop: Guests + Your dates side by side; Your setup; then Notes full width.
    */
-  function layoutDatesAndWhoRow() {
+  function layoutBookingFormSections() {
     var $scopes = $('.vila-wc-booking form.cart');
     if (!$scopes.length) {
       $scopes = $('body.single-product.post-type-product form.cart');
     }
     $scopes.each(function () {
       var $form = $(this);
-      if ($form.data('vilaPlotWhoLaidOut')) {
+      if ($form.data('vilaBookingLayoutDone')) {
         return;
       }
-      var $plot = $form.find('.vila-plot-dropdown-wrap').first();
-      var $dates = $form.find('.mbfw-date-picker-section__wrapper').first();
+      var $datesWrap = $form.find('.mbfw-date-picker-section__wrapper').first();
       var $who = $form.find('.vila-airbnb-booking--who').first();
-      if (!$plot.length || !$dates.length || !$who.length) {
+      var $notes = $form.find('.vila-booking-notes-wrap').first();
+      var $setup = $form.find('.vila-airbnb-booking--units').first();
+
+      if (!$datesWrap.length || !$who.length) {
         return;
       }
-      if ($who.closest('.vila-booking-plot-who').length) {
-        return;
+
+      if (!$who.closest('.vila-booking-dates-who').length) {
+        var $row = $('<div class="vila-booking-dates-who"></div>');
+        $datesWrap.before($row);
+        $row.append($who);
+        $row.append($datesWrap);
       }
-      var $row = $('<div class="vila-booking-plot-who"></div>');
-      $dates.before($row);
-      $row.append($plot);
-      $row.append($who);
-      $form.data('vilaPlotWhoLaidOut', true);
+
+      if ($notes.length && $setup.length) {
+        $notes.insertAfter($setup);
+      }
+
+      $form.data('vilaBookingLayoutDone', true);
     });
   }
 
-  function placePitchAboveStayDates() {
-    var $scopes = $('.vila-wc-booking form.cart');
-    if (!$scopes.length) {
-      $scopes = $('body.single-product.post-type-product form.cart');
-    }
-    $scopes.each(function () {
-      var $form = $(this);
-      var $pitch = $form.find('.vila-plot-dropdown-wrap').first();
-      if (!$pitch.length) {
-        return;
-      }
-      if ($pitch.closest('.vila-booking-plot-who').length) {
-        return;
-      }
-      // Already positioned — don't move it again (would disrupt open dropdowns).
-      if ($pitch.data('vilaPlotPositioned')) {
-        return;
-      }
-      var $target = $form.find('.vila-booking-dates-who').first();
-      if (!$target.length) {
-        $target = $form.find('.mbfw-date-picker-section__wrapper').first();
-      }
-      if (!$target.length) {
-        return;
-      }
-      $pitch.insertBefore($target);
-      $pitch.data('vilaPlotPositioned', true);
-    });
+  /** @deprecated Use layoutBookingFormSections */
+  function layoutDatesAndWhoRow() {
+    layoutBookingFormSections();
   }
 
   function initBookingMapLightbox() {
@@ -429,7 +396,6 @@
     function openLightbox() {
       $lightbox.removeClass('hidden').attr('aria-hidden', 'false');
       $('body').addClass('va-map-lightbox-open');
-      syncHotspotSelection();
     }
 
     $trigger.on('click', function (e) {
@@ -449,12 +415,8 @@
     });
 
     var hotspots = [];
-    if (window.vilaAkoyaBooking && Array.isArray(window.vilaAkoyaBooking.mapPlotHotspots)) {
-      hotspots = window.vilaAkoyaBooking.mapPlotHotspots;
-    }
-    var $plotSelect = $('#vila-plot-select');
     var $hotspotLayer = $lightbox.find('.va-map-lightbox__hotspots');
-    if ($plotSelect.length && hotspots.length) {
+    if (hotspots.length) {
       hotspots.forEach(function (spot, idx) {
         var id = String(spot && spot.id ? spot.id : '');
         if (!id) {
@@ -477,29 +439,6 @@
         $btn.html('<span class="va-map-plot-hotspot__dot"></span><span class="va-map-plot-hotspot__text">' + shortLabel + '</span>');
         $hotspotLayer.append($btn);
       });
-    }
-
-    function syncHotspotSelection() {
-      var selected = String($plotSelect.val() || '');
-      $hotspotLayer.find('.va-map-plot-hotspot').removeClass('is-selected');
-      if (selected) {
-        $hotspotLayer.find('.va-map-plot-hotspot[data-plot-id="' + selected + '"]').addClass('is-selected');
-      }
-    }
-
-    if ($plotSelect.length) {
-      $plotSelect.on('change', syncHotspotSelection);
-      $hotspotLayer.on('click', '.va-map-plot-hotspot', function (e) {
-        e.preventDefault();
-        var id = String($(this).attr('data-plot-id') || '');
-        if (!id) {
-          return;
-        }
-        $plotSelect.val(id).trigger('change');
-        syncHotspotSelection();
-        closeLightbox();
-      });
-      syncHotspotSelection();
     }
   }
 
@@ -809,7 +748,7 @@
     if (mwb_mbfw_public_obj.wps_cal_type !== 'dual_cal') {
       initPlotSelector();
       scheduleStayRangeAvailabilityCheck();
-      layoutDatesAndWhoRow();
+      layoutBookingFormSections();
       return;
     }
     if (mwb_mbfw_public_obj.booking_unit === 'hour') {
@@ -844,7 +783,7 @@
       updateVehicleHint();
       initPlotSelector();
       scheduleStayRangeAvailabilityCheck();
-      layoutDatesAndWhoRow();
+      layoutBookingFormSections();
       return;
     }
 
@@ -921,7 +860,7 @@
     updateVehicleHint();
     initPlotSelector();
     scheduleStayRangeAvailabilityCheck();
-    layoutDatesAndWhoRow();
+    layoutBookingFormSections();
   }
 
   function syncRangeFromInputs() {
@@ -1012,15 +951,11 @@
   $(function () {
     setTimeout(bootstrapRangePicker, 120);
     initGuestPicker();
-    initPlotDropdown();
-    layoutDatesAndWhoRow();
-    placePitchAboveStayDates();
+    layoutBookingFormSections();
     initBookingMapLightbox();
     initBookingReserveModeTabs();
-    setTimeout(layoutDatesAndWhoRow, 400);
-    setTimeout(layoutDatesAndWhoRow, 1000);
-    setTimeout(placePitchAboveStayDates, 420);
-    setTimeout(placePitchAboveStayDates, 1020);
+    setTimeout(layoutBookingFormSections, 400);
+    setTimeout(layoutBookingFormSections, 1000);
 
     $(document).on(
       'change input',
@@ -1061,7 +996,6 @@
     }, 150);
 
     $(document).ajaxComplete(function () {
-      placePitchAboveStayDates();
       normaliseBookingBillLayout();
       syncBookingTotalsAndCtaState();
       setTimeout(syncBookingTotalsAndCtaState, 100);

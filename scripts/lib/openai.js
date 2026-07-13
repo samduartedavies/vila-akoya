@@ -327,11 +327,77 @@ async function composeRecap(templateText) {
  * Pick only community-relevant messages from a day's group chat for the morning recap.
  * Returns [] when nothing mattered; null on API failure (caller should fall back).
  */
+function normalizeTranscriptionFilename(filename) {
+  const name =
+    String(filename || "audio.ogg")
+      .replace(/\\/g, "/")
+      .split("/")
+      .pop() || "audio.ogg";
+  const lower = name.toLowerCase();
+  // Telegram voice notes use .oga (Ogg Opus); OpenAI accepts .ogg not .oga.
+  if (lower.endsWith(".oga")) return `${name.slice(0, -4)}.ogg`;
+  if (/\.(flac|m4a|mp3|mp4|mpeg|mpga|ogg|wav|webm)$/i.test(name)) return name;
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? `${name.slice(0, dot)}.ogg` : `${name}.ogg`;
+}
+
+async function structureDocumentation(rawText, { proposer, todayISO }) {
+  if (!isEnabled()) return null;
+
+  const system = [
+    "You turn rough spoken or written notes into clear village/campsite documentation for Vila Akoya.",
+    "The input may be messy, repetitive, incomplete or stream-of-consciousness — reorganise it",
+    "into proper documentation that a steward or guest could actually use.",
+    "",
+    `Today's date: ${todayISO || "unknown"}.`,
+    proposer ? `Captured by: ${proposer}.` : "",
+    "",
+    `area must be one of: ${AREAS.join(", ")}.`,
+    "",
+    "Return JSON:",
+    '{ "title": string (clear doc title, max 80 chars),',
+    '  "area": string,',
+    '  "summary": string (1-2 sentences for a documentation register),',
+    '  "markdown": string (full document in markdown) }',
+    "",
+    "Markdown structure — use sections that fit the material; skip empty ones:",
+    "# Title",
+    "## Overview",
+    "## How it works",
+    "## Daily use / Procedure",
+    "## Troubleshooting",
+    "## Safety notes",
+    "## Who to contact",
+    "",
+    "Use short paragraphs and bullet lists. Write for residents and campsite stewards.",
+    "Do NOT invent technical facts absent from the source. Mark gaps as TBC or Needs verification.",
+    "If the source is very thin, still produce a sensible skeleton with TBC placeholders.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const result = await chatJSON(system, rawText);
+    const markdown = String(result.markdown || "").trim();
+    if (!markdown) return null;
+    return {
+      title: String(result.title || "Untitled documentation").slice(0, 80),
+      area: AREAS.includes(result.area) ? result.area : "Other",
+      summary: String(result.summary || "").slice(0, 300),
+      markdown,
+    };
+  } catch (err) {
+    console.error("structureDocumentation failed:", err.message);
+    return null;
+  }
+}
+
 async function transcribeAudio(buf, filename) {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set.");
 
+  const uploadName = normalizeTranscriptionFilename(filename);
   const form = new FormData();
-  form.append("file", new Blob([buf]), filename);
+  form.append("file", new Blob([buf]), uploadName);
   form.append("model", TRANSCRIBE_MODEL);
 
   const res = await fetch(`${OPENAI_BASE}/audio/transcriptions`, {
@@ -391,6 +457,7 @@ module.exports = {
   answerFromData,
   composeRecap,
   summarizeImportantChat,
+  structureDocumentation,
   transcribeAudio,
   AREAS,
   EVENT_TYPES,

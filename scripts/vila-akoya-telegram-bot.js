@@ -8,6 +8,7 @@
  * ── What it does ──────────────────────────────────────────────────────────
  * Telegram -> monday.com
  *   - Listens to all messages in the Jobs group (+ DMs).
+ *   - Voice notes in the group are transcribed; documentation dumps become structured monday workdocs.
  *   - Tagged @bot, reply-to-bot, or private DM: text, photos, and voice notes.
  *   - Every group message is classified by AI → monday.com actions (events, tasks, completions, cancellations) or questions.
  *   - Tagged @bot or reply-to-bot: always get a response.
@@ -16,7 +17,7 @@
  *
  * Requires (for smart features): OPENAI_API_KEY, and a docs index built
  * with `node scripts/index-vila-akoya-docs.js`.
- * Voice notes (tagged/DM only) use OPENAI_TRANSCRIBE_MODEL (default gpt-4o-mini-transcribe).
+ * Voice notes use OPENAI_TRANSCRIBE_MODEL (default gpt-4o-mini-transcribe).
  *
  * monday.com -> Telegram (posted to one group chat)
  *   - New tasks, completions, assignments on watched boards.
@@ -83,6 +84,9 @@ const MAINTENANCE_BOARD_NAME =
   process.env.MAINTENANCE_BOARD_NAME || "20 — Maintenance & Infrastructure";
 const DECISIONS_BOARD_NAME =
   process.env.DECISIONS_BOARD_NAME || "90 — Decisions & Proposals";
+const DOCS_BOARD_NAME =
+  process.env.DOCS_BOARD_NAME || "50 — Documentation Register";
+const MONDAY_WORKSPACE_ID = process.env.MONDAY_WORKSPACE_ID || 6923231;
 
 const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE !== "false";
 const AMBIENT_MIN_CONFIDENCE = Number(process.env.AMBIENT_MIN_CONFIDENCE || 0.7);
@@ -125,6 +129,7 @@ const RECAP_IMPORTANT_KINDS = new Set([
   "event_cancelled",
   "decision_logged",
   "announcement",
+  "doc_logged",
 ]);
 
 let botMe = null;
@@ -308,6 +313,20 @@ function bufferMessage(message) {
   recentMessages.set(chatId, buf);
 }
 
+function bufferTranscribedText(message, text) {
+  const chatId = message.chat?.id;
+  if (!chatId || !text) return;
+  const buf = recentMessages.get(chatId) || [];
+  buf.push({
+    messageId: message.message_id,
+    text,
+    from: message.from,
+    ts: Date.now(),
+  });
+  while (buf.length > 20) buf.shift();
+  recentMessages.set(chatId, buf);
+}
+
 function isMentioned(message, bot) {
   if (!bot?.username) return false;
   const entities = message.entities || message.caption_entities || [];
@@ -385,11 +404,11 @@ function markCaptured(key) {
   saveState();
 }
 
-function recordGroupMessage(message) {
+function recordGroupMessage(message, textOverride) {
   if (!isTaskGroupMessage(message)) return;
   const from = message.from;
   if (from?.is_bot) return;
-  const text = (message.text || message.caption || "").trim();
+  const text = String(textOverride ?? (message.text || message.caption || "")).trim();
   if (!text || text.startsWith("/")) return;
 
   if (!state.chatLog) state.chatLog = [];
@@ -477,6 +496,9 @@ function formatChatActivityHighlight(item) {
   }
   if (item.kind === "task_logged") {
     return `${who} logged task: ${item.title}`;
+  }
+  if (item.kind === "doc_logged") {
+    return `${who} drafted documentation: ${item.title}`;
   }
   return null;
 }
@@ -716,10 +738,297 @@ async function downloadTelegramPhoto(fileId) {
   };
 }
 
+async function transcribeMessageVoice(message, { interactive = false } = {}) {
+  const voiceFileId = getVoiceFileId(message);
+  if (!voiceFileId) return null;
+
+  const chatId = message.chat.id;
+
+  if (!openaiLib.isEnabled()) {
+    if (interactive) {
+      await sendMessage(
+        chatId,
+        "Voice notes need OPENAI_API_KEY configured. You can type your message instead."
+      );
+    }
+    return "";
+  }
+
+  if (interactive) {
+    await telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
+  }
+
+  try {
+    const text = await transcribeVoiceFile(voiceFileId);
+    if (!text) {
+      if (interactive) {
+        await sendMessage(chatId, "I couldn't make out any speech in that voice note.");
+      }
+      return "";
+    }
+    log(`Voice transcribed for ${senderHandle(message.from)}: ${text.slice(0, 120)}`);
+    if (isTaskGroupMessage(message)) {
+      recordGroupMessage(message, text);
+      bufferTranscribedText(message, text);
+    }
+    return text;
+  } catch (err) {
+    log("transcribeVoiceFile error:", err.message);
+    if (interactive) {
+      await sendMessage(chatId, "Sorry, I couldn't transcribe that voice note. Try typing instead.");
+    }
+    return "";
+  }
+}
+
 async function transcribeVoiceFile(fileId) {
   const { buf, filename } = await downloadTelegramFile(fileId);
-  const safeName = /\.[a-z0-9]+$/i.test(filename) ? filename : `${filename}.ogg`;
-  return openaiLib.transcribeAudio(buf, safeName);
+  return openaiLib.transcribeAudio(buf, filename);
+}
+
+// ── Monday workdocs (documentation) ───────────────────────────────────────────
+const DOC_FOLDER_BY_AREA = {
+  Water: "Water",
+  "Compost & toilets": "Compost & toilets",
+  "Solar / electric": "Solar / electric",
+  "Buildings / structures": "Buildings / structures",
+  "Tools / workshop": "Tools / workshop",
+  "Land / roads / drainage": "Land / roads / drainage",
+  "Campsite / guest": "Campsite / guest",
+  Garden: "Garden",
+  "Community / events": "Community / events",
+  "Safety & emergency": "Safety & emergency",
+  "Admin / money": "Admin / money",
+  Other: "Admin / money",
+};
+
+const DOC_REGISTER_GROUP_BY_AREA = {
+  Water: "Infrastructure docs",
+  "Compost & toilets": "Infrastructure docs",
+  "Solar / electric": "Infrastructure docs",
+  "Buildings / structures": "Infrastructure docs",
+  "Tools / workshop": "Infrastructure docs",
+  "Land / roads / drainage": "Infrastructure docs",
+  Garden: "Infrastructure docs",
+  "Campsite / guest": "Guest / campsite docs",
+  "Community / events": "Community agreements",
+  "Admin / money": "Community agreements",
+  Other: "Drafts",
+};
+
+let docFolderCache = { loadedAt: 0, byName: new Map() };
+
+function markdownToHtml(markdown) {
+  const inline = (s) =>
+    String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/`(.+?)`/g, "<code>$1</code>");
+
+  const lines = String(markdown).split(/\r?\n/);
+  const out = [];
+  let inUl = false;
+  let inOl = false;
+
+  const closeLists = () => {
+    if (inUl) {
+      out.push("</ul>");
+      inUl = false;
+    }
+    if (inOl) {
+      out.push("</ol>");
+      inOl = false;
+    }
+  };
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (!line.trim()) {
+      closeLists();
+      continue;
+    }
+    if (line.startsWith("### ")) {
+      closeLists();
+      out.push(`<h3>${inline(line.slice(4))}</h3>`);
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      closeLists();
+      out.push(`<h2>${inline(line.slice(3))}</h2>`);
+      continue;
+    }
+    if (line.startsWith("# ")) {
+      closeLists();
+      out.push(`<h1>${inline(line.slice(2))}</h1>`);
+      continue;
+    }
+    if (/^[-*] /.test(line)) {
+      if (!inUl) {
+        closeLists();
+        out.push("<ul>");
+        inUl = true;
+      }
+      out.push(`<li>${inline(line.replace(/^[-*] /, ""))}</li>`);
+      continue;
+    }
+    if (/^\d+\. /.test(line)) {
+      if (!inOl) {
+        closeLists();
+        out.push("<ol>");
+        inOl = true;
+      }
+      out.push(`<li>${inline(line.replace(/^\d+\. /, ""))}</li>`);
+      continue;
+    }
+    closeLists();
+    out.push(`<p>${inline(line)}</p>`);
+  }
+  closeLists();
+  return out.join("\n");
+}
+
+async function loadDocFolders() {
+  const now = Date.now();
+  if (now - docFolderCache.loadedAt < 3600000 && docFolderCache.byName.size) {
+    return docFolderCache.byName;
+  }
+
+  const data = await monday(
+    `
+      query ($workspaceIds: [ID!]) {
+        folders(workspace_ids: $workspaceIds, limit: 100) {
+          id
+          name
+          parent { id }
+        }
+      }
+    `,
+    { workspaceIds: [String(MONDAY_WORKSPACE_ID)] }
+  );
+
+  const byName = new Map();
+  const folders = data.folders || [];
+  const parent = folders.find(
+    (f) => f.name === "📚 Documentation" && !f.parent?.id
+  );
+  if (parent) {
+    for (const folder of folders) {
+      if (folder.parent?.id === parent.id) {
+        byName.set(folder.name, folder.id);
+      }
+    }
+  }
+  docFolderCache = { loadedAt: now, byName };
+  return byName;
+}
+
+async function resolveDocFolderId(area) {
+  const folders = await loadDocFolders();
+  const folderName = DOC_FOLDER_BY_AREA[area] || DOC_FOLDER_BY_AREA.Other;
+  return folders.get(folderName) || null;
+}
+
+async function createWorkdocFromMarkdown({ title, markdown, folderId }) {
+  const html = markdownToHtml(markdown);
+  const variables = {
+    workspaceId: String(MONDAY_WORKSPACE_ID),
+    title: String(title).slice(0, 200),
+    html,
+  };
+  if (folderId) variables.folderId = String(folderId);
+
+  const imported = await monday(
+    `
+      mutation ($workspaceId: ID!, $title: String!, $folderId: ID, $html: String!) {
+        import_doc_from_html(
+          workspaceId: $workspaceId
+          title: $title
+          folderId: $folderId
+          kind: public
+          html: $html
+        ) {
+          success
+          doc_id
+          error
+        }
+      }
+    `,
+    variables
+  );
+
+  const result = imported.import_doc_from_html;
+  if (!result?.success || !result.doc_id) {
+    throw new Error(result?.error || "import_doc_from_html failed");
+  }
+
+  const docData = await monday(
+    `
+      query ($ids: [ID!]) {
+        docs(ids: $ids) { id name url object_id }
+      }
+    `,
+    { ids: [String(result.doc_id)] }
+  );
+
+  const doc = docData.docs?.[0];
+  return {
+    id: result.doc_id,
+    url: doc?.url || null,
+    name: doc?.name || title,
+  };
+}
+
+async function createDocumentation({ rawText, from, chatId, sourceText }) {
+  const structured = await openaiLib.structureDocumentation(rawText, {
+    proposer: senderDisplayName(from),
+    todayISO: todayISO(),
+  });
+  if (!structured?.markdown) {
+    throw new Error("Could not structure documentation from that message");
+  }
+
+  const folderId = await resolveDocFolderId(structured.area);
+  const doc = await createWorkdocFromMarkdown({
+    title: structured.title,
+    markdown: structured.markdown,
+    folderId,
+  });
+
+  const board = await resolveBoard(DOCS_BOARD_NAME);
+  const values = {};
+  const statusCol = columnId(board, "Doc status", "status");
+  if (statusCol) values[statusCol] = { label: "Draft" };
+  const areaCol = columnId(board, "Area", "status");
+  if (areaCol) values[areaCol] = { label: structured.area };
+  const linkCol = columnId(board, "Linked workdoc", "link");
+  if (linkCol && doc.url) {
+    values[linkCol] = { url: doc.url, text: structured.title };
+  }
+  const notesCol = columnId(board, "Notes", "long_text");
+  if (notesCol) {
+    values[notesCol] = {
+      text:
+        `${structured.summary}\n\n` +
+        `Captured from Telegram: ${senderDisplayName(from)} (${senderHandle(from)})\n` +
+        `Chat: ${chatId}\n\n` +
+        `Original notes:\n${String(sourceText || rawText).slice(0, 800)}`,
+    };
+  }
+
+  const register = await createBoardItem({
+    boardName: DOCS_BOARD_NAME,
+    groupTitle: DOC_REGISTER_GROUP_BY_AREA[structured.area] || "Drafts",
+    itemName: structured.title,
+    columnValues: values,
+    from,
+    chatId,
+    sourceText: null,
+  });
+
+  return { doc, register, structured };
 }
 
 async function uploadFileToColumn(boardId, itemId, columnId, buf, filename) {
@@ -1641,8 +1950,8 @@ const HELP_TEXT = [
   "<b>Vila Akoya bot</b>",
   "",
   "Tag me (@bot), reply to me, or DM me for questions, schedule info, tasks and events.",
-  "You can send a voice note when talking directly to me (not picked up from ambient group chat).",
-  "In the group I also watch text chat and log events, tasks, completions and cancellations on monday — I'll confirm when I act.",
+  "Voice notes in the group are picked up automatically — explain how something works to create a structured doc.",
+  "In the group I also watch text chat and log events, tasks, docs, completions and cancellations on monday — I'll confirm when I act.",
   "",
   "<b>Commands</b>",
   "/task &lt;text&gt; — add a task",
@@ -1723,6 +2032,41 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
     return true;
   }
   return false;
+}
+
+async function captureAmbientDocumentation({ text, from, chatId, interactive }) {
+  const key = ambientDedupeKey(chatId, "doc", text.slice(0, 80));
+  if (wasRecentlyCaptured(key)) return true;
+  try {
+    await telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
+    const { doc, structured, register } = await createDocumentation({
+      rawText: text,
+      from,
+      chatId,
+      sourceText: text,
+    });
+    markCaptured(key);
+    recordChatActivity({
+      kind: "doc_logged",
+      from,
+      chatId,
+      title: structured.title,
+      text,
+    });
+    let reply = `📝 Documentation draft: <b>${escapeHtml(structured.title)}</b>`;
+    if (doc.url) reply += `\n<a href="${doc.url}">Open workdoc</a>`;
+    if (register?.url) reply += ` · <a href="${register.url}">Register</a>`;
+    reply += `\n<i>Draft — ready for steward review.</i>`;
+    await sendMessage(chatId, reply);
+    log(`Documentation created: ${structured.title}`);
+    return true;
+  } catch (err) {
+    log("captureAmbientDocumentation error:", err.message);
+    if (interactive) {
+      await sendMessage(chatId, "Sorry, I couldn't create that documentation draft.");
+    }
+    return false;
+  }
 }
 
 async function captureAmbientTask({ classified, text, from, chatId, photoFileId }) {
@@ -1831,6 +2175,15 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     return;
   }
 
+  // Documentation drafts (voice brain dumps → structured workdoc)
+  if (c.is_documentation && text && conf >= AMBIENT_MIN_CONFIDENCE) {
+    const ok = await captureAmbientDocumentation({ text, from, chatId, interactive });
+    if (!ok && interactive) {
+      await sendMessage(chatId, "Sorry, I could not create that documentation.");
+    }
+    return;
+  }
+
   // Mark task complete
   if (c.is_complete && c.target && conf >= AMBIENT_MIN_CONFIDENCE) {
     try {
@@ -1928,7 +2281,6 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
 async function routeAddressedMessage(message) {
   const chatId = message.chat.id;
   const from = message.from;
-  const voiceFileId = getVoiceFileId(message);
   const photoFileId =
     message.photo && message.photo.length
       ? message.photo[message.photo.length - 1].file_id
@@ -1936,29 +2288,10 @@ async function routeAddressedMessage(message) {
 
   let text = stripBotMention((message.text || message.caption || "").trim(), botMe);
 
-  if (!text && voiceFileId) {
-    if (!openaiLib.isEnabled()) {
-      await sendMessage(
-        chatId,
-        "Voice notes need OPENAI_API_KEY configured. You can type your message instead."
-      );
-      return;
-    }
-    await telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
-    try {
-      text = await transcribeVoiceFile(voiceFileId);
-      if (!text) {
-        await sendMessage(chatId, "I couldn't make out any speech in that voice note.");
-        return;
-      }
-      log(`Voice transcribed for ${senderHandle(from)}: ${text.slice(0, 120)}`);
-    } catch (err) {
-      log("transcribeVoiceFile error:", err.message);
-      await sendMessage(chatId, "Sorry, I couldn't transcribe that voice note. Try typing instead.");
-      return;
-    }
-  } else if (!text) {
-    text = addressedText(message, botMe);
+  if (!text) {
+    const voiceText = await transcribeMessageVoice(message, { interactive: true });
+    if (voiceText !== null) text = voiceText;
+    else text = addressedText(message, botMe);
   }
 
   if (!text && !photoFileId) {
@@ -2223,14 +2556,20 @@ async function handleAmbientMessage(message) {
   const from = message.from;
   if (from?.is_bot) return;
 
-  const text = (message.text || message.caption || "").trim();
+  const voiceFileId = getVoiceFileId(message);
+  let text = (message.text || message.caption || "").trim();
   const photoFileId =
     message.photo && message.photo.length
       ? message.photo[message.photo.length - 1].file_id
       : null;
 
+  if (!text && voiceFileId) {
+    text = (await transcribeMessageVoice(message, { interactive: false })) || "";
+    if (!text) return;
+  }
+
   if (!text && !photoFileId) return;
-  if (text.length < AMBIENT_MIN_TEXT_LEN && !photoFileId) return;
+  if (text.length < AMBIENT_MIN_TEXT_LEN && !photoFileId && !voiceFileId) return;
 
   const classified = text ? await classifyUserMessage(text, chatId) : null;
   await routeByAiClassification({

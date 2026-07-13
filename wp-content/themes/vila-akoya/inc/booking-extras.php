@@ -376,6 +376,47 @@ function vila_akoya_add_guest_breakdown_cart_item_data( $cart_item_data, $produc
 add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_guest_breakdown_cart_item_data', 31, 3 );
 
 /**
+ * Sanitize optional guest notes from the booking form.
+ *
+ * @param string $raw Raw notes.
+ * @return string
+ */
+function vila_akoya_sanitize_booking_notes( $raw ) {
+	$notes = sanitize_textarea_field( (string) $raw );
+	if ( strlen( $notes ) > 2000 ) {
+		$notes = substr( $notes, 0, 2000 );
+	}
+	return trim( $notes );
+}
+
+/**
+ * Persist guest notes on the campsite cart line (MWB add-to-cart).
+ *
+ * @param array<string, mixed> $cart_item_data Cart item data.
+ * @param int                  $product_id     Product ID.
+ * @param int                  $variation_id   Variation ID.
+ * @return array<string, mixed>
+ */
+function vila_akoya_add_booking_notes_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
+	unset( $variation_id );
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+		return $cart_item_data;
+	}
+	if ( ! isset( $_POST['_mwb_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( vila_akoya_scalar_request_string( $_POST['_mwb_nonce'] ) ) ), 'mwb_booking_frontend' ) ) {
+		return $cart_item_data;
+	}
+	if ( ! isset( $_POST['vila_cb_booking_notes'] ) ) {
+		return $cart_item_data;
+	}
+	$notes = vila_akoya_sanitize_booking_notes( wp_unslash( vila_akoya_scalar_request_string( $_POST['vila_cb_booking_notes'] ) ) );
+	if ( '' !== $notes ) {
+		$cart_item_data['vila_cb_booking_notes'] = $notes;
+	}
+	return $cart_item_data;
+}
+add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_booking_notes_cart_item_data', 32, 3 );
+
+/**
  * Validate guest breakdown vs MWB min/max people (capacity counts adults + children + infants; pets separate).
  *
  * @param bool $passed     Whether validation passed.
@@ -442,7 +483,7 @@ add_filter( 'woocommerce_add_to_cart_validation', 'vila_akoya_validate_guest_bre
  */
 function vila_akoya_get_cart_item_from_session_vehicle( $cart_item, $values, $cart_item_key ) {
 	unset( $cart_item_key );
-	foreach ( array( 'vila_vehicle_types', 'vila_vehicle_type', 'vila_booking_nights', 'vila_guest_children', 'vila_guest_infants', 'vila_guest_pets' ) as $key ) {
+	foreach ( array( 'vila_vehicle_types', 'vila_vehicle_type', 'vila_booking_nights', 'vila_guest_children', 'vila_guest_infants', 'vila_guest_pets', 'vila_cb_booking_notes' ) as $key ) {
 		if ( isset( $values[ $key ] ) ) {
 			$cart_item[ $key ] = $values[ $key ];
 		}
@@ -636,6 +677,36 @@ function vila_akoya_checkout_save_guest_breakdown_meta( $item, $cart_key, $value
 add_action( 'woocommerce_checkout_create_order_line_item', 'vila_akoya_checkout_save_guest_breakdown_meta', 16, 4 );
 
 /**
+ * Persist guest notes on the order line (admin only; hidden from customer views).
+ *
+ * @param mixed  $item      Order item.
+ * @param string $cart_key  Cart key.
+ * @param array  $values    Cart line values.
+ * @param mixed  $order     Order.
+ */
+function vila_akoya_checkout_save_booking_notes_meta( $item, $cart_key, $values, $order ) {
+	unset( $order );
+	if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_product_id' ) ) ) {
+		return;
+	}
+	if ( ! vila_akoya_is_campsite_product_id( (int) $item->get_product_id() ) ) {
+		return;
+	}
+	$merged = is_array( $values ) ? $values : array();
+	if ( function_exists( 'WC' ) && WC()->cart && ! WC()->cart->is_empty() && is_string( $cart_key ) ) {
+		$cart = WC()->cart->get_cart();
+		if ( isset( $cart[ $cart_key ] ) && is_array( $cart[ $cart_key ] ) ) {
+			$merged = array_merge( $cart[ $cart_key ], $merged );
+		}
+	}
+	$notes = isset( $merged['vila_cb_booking_notes'] ) ? vila_akoya_sanitize_booking_notes( (string) $merged['vila_cb_booking_notes'] ) : '';
+	if ( '' !== $notes ) {
+		$item->add_meta_data( '_vila_cb_booking_notes', $notes, true );
+	}
+}
+add_action( 'woocommerce_checkout_create_order_line_item', 'vila_akoya_checkout_save_booking_notes_meta', 17, 4 );
+
+/**
  * Whether to show the legacy “Plot 1 / Plot 2 …” radios (one WC product per pitch).
  *
  * Pitches are assigned automatically from the shared pool; the plot picker stays off unless a site explicitly enables it.
@@ -747,7 +818,34 @@ function vila_akoya_render_plot_dropdown( $product_id ) {
 	</div>
 	<?php
 }
-add_action( 'mwb_booking_after_add_to_cart_form', 'vila_akoya_render_plot_dropdown', 5 );
+
+/**
+ * Optional notes field — guests can mention preferences (e.g. a plot number); pitch is auto-assigned in the backend.
+ *
+ * @param int $product_id Product ID.
+ */
+function vila_akoya_render_booking_notes_field( $product_id ) {
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+		return;
+	}
+	?>
+	<div class="vila-booking-notes-wrap vila-airbnb-booking mb-8">
+		<label for="vila-cb-booking-notes" class="vila-airbnb-booking__legend mb-2 block">
+			<?php esc_html_e( 'Notes', 'vila-akoya' ); ?>
+			<span class="font-body normal-case tracking-normal text-on-surface-variant font-normal"><?php esc_html_e( '(optional)', 'vila-akoya' ); ?></span>
+		</label>
+		<textarea
+			id="vila-cb-booking-notes"
+			name="vila_cb_booking_notes"
+			class="vila-booking-notes"
+			rows="3"
+			maxlength="2000"
+			placeholder="<?php echo esc_attr__( 'Anything we should know? You can mention a preferred plot number or special requests.', 'vila-akoya' ); ?>"
+		></textarea>
+	</div>
+	<?php
+}
+add_action( 'mwb_booking_after_add_to_cart_form', 'vila_akoya_render_booking_notes_field', 20 );
 
 /**
  * Render pitch / vehicle radios on the campsite booking product (MWB template).
@@ -1056,54 +1154,6 @@ function vila_akoya_enqueue_booking_ui_script() {
 		}
 	}
 
-	$vila_cb_plots = array();
-	if ( $vila_cb && class_exists( '\Vila_CB\Plot_Repository' ) ) {
-		$plot_repo = new \Vila_CB\Plot_Repository();
-		foreach ( $plot_repo->get_bookable() as $prow ) {
-			$vila_cb_plots[] = array(
-				'id'    => (int) $prow['id'],
-				'label' => (string) $prow['label'],
-			);
-		}
-	}
-
-	$map_hotspot_defaults = array(
-		array(
-			'x' => 61.9,
-			'y' => 64.2,
-		),
-		array(
-			'x' => 68.7,
-			'y' => 63.7,
-		),
-		array(
-			'x' => 75.7,
-			'y' => 64.2,
-		),
-		array(
-			'x' => 82.2,
-			'y' => 65.6,
-		),
-		array(
-			'x' => 88.6,
-			'y' => 66.4,
-		),
-	);
-	$map_hotspots = array();
-	foreach ( $vila_cb_plots as $i => $plot ) {
-		$coords = isset( $map_hotspot_defaults[ $i ] ) ? $map_hotspot_defaults[ $i ] : array(
-			'x' => 50,
-			'y' => 50,
-		);
-		$map_hotspots[] = array(
-			'id'    => (int) $plot['id'],
-			'label' => (string) $plot['label'],
-			'x'     => (float) $coords['x'],
-			'y'     => (float) $coords['y'],
-		);
-	}
-	$map_hotspots = apply_filters( 'vila_akoya_campsite_map_hotspots', $map_hotspots, $vila_cb_plots );
-
 	wp_localize_script(
 		'vila-akoya-booking-ui',
 		'vilaAkoyaBooking',
@@ -1113,12 +1163,9 @@ function vila_akoya_enqueue_booking_ui_script() {
 			'plotUnavailableYmd'         => $plot_unavail,
 			'useSharedCampsiteInventory' => $use_vila_pool_calendar,
 			'vilaCbAvailabilityRestUrl'  => $use_vila_pool_calendar ? esc_url_raw( rest_url( 'vila-campsite-booking/v1/availability' ) ) : '',
-			'vilaCbPlots'               => $vila_cb_plots,
-			'mapPlotHotspots'           => $map_hotspots,
 			'strings'                   => array(
 				'stayDates'               => __( 'Your dates', 'vila-akoya' ),
 				'rangeUnavailable'        => __( 'No pitch is free for this full stay on those dates. Choose different check-in and check-out — some nights can look available when each pitch is booked on different nights.', 'vila-akoya' ),
-				'plotUnavailable'         => __( 'This pitch is not available for your selected dates. Try a different pitch or choose different dates.', 'vila-akoya' ),
 				'placeholder'             => __( 'Check-in — Check-out', 'vila-akoya' ),
 				'guestCountAffectsRate'   => __( 'The amount above reflects adults at the per-guest nightly rate. Extra categories add supplements at checkout.', 'vila-akoya' ),
 			),

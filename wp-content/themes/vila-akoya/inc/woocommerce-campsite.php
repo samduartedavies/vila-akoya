@@ -526,7 +526,7 @@ add_filter( 'woocommerce_product_tabs', 'vila_akoya_campsite_remove_reviews_tab'
  * Output product title as H2 when embedded on the Booking page.
  */
 function vila_akoya_embedded_product_title() {
-	the_title( '<h2 class="product_title entry-title">', '</h2>' );
+	echo '<h2 class="product_title entry-title">' . esc_html__( 'Book your stay', 'vila-akoya' ) . '</h2>';
 }
 
 /**

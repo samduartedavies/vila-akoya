@@ -25,7 +25,7 @@ class Vila_Akoya_Email_Campsite_Booking extends WC_Email {
 		$this->id             = 'vila_campsite_booking';
 		$this->customer_email = true;
 		$this->title          = __( 'Campsite booking confirmation', 'vila-akoya' );
-		$this->description    = __( 'Sent to the customer when a campsite stay is booked and paid. Includes plot, dates, guests, extras, and order totals.', 'vila-akoya' );
+		$this->description    = __( 'Sent to the customer when a campsite stay is booked and paid. Includes dates, guests, extras, and order totals.', 'vila-akoya' );
 		$this->template_html  = 'emails/vila-campsite-booking.php';
 		$this->template_plain = 'emails/plain/vila-campsite-booking.php';
 		$this->template_base  = VILA_AKOYA_DIR . '/woocommerce/';
