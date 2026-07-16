@@ -30,17 +30,17 @@
         {
           "fontFamily": "\"Josefin Sans\", system-ui, sans-serif",
           "slug": "body",
-          "name": "Body"
+          "name": "Body (copy)"
         },
         {
           "fontFamily": "Marcellus, Georgia, serif",
           "slug": "headline",
-          "name": "Headline"
+          "name": "Headline (H2–H3)"
         },
         {
           "fontFamily": "Barrio, system-ui, sans-serif",
           "slug": "barrio",
-          "name": "Barrio"
+          "name": "Brand (H1)"
         }
       ],
       "fontSizes": [

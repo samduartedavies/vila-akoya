@@ -28,6 +28,7 @@ fi
 wp plugin install woocommerce --activate
 wp plugin install woocommerce-gateway-stripe --activate
 wp plugin install contact-form-7 --activate
+wp plugin install secure-custom-fields --activate
 wp plugin install autodescription --activate
 wp plugin install ultimate-addons-for-gutenberg --activate
 wp plugin install mwb-bookings-for-woocommerce --activate

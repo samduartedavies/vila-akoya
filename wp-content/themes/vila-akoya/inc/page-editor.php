@@ -173,6 +173,20 @@ add_action( 'rest_after_insert_page', 'vila_akoya_seed_new_page_content', 10, 3 
  * @return array<string, mixed>
  */
 function vila_akoya_sanitize_page_editor_content( $data, $postarr ) {
+	$post_id = ! empty( $postarr['ID'] ) ? (int) $postarr['ID'] : 0;
+	$content = isset( $data['post_content'] ) ? (string) $data['post_content'] : '';
+	// Visual Vila Section blocks are the page content — never replace them with defaults.
+	if ( ! empty( $data['post_type'] ) && 'page' === $data['post_type'] && str_contains( $content, '<!-- wp:acf/vila-' ) ) {
+		return $data;
+	}
+	if ( ! empty( $data['post_type'] ) && 'page' === $data['post_type'] && $post_id > 0 && function_exists( 'vila_akoya_page_has_sections' ) && vila_akoya_page_has_sections( $post_id ) && ! str_contains( $content, '<!-- wp:acf/vila-' ) ) {
+		// Legacy Flexible Content pages keep empty block content.
+		if ( empty( $content ) || vila_akoya_page_content_needs_default( $content ) ) {
+			$data['post_content'] = '';
+		}
+		return $data;
+	}
+
 	unset( $postarr );
 	if ( empty( $data['post_type'] ) || 'page' !== $data['post_type'] ) {
 		return $data;
@@ -267,6 +281,71 @@ function vila_akoya_serialize_filtered_page_blocks( array $blocks ) {
 	}
 	return implode( "\n\n", $parts );
 }
+
+/**
+ * Whether the Site Editor is open on the Front Page template (not the Home page).
+ *
+ * @return bool
+ */
+function vila_akoya_is_site_editor_front_page_template() {
+	global $pagenow;
+	if ( 'site-editor.php' !== $pagenow ) {
+		return false;
+	}
+
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$path = isset( $_GET['path'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['path'] ) ) : '';
+	if ( str_contains( $path, 'front-page' ) ) {
+		return true;
+	}
+
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$post_id = isset( $_GET['postId'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['postId'] ) ) : '';
+	if ( str_contains( $post_id, 'front-page' ) ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Send editors to Pages → Home instead of the Front Page template.
+ *
+ * The template only wraps header/footer around post content. Brochure copy and
+ * images live on the page (or in Page Sections), so editing the template shows
+ * shortcodes and a broken post-content block by design.
+ */
+function vila_akoya_redirect_front_page_template_editor() {
+	if ( ! is_admin() || ! vila_akoya_is_site_editor_front_page_template() ) {
+		return;
+	}
+
+	$home_id = (int) get_option( 'page_on_front' );
+	if ( $home_id <= 0 || ! current_user_can( 'edit_page', $home_id ) ) {
+		return;
+	}
+
+	wp_safe_redirect( admin_url( 'post.php?post=' . $home_id . '&action=edit' ) );
+	exit;
+}
+add_action( 'admin_init', 'vila_akoya_redirect_front_page_template_editor', 1 );
+
+/**
+ * Front page "Edit" links should open the page editor, not the site template.
+ *
+ * @param string  $link    Edit link.
+ * @param int     $post_id Post ID.
+ * @param string  $context Link context.
+ * @return string
+ */
+function vila_akoya_front_page_edit_link( $link, $post_id, $context ) {
+	unset( $context );
+	if ( $post_id > 0 && 'page' === get_post_type( $post_id ) && (int) get_option( 'page_on_front' ) === (int) $post_id ) {
+		return admin_url( 'post.php?post=' . (int) $post_id . '&action=edit' );
+	}
+	return $link;
+}
+add_filter( 'get_edit_post_link', 'vila_akoya_front_page_edit_link', 10, 3 );
 
 /**
  * Page editor: content only (no header/footer template preview).

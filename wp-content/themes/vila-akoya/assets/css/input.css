@@ -5,6 +5,16 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Defaults match theme.json presets. Appearance → Editor → Styles overrides these
+   * via inline --vila-font-* from inc/typography.php (Text → body, H2 → headline, H1 → barrio).
+   */
+  :root {
+    --vila-font-body: var(--wp--preset--font-family--body, "Josefin Sans", system-ui, sans-serif);
+    --vila-font-headline: var(--wp--preset--font-family--headline, Marcellus, Georgia, serif);
+    --vila-font-barrio: var(--wp--preset--font-family--barrio, Barrio, system-ui, sans-serif);
+  }
+
   body {
     @apply font-body antialiased bg-surface text-on-surface;
   }
@@ -267,7 +277,7 @@
     margin-right: auto;
   }
 
-  /* Brochure thank-you / booking — italic accent on Josefin Sans */
+  /* Brochure thank-you / booking — italic accent on body font */
   .font-serif-italic {
     font-family: inherit;
     font-style: italic;
@@ -335,9 +345,52 @@
   .vila-page-inner .aspect-\[3\/2\] figure.wp-block-image,
   .vila-page-inner .aspect-\[4\/5\] figure.wp-block-image,
   .vila-page-inner .aspect-square figure.wp-block-image,
-  .vila-page-inner [class*="aspect-"] figure.wp-block-image {
+  .vila-page-inner [class*="aspect-"] figure.wp-block-image,
+  .vila-home [class*="aspect-"] figure.wp-block-image {
     min-height: 0;
     align-self: stretch;
+  }
+
+  /*
+   * When aspect-ratio lives on a parent wrapper (page heroes, circular frames),
+   * the figure must fill that box — otherwise landscape photos leave empty space.
+   */
+  .vila-page-inner [class*="aspect-"]:has(> figure.wp-block-image),
+  .vila-home [class*="aspect-"]:has(> figure.wp-block-image),
+  .vila-page-inner [class*="aspect-"]:has(> .wp-block-image),
+  .va-cover-hero {
+    position: relative;
+  }
+
+  .vila-page-inner [class*="aspect-"] > figure.wp-block-image,
+  .vila-home [class*="aspect-"] > figure.wp-block-image,
+  .vila-page-inner [class*="aspect-"] > .wp-block-image {
+    position: absolute !important;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Fixed-height image frames (e.g. campsite river card h-48) */
+  .vila-page-inner .h-48:has(> figure.wp-block-image),
+  .campsite-brochure-section .h-48:has(> figure.wp-block-image) {
+    position: relative;
+  }
+
+  .vila-page-inner .h-48 > figure.wp-block-image,
+  .campsite-brochure-section .h-48 > figure.wp-block-image {
+    position: absolute !important;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+  }
+
+  .va-cover-hero__image {
+    object-fit: cover;
+    object-position: center;
   }
 
   .vila-home .wp-block-columns.vila-columns-stretch,
@@ -564,13 +617,17 @@
     margin: 0 !important;
   }
 
-  /* Left: content */
+  /* Left: content — explicit gaps so heading / body / button aren't stacked */
   .vila-page-inner .va-kids-cta__content {
-    @apply flex flex-col justify-center px-12 py-16 md:px-20 md:py-24;
+    @apply flex flex-col justify-center gap-8 md:gap-10 px-12 py-16 md:px-20 md:py-24;
+  }
+
+  .vila-page-inner .va-kids-cta__content > * {
+    margin: 0 !important;
   }
 
   .vila-page-inner .va-kids-cta__content p {
-    @apply mb-4;
+    margin: 0 !important;
   }
 
   .vila-page-inner .va-kids-cta .wp-block-button .wp-block-button__link {
@@ -634,23 +691,104 @@
     @apply mt-4 rounded-xl border-2 border-error/40 bg-error/5 px-5 py-4 text-sm text-on-surface;
   }
 
-  /* Success: hide every form row except the response message. */
-  .wpcf7.sent form.vila-cf7 > *:not(.wpcf7-response-output),
-  form.vila-cf7.vila-cf7--success > *:not(.wpcf7-response-output) {
+  /* Success: hide every form row / field — beat display:contents layout helpers. */
+  .wpcf7.sent form.vila-cf7 > *:not(.vila-cf7-success):not(.wpcf7-response-output),
+  form.vila-cf7.vila-cf7--success > *:not(.vila-cf7-success):not(.wpcf7-response-output),
+  .wpcf7.sent form.vila-cf7 p,
+  .wpcf7.sent form.vila-cf7 .grid,
+  .wpcf7.sent form.vila-cf7 label,
+  .wpcf7.sent form.vila-cf7 .wpcf7-form-control-wrap,
+  .wpcf7.sent form.vila-cf7 input,
+  .wpcf7.sent form.vila-cf7 textarea,
+  .wpcf7.sent form.vila-cf7 select,
+  .wpcf7.sent form.vila-cf7 .wpcf7-submit,
+  form.vila-cf7.vila-cf7--success p,
+  form.vila-cf7.vila-cf7--success .grid,
+  form.vila-cf7.vila-cf7--success label,
+  form.vila-cf7.vila-cf7--success .wpcf7-form-control-wrap,
+  form.vila-cf7.vila-cf7--success input,
+  form.vila-cf7.vila-cf7--success textarea,
+  form.vila-cf7.vila-cf7--success select,
+  form.vila-cf7.vila-cf7--success .wpcf7-submit {
     display: none !important;
   }
 
   .wpcf7.sent form.vila-cf7 .wpcf7-response-output,
   form.vila-cf7.vila-cf7--success .wpcf7-response-output {
-    display: block !important;
-    @apply w-full rounded-xl border-2 border-primary bg-surface/80 px-6 py-8 text-center text-base md:text-lg font-body leading-relaxed text-on-surface;
+    display: none !important;
   }
 
-  .va-home-digi-family .wpcf7.sent form.vila-cf7 .wpcf7-response-output,
-  .va-home-digi-family form.vila-cf7.vila-cf7--success .wpcf7-response-output,
-  .va-village-newsletter .wpcf7.sent form.vila-cf7 .wpcf7-response-output,
-  .va-village-newsletter form.vila-cf7.vila-cf7--success .wpcf7-response-output {
-    @apply border-on-primary bg-primary/20 text-on-primary;
+  /* Branded success panel */
+  .vila-cf7-success {
+    display: none;
+    width: 100%;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  .wpcf7.sent form.vila-cf7 .vila-cf7-success,
+  form.vila-cf7.vila-cf7--success .vila-cf7-success {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2rem 1.25rem;
+  }
+
+  .vila-cf7-success.is-visible {
+    animation: vila-cf7-success-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .vila-cf7-success__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 9999px;
+    background: rgb(var(--vila-rgb-primary) / 0.12);
+    color: rgb(var(--vila-rgb-primary) / 1);
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  .vila-cf7-success.is-visible .vila-cf7-success__icon {
+    animation: vila-cf7-success-icon 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s forwards;
+  }
+
+  .vila-cf7-success__icon .material-symbols-outlined {
+    font-size: 1.75rem;
+    line-height: 1;
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+  }
+
+  .vila-cf7-success__eyebrow {
+    @apply m-0 mt-2 font-label text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-primary;
+  }
+
+  .vila-cf7-success__title {
+    @apply m-0 font-headline text-[clamp(1.75rem,3vw,2.35rem)] font-normal leading-tight text-on-surface;
+  }
+
+  .vila-cf7-success__body {
+    @apply m-0 max-w-md font-body text-[1.05rem] font-light leading-relaxed text-on-surface-variant;
+  }
+
+  /* Home digi-family (dark primary panel): invert success colours */
+  .va-home-digi-family .vila-cf7-success__icon {
+    background: rgb(255 255 255 / 0.18);
+    color: rgb(var(--vila-rgb-on-primary) / 1);
+  }
+
+  .va-home-digi-family .vila-cf7-success__eyebrow,
+  .va-home-digi-family .vila-cf7-success__title,
+  .va-home-digi-family .vila-cf7-success__body {
+    color: rgb(var(--vila-rgb-on-primary) / 1);
+  }
+
+  .va-home-digi-family .vila-cf7-success__body {
+    opacity: 0.9;
   }
 
   /* Home newsletter tout: brochure-style pill field + cream CTA */
@@ -729,6 +867,138 @@
   .va-village-newsletter .wpcf7-form.vila-cf7--newsletter .newsletter-submit {
     @apply bg-primary text-on-primary;
     @apply hover:bg-primary-fixed-dim;
+  }
+
+  /* Village inquiry form (same fields as booking page village tab) */
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 {
+    @apply space-y-6;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 > p {
+    @apply m-0;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 > p + p {
+    @apply mt-6;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 p:has(> [class*='grid-cols']) {
+    display: contents;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7.vila-cf7--success p:has(> [class*='grid-cols']),
+  .wpcf7.sent .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 p:has(> [class*='grid-cols']) {
+    display: none !important;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .grid {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    gap: 1.5rem !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  @media (min-width: 768px) {
+    .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .grid[class*='md:grid-cols-2'] {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .grid > div {
+    min-width: 0 !important;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 label {
+    display: block !important;
+    width: 100% !important;
+    @apply font-label text-xs font-semibold uppercase tracking-[0.16em] text-on-surface-variant mb-2;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control-wrap {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    @apply mt-0 block;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 input[type='text'],
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 input[type='email'],
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 input[type='tel'],
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 input[type='url'] {
+    @apply w-full min-h-[3rem] rounded-full border border-outline-variant/35 bg-surface px-5 py-3 font-body text-base text-on-background shadow-none transition-all duration-300 ease-out;
+    @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/55 focus:bg-surface focus:outline-none focus:border-outline focus:ring-0;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 textarea {
+    @apply w-full min-h-[10rem] resize-y rounded-[1.5rem] border border-outline-variant/35 bg-surface px-5 py-4 font-body text-base text-on-background shadow-none transition-all duration-300 ease-out;
+    @apply placeholder:text-on-surface-variant/75 hover:bg-surface-container-high hover:border-outline-variant/55 focus:bg-surface focus:outline-none focus:border-outline focus:ring-0;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-text,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-email,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-tel {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 3rem !important;
+    border-radius: 9999px !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgb(var(--vila-rgb-outline-variant) / 0.35) !important;
+    background-color: rgb(var(--vila-rgb-surface) / 1) !important;
+    color: rgb(var(--vila-rgb-on-background) / 1) !important;
+    padding: 0.75rem 1.25rem !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+    box-shadow: none !important;
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-text:hover,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-email:hover,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea:hover,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-tel:hover {
+    border-color: rgb(var(--vila-rgb-outline-variant) / 0.55) !important;
+    background-color: rgb(var(--vila-rgb-surface-container-high) / 1) !important;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-text:focus,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-email:focus,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea:focus,
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-tel:focus {
+    border-color: rgb(var(--vila-rgb-outline) / 0.65) !important;
+    outline: none !important;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 .wpcf7-form-control.wpcf7-textarea {
+    min-height: 10rem !important;
+    border-radius: 1.5rem !important;
+    padding: 1rem 1.25rem !important;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 #village-inq-message {
+    min-height: 16rem !important;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card form.wpcf7-form.vila-cf7 input.wpcf7-submit {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    border-radius: 9999px !important;
+    background-color: rgb(var(--vila-rgb-primary) / 1) !important;
+    color: rgb(var(--vila-rgb-on-primary) / 1) !important;
+  }
+
+  .va-village-newsletter .va-village-inquiry-card .vila-cf7 .wpcf7-submit {
+    @apply mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-primary px-8 py-3.5 font-label text-sm font-semibold uppercase tracking-[0.11em] text-on-primary transition-all duration-300 ease-out;
+    @apply hover:bg-primary-container;
   }
 
   /* Inline layout for CF7 newsletter <p> (both home & village).
@@ -1066,6 +1336,73 @@
     position: relative;
   }
 
+  /* Map must show in full — do not crop with object-fit:cover / fixed figure height. */
+  body.vila-page-booking .va-booking-map-shell figure.vila-img-fill,
+  body.vila-page-booking .va-booking-map-shell figure.wp-block-image {
+    display: block !important;
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
+
+  body.vila-page-booking .va-booking-map-shell figure.vila-img-fill > a,
+  body.vila-page-booking .va-booking-map-shell figure.wp-block-image > a {
+    display: block !important;
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  body.vila-page-booking .va-booking-map-shell figure.vila-img-fill > img,
+  body.vila-page-booking .va-booking-map-shell figure.vila-img-fill > a img,
+  body.vila-page-booking .va-booking-map-shell figure.wp-block-image > img,
+  body.vila-page-booking .va-booking-map-shell figure.wp-block-image > a img,
+  body.vila-page-booking .va-booking-map-trigger img {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    object-fit: contain !important;
+  }
+
+  /* Desktop two-column booking layout (help + reserve). */
+  @media (min-width: 1024px) {
+    body.vila-page-booking .wp-block-columns.flex-col-reverse,
+    body.vila-page-booking .wp-block-columns:has(> .va-booking-reserve-card),
+    body.vila-page-booking .wp-block-columns:has(> .wp-block-column.va-booking-reserve-card) {
+      display: flex !important;
+      flex-direction: row-reverse !important;
+      flex-wrap: nowrap !important;
+      align-items: flex-start !important;
+      gap: 5rem !important;
+      width: 100% !important;
+    }
+
+    body.vila-page-booking .wp-block-columns.flex-col-reverse > .wp-block-column,
+    body.vila-page-booking .wp-block-columns:has(> .va-booking-reserve-card) > .wp-block-column {
+      flex: 1 1 0 !important;
+      width: auto !important;
+      max-width: none !important;
+      min-width: 0 !important;
+    }
+
+    body.vila-page-booking .wp-block-columns.flex-col-reverse > .va-booking-reserve-card,
+    body.vila-page-booking .wp-block-columns:has(> .wp-block-column.va-booking-reserve-card) > .wp-block-column.va-booking-reserve-card {
+      flex: 1.15 1 0 !important;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    body.vila-page-booking .wp-block-columns.flex-col-reverse {
+      display: flex !important;
+      flex-direction: column-reverse !important;
+      gap: 3rem !important;
+    }
+  }
+
   body.vila-page-booking .va-booking-map-trigger__hint {
     @apply absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full border border-outline-variant/30 bg-surface-container-high/90 px-3 py-1.5 text-xs font-medium text-on-background shadow-md backdrop-blur-sm transition-all duration-300 ease-out;
   }
@@ -1115,6 +1452,11 @@
      Avoid `> .grid` inside :has() — Tailwind can merge that with other `.grid` rules. */
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 p:has(> [class*='grid-cols']) {
     display: contents;
+  }
+
+  body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7.vila-cf7--success p:has(> [class*='grid-cols']),
+  body.vila-page-booking .wpcf7.sent .va-booking-reserve-card form.wpcf7-form.vila-cf7 p:has(> [class*='grid-cols']) {
+    display: none !important;
   }
 
   body.vila-page-booking .va-booking-reserve-card form.wpcf7-form.vila-cf7 .grid {
@@ -1678,6 +2020,16 @@
     @apply rounded-2xl border border-outline-variant/20 bg-surface-container-low font-body;
     box-shadow: 0 20px 60px rgba(61, 42, 34, 0.08), 0 8px 24px rgba(61, 42, 34, 0.04);
     min-width: min(100vw - 2rem, 38rem);
+  }
+
+  /*
+   * Tailwind `.hidden { display: none }` clashes with Flatpickr’s spacer days
+   * (`.flatpickr-day.hidden { visibility: hidden }` in multi-month mode).
+   * Without this, days collapse left and land under the wrong weekdays.
+   */
+  body.vila-page-booking .flatpickr-day.hidden {
+    display: inline-block !important;
+    visibility: hidden;
   }
 
   body.vila-page-booking .flatpickr-calendar.hasTime {
@@ -2271,6 +2623,28 @@
   }
 }
 
+@keyframes vila-cf7-success-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vila-cf7-success-icon {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes who-we-blob-morph-1 {
   0%,
   100% {
@@ -2392,9 +2766,9 @@
   width: 100% !important;
   min-height: 3rem !important;
   padding: 0.75rem 1.25rem !important;
-  border: 0 !important;
+  border: 1px solid rgb(var(--vila-rgb-outline-variant) / 0.35) !important;
   border-radius: 9999px !important;
-  background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  background: rgb(var(--vila-rgb-surface) / 1) !important;
   color: rgb(var(--vila-rgb-on-background) / 1) !important;
   box-shadow: none !important;
 }
@@ -2403,9 +2777,9 @@
   width: 100% !important;
   min-height: 8.5rem !important;
   padding: 1rem 1.25rem !important;
-  border: 0 !important;
+  border: 1px solid rgb(var(--vila-rgb-outline-variant) / 0.35) !important;
   border-radius: 1.5rem !important;
-  background: rgb(var(--vila-rgb-surface-container-low) / 1) !important;
+  background: rgb(var(--vila-rgb-surface) / 1) !important;
   color: rgb(var(--vila-rgb-on-background) / 1) !important;
   box-shadow: none !important;
 }
@@ -2419,6 +2793,48 @@
   background: rgb(var(--vila-rgb-primary) / 1) !important;
   color: rgb(var(--vila-rgb-on-primary) / 1) !important;
   font-weight: 400 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+}
+
+/* Village inquiry CF7 hard styles (match campus outlined inputs) */
+.va-village-newsletter .va-village-inquiry-card .wpcf7-form input[type="text"],
+.va-village-newsletter .va-village-inquiry-card .wpcf7-form input[type="email"],
+.va-village-newsletter .va-village-inquiry-card .wpcf7-form input[type="tel"],
+.va-village-newsletter .va-village-inquiry-card .wpcf7-form input[type="url"] {
+  width: 100% !important;
+  min-height: 3rem !important;
+  padding: 0.75rem 1.25rem !important;
+  border: 1px solid rgb(var(--vila-rgb-outline-variant) / 0.35) !important;
+  border-radius: 9999px !important;
+  background: rgb(var(--vila-rgb-surface) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
+  box-shadow: none !important;
+}
+
+.va-village-newsletter .va-village-inquiry-card .wpcf7-form textarea {
+  width: 100% !important;
+  min-height: 10rem !important;
+  padding: 1rem 1.25rem !important;
+  border: 1px solid rgb(var(--vila-rgb-outline-variant) / 0.35) !important;
+  border-radius: 1.5rem !important;
+  background: rgb(var(--vila-rgb-surface) / 1) !important;
+  color: rgb(var(--vila-rgb-on-background) / 1) !important;
+  box-shadow: none !important;
+}
+
+.va-village-newsletter .va-village-inquiry-card .wpcf7-form #village-inq-message {
+  min-height: 16rem !important;
+}
+
+.va-village-newsletter .va-village-inquiry-card .wpcf7-form .wpcf7-submit {
+  width: 100% !important;
+  min-height: 3.25rem !important;
+  padding: 0.875rem 2rem !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: rgb(var(--vila-rgb-primary) / 1) !important;
+  color: rgb(var(--vila-rgb-on-primary) / 1) !important;
   text-transform: uppercase;
   letter-spacing: 0.11em;
 }
@@ -2533,44 +2949,72 @@
   }
 }
 
-/* Campsite gallery: editor-friendly, infinite images */
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem !important;
-  align-items: stretch;
+/* Campsite gallery: masonry columns — fills width with any image count */
+.va-campsite-gallery .va-campsite-gallery-grid {
+  column-count: 2;
+  column-gap: 0.75rem;
 }
 
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image,
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item {
+.va-campsite-gallery .va-campsite-gallery__item {
   position: relative;
   display: block;
-  width: 100% !important;
-  max-width: none !important;
-  min-width: 0 !important;
-  flex: 0 0 auto !important;
+  width: 100%;
+  margin: 0 0 0.75rem;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
   overflow: hidden;
-  margin: 0 !important;
-  border-radius: 1.3rem;
+  border-radius: 1.25rem;
   background: #e9e6dc;
   box-shadow: 0 14px 30px rgba(48, 41, 27, 0.08);
   aspect-ratio: 4 / 5;
+  cursor: zoom-in;
+  text-decoration: none;
+  color: inherit;
 }
 
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image::after,
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item::after {
+.va-campsite-gallery .va-campsite-gallery__item:nth-child(5n + 1) {
+  aspect-ratio: 4 / 5;
+}
+
+.va-campsite-gallery .va-campsite-gallery__item:nth-child(5n + 2) {
+  aspect-ratio: 1 / 1;
+}
+
+.va-campsite-gallery .va-campsite-gallery__item:nth-child(5n + 3) {
+  aspect-ratio: 5 / 4;
+}
+
+.va-campsite-gallery .va-campsite-gallery__item:nth-child(5n + 4) {
+  aspect-ratio: 3 / 4;
+}
+
+.va-campsite-gallery .va-campsite-gallery__item:nth-child(5n + 5) {
+  aspect-ratio: 16 / 11;
+}
+
+.va-campsite-gallery .va-campsite-gallery__item::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(22, 19, 12, 0.16), rgba(22, 19, 12, 0));
+  z-index: 1;
+  background: linear-gradient(to top, rgba(22, 19, 12, 0.22), rgba(22, 19, 12, 0));
   opacity: 0;
   transition: opacity 240ms ease;
   pointer-events: none;
 }
 
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image > img,
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item > img,
-.va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item figure > img {
+.va-campsite-gallery .va-campsite-gallery__item figure,
+.va-campsite-gallery .va-campsite-gallery__item .wp-block-image {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  max-width: none !important;
+}
+
+.va-campsite-gallery .va-campsite-gallery__item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2579,39 +3023,224 @@
 }
 
 @media (hover: hover) {
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:hover > img,
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover > img,
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover figure > img {
+  .va-campsite-gallery .va-campsite-gallery__item:hover img {
     transform: scale(1.05);
   }
 
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:hover::after,
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:hover::after {
+  .va-campsite-gallery .va-campsite-gallery__item:hover::after {
     opacity: 1;
   }
 }
 
 @media (min-width: 768px) {
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1.1rem !important;
+  .va-campsite-gallery .va-campsite-gallery-grid {
+    column-count: 3;
+    column-gap: 1rem;
   }
 
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 1),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 4),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 1),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 4) {
-    grid-column: span 2;
-    aspect-ratio: 16 / 10;
+  .va-campsite-gallery .va-campsite-gallery__item {
+    margin-bottom: 1rem;
+    border-radius: 1.35rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .va-campsite-gallery .va-campsite-gallery-grid {
+    column-count: 4;
+    column-gap: 1.1rem;
   }
 
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 2),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 3),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .wp-block-image:nth-child(5n + 5),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 2),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 3),
-  .va-campsite-gallery .wp-block-gallery.va-campsite-gallery-grid .blocks-gallery-item:nth-child(5n + 5) {
-    grid-column: span 1;
-    aspect-ratio: 3 / 4;
+  .va-campsite-gallery .va-campsite-gallery__item {
+    margin-bottom: 1.1rem;
+  }
+}
+
+/* Gallery lightbox viewer */
+body.va-gallery-lightbox-open {
+  overflow: hidden;
+}
+
+.va-gallery-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4.5rem 1rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.va-gallery-lightbox.hidden {
+  display: none !important;
+}
+
+.va-gallery-lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(19, 14, 3, 0.9);
+  cursor: pointer;
+  appearance: none;
+}
+
+.va-gallery-lightbox__shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 1100px);
+  max-height: calc(100vh - 6rem);
+  pointer-events: none;
+}
+
+.va-gallery-lightbox__content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-height: inherit;
+  pointer-events: auto;
+}
+
+.va-gallery-lightbox__image {
+  display: block;
+  max-width: 100%;
+  max-height: min(72vh, 860px);
+  width: auto;
+  height: auto;
+  border-radius: 0.75rem;
+  object-fit: contain;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.va-gallery-lightbox__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  color: rgba(252, 249, 239, 0.92);
+  font-family: var(--vila-font-body);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.va-gallery-lightbox__caption {
+  margin: 0;
+  max-width: 40rem;
+}
+
+.va-gallery-lightbox__caption:empty,
+.va-gallery-lightbox__caption[hidden] {
+  display: none;
+}
+
+.va-gallery-lightbox__counter {
+  margin: 0;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.va-gallery-lightbox__close,
+.va-gallery-lightbox__nav {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: #fcf9ef;
+  color: #30291b;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: 0 10px 28px rgba(19, 14, 3, 0.35);
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.va-gallery-lightbox__close:hover,
+.va-gallery-lightbox__nav:hover {
+  background: #fff;
+  transform: scale(1.05);
+}
+
+.va-gallery-lightbox__close {
+  top: max(0.75rem, env(safe-area-inset-top, 0px));
+  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  width: 3rem;
+  height: 3rem;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.va-gallery-lightbox__close span {
+  display: block;
+  transform: translateY(-0.05em);
+}
+
+.va-gallery-lightbox__nav {
+  top: 50%;
+  width: 3rem;
+  height: 3rem;
+  font-size: 2rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.va-gallery-lightbox__nav:hover {
+  transform: translateY(-50%) scale(1.05);
+}
+
+.va-gallery-lightbox__nav--prev {
+  left: max(0.5rem, env(safe-area-inset-left, 0px));
+}
+
+.va-gallery-lightbox__nav--next {
+  right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+.va-gallery-lightbox__nav[hidden] {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .va-gallery-lightbox {
+    padding: 5rem 1.5rem 1.5rem;
+  }
+
+  .va-gallery-lightbox__close {
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 3.25rem;
+    height: 3.25rem;
+    font-size: 2.15rem;
+  }
+
+  .va-gallery-lightbox__nav {
+    width: 3.25rem;
+    height: 3.25rem;
+    font-size: 2.15rem;
+  }
+
+  .va-gallery-lightbox__nav--prev {
+    left: 1.25rem;
+  }
+
+  .va-gallery-lightbox__nav--next {
+    right: 1.25rem;
   }
 }

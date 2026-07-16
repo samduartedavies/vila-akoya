@@ -228,7 +228,7 @@ function vila_akoya_cf7_autoreply_mail( $config ) {
 	return array(
 		'active'             => true,
 		'subject'            => (string) $config['subject'],
-		'sender'             => sprintf( '%s <%s>', 'Sam — ' . vila_akoya_cf7_brand_name(), VILA_AKOYA_CF7_MAIL_FROM ),
+		'sender'             => sprintf( '%s <%s>', vila_akoya_cf7_brand_name(), VILA_AKOYA_CF7_MAIL_FROM ),
 		'body'               => vila_akoya_cf7_email_wrap( $inner, array( 'preheader' => (string) $config['subject'] ) ),
 		'recipient'          => '[your-email]',
 		'additional_headers' => 'Reply-To: ' . VILA_AKOYA_CF7_MAIL_FROM,
@@ -247,7 +247,7 @@ function vila_akoya_cf7_email_default_signoff() {
 	$c = vila_akoya_cf7_email_colors();
 
 	return esc_html__( 'Warmly,', 'vila-akoya' )
-		. '<br />Sam<br /><span style="font-family:Marcellus,Georgia,serif;font-size:18px;color:'
+		. '<br /><span style="font-family:Marcellus,Georgia,serif;font-size:18px;color:'
 		. esc_attr( $c['primary'] )
 		. ' !important;">'
 		. esc_html( vila_akoya_cf7_brand_name() )

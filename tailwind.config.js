@@ -67,10 +67,11 @@ module.exports = {
         "secondary-dim": vilaRgb("secondary-dim"),
       },
       fontFamily: {
-        headline: ["Marcellus", "Georgia", "serif"],
-        body: ["Josefin Sans", "system-ui", "sans-serif"],
-        label: ["Josefin Sans", "system-ui", "sans-serif"],
-        barrio: ["Barrio", "system-ui", "sans-serif"],
+        /* Bridged from Appearance → Editor → Styles via --vila-font-* (see inc/typography.php). */
+        headline: ["var(--vila-font-headline)"],
+        body: ["var(--vila-font-body)"],
+        label: ["var(--vila-font-body)"],
+        barrio: ["var(--vila-font-barrio)"],
       },
       borderRadius: {
         DEFAULT: "1rem",

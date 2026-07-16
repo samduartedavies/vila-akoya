@@ -7,10 +7,11 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.26' );
+define( 'VILA_AKOYA_VERSION', '1.0.31' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
+require_once VILA_AKOYA_DIR . '/inc/typography.php';
 require_once VILA_AKOYA_DIR . '/inc/redirects.php';
 require_once VILA_AKOYA_DIR . '/inc/woocommerce-campsite.php';
 require_once VILA_AKOYA_DIR . '/inc/campsite-booking-email.php';
@@ -23,6 +24,8 @@ require_once VILA_AKOYA_DIR . '/inc/blog.php';
 require_once VILA_AKOYA_DIR . '/inc/template-reset.php';
 require_once VILA_AKOYA_DIR . '/inc/page-editor.php';
 require_once VILA_AKOYA_DIR . '/inc/block-patterns.php';
+require_once VILA_AKOYA_DIR . '/inc/sections.php';
+require_once VILA_AKOYA_DIR . '/inc/blocks.php';
 require_once VILA_AKOYA_DIR . '/inc/seed.php';
 
 /**
@@ -32,6 +35,11 @@ require_once VILA_AKOYA_DIR . '/inc/seed.php';
  * @return string[]
  */
 function vila_akoya_body_class_neutral_canvas( $classes ) {
+	if ( is_front_page() || is_page( 'home' ) ) {
+		$classes[] = 'vila-home';
+	} elseif ( is_page() && function_exists( 'vila_akoya_page_has_section_blocks' ) && vila_akoya_page_has_section_blocks( get_queried_object_id() ) ) {
+		$classes[] = 'vila-page-inner';
+	}
 	if ( is_page( 'contact' ) ) {
 		$classes[] = 'vila-page-contact';
 	}
@@ -106,6 +114,13 @@ function vila_akoya_enqueue_assets() {
 	wp_enqueue_script(
 		'vila-akoya-site-nav',
 		VILA_AKOYA_URI . '/assets/js/site-nav.js',
+		array(),
+		VILA_AKOYA_VERSION,
+		true
+	);
+	wp_enqueue_script(
+		'vila-akoya-gallery-lightbox',
+		VILA_AKOYA_URI . '/assets/js/gallery-lightbox.js',
 		array(),
 		VILA_AKOYA_VERSION,
 		true

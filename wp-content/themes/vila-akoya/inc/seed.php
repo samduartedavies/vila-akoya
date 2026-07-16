@@ -87,6 +87,12 @@ function vila_akoya_run_seed() {
 		);
 		if ( $existing ) {
 			$args['ID'] = $existing->ID;
+			if (
+				( function_exists( 'vila_akoya_page_has_section_blocks' ) && vila_akoya_page_has_section_blocks( (int) $existing->ID ) )
+				|| ( function_exists( 'vila_akoya_page_has_sections' ) && vila_akoya_page_has_sections( (int) $existing->ID ) )
+			) {
+				unset( $args['post_content'] );
+			}
 			wp_update_post( $args );
 			$page_ids[ $slug ] = (int) $existing->ID;
 		} else {

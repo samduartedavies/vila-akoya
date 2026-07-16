@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  * Bump when seeded CF7 form markup changes.
  */
 define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '15' );
-define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '4' );
+define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '5' );
 define( 'VILA_AKOYA_CF7_MAIL_FROM', 'info@vila-akoya.com' );
 define( 'VILA_AKOYA_CF7_MAIL_TO', 'info@vila-akoya.com' );
 
@@ -402,7 +402,7 @@ function vila_akoya_cf7_sync_mail_settings( array $seeded_form_ids ) {
 		if ( isset( $properties['mail_2'] ) && is_array( $properties['mail_2'] ) && ! empty( $properties['mail_2']['active'] ) ) {
 			$properties['mail_2']['sender'] = sprintf(
 				'%s <%s>',
-				'Sam — ' . vila_akoya_cf7_brand_name(),
+				vila_akoya_cf7_brand_name(),
 				VILA_AKOYA_CF7_MAIL_FROM
 			);
 		}

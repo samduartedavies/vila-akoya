@@ -8,14 +8,15 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * @param string $slug Template slug, e.g. page or front-page.
  * @return WP_Block_Template|null
  */
-function vila_akoya_get_custom_page_template() {
+function vila_akoya_get_custom_theme_template( $slug ) {
 	if ( ! function_exists( 'get_block_template' ) ) {
 		return null;
 	}
 
-	$template = get_block_template( get_stylesheet() . '//page', 'wp_template' );
+	$template = get_block_template( get_stylesheet() . '//' . $slug, 'wp_template' );
 	if (
 		$template
 		&& ! empty( $template->source )
@@ -29,21 +30,36 @@ function vila_akoya_get_custom_page_template() {
 }
 
 /**
- * Delete customized Page template(s) so the theme file (parts/header + post-content + parts/footer) is used.
+ * @return WP_Block_Template|null
+ */
+function vila_akoya_get_custom_page_template() {
+	return vila_akoya_get_custom_theme_template( 'page' );
+}
+
+/**
+ * @return WP_Block_Template|null
+ */
+function vila_akoya_get_custom_front_page_template() {
+	return vila_akoya_get_custom_theme_template( 'front-page' );
+}
+
+/**
+ * Delete customized template(s) so the theme file is used again.
  *
+ * @param string|string[] $slugs Template slug(s).
  * @return int Number of templates removed.
  */
-function vila_akoya_reset_custom_page_template() {
+function vila_akoya_reset_custom_theme_templates( $slugs ) {
+	$slugs   = (array) $slugs;
 	$deleted = 0;
 
-	$custom = vila_akoya_get_custom_page_template();
-	if ( $custom && ! empty( $custom->wp_id ) ) {
-		if ( wp_delete_post( (int) $custom->wp_id, true ) ) {
+	foreach ( $slugs as $slug ) {
+		$custom = vila_akoya_get_custom_theme_template( (string) $slug );
+		if ( $custom && ! empty( $custom->wp_id ) && wp_delete_post( (int) $custom->wp_id, true ) ) {
 			++$deleted;
 		}
 	}
 
-	// Fallback: remove any DB page template for this theme (slug page or theme//page style names).
 	$posts = get_posts(
 		array(
 			'post_type'      => 'wp_template',
@@ -63,7 +79,7 @@ function vila_akoya_reset_custom_page_template() {
 		if ( ! $post instanceof WP_Post ) {
 			continue;
 		}
-		if ( 'page' !== $post->post_name && ! str_ends_with( (string) $post->post_name, '//page' ) ) {
+		if ( ! in_array( $post->post_name, $slugs, true ) && ! in_array( str_replace( get_stylesheet() . '//', '', (string) $post->post_name ), $slugs, true ) ) {
 			continue;
 		}
 		if ( wp_delete_post( (int) $post->ID, true ) ) {
@@ -79,7 +95,25 @@ function vila_akoya_reset_custom_page_template() {
 }
 
 /**
- * Remove customized Page template on load (theme page.html is the source of truth).
+ * Delete customized Page template(s) so the theme file (parts/header + post-content + parts/footer) is used.
+ *
+ * @return int Number of templates removed.
+ */
+function vila_akoya_reset_custom_page_template() {
+	return vila_akoya_reset_custom_theme_templates( array( 'page' ) );
+}
+
+/**
+ * Delete customized Front Page template(s) so the theme front-page.html is used.
+ *
+ * @return int Number of templates removed.
+ */
+function vila_akoya_reset_custom_front_page_template() {
+	return vila_akoya_reset_custom_theme_templates( array( 'front-page' ) );
+}
+
+/**
+ * Remove customized Page and Front Page templates on load (theme files are source of truth).
  */
 function vila_akoya_maybe_restore_broken_page_template() {
 	if ( wp_installing() ) {
@@ -88,6 +122,10 @@ function vila_akoya_maybe_restore_broken_page_template() {
 
 	if ( vila_akoya_get_custom_page_template() ) {
 		vila_akoya_reset_custom_page_template();
+	}
+
+	if ( vila_akoya_get_custom_front_page_template() ) {
+		vila_akoya_reset_custom_front_page_template();
 	}
 }
 add_action( 'init', 'vila_akoya_maybe_restore_broken_page_template', 5 );
@@ -116,7 +154,7 @@ function vila_akoya_handle_template_reset_post() {
 
 	check_admin_referer( 'vila_akoya_reset_page_template' );
 
-	$count = vila_akoya_reset_custom_page_template();
+	$count = vila_akoya_reset_custom_theme_templates( array( 'page', 'front-page' ) );
 
 	$redirect = add_query_arg(
 		array(
@@ -139,7 +177,8 @@ function vila_akoya_render_template_reset_admin_page() {
 		return;
 	}
 
-	$custom = vila_akoya_get_custom_page_template();
+	$custom_page  = vila_akoya_get_custom_page_template();
+	$custom_front = vila_akoya_get_custom_front_page_template();
 	$reset  = isset( $_GET['vila_reset'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['vila_reset'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 	?>
@@ -147,20 +186,20 @@ function vila_akoya_render_template_reset_admin_page() {
 		<h1><?php esc_html_e( 'Reset page template', 'vila-akoya' ); ?></h1>
 
 		<?php if ( '1' === $reset ) : ?>
-			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Custom Page template removed. New pages will use the theme default (header + content + footer).', 'vila-akoya' ); ?></p></div>
+			<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Custom Page and Front Page templates removed. Pages use the theme defaults (header + content + footer).', 'vila-akoya' ); ?></p></div>
 		<?php elseif ( '0' === $reset ) : ?>
 			<div class="notice notice-info is-dismissible"><p><?php esc_html_e( 'No customized Page template was found — the theme file is already in use.', 'vila-akoya' ); ?></p></div>
 		<?php endif; ?>
 
-		<p><?php esc_html_e( 'If the page editor shows header/footer shortcodes or a broken layout, a customized Page template in the Site Editor is usually the cause. Resetting restores the theme’s page.html:', 'vila-akoya' ); ?></p>
+		<p><?php esc_html_e( 'If the editor shows header/footer shortcodes, a broken middle block, or "Front Page · Template" when you meant to edit Home, a customized template in the Site Editor is usually the cause. Resetting restores the theme files:', 'vila-akoya' ); ?></p>
 		<ul class="ul-disc" style="list-style:disc;margin-left:1.5rem;">
 			<li><?php esc_html_e( 'Header (site navigation)', 'vila-akoya' ); ?></li>
 			<li><?php esc_html_e( 'Your page content (hero + text — what you edit)', 'vila-akoya' ); ?></li>
 			<li><?php esc_html_e( 'Footer', 'vila-akoya' ); ?></li>
 		</ul>
 
-		<?php if ( $custom ) : ?>
-			<p><strong><?php esc_html_e( 'Status:', 'vila-akoya' ); ?></strong> <?php esc_html_e( 'A customized Page template is currently active and should be reset.', 'vila-akoya' ); ?></p>
+		<?php if ( $custom_page || $custom_front ) : ?>
+			<p><strong><?php esc_html_e( 'Status:', 'vila-akoya' ); ?></strong> <?php esc_html_e( 'A customized template is active and should be reset.', 'vila-akoya' ); ?></p>
 		<?php else : ?>
 			<p><strong><?php esc_html_e( 'Status:', 'vila-akoya' ); ?></strong> <?php esc_html_e( 'Theme Page template is active (no customization in the database).', 'vila-akoya' ); ?></p>
 		<?php endif; ?>
@@ -189,7 +228,7 @@ function vila_akoya_admin_notice_custom_page_template() {
 		return;
 	}
 
-	if ( ! vila_akoya_get_custom_page_template() ) {
+	if ( ! vila_akoya_get_custom_page_template() && ! vila_akoya_get_custom_front_page_template() ) {
 		return;
 	}
 
