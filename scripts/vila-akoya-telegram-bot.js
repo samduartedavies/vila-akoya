@@ -12,7 +12,8 @@
  *   - Tagged @bot, reply-to-bot, or private DM: text, photos, and voice notes.
  *   - Every group message is classified by AI → monday.com actions (events, tasks, completions, cancellations) or questions.
  *   - Tagged @bot or reply-to-bot: always get a response.
- *   - Daily recap (~08:00 Europe/Lisbon): today's chores + events + yesterday's important group-chat highlights (private DMs excluded).
+ *   - Daily recap (~08:00 Europe/Lisbon): today's chores + events (including recurring
+ *     monthly/weekly rules like "3rd Sunday") + yesterday's important group-chat highlights.
  *   - /ask, /task, /register, /mytasks, /done, /help as before.
  *
  * Requires (for smart features): OPENAI_API_KEY, and a docs index built
@@ -36,6 +37,7 @@
  *   RECAP_TIME              HH:MM in RECAP_TZ (default "08:00")
  *   RECAP_TZ                default "Europe/Lisbon"
  *   EVENT_CAPTURE_GROUP     monday group for new events (default "Upcoming")
+ *   EVENT_RECURRING_GROUP   monday group for repeating events (default "Recurring")
  */
 
 "use strict";
@@ -50,6 +52,14 @@ const {
   buildWeekCalendarContext,
   resolveScheduleRange,
 } = require("./lib/community-actions");
+const {
+  parseRecurrence,
+  occursOn,
+  expandBetween,
+  nextOccurrence,
+  describeRecurrence,
+  normalizeRecurrenceField,
+} = require("./lib/event-recurrence");
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const MONDAY_API_TOKEN =
@@ -97,6 +107,7 @@ const DAILY_RECAP = process.env.DAILY_RECAP !== "false";
 const RECAP_TIME = process.env.RECAP_TIME || "08:00";
 const RECAP_TZ = process.env.RECAP_TZ || "Europe/Lisbon";
 const EVENT_CAPTURE_GROUP = process.env.EVENT_CAPTURE_GROUP || "Upcoming";
+const EVENT_RECURRING_GROUP = process.env.EVENT_RECURRING_GROUP || "Recurring";
 const ADDRESS_WINDOW_MS = Number(process.env.ADDRESS_WINDOW_MS || 120000);
 
 const DEFAULT_WATCH_BOARDS = [
@@ -644,6 +655,28 @@ function columnId(board, title, type) {
     (c) => c.title === title && (!type || c.type === type)
   );
   return col ? col.id : null;
+}
+
+async function ensureTextColumn(board, title) {
+  const existing = columnId(board, title, "text");
+  if (existing) return existing;
+  try {
+    const data = await monday(
+      `mutation ($boardId: ID!, $title: String!) {
+        create_column(board_id: $boardId, title: $title, column_type: text) { id title type }
+      }`,
+      { boardId: String(board.id), title }
+    );
+    const column = data.create_column;
+    if (column) {
+      board.columns.push(column);
+      log(`Created Monday column "${title}" on ${board.name}`);
+      return column.id;
+    }
+  } catch (err) {
+    log(`Could not create column "${title}":`, err.message);
+  }
+  return null;
 }
 
 function itemUrl(boardId, itemId) {
@@ -1265,10 +1298,14 @@ async function createDecision({ decision, from, chatId, sourceText }) {
   });
 }
 
-async function createEvent({ title, date, eventType, from, chatId, sourceText }) {
+async function createEvent({ title, date, eventType, recurrence, from, chatId, sourceText }) {
   const board = await resolveBoard(EVENTS_BOARD_NAME);
+  const recurrenceInfo = normalizeRecurrenceField(recurrence || "");
+  const preferGroup = recurrenceInfo.rule ? EVENT_RECURRING_GROUP : EVENT_CAPTURE_GROUP;
   const group =
-    board.groups.find((g) => g.title === EVENT_CAPTURE_GROUP) || board.groups[0];
+    board.groups.find((g) => g.title === preferGroup) ||
+    board.groups.find((g) => g.title === EVENT_CAPTURE_GROUP) ||
+    board.groups[0];
 
   const name = String(title || "Event").slice(0, 200);
   const created = await monday(
@@ -1281,14 +1318,33 @@ async function createEvent({ title, date, eventType, from, chatId, sourceText })
   );
   const itemId = created.create_item.id;
 
+  let eventDate = date;
+  if (recurrenceInfo.rule) {
+    eventDate =
+      (date && occursOn(recurrenceInfo.rule, date, RECAP_TZ) && date) ||
+      nextOccurrence(recurrenceInfo.rule, date && date >= todayISO() ? date : todayISO(), RECAP_TZ) ||
+      date;
+  }
+
   const values = {};
   const dateCol = columnId(board, "Date", "date");
-  if (dateCol && date) values[dateCol] = { date };
+  if (dateCol && eventDate) values[dateCol] = { date: eventDate };
 
   const typeCol = columnId(board, "Event type", "status");
   if (typeCol && eventType) values[typeCol] = { label: eventType };
 
-  const announceCol = columnId(board, "Announce?", "checkbox");
+  if (recurrenceInfo.canonical) {
+    try {
+      const recurrenceCol = await ensureTextColumn(board, "Recurrence");
+      if (recurrenceCol) values[recurrenceCol] = recurrenceInfo.canonical;
+    } catch (err) {
+      log("Could not ensure Recurrence column (will store in Notes):", err.message);
+    }
+  }
+
+  const announceCol =
+    columnId(board, "Announce?", "checkbox") ||
+    columnId(board, "Announce on Telegram?", "checkbox");
   if (announceCol) values[announceCol] = { checked: "true" };
 
   const sourceCol = columnId(board, "Source", "status");
@@ -1296,10 +1352,13 @@ async function createEvent({ title, date, eventType, from, chatId, sourceText })
 
   const notesCol = columnId(board, "Notes", "long_text");
   if (notesCol) {
+    const recurNote = recurrenceInfo.label
+      ? `\nRecurrence: ${recurrenceInfo.canonical} (${recurrenceInfo.label})`
+      : "";
     values[notesCol] = {
       text:
         `From Telegram: ${senderDisplayName(from)} (${senderHandle(from)})\n` +
-        `Chat: ${chatId}\n\nOriginal message:\n${sourceText || name}`,
+        `Chat: ${chatId}${recurNote}\n\nOriginal message:\n${sourceText || name}`,
     };
   }
 
@@ -1313,7 +1372,14 @@ async function createEvent({ title, date, eventType, from, chatId, sourceText })
 
   state.items[itemId] = { status: "", assignees: "", done: false };
   saveState();
-  return { itemId, boardId: board.id, url: itemUrl(board.id, itemId) };
+  return {
+    itemId,
+    boardId: board.id,
+    url: itemUrl(board.id, itemId),
+    date: eventDate,
+    recurrence: recurrenceInfo.canonical || null,
+    recurrenceLabel: recurrenceInfo.label || null,
+  };
 }
 
 async function fetchRotaForDay(dateISO) {
@@ -1350,10 +1416,54 @@ async function fetchRotaForDay(dateISO) {
   return chores;
 }
 
+function eventMatchesDate(itemDate, recurrenceText, dateISO) {
+  const rule = parseRecurrence(recurrenceText || "");
+  if (rule) {
+    if (itemDate && dateISO < itemDate.slice(0, 10)) return false;
+    return occursOn(rule, dateISO, RECAP_TZ);
+  }
+  return itemDate && itemDate.slice(0, 10) === dateISO;
+}
+
+/** Read recurrence from dedicated column, or "Recurrence: …" / canonical rule in Notes. */
+function recurrenceTextFromColumns(cv, recurrenceCol, notesCol) {
+  if (recurrenceCol) {
+    const direct = (cv[recurrenceCol] || "").trim();
+    if (direct && parseRecurrence(direct)) return direct;
+  }
+  const notes = notesCol ? cv[notesCol] || "" : "";
+  const marked = notes.match(/Recurrence:\s*([^\n(]+)/i);
+  if (marked) {
+    const raw = marked[1].trim();
+    if (parseRecurrence(raw)) return raw;
+  }
+  const canonical = notes.match(
+    /\b((?:daily|weekly|monthly):[A-Za-z0-9,_-]+)\b/i
+  );
+  if (canonical && parseRecurrence(canonical[1])) return canonical[1];
+  return recurrenceCol ? (cv[recurrenceCol] || "").trim() : "";
+}
+
+function collectEventOccurrences(itemDate, recurrenceText, startISO, endISO) {
+  const rule = parseRecurrence(recurrenceText || "");
+  if (rule) {
+    const seriesStart = itemDate ? itemDate.slice(0, 10) : startISO;
+    const from = seriesStart > startISO ? seriesStart : startISO;
+    if (from > endISO) return [];
+    return expandBetween(rule, from, endISO, RECAP_TZ);
+  }
+  const d = itemDate ? itemDate.slice(0, 10) : "";
+  if (d && d >= startISO && d <= endISO) return [d];
+  return [];
+}
+
 async function fetchEventsForDate(dateISO) {
   const board = await resolveBoard(EVENTS_BOARD_NAME);
   const dateCol = columnId(board, "Date", "date");
-  if (!dateCol) return [];
+  const recurrenceCol =
+    columnId(board, "Recurrence", "text") || columnId(board, "Recurrence");
+  const notesCol = columnId(board, "Notes", "long_text") || columnId(board, "Notes");
+  if (!dateCol && !recurrenceCol && !notesCol) return [];
 
   const events = [];
   let cursor = null;
@@ -1375,14 +1485,16 @@ async function fetchEventsForDate(dateISO) {
     for (const item of page?.items || []) {
       if (isDoneName(item.group?.title)) continue;
       const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
-      const itemDate = (cv[dateCol] || "").slice(0, 10);
-      if (itemDate === dateISO) {
-        const typeCol = columnId(board, "Event type", "status");
-        events.push({
-          title: item.name,
-          type: typeCol ? cv[typeCol] || "" : "",
-        });
-      }
+      const itemDate = dateCol ? cv[dateCol] || "" : "";
+      const recurrenceText = recurrenceTextFromColumns(cv, recurrenceCol, notesCol);
+      if (!eventMatchesDate(itemDate, recurrenceText, dateISO)) continue;
+      const typeCol = columnId(board, "Event type", "status");
+      const rule = parseRecurrence(recurrenceText);
+      events.push({
+        title: item.name,
+        type: typeCol ? cv[typeCol] || "" : "",
+        recurrence: rule ? describeRecurrence(rule) : "",
+      });
     }
     cursor = page?.cursor || null;
   } while (cursor);
@@ -1392,7 +1504,10 @@ async function fetchEventsForDate(dateISO) {
 async function fetchEventsBetween(startISO, endISO) {
   const board = await resolveBoard(EVENTS_BOARD_NAME);
   const dateCol = columnId(board, "Date", "date");
-  if (!dateCol) return [];
+  const recurrenceCol =
+    columnId(board, "Recurrence", "text") || columnId(board, "Recurrence");
+  const notesCol = columnId(board, "Notes", "long_text") || columnId(board, "Notes");
+  if (!dateCol && !recurrenceCol && !notesCol) return [];
 
   const events = [];
   let cursor = null;
@@ -1414,19 +1529,26 @@ async function fetchEventsBetween(startISO, endISO) {
     for (const item of page?.items || []) {
       if (isDoneName(item.group?.title)) continue;
       const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
-      const itemDate = (cv[dateCol] || "").slice(0, 10);
-      if (itemDate >= startISO && itemDate <= endISO) {
-        const typeCol = columnId(board, "Event type", "status");
+      const itemDate = dateCol ? cv[dateCol] || "" : "";
+      const recurrenceText = recurrenceTextFromColumns(cv, recurrenceCol, notesCol);
+      const dates = collectEventOccurrences(itemDate, recurrenceText, startISO, endISO);
+      if (!dates.length) continue;
+      const typeCol = columnId(board, "Event type", "status");
+      const type = typeCol ? cv[typeCol] || "" : "";
+      const rule = parseRecurrence(recurrenceText);
+      const recurrenceLabel = rule ? describeRecurrence(rule) : "";
+      for (const d of dates) {
         events.push({
           title: item.name,
-          date: itemDate,
-          type: typeCol ? cv[typeCol] || "" : "",
+          date: d,
+          type,
+          recurrence: recurrenceLabel,
         });
       }
     }
     cursor = page?.cursor || null;
   } while (cursor);
-  return events.sort((a, b) => a.date.localeCompare(b.date));
+  return events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
 }
 
 function addDaysISO(iso, days, tz = RECAP_TZ) {
@@ -1456,7 +1578,8 @@ async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
     const events = await fetchEventsBetween(start, end);
     if (events.length) {
       for (const e of events) {
-        lines.push(`- ${e.date}: ${e.title}${e.type ? ` (${e.type})` : ""}`);
+        const recur = e.recurrence ? ` — ${e.recurrence}` : "";
+        lines.push(`- ${e.date}: ${e.title}${e.type ? ` (${e.type})` : ""}${recur}`);
       }
     } else {
       lines.push("- (none in this period)");
@@ -1497,7 +1620,8 @@ async function buildDataSnapshot(dateISO) {
   lines.push("", "Events on this date:");
   if (events.length) {
     for (const e of events) {
-      lines.push(`- ${e.title}${e.type ? ` (${e.type})` : ""}`);
+      const recur = e.recurrence ? ` — ${e.recurrence}` : "";
+      lines.push(`- ${e.title}${e.type ? ` (${e.type})` : ""}${recur}`);
     }
   } else {
     lines.push("- (none)");
@@ -1532,7 +1656,8 @@ async function buildDailyRecap(dateISO) {
   lines.push("", "<b>Events today</b>");
   if (events.length) {
     for (const e of events) {
-      lines.push(`• ${escapeHtml(e.title)}${e.type ? ` (${escapeHtml(e.type)})` : ""}`);
+      const recur = e.recurrence ? ` — ${escapeHtml(e.recurrence)}` : "";
+      lines.push(`• ${escapeHtml(e.title)}${e.type ? ` (${escapeHtml(e.type)})` : ""}${recur}`);
     }
   } else {
     lines.push("• (nothing scheduled)");
@@ -2516,15 +2641,29 @@ async function handleAsk({ question, from, chatId, logGap = LOG_DOC_GAPS }) {
 
 async function captureAmbientEvent({ classified, text, from, chatId }) {
   if (!classified.is_event || !classified.event?.title) return false;
-  const date = classified.event.date || inferEventDate(text, null);
+  // Prefer AI recurrence; fall back when the message itself clearly states a rule.
+  const fromText = normalizeRecurrenceField(text || "");
+  const looksRecurring =
+    /\b(every|cada|todos?\s+os?|1st|2nd|3rd|4th|first|second|third|fourth|last|primeiro|primeira|segundo|terceiro|mensal|monthly|weekly|of the month|do m[eê]s)\b/i.test(
+      text || ""
+    );
+  const recurrence =
+    classified.event.recurrence ||
+    (fromText.rule && looksRecurring ? fromText.canonical : null);
+  const date = classified.event.date || (recurrence ? null : inferEventDate(text, null));
   const eventType = classified.event.event_type || "Other";
-  const key = ambientDedupeKey(chatId, "event", `${classified.event.title}:${date}`);
+  const key = ambientDedupeKey(
+    chatId,
+    "event",
+    `${classified.event.title}:${recurrence || date || ""}`
+  );
   if (wasRecentlyCaptured(key)) return true;
   try {
-    const { url } = await createEvent({
+    const created = await createEvent({
       title: classified.event.title,
       date,
       eventType,
+      recurrence,
       from,
       chatId,
       sourceText: text,
@@ -2535,13 +2674,19 @@ async function captureAmbientEvent({ classified, text, from, chatId }) {
       from,
       chatId,
       title: classified.event.title,
-      eventDate: date,
+      eventDate: created.date || date,
       text,
     });
-    let reply = `📅 Logged: <b>${escapeHtml(classified.event.title)}</b> (${escapeHtml(date)})`;
-    if (url) reply += ` — <a href="${url}">monday</a>`;
+    const when = created.recurrenceLabel
+      ? created.recurrenceLabel
+      : created.date || date || "date TBD";
+    let reply = `📅 Logged: <b>${escapeHtml(classified.event.title)}</b> (${escapeHtml(when)})`;
+    if (created.url) reply += ` — <a href="${created.url}">monday</a>`;
     await sendMessage(chatId, reply);
-    log(`Event captured: ${classified.event.title} on ${date}`);
+    log(
+      `Event captured: ${classified.event.title}` +
+        (created.recurrence ? ` [${created.recurrence}]` : ` on ${created.date || date}`)
+    );
     return true;
   } catch (err) {
     log("createEvent error:", err.message);

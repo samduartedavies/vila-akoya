@@ -5,6 +5,12 @@
 
 "use strict";
 
+const {
+  normalizeRecurrenceField,
+  nextOccurrence,
+  DEFAULT_TZ,
+} = require("./event-recurrence");
+
 const EVENT_TYPES = [
   "Birthday",
   "Trip / outing",
@@ -82,7 +88,14 @@ const MONDAY_BOARDS = [
 
 const SCHEDULE_RANGES = ["today", "this_week", "next_week", "two_weeks"];
 
-const DEFAULT_TZ = "Europe/Lisbon";
+function todayISOForParse(tz = DEFAULT_TZ) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 function addDaysISO(iso, days, tz = DEFAULT_TZ) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -210,6 +223,14 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "── Monday.com actions (create or update boards) ──",
     `- create_event: new gathering, trip, meal, delivery, or open invite with a timeframe.`,
     `    event.event_type: ${eventTypes.join(", ")}.`,
+    `    event.recurrence: null for one-offs, OR a rule string when it repeats:`,
+    `      weekly:Sun | weekly:Sat,Sun | monthly:1st-Sat | monthly:3rd-Sun | monthly:last-Fri | daily`,
+    `    Recurring examples:`,
+    `      EN: "yoga every Sunday" → weekly:Sun`,
+    `      EN: "market first Saturday of the month" → monthly:1st-Sat`,
+    `      EN: "community lunch 3rd Sunday" → monthly:3rd-Sun`,
+    `      PT: "almoço no terceiro domingo do mês" → monthly:3rd-Sun`,
+    `    For recurring events set event.recurrence and set event.date to the next occurrence from today.`,
     "- create_task: repair, broken, leak, smell, blocked, not working, cleanup job, safety issue",
     "- guest_issue: camper/visitor/guest-facing (shower, pitch, booking, facilities)",
     "- complete_task: reports a job is DONE or fixed — populate target.title",
@@ -240,14 +261,15 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "schedule_range": "today" | "this_week" | "next_week" | "two_weeks",',
     '  "doc_lookup": bool,',
     '  "task": { "title", "area", "priority", "safety_critical", "route_maintenance" } | null,',
-    '  "event": { "title", "date", "event_type" } | null,',
+    '  "event": { "title", "date", "event_type", "recurrence" } | null,',
     '  "target": { "title", "item_id" } | null,',
     '  "decision": { "title", "category", "summary" } | null,',
     '  "documentation": { "title", "area", "summary" } | null,',
     '  "community": { "title", "summary", "date" } | null }',
     "",
     "route_maintenance=true when task is infrastructure not admin.",
-    "For create_event always provide event.title and event.date.",
+    "For create_event always provide event.title; provide event.date for one-offs.",
+    "For repeating events always provide event.recurrence (canonical form above) and event.date = next occurrence.",
     "Dates for \"next week\" must fall in the Next week range from WEEK CALENDAR.",
     "For question_schedule set schedule_lookup=true; never populate event for lookups.",
     "For question_doc set doc_lookup=true.",
@@ -291,18 +313,25 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
       : null;
 
   const eventRaw = result.event || (action === "create_event" ? result.proposal : null);
-  const event =
-    eventRaw && action === "create_event"
-      ? {
-          title: String(eventRaw.title || "").slice(0, 80),
-          date: eventRaw.date ? String(eventRaw.date).slice(0, 10) : null,
-          event_type: EVENT_TYPES.includes(eventRaw.event_type)
-            ? eventRaw.event_type
-            : eventRaw.event_type === "Delivery / order" || rawAction === "delivery"
-              ? "Delivery / order"
-              : "Other",
-        }
-      : null;
+  let event = null;
+  if (eventRaw && action === "create_event") {
+    const recurrenceInfo = normalizeRecurrenceField(eventRaw.recurrence || "");
+    let date = eventRaw.date ? String(eventRaw.date).slice(0, 10) : null;
+    if (recurrenceInfo.rule && (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+      date = nextOccurrence(recurrenceInfo.rule, todayISOForParse(), DEFAULT_TZ);
+    }
+    event = {
+      title: String(eventRaw.title || "").slice(0, 80),
+      date,
+      event_type: EVENT_TYPES.includes(eventRaw.event_type)
+        ? eventRaw.event_type
+        : eventRaw.event_type === "Delivery / order" || rawAction === "delivery"
+          ? "Delivery / order"
+          : "Other",
+      recurrence: recurrenceInfo.canonical || null,
+      recurrence_label: recurrenceInfo.label || null,
+    };
+  }
 
   const target =
     result.target && ["complete_task", "cancel_event"].includes(action)

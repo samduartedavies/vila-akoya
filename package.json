@@ -4,6 +4,7 @@
   "scripts": {
     "monday:setup": "node scripts/setup-vila-akoya-monday.js",
     "monday:seed-rota": "node scripts/seed-community-chore-rota.js",
+    "monday:seed-markets": "node scripts/seed-odemira-markets.js",
     "telegram:bot": "node scripts/vila-akoya-telegram-bot.js",
     "whatsapp:import": "node scripts/import-whatsapp-to-telegram.js",
     "telegram:chats": "node scripts/telegram-list-chats.js",

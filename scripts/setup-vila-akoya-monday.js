@@ -646,6 +646,7 @@ const boardConfigs = [
       ["Status", "status"],
       ["Event type", "status"],
       ["Date", "date"],
+      ["Recurrence", "text"],
       ["Organiser", "people"],
       ["Helpers / doers", "text"],
       ["Location", "text"],
