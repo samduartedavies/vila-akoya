@@ -15,6 +15,7 @@ defined( 'ABSPATH' ) || exit;
 class Install {
 
 	const OPTION_DB_VERSION = 'vila_cb_db_version';
+	const OPTION_GUEST_REGISTRATION_PAGE_ID = 'vila_cb_guest_registration_page_id';
 
 	/**
 	 * Plugin activation.
@@ -22,7 +23,8 @@ class Install {
 	public static function activate() {
 		self::create_tables();
 		self::seed_plots();
-		update_option( self::OPTION_DB_VERSION, '1.0.0' );
+		self::ensure_guest_registration_page();
+		update_option( self::OPTION_DB_VERSION, '1.1.1' );
 	}
 
 	/**
@@ -30,10 +32,11 @@ class Install {
 	 */
 	public static function maybe_upgrade() {
 		$ver = get_option( self::OPTION_DB_VERSION, '' );
-		if ( version_compare( (string) $ver, '1.0.0', '<' ) ) {
+		if ( version_compare( (string) $ver, '1.1.1', '<' ) ) {
 			self::create_tables();
 			self::seed_plots();
-			update_option( self::OPTION_DB_VERSION, '1.0.0' );
+			self::maybe_schedule_guest_registration_page();
+			update_option( self::OPTION_DB_VERSION, '1.1.1' );
 		}
 	}
 
@@ -42,6 +45,63 @@ class Install {
 	 */
 	public static function sync_plots() {
 		self::seed_plots();
+	}
+
+	/**
+	 * Ensure page creation runs after WordPress rewrite/page globals are ready.
+	 */
+	private static function maybe_schedule_guest_registration_page() {
+		if ( did_action( 'init' ) ) {
+			self::ensure_guest_registration_page();
+			return;
+		}
+		add_action( 'init', array( __CLASS__, 'ensure_guest_registration_page' ), 20 );
+	}
+
+	/**
+	 * Published page that hosts the legal guest registration shortcode.
+	 *
+	 * @return int Page ID.
+	 */
+	public static function ensure_guest_registration_page() {
+		$slug    = 'guest-registration';
+		$content = "<!-- wp:shortcode -->\n[vila_guest_registration]\n<!-- /wp:shortcode -->";
+
+		$existing = get_page_by_path( $slug, OBJECT, 'page' );
+		if ( $existing instanceof \WP_Post ) {
+			$body = (string) $existing->post_content;
+			if ( false === strpos( $body, '[vila_guest_registration]' ) ) {
+				$body = trim( $body );
+				$body = '' === $body ? $content : $body . "\n\n" . $content;
+				wp_update_post(
+					array(
+						'ID'           => (int) $existing->ID,
+						'post_content' => $body,
+						'post_status'  => 'publish',
+					)
+				);
+			}
+			update_option( self::OPTION_GUEST_REGISTRATION_PAGE_ID, (int) $existing->ID );
+			return (int) $existing->ID;
+		}
+
+		$page_id = wp_insert_post(
+			array(
+				'post_title'   => __( 'Guest Registration', 'vila-campsite-booking' ),
+				'post_name'    => $slug,
+				'post_status'  => 'publish',
+				'post_type'    => 'page',
+				'post_content' => $content,
+			),
+			true
+		);
+
+		if ( is_wp_error( $page_id ) ) {
+			return 0;
+		}
+
+		update_option( self::OPTION_GUEST_REGISTRATION_PAGE_ID, (int) $page_id );
+		return (int) $page_id;
 	}
 
 	/**
@@ -57,6 +117,8 @@ class Install {
 		$books   = Database::bookings_table();
 		$nights  = Database::booking_nights_table();
 		$blocks  = Database::plot_blocks_table();
+		$regs    = Database::guest_registrations_table();
+		$persons = Database::guest_persons_table();
 
 		$sql = "CREATE TABLE $plots (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -107,6 +169,44 @@ class Install {
 			created_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
 			KEY plot_id (plot_id)
+		) $charset;\n";
+
+		$sql .= "CREATE TABLE $regs (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			booking_id BIGINT UNSIGNED NULL,
+			order_id BIGINT UNSIGNED NULL,
+			check_in DATE NOT NULL,
+			check_out DATE NOT NULL,
+			booker_name VARCHAR(191) NOT NULL DEFAULT '',
+			contact_email VARCHAR(191) NOT NULL DEFAULT '',
+			source VARCHAR(30) NOT NULL DEFAULT 'manual',
+			siba_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY booking_id (booking_id),
+			KEY order_id (order_id),
+			KEY stay_range (check_in, check_out),
+			KEY siba_status (siba_status)
+		) $charset;\n";
+
+		$sql .= "CREATE TABLE $persons (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			registration_id BIGINT UNSIGNED NOT NULL,
+			given_name VARCHAR(80) NOT NULL DEFAULT '',
+			surname VARCHAR(80) NOT NULL DEFAULT '',
+			nationality CHAR(3) NOT NULL DEFAULT '',
+			date_of_birth DATE NULL,
+			document_type VARCHAR(3) NOT NULL DEFAULT '',
+			document_number VARCHAR(32) NOT NULL DEFAULT '',
+			document_country CHAR(3) NOT NULL DEFAULT '',
+			country_of_residence CHAR(3) NOT NULL DEFAULT '',
+			skip_siba TINYINT(1) NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY registration_id (registration_id),
+			KEY skip_siba (skip_siba)
 		) $charset;\n";
 
 		dbDelta( $sql );

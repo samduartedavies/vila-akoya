@@ -247,3 +247,168 @@
   word-break: break-word;
   border: 1px solid #30363d;
 }
+
+/* Guest legal registration */
+.vila-cb-gr {
+  max-width: 980px;
+}
+
+.vila-cb-gr__panel {
+  margin: 16px 0;
+  padding: 20px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: var(--vila-cb-radius);
+  background: var(--vila-cb-surface);
+  box-shadow: var(--vila-cb-shadow);
+}
+
+.vila-cb-gr__title {
+  margin: 0 0 14px;
+  font-size: 22px;
+}
+
+.vila-cb-gr__lookup,
+.vila-cb-gr__grid,
+.vila-cb-gr__manual-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.vila-cb-gr label span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #625b48;
+}
+
+.vila-cb-gr input,
+.vila-cb-gr select {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.vila-cb-gr__lookup .vila-cb__cta {
+  align-self: end;
+  margin: 0;
+}
+
+.vila-cb-gr__manual {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vila-cb-accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.vila-cb-gr__result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.vila-cb-gr__result p {
+  margin: 0;
+}
+
+.vila-cb-gr__result-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--vila-cb-accent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--vila-cb-accent);
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.vila-cb-gr__guest-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.vila-cb-gr__person {
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: 14px;
+}
+
+.vila-cb-gr__person legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.vila-cb-gr__wide {
+  grid-column: 1 / -1;
+}
+
+.vila-cb-gr__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vila-cb-gr__check input {
+  width: auto;
+  min-height: 0;
+}
+
+.vila-cb-gr__check span {
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.vila-cb-gr__actions {
+  margin-top: 16px;
+}
+
+.vila-cb-gr__message {
+  margin-top: 14px;
+  font-weight: 600;
+}
+
+.vila-cb-gr__message.is-error {
+  color: #b00020;
+}
+
+.vila-cb-gr__hp {
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+@media (max-width: 700px) {
+  .vila-cb-gr__lookup,
+  .vila-cb-gr__grid,
+  .vila-cb-gr__manual-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .vila-cb-gr__result {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

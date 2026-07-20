@@ -255,11 +255,79 @@ function vila_akoya_cf7_email_default_signoff() {
 }
 
 /**
- * Per-form admin + autoreply mail configuration.
+ * Editable autoreply copy field keys (plain text for non-technical editors).
+ *
+ * @return string[]
+ */
+function vila_akoya_cf7_mail_copy_fields() {
+	return array( 'subject', 'title', 'greeting', 'intro', 'outro' );
+}
+
+/**
+ * Human labels for seeded CF7 forms (admin UI).
+ *
+ * @return array<string, string>
+ */
+function vila_akoya_cf7_form_copy_labels() {
+	return array(
+		'newsletter_home'    => __( 'Newsletter — Home', 'vila-akoya' ),
+		'newsletter_village' => __( 'Village waitlist', 'vila-akoya' ),
+		'village_inquiry'    => __( 'Village inquiry', 'vila-akoya' ),
+		'campus'             => __( 'Campus — host your own', 'vila-akoya' ),
+		'contact'            => __( 'Contact', 'vila-akoya' ),
+	);
+}
+
+/**
+ * Saved mail copy overrides from the admin settings screen.
+ *
+ * @return array<string, array{autoreply?: array<string, string>}>
+ */
+function vila_akoya_cf7_get_mail_copy_overrides() {
+	$stored = get_option( 'vila_akoya_cf7_mail_copy', array() );
+	return is_array( $stored ) ? $stored : array();
+}
+
+/**
+ * Merge saved autoreply copy overrides into a mail config set.
+ *
+ * @param array<string, array{admin: array, autoreply: array}> $configs Default configs.
+ * @return array<string, array{admin: array, autoreply: array}>
+ */
+function vila_akoya_cf7_merge_mail_copy_overrides( array $configs ) {
+	$overrides = vila_akoya_cf7_get_mail_copy_overrides();
+	$fields    = vila_akoya_cf7_mail_copy_fields();
+
+	foreach ( $configs as $key => $config ) {
+		if ( empty( $overrides[ $key ]['autoreply'] ) || ! is_array( $overrides[ $key ]['autoreply'] ) ) {
+			continue;
+		}
+
+		foreach ( $fields as $field ) {
+			if ( ! array_key_exists( $field, $overrides[ $key ]['autoreply'] ) ) {
+				continue;
+			}
+			$value = $overrides[ $key ]['autoreply'][ $field ];
+			if ( ! is_string( $value ) ) {
+				continue;
+			}
+			$value = trim( $value );
+			if ( '' === $value ) {
+				continue;
+			}
+			$configs[ $key ]['autoreply'][ $field ] = $value;
+		}
+	}
+
+	return $configs;
+}
+
+/**
+ * Default per-form admin + autoreply mail configuration (no overrides).
  *
  * @return array<string, array{admin: array, autoreply: array}>
  */
-function vila_akoya_cf7_form_mail_configs() {
+function vila_akoya_cf7_form_mail_configs_defaults() {
 	$name_rows = array(
 		array( __( 'Name', 'vila-akoya' ), '[your-name]' ),
 		array( __( 'Email', 'vila-akoya' ), '[your-email]' ),
@@ -278,14 +346,14 @@ function vila_akoya_cf7_form_mail_configs() {
 				),
 			),
 			'autoreply' => array(
-				'subject'   => __( 'You\'re on the list — Vila Akoya', 'vila-akoya' ),
-				'title'     => __( 'Thank you for subscribing', 'vila-akoya' ),
-				'greeting'  => __( 'Hello,', 'vila-akoya' ),
-				'intro'     => __( 'Thanks for signing up for news and updates from Vila Akoya.', 'vila-akoya' ),
-				'rows'      => array(
+				'subject'  => __( 'You\'re on the list — Vila Akoya', 'vila-akoya' ),
+				'title'    => __( 'Thank you for subscribing', 'vila-akoya' ),
+				'greeting' => __( 'Hello,', 'vila-akoya' ),
+				'intro'    => __( 'Thanks for signing up for news and updates from Vila Akoya.', 'vila-akoya' ),
+				'rows'     => array(
 					array( __( 'Email', 'vila-akoya' ), '[your-email]' ),
 				),
-				'outro'     => __( 'We\'ll be in touch when there is something worth sharing.', 'vila-akoya' ),
+				'outro'    => __( 'We\'ll be in touch when there is something worth sharing.', 'vila-akoya' ),
 			),
 		),
 		'newsletter_village' => array(
@@ -298,14 +366,14 @@ function vila_akoya_cf7_form_mail_configs() {
 				),
 			),
 			'autoreply' => array(
-				'subject'   => __( 'You\'re on the village waitlist — Vila Akoya', 'vila-akoya' ),
-				'title'     => __( 'You\'re on the waitlist', 'vila-akoya' ),
-				'greeting'  => __( 'Hello,', 'vila-akoya' ),
-				'intro'     => __( 'Thank you for your interest in the Vila Akoya village. We have added you to the waitlist.', 'vila-akoya' ),
-				'rows'      => array(
+				'subject'  => __( 'You\'re on the village waitlist — Vila Akoya', 'vila-akoya' ),
+				'title'    => __( 'You\'re on the waitlist', 'vila-akoya' ),
+				'greeting' => __( 'Hello,', 'vila-akoya' ),
+				'intro'    => __( 'Thank you for your interest in the Vila Akoya village. We have added you to the waitlist.', 'vila-akoya' ),
+				'rows'     => array(
 					array( __( 'Email', 'vila-akoya' ), '[your-email]' ),
 				),
-				'outro'     => __( 'We will reach out when there is news to share about the village.', 'vila-akoya' ),
+				'outro'    => __( 'We will reach out when there is news to share about the village.', 'vila-akoya' ),
 			),
 		),
 		'village_inquiry'    => array(
@@ -316,12 +384,12 @@ function vila_akoya_cf7_form_mail_configs() {
 				'rows'    => $name_rows,
 			),
 			'autoreply' => array(
-				'subject'   => __( 'Thanks for your village inquiry — Vila Akoya', 'vila-akoya' ),
-				'title'     => __( 'We received your message', 'vila-akoya' ),
-				'greeting'  => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
-				'intro'     => __( 'Thank you for sharing a little about yourself and your interest in Vila Akoya. Here is a copy of what you sent:', 'vila-akoya' ),
-				'rows'      => $name_rows,
-				'outro'     => __( 'We read every inquiry with care and will be in touch when we can.', 'vila-akoya' ),
+				'subject'  => __( 'Thanks for your village inquiry — Vila Akoya', 'vila-akoya' ),
+				'title'    => __( 'We received your message', 'vila-akoya' ),
+				'greeting' => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
+				'intro'    => __( 'Thank you for sharing a little about yourself and your interest in Vila Akoya. Here is a copy of what you sent:', 'vila-akoya' ),
+				'rows'     => $name_rows,
+				'outro'    => __( 'We read every inquiry with care and will be in touch when we can.', 'vila-akoya' ),
 			),
 		),
 		'campus'             => array(
@@ -337,17 +405,17 @@ function vila_akoya_cf7_form_mail_configs() {
 				),
 			),
 			'autoreply' => array(
-				'subject'   => __( 'Thanks for your campus inquiry — Vila Akoya', 'vila-akoya' ),
-				'title'     => __( 'We received your inquiry', 'vila-akoya' ),
-				'greeting'  => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
-				'intro'     => __( 'Thank you for reaching out about hosting at the Vila Akoya campus. Here is a copy of what you sent:', 'vila-akoya' ),
-				'rows'      => array(
+				'subject'  => __( 'Thanks for your campus inquiry — Vila Akoya', 'vila-akoya' ),
+				'title'    => __( 'We received your inquiry', 'vila-akoya' ),
+				'greeting' => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
+				'intro'    => __( 'Thank you for reaching out about hosting at the Vila Akoya campus. Here is a copy of what you sent:', 'vila-akoya' ),
+				'rows'     => array(
 					array( __( 'Name', 'vila-akoya' ), '[your-name]' ),
 					array( __( 'Email', 'vila-akoya' ), '[your-email]' ),
 					array( __( 'Workshop / retreat', 'vila-akoya' ), '[your-message]' ),
 					array( __( 'Guest facilitator updates', 'vila-akoya' ), '[guest-updates]' ),
 				),
-				'outro'     => __( 'We will review your idea and get back to you soon.', 'vila-akoya' ),
+				'outro'    => __( 'We will review your idea and get back to you soon.', 'vila-akoya' ),
 			),
 		),
 		'contact'            => array(
@@ -358,15 +426,24 @@ function vila_akoya_cf7_form_mail_configs() {
 				'rows'    => $name_rows,
 			),
 			'autoreply' => array(
-				'subject'   => __( 'Thanks for getting in touch — Vila Akoya', 'vila-akoya' ),
-				'title'     => __( 'We received your message', 'vila-akoya' ),
-				'greeting'  => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
-				'intro'     => __( 'Thank you for reaching out to Vila Akoya. Here is a copy of what you sent:', 'vila-akoya' ),
-				'rows'      => $name_rows,
-				'outro'     => __( 'We will read your message and reply as soon as we can.', 'vila-akoya' ),
+				'subject'  => __( 'Thanks for getting in touch — Vila Akoya', 'vila-akoya' ),
+				'title'    => __( 'We received your message', 'vila-akoya' ),
+				'greeting' => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
+				'intro'    => __( 'Thank you for reaching out to Vila Akoya. Here is a copy of what you sent:', 'vila-akoya' ),
+				'rows'     => $name_rows,
+				'outro'    => __( 'We will read your message and reply as soon as we can.', 'vila-akoya' ),
 			),
 		),
 	);
+}
+
+/**
+ * Per-form admin + autoreply mail configuration (defaults + editor overrides).
+ *
+ * @return array<string, array{admin: array, autoreply: array}>
+ */
+function vila_akoya_cf7_form_mail_configs() {
+	return vila_akoya_cf7_merge_mail_copy_overrides( vila_akoya_cf7_form_mail_configs_defaults() );
 }
 
 /**

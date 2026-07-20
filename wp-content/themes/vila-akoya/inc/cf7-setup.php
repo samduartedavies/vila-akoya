@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Bump when seeded CF7 form markup changes.
  */
-define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '15' );
+define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '16' );
 define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '5' );
 define( 'VILA_AKOYA_CF7_MAIL_FROM', 'info@vila-akoya.com' );
 define( 'VILA_AKOYA_CF7_MAIL_TO', 'info@vila-akoya.com' );
@@ -455,6 +455,7 @@ function vila_akoya_get_cf7_form_ids() {
 						'<div class="flex flex-col md:flex-row gap-4 items-stretch md:items-center">',
 						'<label class="sr-only" for="home-newsletter-email">' . esc_html__( 'Email for updates', 'vila-akoya' ) . '</label>',
 						'[email* your-email id:home-newsletter-email class:newsletter-email placeholder "your@email.com"]',
+						'<input type="hidden" name="mc4wp-subscribe" value="1" />',
 						'[submit class:newsletter-submit "' . esc_html__( 'Subscribe', 'vila-akoya' ) . '"]',
 						'</div>',
 					)
@@ -480,6 +481,7 @@ function vila_akoya_get_cf7_form_ids() {
 						'<div class="flex flex-col md:flex-row gap-4 justify-center items-stretch md:items-center max-w-2xl mx-auto">',
 						'<label class="sr-only" for="village-waitlist-email">' . esc_html__( 'Email address', 'vila-akoya' ) . '</label>',
 						'[email* your-email id:village-waitlist-email class:newsletter-email placeholder "' . esc_attr__( 'Your email address', 'vila-akoya' ) . '"]',
+						'<input type="hidden" name="mc4wp-subscribe" value="1" />',
 						'[submit class:newsletter-submit "' . esc_html__( 'Join the Waitlist', 'vila-akoya' ) . '"]',
 						'</div>',
 					)

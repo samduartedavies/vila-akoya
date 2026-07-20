@@ -18,6 +18,8 @@ require_once VILA_AKOYA_DIR . '/inc/campsite-booking-email.php';
 require_once VILA_AKOYA_DIR . '/inc/booking-extras.php';
 require_once VILA_AKOYA_DIR . '/inc/campsite-plots-admin.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
+require_once VILA_AKOYA_DIR . '/inc/cf7-email-copy-admin.php';
+require_once VILA_AKOYA_DIR . '/inc/mc4wp-cf7.php';
 require_once VILA_AKOYA_DIR . '/inc/nav-walkers.php';
 require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';
 require_once VILA_AKOYA_DIR . '/inc/blog.php';

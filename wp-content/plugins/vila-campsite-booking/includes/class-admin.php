@@ -553,6 +553,10 @@ class Admin {
 			update_option( Pricing_Settings::OPTION_KEY, $san );
 		}
 
+		if ( isset( $_POST['vila_cb_siba'] ) && is_array( $_POST['vila_cb_siba'] ) ) {
+			update_option( Guest_Registration_Exporter::OPTION_SETTINGS, Guest_Registration_Exporter::sanitize_settings( wp_unslash( $_POST['vila_cb_siba'] ) ) );
+		}
+
 		Pricing_Settings::sync_woocommerce_currency_option();
 
 		Install::sync_plots();
@@ -1668,6 +1672,7 @@ class Admin {
 		$product_id = (int) get_option( 'vila_cb_product_id', 0 );
 		$plot_count = (int) get_option( 'vila_cb_plot_count', count( Plot_Repository::default_plot_numbers() ) );
 		$pricing    = Pricing_Settings::get();
+		$siba       = Guest_Registration_Exporter::settings();
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-settings">
@@ -1706,6 +1711,53 @@ class Admin {
 					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Currency', 'vila-campsite-booking' ); ?></h2>
 					<p class="description"><?php esc_html_e( 'All campsite booking prices, cart totals, and payments use EUR. Saving these settings also sets WooCommerce → Settings → General → Currency to Euro (€).', 'vila-campsite-booking' ); ?></p>
 					<p class="description"><strong><?php esc_html_e( 'Current store currency:', 'vila-campsite-booking' ); ?></strong> <?php echo esc_html( get_woocommerce_currency() ); ?> — <?php echo wp_kses_post( wc_price( 1 ) ); ?> <?php esc_html_e( 'sample', 'vila-campsite-booking' ); ?></p>
+				</div>
+
+				<div class="vila-cb-ui-panel">
+					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'SIBA export', 'vila-campsite-booking' ); ?></h2>
+					<p class="description"><?php esc_html_e( 'These fields build the BA03 header for SIBA DAT file uploads. Match the details issued by SIBA for the accommodation unit.', 'vila-campsite-booking' ); ?></p>
+					<table class="form-table vila-cb-ui-form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_nif"><?php esc_html_e( 'NIF', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[nif]" id="vila_cb_siba_nif" type="text" value="<?php echo esc_attr( $siba['nif'] ); ?>" class="regular-text" maxlength="9" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_establishment"><?php esc_html_e( 'Establishment number', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[establishment]" id="vila_cb_siba_establishment" type="text" value="<?php echo esc_attr( $siba['establishment'] ); ?>" class="regular-text" maxlength="4" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_unit_name"><?php esc_html_e( 'Unit name', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[unit_name]" id="vila_cb_siba_unit_name" type="text" value="<?php echo esc_attr( $siba['unit_name'] ); ?>" class="regular-text" maxlength="40" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_address"><?php esc_html_e( 'Address', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[address]" id="vila_cb_siba_address" type="text" value="<?php echo esc_attr( $siba['address'] ); ?>" class="regular-text" maxlength="40" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_locality"><?php esc_html_e( 'Locality', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[locality]" id="vila_cb_siba_locality" type="text" value="<?php echo esc_attr( $siba['locality'] ); ?>" class="regular-text" maxlength="30" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_postal"><?php esc_html_e( 'Postal code', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[postal_code]" id="vila_cb_siba_postal" type="text" value="<?php echo esc_attr( $siba['postal_code'] ); ?>" class="regular-text" maxlength="8" placeholder="0000-000" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_phone"><?php esc_html_e( 'Phone', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[phone]" id="vila_cb_siba_phone" type="text" value="<?php echo esc_attr( $siba['phone'] ); ?>" class="regular-text" maxlength="10" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_fax"><?php esc_html_e( 'Fax', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[fax]" id="vila_cb_siba_fax" type="text" value="<?php echo esc_attr( $siba['fax'] ); ?>" class="regular-text" maxlength="10" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_contact_name"><?php esc_html_e( 'Contact name', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[contact_name]" id="vila_cb_siba_contact_name" type="text" value="<?php echo esc_attr( $siba['contact_name'] ); ?>" class="regular-text" maxlength="40" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_contact_email"><?php esc_html_e( 'Contact email', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[contact_email]" id="vila_cb_siba_contact_email" type="email" value="<?php echo esc_attr( $siba['contact_email'] ); ?>" class="regular-text" maxlength="140" /></td>
+						</tr>
+					</table>
 				</div>
 
 				<div class="vila-cb-ui-panel">
@@ -1782,6 +1834,19 @@ class Admin {
 				<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Shortcode', 'vila-campsite-booking' ); ?></h2>
 				<p class="vila-cb-ui-code-wrap"><code class="vila-cb-ui-code">[vila_campsite_booking]</code></p>
 				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Optional: [vila_campsite_booking product_id="123" label="Your label"]. The label overrides the “Where” text (defaults to a generic campsite name, not the WC product title).', 'vila-campsite-booking' ); ?></p>
+				<p class="vila-cb-ui-code-wrap" style="margin-top:14px;"><code class="vila-cb-ui-code">[vila_guest_registration]</code></p>
+				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Add this shortcode to a guest-facing page where people can search their booking or enter stay details manually for SIBA registration.', 'vila-campsite-booking' ); ?></p>
+				<?php
+				$guest_page = (int) get_option( Install::OPTION_GUEST_REGISTRATION_PAGE_ID, 0 );
+				if ( ! $guest_page ) {
+					$guest_page = Install::ensure_guest_registration_page();
+				}
+				if ( $guest_page ) :
+					?>
+					<p class="description vila-cb-ui-footnote">
+						<a href="<?php echo esc_url( get_permalink( $guest_page ) ); ?>" target="_blank" rel="noreferrer"><?php esc_html_e( 'Open guest registration page', 'vila-campsite-booking' ); ?></a>
+					</p>
+				<?php endif; ?>
 			</div>
 		</div>
 		<?php

@@ -47,4 +47,20 @@ class Database {
 		global $wpdb;
 		return $wpdb->prefix . 'vila_plot_blocks';
 	}
+
+	/**
+	 * @return string
+	 */
+	public static function guest_registrations_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'vila_guest_registrations';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function guest_persons_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'vila_guest_persons';
+	}
 }

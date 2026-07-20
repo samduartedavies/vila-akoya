@@ -15,12 +15,14 @@ defined( 'ABSPATH' ) || exit;
 class Shortcode {
 
 	const SHORTCODE = 'vila_campsite_booking';
+	const GUEST_REGISTRATION_SHORTCODE = 'vila_guest_registration';
 
 	/**
 	 * Init hooks.
 	 */
 	public static function init() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
+		add_shortcode( self::GUEST_REGISTRATION_SHORTCODE, array( __CLASS__, 'render_guest_registration' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 	}
 
@@ -37,6 +39,13 @@ class Shortcode {
 		wp_register_script(
 			'vila-cb-frontend',
 			VILA_CB_URL . 'assets/js/frontend.js',
+			array(),
+			VILA_CB_VERSION,
+			true
+		);
+		wp_register_script(
+			'vila-cb-guest-registration',
+			VILA_CB_URL . 'assets/js/guest-registration.js',
 			array(),
 			VILA_CB_VERSION,
 			true
@@ -223,6 +232,117 @@ class Shortcode {
 					</div>
 				</div>
 			</form>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function render_guest_registration() {
+		wp_enqueue_style( 'vila-cb-frontend' );
+		wp_enqueue_script( 'vila-cb-guest-registration' );
+
+		$lookup_url = esc_url_raw( rest_url( 'vila-campsite-booking/v1/guest-registration/lookup' ) );
+		$submit_url = esc_url_raw( rest_url( 'vila-campsite-booking/v1/guest-registration' ) );
+		// wp_rest + X-WP-Nonce: without it REST clears the logged-in user and nonce checks fail for admins.
+		$nonce      = wp_create_nonce( 'wp_rest' );
+
+		wp_localize_script(
+			'vila-cb-guest-registration',
+			'vilaGuestRegistration',
+			array(
+				'lookupUrl' => $lookup_url,
+				'submitUrl' => $submit_url,
+				'nonce'     => $nonce,
+				'strings'   => array(
+					'searching'     => __( 'Searching bookings...', 'vila-campsite-booking' ),
+					'noBookings'    => __( 'No matching booking found. You can enter the stay details manually.', 'vila-campsite-booking' ),
+					'selectBooking' => __( 'Use this booking', 'vila-campsite-booking' ),
+					'guestHeading'  => __( 'Guest', 'vila-campsite-booking' ),
+					'saved'         => __( 'Thank you. Your legal guest registration details have been saved.', 'vila-campsite-booking' ),
+					'failed'        => __( 'Could not save the registration. Please check the fields and try again.', 'vila-campsite-booking' ),
+					'required'      => __( 'Please complete the required fields.', 'vila-campsite-booking' ),
+				),
+			)
+		);
+
+		ob_start();
+		?>
+		<div
+			class="vila-cb vila-cb-gr"
+			data-vila-gr-root
+			data-lookup-url="<?php echo esc_url( $lookup_url ); ?>"
+			data-submit-url="<?php echo esc_url( $submit_url ); ?>"
+			data-nonce="<?php echo esc_attr( $nonce ); ?>"
+		>
+			<div class="vila-cb-gr__intro">
+				<p class="vila-cb__hint"><?php esc_html_e( 'Portuguese law requires us to collect guest details for SIBA before or at check-in. Search for your booking, or enter your stay details manually.', 'vila-campsite-booking' ); ?></p>
+			</div>
+
+			<section class="vila-cb-gr__panel" data-vila-gr-lookup-panel>
+				<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Find your booking', 'vila-campsite-booking' ); ?></h2>
+				<form class="vila-cb-gr__lookup" data-vila-gr-lookup-form>
+					<label>
+						<span><?php esc_html_e( 'Booking last name', 'vila-campsite-booking' ); ?></span>
+						<input type="text" name="last_name" autocomplete="family-name" required />
+					</label>
+					<label>
+						<span><?php esc_html_e( 'Booking email', 'vila-campsite-booking' ); ?></span>
+						<input type="email" name="email" autocomplete="email" required />
+					</label>
+					<button type="submit" class="vila-cb__cta"><?php esc_html_e( 'Search', 'vila-campsite-booking' ); ?></button>
+				</form>
+				<div class="vila-cb-gr__results" data-vila-gr-results></div>
+				<button type="button" class="vila-cb-gr__manual" data-vila-gr-manual><?php esc_html_e( 'Enter stay details manually instead', 'vila-campsite-booking' ); ?></button>
+			</section>
+
+			<form class="vila-cb-gr__form" data-vila-gr-form hidden>
+				<input type="text" name="website" value="" class="vila-cb-gr__hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+				<input type="hidden" name="booking_id" value="0" data-vila-gr-booking-id />
+				<input type="hidden" name="order_id" value="0" data-vila-gr-order-id />
+
+				<section class="vila-cb-gr__panel">
+					<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Stay details', 'vila-campsite-booking' ); ?></h2>
+					<p class="vila-cb-gr__selected" data-vila-gr-selected></p>
+					<div class="vila-cb-gr__manual-fields" data-vila-gr-manual-fields hidden>
+						<label>
+							<span><?php esc_html_e( 'Booker name', 'vila-campsite-booking' ); ?></span>
+							<input type="text" name="booker_name" autocomplete="name" />
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Contact email', 'vila-campsite-booking' ); ?></span>
+							<input type="email" name="contact_email" autocomplete="email" />
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Check-in', 'vila-campsite-booking' ); ?></span>
+							<input type="date" name="check_in" />
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Check-out', 'vila-campsite-booking' ); ?></span>
+							<input type="date" name="check_out" />
+						</label>
+					</div>
+				</section>
+
+				<section class="vila-cb-gr__panel">
+					<div class="vila-cb-gr__guest-tools">
+						<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Guests', 'vila-campsite-booking' ); ?></h2>
+						<label>
+							<span><?php esc_html_e( 'Number of people', 'vila-campsite-booking' ); ?></span>
+							<input type="number" min="1" max="20" value="1" data-vila-gr-count />
+						</label>
+					</div>
+					<div data-vila-gr-persons></div>
+				</section>
+
+				<div class="vila-cb-gr__actions">
+					<button type="submit" class="vila-cb__cta"><?php esc_html_e( 'Save guest registration', 'vila-campsite-booking' ); ?></button>
+				</div>
+			</form>
+
+			<div class="vila-cb-gr__message" data-vila-gr-message role="status" aria-live="polite"></div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
