@@ -32,7 +32,7 @@ $section_class = 'wp-block-group py-24 px-8 md:px-20 mb-0';
 $heading_class = 'font-headline text-5xl text-primary mb-12 text-center';
 
 if ( 'village' === $layout ) {
-	$section_class = 'wp-block-group py-32 px-6 md:px-20 mb-0';
+	$section_class = 'wp-block-group vila-dappled-surface py-32 px-6 md:px-20 mb-0';
 	$heading_class = 'font-headline text-5xl text-primary mb-4';
 } elseif ( 'kids' === $layout ) {
 	$section_class = 'wp-block-group px-6 md:px-12 lg:px-24 mb-32';
@@ -42,7 +42,7 @@ if ( 'village' === $layout ) {
 <section class="<?php echo esc_attr( $section_class ); ?>">
 	<div class="wp-block-group max-w-[1236px] mx-auto box-border">
 		<?php if ( 'village' === $layout ) : ?>
-			<div class="wp-block-group text-center mb-20">
+			<div class="wp-block-group vila-reveal text-center mb-20">
 				<?php if ( '' !== $heading ) : ?>
 					<h2 class="wp-block-heading <?php echo esc_attr( $heading_class ); ?>"><?php echo esc_html( $heading ); ?></h2>
 				<?php endif; ?>
@@ -51,10 +51,10 @@ if ( 'village' === $layout ) {
 				<?php endif; ?>
 			</div>
 		<?php elseif ( '' !== $heading ) : ?>
-			<h2 class="wp-block-heading <?php echo esc_attr( $heading_class ); ?>"><?php echo esc_html( $heading ); ?></h2>
+			<h2 class="wp-block-heading vila-reveal <?php echo esc_attr( $heading_class ); ?>"><?php echo esc_html( $heading ); ?></h2>
 		<?php endif; ?>
 
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto items-stretch">
+		<div class="vila-reveal-stagger grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto items-stretch">
 			<?php foreach ( $cards as $i => $card ) : ?>
 				<?php
 				$has_link  = is_array( $card['link'] ) && ! empty( $card['link']['url'] );

@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Bump when seeded CF7 form markup changes.
  */
-define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '16' );
+define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '17' );
 define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '5' );
 define( 'VILA_AKOYA_CF7_MAIL_FROM', 'info@vila-akoya.com' );
 define( 'VILA_AKOYA_CF7_MAIL_TO', 'info@vila-akoya.com' );
@@ -111,6 +111,7 @@ function vila_akoya_cf7_required_form_keys() {
 		'village_inquiry',
 		'campus',
 		'contact',
+		'event_inquiry',
 	);
 }
 
@@ -209,6 +210,7 @@ function vila_akoya_cf7_detect_form_key( WPCF7_ContactForm $form ) {
 		'village-inq-name'       => 'village_inquiry',
 		'campus-host-name'       => 'campus',
 		'contact-name'           => 'contact',
+		'event-inq-name'         => 'event_inquiry',
 	);
 
 	foreach ( $markers as $needle => $key ) {
@@ -413,6 +415,165 @@ function vila_akoya_cf7_sync_mail_settings( array $seeded_form_ids ) {
 }
 
 /**
+ * Create a single seeded CF7 form by key and return its ID.
+ *
+ * @param string $key Form key.
+ * @return string Form ID or empty string.
+ */
+function vila_akoya_cf7_create_form_for_key( $key ) {
+	if ( ! class_exists( 'WPCF7_ContactForm' ) ) {
+		return '';
+	}
+
+	$key = sanitize_key( $key );
+	$defs = vila_akoya_cf7_form_definitions();
+	if ( ! isset( $defs[ $key ] ) ) {
+		return '';
+	}
+
+	$def  = $defs[ $key ];
+	$form = WPCF7_ContactForm::get_template(
+		array(
+			'title' => $def['title'],
+		)
+	);
+	$form->set_properties(
+		array_merge(
+			array(
+				'form' => $def['form'],
+			),
+			vila_akoya_cf7_mail_properties_for_key( $key )
+		)
+	);
+	$form->save();
+
+	return (string) $form->id();
+}
+
+/**
+ * Markup + titles for seeded CF7 forms.
+ *
+ * @return array<string, array{title:string,form:string}>
+ */
+function vila_akoya_cf7_form_definitions() {
+	$village_inquiry_placeholder = vila_akoya_cf7_village_inquiry_placeholder();
+
+	return array(
+		'newsletter_home'    => array(
+			'title' => __( 'Newsletter — Home', 'vila-akoya' ),
+			'form'  => implode(
+				"\n",
+				array(
+					'<div class="flex flex-col md:flex-row gap-4 items-stretch md:items-center">',
+					'<label class="sr-only" for="home-newsletter-email">' . esc_html__( 'Email for updates', 'vila-akoya' ) . '</label>',
+					'[email* your-email id:home-newsletter-email class:newsletter-email placeholder "your@email.com"]',
+					'<input type="hidden" name="mc4wp-subscribe" value="1" />',
+					'[submit class:newsletter-submit "' . esc_html__( 'Subscribe', 'vila-akoya' ) . '"]',
+					'</div>',
+				)
+			),
+		),
+		'newsletter_village' => array(
+			'title' => __( 'Village waitlist', 'vila-akoya' ),
+			'form'  => implode(
+				"\n",
+				array(
+					'<div class="flex flex-col md:flex-row gap-4 justify-center items-stretch md:items-center max-w-2xl mx-auto">',
+					'<label class="sr-only" for="village-waitlist-email">' . esc_html__( 'Email address', 'vila-akoya' ) . '</label>',
+					'[email* your-email id:village-waitlist-email class:newsletter-email placeholder "' . esc_attr__( 'Your email address', 'vila-akoya' ) . '"]',
+					'<input type="hidden" name="mc4wp-subscribe" value="1" />',
+					'[submit class:newsletter-submit "' . esc_html__( 'Join the Waitlist', 'vila-akoya' ) . '"]',
+					'</div>',
+				)
+			),
+		),
+		'village_inquiry'    => array(
+			'title' => __( 'Village inquiry', 'vila-akoya' ),
+			'form'  => implode(
+				"\n",
+				array(
+					'<div class="grid grid-cols-1 md:grid-cols-2 gap-6">',
+					'<div><label for="village-inq-name">' . esc_html__( 'Your Name', 'vila-akoya' ) . '</label>[text* your-name id:village-inq-name placeholder "Elias Duarte"]</div>',
+					'<div><label for="village-inq-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:village-inq-email placeholder "elias@example.com"]</div>',
+					'</div>',
+					'<div><label for="village-inq-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel* your-phone id:village-inq-phone placeholder "+351 000 000 000"]</div>',
+					'<div><label for="village-inq-message">' . esc_html__( 'Want to join our little village?', 'vila-akoya' ) . '</label>[textarea* your-message 40x22 id:village-inq-message placeholder "' . $village_inquiry_placeholder . '"]</div>',
+					'[submit "' . esc_html__( 'Send Inquiry →', 'vila-akoya' ) . '"]',
+				)
+			),
+		),
+		'campus'             => array(
+			'title' => __( 'Campus — host your own', 'vila-akoya' ),
+			'form'  => implode(
+				"\n",
+				array(
+					'<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">',
+					'<div><label for="campus-host-name">' . esc_html__( 'Your Name', 'vila-akoya' ) . '</label>[text* your-name id:campus-host-name placeholder "e.g. Elena Santos"]</div>',
+					'<div><label for="campus-host-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:campus-host-email placeholder "hello@flow.com"]</div>',
+					'</div>',
+					'<div class="mb-8"><label for="campus-host-message">' . esc_html__( 'Tell us about your workshop or retreat', 'vila-akoya' ) . '</label>[textarea* your-message id:campus-host-message placeholder "' . esc_attr__( 'What is the intention? Which materials will you need?', 'vila-akoya' ) . '"]</div>',
+					'<div class="mb-10">[checkbox guest-updates use_label_element "' . esc_html__( 'Keep me updated on guest facilitator openings.', 'vila-akoya' ) . '"]</div>',
+					'[submit "' . esc_html__( 'Send Inquiry', 'vila-akoya' ) . '"]',
+				)
+			),
+		),
+		'contact'            => array(
+			'title' => __( 'Contact', 'vila-akoya' ),
+			'form'  => implode(
+				"\n",
+				array(
+					'<div class="grid grid-cols-1 md:grid-cols-2 gap-6">',
+					'<div><label for="contact-name">' . esc_html__( 'Your name', 'vila-akoya' ) . '</label>[text* your-name id:contact-name placeholder "' . esc_attr__( 'Your name', 'vila-akoya' ) . '"]</div>',
+					'<div><label for="contact-email">' . esc_html__( 'Email', 'vila-akoya' ) . '</label>[email* your-email id:contact-email placeholder "' . esc_attr__( 'you@example.com', 'vila-akoya' ) . '"]</div>',
+					'</div>',
+					'<div><label for="contact-phone">' . esc_html__( 'Phone (optional)', 'vila-akoya' ) . '</label>[tel your-phone id:contact-phone placeholder "+351 …"]</div>',
+					'<div><label for="contact-message">' . esc_html__( 'Message', 'vila-akoya' ) . '</label>[textarea* your-message id:contact-message placeholder "' . esc_attr__( 'How can we help?', 'vila-akoya' ) . '"]</div>',
+					'[submit "' . esc_html__( 'Send message', 'vila-akoya' ) . '"]',
+				)
+			),
+		),
+		'event_inquiry'      => array(
+			'title' => __( 'Event inquiry', 'vila-akoya' ),
+			'form'  => implode(
+				"\n",
+				array(
+					'<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">',
+					'<div><label for="event-inq-name">' . esc_html__( 'Your Name', 'vila-akoya' ) . '</label>[text* your-name id:event-inq-name placeholder "' . esc_attr__( 'Your name', 'vila-akoya' ) . '"]</div>',
+					'<div><label for="event-inq-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:event-inq-email placeholder "' . esc_attr__( 'you@example.com', 'vila-akoya' ) . '"]</div>',
+					'</div>',
+					'<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">',
+					'<div><label for="event-inq-phone">' . esc_html__( 'Phone (optional)', 'vila-akoya' ) . '</label>[tel your-phone id:event-inq-phone placeholder "+351 …"]</div>',
+					'<div><label for="event-inq-places">' . esc_html__( 'Number of places', 'vila-akoya' ) . '</label>[number* places id:event-inq-places min:1 max:20 "1"]</div>',
+					'</div>',
+					'<div class="mb-8"><label for="event-inq-message">' . esc_html__( 'Message', 'vila-akoya' ) . '</label>[textarea your-message id:event-inq-message placeholder "' . esc_attr__( 'Anything we should know? Dietary needs, questions…', 'vila-akoya' ) . '"]</div>',
+					'[submit "' . esc_html__( 'Request a place', 'vila-akoya' ) . '"]',
+				)
+			),
+		),
+	);
+}
+
+/**
+ * Ensure every required seeded form exists; create only missing keys.
+ *
+ * @param array<string, string> $ids Existing IDs.
+ * @return array<string, string>
+ */
+function vila_akoya_cf7_ensure_required_forms( array $ids ) {
+	foreach ( vila_akoya_cf7_required_form_keys() as $key ) {
+		$form_id = isset( $ids[ $key ] ) ? (string) $ids[ $key ] : '';
+		if ( '' !== $form_id && vila_akoya_cf7_get_form( $form_id ) ) {
+			continue;
+		}
+		$created = vila_akoya_cf7_create_form_for_key( $key );
+		if ( '' !== $created ) {
+			$ids[ $key ] = $created;
+		}
+	}
+	return $ids;
+}
+
+/**
  * Create or retrieve CF7 form IDs keyed by slug.
  *
  * @return array<string, string>
@@ -424,6 +585,26 @@ function vila_akoya_get_cf7_form_ids() {
 
 	$cached = get_option( 'vila_akoya_cf7_form_ids', array() );
 	$schema = (string) get_option( 'vila_akoya_cf7_schema_ver', '' );
+	$cached = is_array( $cached ) ? $cached : array();
+
+	// Prefer incremental create when some forms already exist (avoids rewriting page shortcodes).
+	$existing_ok = 0;
+	foreach ( vila_akoya_cf7_required_form_keys() as $key ) {
+		if ( ! empty( $cached[ $key ] ) && vila_akoya_cf7_get_form( (string) $cached[ $key ] ) ) {
+			++$existing_ok;
+		}
+	}
+
+	if ( $existing_ok > 0 && ! vila_akoya_cf7_cached_ids_are_valid( $cached ) ) {
+		$cached = vila_akoya_cf7_resolve_active_form_ids();
+		$cached = vila_akoya_cf7_ensure_required_forms( $cached );
+		update_option( 'vila_akoya_cf7_form_ids', $cached );
+		vila_akoya_cf7_upgrade_mail_templates();
+		update_option( 'vila_akoya_cf7_schema_ver', VILA_AKOYA_CF7_SCHEMA_VERSION );
+		vila_akoya_cf7_sync_mail_settings( $cached );
+		return $cached;
+	}
+
 	if ( vila_akoya_cf7_cached_ids_are_valid( $cached ) ) {
 		$cached = vila_akoya_cf7_resolve_active_form_ids();
 		if ( VILA_AKOYA_CF7_SCHEMA_VERSION !== $schema ) {
@@ -440,140 +621,12 @@ function vila_akoya_get_cf7_form_ids() {
 	}
 
 	$ids = array();
-
-	$newsletter_home = WPCF7_ContactForm::get_template(
-		array(
-			'title' => __( 'Newsletter — Home', 'vila-akoya' ),
-		)
-	);
-	$newsletter_home->set_properties(
-		array_merge(
-			array(
-				'form' => implode(
-					"\n",
-					array(
-						'<div class="flex flex-col md:flex-row gap-4 items-stretch md:items-center">',
-						'<label class="sr-only" for="home-newsletter-email">' . esc_html__( 'Email for updates', 'vila-akoya' ) . '</label>',
-						'[email* your-email id:home-newsletter-email class:newsletter-email placeholder "your@email.com"]',
-						'<input type="hidden" name="mc4wp-subscribe" value="1" />',
-						'[submit class:newsletter-submit "' . esc_html__( 'Subscribe', 'vila-akoya' ) . '"]',
-						'</div>',
-					)
-				),
-			),
-			vila_akoya_cf7_mail_properties_for_key( 'newsletter_home' )
-		)
-	);
-	$newsletter_home->save();
-	$ids['newsletter_home'] = (string) $newsletter_home->id();
-
-	$newsletter_village = WPCF7_ContactForm::get_template(
-		array(
-			'title' => __( 'Village waitlist', 'vila-akoya' ),
-		)
-	);
-	$newsletter_village->set_properties(
-		array_merge(
-			array(
-				'form' => implode(
-					"\n",
-					array(
-						'<div class="flex flex-col md:flex-row gap-4 justify-center items-stretch md:items-center max-w-2xl mx-auto">',
-						'<label class="sr-only" for="village-waitlist-email">' . esc_html__( 'Email address', 'vila-akoya' ) . '</label>',
-						'[email* your-email id:village-waitlist-email class:newsletter-email placeholder "' . esc_attr__( 'Your email address', 'vila-akoya' ) . '"]',
-						'<input type="hidden" name="mc4wp-subscribe" value="1" />',
-						'[submit class:newsletter-submit "' . esc_html__( 'Join the Waitlist', 'vila-akoya' ) . '"]',
-						'</div>',
-					)
-				),
-			),
-			vila_akoya_cf7_mail_properties_for_key( 'newsletter_village' )
-		)
-	);
-	$newsletter_village->save();
-	$ids['newsletter_village'] = (string) $newsletter_village->id();
-
-	$village_inquiry = WPCF7_ContactForm::get_template(
-		array(
-			'title' => __( 'Village inquiry', 'vila-akoya' ),
-		)
-	);
-	$village_inquiry_placeholder = vila_akoya_cf7_village_inquiry_placeholder();
-	$village_inquiry->set_properties(
-		array_merge(
-			array(
-				'form' => implode(
-					"\n",
-					array(
-						'<div class="grid grid-cols-1 md:grid-cols-2 gap-6">',
-						'<div><label for="village-inq-name">' . esc_html__( 'Your Name', 'vila-akoya' ) . '</label>[text* your-name id:village-inq-name placeholder "Elias Duarte"]</div>',
-						'<div><label for="village-inq-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:village-inq-email placeholder "elias@example.com"]</div>',
-						'</div>',
-						'<div><label for="village-inq-phone">' . esc_html__( 'Phone Number', 'vila-akoya' ) . '</label>[tel* your-phone id:village-inq-phone placeholder "+351 000 000 000"]</div>',
-						'<div><label for="village-inq-message">' . esc_html__( 'Want to join our little village?', 'vila-akoya' ) . '</label>[textarea* your-message 40x22 id:village-inq-message placeholder "' . $village_inquiry_placeholder . '"]</div>',
-						'[submit "' . esc_html__( 'Send Inquiry →', 'vila-akoya' ) . '"]',
-					)
-				),
-			),
-			vila_akoya_cf7_mail_properties_for_key( 'village_inquiry' )
-		)
-	);
-	$village_inquiry->save();
-	$ids['village_inquiry'] = (string) $village_inquiry->id();
-
-	$campus = WPCF7_ContactForm::get_template(
-		array(
-			'title' => __( 'Campus — host your own', 'vila-akoya' ),
-		)
-	);
-	$campus->set_properties(
-		array_merge(
-			array(
-				'form' => implode(
-					"\n",
-					array(
-						'<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">',
-						'<div><label for="campus-host-name">' . esc_html__( 'Your Name', 'vila-akoya' ) . '</label>[text* your-name id:campus-host-name placeholder "e.g. Elena Santos"]</div>',
-						'<div><label for="campus-host-email">' . esc_html__( 'Email Address', 'vila-akoya' ) . '</label>[email* your-email id:campus-host-email placeholder "hello@flow.com"]</div>',
-						'</div>',
-						'<div class="mb-8"><label for="campus-host-message">' . esc_html__( 'Tell us about your workshop or retreat', 'vila-akoya' ) . '</label>[textarea* your-message id:campus-host-message placeholder "' . esc_attr__( 'What is the intention? Which materials will you need?', 'vila-akoya' ) . '"]</div>',
-						'<div class="mb-10">[checkbox guest-updates use_label_element "' . esc_html__( 'Keep me updated on guest facilitator openings.', 'vila-akoya' ) . '"]</div>',
-						'[submit "' . esc_html__( 'Send Inquiry', 'vila-akoya' ) . '"]',
-					)
-				),
-			),
-			vila_akoya_cf7_mail_properties_for_key( 'campus' )
-		)
-	);
-	$campus->save();
-	$ids['campus'] = (string) $campus->id();
-
-	$contact = WPCF7_ContactForm::get_template(
-		array(
-			'title' => __( 'Contact', 'vila-akoya' ),
-		)
-	);
-	$contact->set_properties(
-		array_merge(
-			array(
-				'form' => implode(
-					"\n",
-					array(
-						'<div class="grid grid-cols-1 md:grid-cols-2 gap-6">',
-						'<div><label for="contact-name">' . esc_html__( 'Your name', 'vila-akoya' ) . '</label>[text* your-name id:contact-name placeholder "' . esc_attr__( 'Your name', 'vila-akoya' ) . '"]</div>',
-						'<div><label for="contact-email">' . esc_html__( 'Email', 'vila-akoya' ) . '</label>[email* your-email id:contact-email placeholder "' . esc_attr__( 'you@example.com', 'vila-akoya' ) . '"]</div>',
-						'</div>',
-						'<div><label for="contact-phone">' . esc_html__( 'Phone (optional)', 'vila-akoya' ) . '</label>[tel your-phone id:contact-phone placeholder "+351 …"]</div>',
-						'<div><label for="contact-message">' . esc_html__( 'Message', 'vila-akoya' ) . '</label>[textarea* your-message id:contact-message placeholder "' . esc_attr__( 'How can we help?', 'vila-akoya' ) . '"]</div>',
-						'[submit "' . esc_html__( 'Send message', 'vila-akoya' ) . '"]',
-					)
-				),
-			),
-			vila_akoya_cf7_mail_properties_for_key( 'contact' )
-		)
-	);
-	$contact->save();
-	$ids['contact'] = (string) $contact->id();
+	foreach ( vila_akoya_cf7_required_form_keys() as $key ) {
+		$created = vila_akoya_cf7_create_form_for_key( $key );
+		if ( '' !== $created ) {
+			$ids[ $key ] = $created;
+		}
+	}
 
 	update_option( 'vila_akoya_cf7_form_ids', $ids );
 	update_option( 'vila_akoya_cf7_schema_ver', VILA_AKOYA_CF7_SCHEMA_VERSION );

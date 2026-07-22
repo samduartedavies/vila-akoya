@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.31' );
+define( 'VILA_AKOYA_VERSION', '1.0.35' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
@@ -23,6 +23,7 @@ require_once VILA_AKOYA_DIR . '/inc/mc4wp-cf7.php';
 require_once VILA_AKOYA_DIR . '/inc/nav-walkers.php';
 require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';
 require_once VILA_AKOYA_DIR . '/inc/blog.php';
+require_once VILA_AKOYA_DIR . '/inc/events.php';
 require_once VILA_AKOYA_DIR . '/inc/template-reset.php';
 require_once VILA_AKOYA_DIR . '/inc/page-editor.php';
 require_once VILA_AKOYA_DIR . '/inc/block-patterns.php';
@@ -123,6 +124,13 @@ function vila_akoya_enqueue_assets() {
 	wp_enqueue_script(
 		'vila-akoya-gallery-lightbox',
 		VILA_AKOYA_URI . '/assets/js/gallery-lightbox.js',
+		array(),
+		VILA_AKOYA_VERSION,
+		true
+	);
+	wp_enqueue_script(
+		'vila-akoya-site-motion',
+		VILA_AKOYA_URI . '/assets/js/site-motion.js',
 		array(),
 		VILA_AKOYA_VERSION,
 		true

@@ -86,8 +86,8 @@ $resolve_gallery_image = static function ( $image, $alt = '' ) {
 if ( 'village' === $layout ) :
 	$items = array_values( $images );
 	?>
-<section class="wp-block-group py-32 bg-white/30 mb-0">
-	<div class="wp-block-columns px-6 md:px-20 items-center flex flex-col md:flex-row w-full gap-8">
+<section class="wp-block-group vila-dappled-surface py-32 bg-white/30 mb-0">
+	<div class="wp-block-columns vila-reveal-stagger px-6 md:px-20 items-center flex flex-col md:flex-row w-full gap-8">
 		<?php if ( ! empty( $items[0] ) ) : ?>
 			<div class="wp-block-column order-2 md:order-1 w-full md:w-1/3" style="flex-basis:33.33%">
 				<div class="wp-block-group relative aspect-square rounded-[3rem] overflow-hidden mb-4 rotate-3 editorial-shadow">
@@ -138,12 +138,12 @@ if ( 'village' === $layout ) :
 endif;
 ?>
 <section class="wp-block-group py-24 md:py-28 px-6 md:px-12 lg:px-20 overflow-hidden va-campsite-gallery mb-0">
-	<div class="wp-block-group w-full max-w-[1280px] mx-auto mb-12 md:mb-16">
+	<div class="wp-block-group vila-reveal w-full max-w-[1280px] mx-auto mb-12 md:mb-16">
 		<?php if ( '' !== $heading ) : ?>
 			<h2 class="wp-block-heading text-4xl md:text-7xl font-normal text-primary font-headline text-center"><?php echo esc_html( $heading ); ?></h2>
 		<?php endif; ?>
 	</div>
-	<div class="va-campsite-gallery-grid w-full max-w-[1280px] mx-auto" role="list">
+	<div class="va-campsite-gallery-grid vila-reveal-stagger w-full max-w-[1280px] mx-auto" role="list">
 		<?php foreach ( $images as $image ) : ?>
 			<?php
 			$resolved = $resolve_gallery_image( $image );

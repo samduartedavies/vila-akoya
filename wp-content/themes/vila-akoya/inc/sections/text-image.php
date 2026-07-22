@@ -35,7 +35,7 @@ if ( '' === $layout && '' !== $heading_accent ) {
 
 if ( 'kids-cta' === $layout ) :
 	?>
-<section class="wp-block-group va-kids-cta">
+<section class="wp-block-group va-kids-cta vila-reveal">
 	<div class="wp-block-columns va-kids-cta__card items-stretch flex flex-col md:flex-row w-full">
 		<div class="wp-block-column va-kids-cta__content w-full md:w-3/5 space-y-8 md:space-y-10" style="flex-basis:60%">
 			<?php if ( '' !== $heading ) : ?>
@@ -63,9 +63,9 @@ endif;
 
 if ( 'campsite' === $layout ) :
 	?>
-<section class="wp-block-group py-20 px-8 md:px-20 bg-surface mb-0">
+<section class="wp-block-group vila-nature-band vila-dappled-surface py-20 px-8 md:px-20 bg-surface mb-0">
 	<div class="wp-block-group max-w-[1236px] box-border mx-auto flex flex-col md:flex-row gap-20 items-center">
-		<div class="wp-block-group w-full md:w-1/2 space-y-10">
+		<div class="wp-block-group vila-reveal w-full md:w-1/2 space-y-10">
 			<?php if ( '' !== $heading ) : ?>
 				<h2 class="wp-block-heading text-5xl md:text-7xl font-normal text-primary font-headline leading-tight">
 					<?php if ( '' !== $heading_accent ) : ?>
@@ -84,7 +84,7 @@ if ( 'campsite' === $layout ) :
 				<p class="pt-2 mb-0"><?php vila_akoya_section_link( $link, 'Check availability', 'text-primary font-headline font-bold text-xl' ); ?></p>
 			<?php endif; ?>
 		</div>
-		<div class="wp-block-group w-full md:w-1/2 relative">
+		<div class="wp-block-group vila-reveal w-full md:w-1/2 relative">
 			<div class="wp-block-group relative aspect-square rounded-full overflow-hidden border-8 border-surface-container shadow-2xl">
 				<?php vila_akoya_section_image( $image, 'wp-block-image size-large vila-img-fill', wp_strip_all_tags( $alt ) ); ?>
 			</div>
@@ -112,11 +112,11 @@ if ( 'home' === $layout ) {
 	$inner_close   = '';
 	$image_class   = 'wp-block-image size-large vila-img-fill flex-1 w-full min-h-[min(26rem,55vh)] md:min-h-[min(32rem,72vh)] overflow-hidden rounded-[2.5rem] md:rounded-[3rem] editorial-shadow relative z-10 rotate-[-1.5deg]';
 } elseif ( 'band' === $layout ) {
-	$section_class = 'wp-block-group bg-surface-container-low py-32 rounded-xl mx-8 mb-32';
+	$section_class = 'wp-block-group vila-nature-band vila-dappled-surface bg-surface-container-low py-32 rounded-xl mx-8 mb-32';
 	$inner_open    = '<div class="wp-block-group max-w-7xl mx-auto px-8">';
 	$image_class   = 'wp-block-image size-large vila-img-fill rounded-lg overflow-hidden h-[500px]';
 } elseif ( 'village' === $layout ) {
-	$section_class = 'wp-block-group bg-surface-container-low py-32 px-6 md:px-20 overflow-hidden mb-0';
+	$section_class = 'wp-block-group vila-nature-band vila-dappled-surface bg-surface-container-low py-32 px-6 md:px-20 overflow-hidden mb-0';
 	$inner_open    = '<div class="wp-block-group max-w-7xl mx-auto">';
 	$image_wrap    = 'relative z-10 aspect-square rounded-full border-[1.5rem] border-surface-container-high overflow-hidden';
 	$image_class   = 'wp-block-image size-large vila-img-fill';
@@ -130,7 +130,7 @@ if ( 'home' === $layout ) {
 <section class="<?php echo esc_attr( $section_class ); ?>">
 	<?php echo $inner_open; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 	<div class="wp-block-columns gap-12 lg:gap-20 items-center vila-columns-stretch flex flex-col md:flex-row w-full">
-		<div class="wp-block-column relative flex flex-col h-full min-h-0 w-full md:w-5/12 order-2 md:order-1" style="flex-basis:41.66%">
+		<div class="wp-block-column vila-reveal relative flex flex-col h-full min-h-0 w-full md:w-5/12 order-2 md:order-1" style="flex-basis:41.66%">
 			<?php if ( '' !== $image_wrap ) : ?>
 				<div class="<?php echo esc_attr( $image_wrap ); ?>">
 					<?php vila_akoya_section_image( $image, $image_class, wp_strip_all_tags( $alt ) ); ?>
@@ -144,7 +144,7 @@ if ( 'home' === $layout ) {
 				</div>
 			<?php endif; ?>
 		</div>
-		<div class="wp-block-column space-y-6 md:space-y-8 flex flex-col justify-center w-full md:w-7/12 order-1 md:order-2" style="flex-basis:58.33%">
+		<div class="wp-block-column vila-reveal space-y-6 md:space-y-8 flex flex-col justify-center w-full md:w-7/12 order-1 md:order-2" style="flex-basis:58.33%">
 			<?php if ( '' !== $heading ) : ?>
 				<h2 class="wp-block-heading text-4xl md:text-5xl lg:text-6xl font-headline text-on-surface font-light leading-tight">
 					<?php if ( '' !== $heading_accent ) : ?>

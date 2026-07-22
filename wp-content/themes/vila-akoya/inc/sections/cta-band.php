@@ -21,7 +21,7 @@ $has_secondary  = is_array( $secondary_link ) && ! empty( $secondary_link['url']
 
 if ( 'campsite' === $layout ) :
 	?>
-<section class="wp-block-group py-32 px-8 text-center relative overflow-hidden bg-surface-container-low mb-0">
+<section class="wp-block-group vila-reveal vila-dappled-surface py-32 px-8 text-center relative overflow-hidden bg-surface-container-low mb-0">
 	<div class="absolute -top-40 -left-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
 	<div class="absolute -bottom-40 -right-40 w-96 h-96 bg-secondary/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
 	<div class="wp-block-group max-w-[50rem] mx-auto space-y-10 relative z-10">
@@ -49,7 +49,7 @@ endif;
 
 if ( 'about' === $layout ) :
 	?>
-<section class="wp-block-group max-w-4xl mx-auto px-8 text-center py-20 mb-0">
+<section class="wp-block-group vila-reveal max-w-4xl mx-auto px-8 text-center py-20 mb-0">
 	<p class="mb-6"><span class="material-symbols-outlined text-6xl text-primary" style="font-variation-settings:'FILL' 1" aria-hidden="true"><?php echo esc_html( $icon ? $icon : 'favorite' ); ?></span></p>
 	<?php if ( '' !== $heading ) : ?>
 		<h2 class="wp-block-heading font-headline text-5xl text-on-surface mb-8"><?php echo esc_html( $heading ); ?></h2>
@@ -76,7 +76,7 @@ if ( 'about' === $layout ) :
 	return;
 endif;
 ?>
-<section class="wp-block-group max-w-[1236px] mx-auto box-border px-8 mb-32 md:mb-40">
+<section class="wp-block-group vila-reveal max-w-[1236px] mx-auto box-border px-8 mb-32 md:mb-40">
 	<div class="wp-block-group text-center space-y-8 max-w-3xl mx-auto py-12 md:py-20">
 		<?php if ( '' !== $icon ) : ?>
 			<p class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary/15 text-secondary mx-auto mb-0">

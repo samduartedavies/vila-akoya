@@ -62,6 +62,7 @@ function vila_akoya_section_cf7_shortcode( $key ) {
 		'village_inquiry'    => 'vila-cf7 vila-cf7--booking',
 		'campus'             => 'vila-cf7 vila-cf7--campus',
 		'contact'            => 'vila-cf7 vila-cf7--contact',
+		'event_inquiry'      => 'vila-cf7 vila-cf7--event',
 	);
 
 	$class = $classes[ $key ] ?? 'vila-cf7';
@@ -217,7 +218,7 @@ function vila_akoya_campsite_section_rows() {
 			'workshop_image'    => 'https://vila-akoya.com/images/campsite-workshop.jpg',
 			'workshop_heading'  => 'Workshops',
 			'workshop_body'     => "We're planning lots of workshops, classes and events for adults and children.",
-			'workshop_link'     => array( 'url' => '/campus#upcoming-journeys', 'title' => 'View schedule here', 'target' => '' ),
+			'workshop_link'     => array( 'url' => '/events', 'title' => 'View schedule here', 'target' => '' ),
 			'little_image'      => 'https://vila-akoya.com/images/campsite-little.jpg',
 			'little_heading'    => 'For the littler ones',
 			'little_body'       => 'We have loads of activities, a homeschooling collective, playgrounds, and a babysitter on-site!',

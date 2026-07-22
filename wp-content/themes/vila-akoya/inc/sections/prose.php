@@ -19,7 +19,7 @@ if ( '' === trim( $body ) && '' === $heading ) {
 
 if ( 'skew' === $layout ) :
 	?>
-<section class="wp-block-group relative py-32 overflow-hidden mb-0">
+<section class="wp-block-group vila-reveal relative py-32 overflow-hidden mb-0">
 	<div class="absolute inset-0 bg-primary/5 -skew-y-3 scale-110 pointer-events-none" aria-hidden="true"></div>
 	<div class="wp-block-group max-w-4xl mx-auto px-6 relative text-center">
 		<?php if ( '' !== $heading ) : ?>
@@ -44,6 +44,6 @@ if ( 'skew' === $layout ) :
 	return;
 endif;
 ?>
-<section class="wp-block-group vila-page-prose max-w-[720px] mx-auto px-8 pb-12 md:pb-16">
+<section class="wp-block-group vila-reveal vila-page-prose max-w-[720px] mx-auto px-8 pb-12 md:pb-16">
 	<?php echo wp_kses_post( wpautop( $body ) ); ?>
 </section>

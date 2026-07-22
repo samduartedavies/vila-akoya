@@ -1,6 +1,7 @@
 {
   "phpVersion": "8.2",
   "core": null,
+  "testsEnvironment": false,
   "plugins": [
     "./wp-content/plugins/vila-campsite-booking"
   ],

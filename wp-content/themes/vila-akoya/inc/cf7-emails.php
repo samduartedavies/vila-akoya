@@ -275,6 +275,7 @@ function vila_akoya_cf7_form_copy_labels() {
 		'village_inquiry'    => __( 'Village inquiry', 'vila-akoya' ),
 		'campus'             => __( 'Campus — host your own', 'vila-akoya' ),
 		'contact'            => __( 'Contact', 'vila-akoya' ),
+		'event_inquiry'      => __( 'Event inquiry', 'vila-akoya' ),
 	);
 }
 
@@ -432,6 +433,34 @@ function vila_akoya_cf7_form_mail_configs_defaults() {
 				'intro'    => __( 'Thank you for reaching out to Vila Akoya. Here is a copy of what you sent:', 'vila-akoya' ),
 				'rows'     => $name_rows,
 				'outro'    => __( 'We will read your message and reply as soon as we can.', 'vila-akoya' ),
+			),
+		),
+		'event_inquiry'      => array(
+			'admin'     => array(
+				'subject' => __( 'Vila Akoya — event inquiry', 'vila-akoya' ),
+				'title'   => __( 'New event place request', 'vila-akoya' ),
+				'intro'   => __( 'Someone requested a place on an event or workshop.', 'vila-akoya' ),
+				'rows'    => array(
+					array( __( 'Event', 'vila-akoya' ), '[event-title]' ),
+					array( __( 'Event link', 'vila-akoya' ), '[event-url]' ),
+					array( __( 'Name', 'vila-akoya' ), '[your-name]' ),
+					array( __( 'Email', 'vila-akoya' ), '[your-email]' ),
+					array( __( 'Phone', 'vila-akoya' ), '[your-phone]' ),
+					array( __( 'Places', 'vila-akoya' ), '[places]' ),
+					array( __( 'Message', 'vila-akoya' ), '[your-message]' ),
+				),
+			),
+			'autoreply' => array(
+				'subject'  => __( 'Thanks for your event inquiry — Vila Akoya', 'vila-akoya' ),
+				'title'    => __( 'We received your request', 'vila-akoya' ),
+				'greeting' => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
+				'intro'    => __( 'Thank you for requesting a place. Here is a copy of what you sent:', 'vila-akoya' ),
+				'rows'     => array(
+					array( __( 'Event', 'vila-akoya' ), '[event-title]' ),
+					array( __( 'Places', 'vila-akoya' ), '[places]' ),
+					array( __( 'Message', 'vila-akoya' ), '[your-message]' ),
+				),
+				'outro'    => __( 'We will check availability and get back to you soon.', 'vila-akoya' ),
 			),
 		),
 	);

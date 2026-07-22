@@ -21,7 +21,7 @@ $has_image  = ! ( false === $image || null === $image || '' === $image || array(
 
 if ( $is_inquiry ) :
 	?>
-<section class="va-village-newsletter py-32 px-6 md:px-20 text-center">
+<section class="va-village-newsletter vila-reveal py-32 px-6 md:px-20 text-center">
 	<div class="max-w-6xl mx-auto bg-surface-container-high rounded-[4rem] p-12 md:p-24 relative overflow-hidden">
 		<div class="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" aria-hidden="true"></div>
 		<div class="relative z-10">
@@ -46,7 +46,7 @@ endif;
 
 if ( $is_contact ) :
 	?>
-<section class="wp-block-group max-w-[1236px] mx-auto box-border px-8 mt-24 mb-32">
+<section class="wp-block-group vila-reveal max-w-[1236px] mx-auto box-border px-8 mt-24 mb-32">
 	<div class="wp-block-group va-contact-form-card max-w-2xl mx-auto bg-surface-container-low rounded-xl p-8 md:p-12 border border-outline-variant/20 shadow-sm">
 		<div class="wp-block-group text-center mb-10">
 			<?php if ( '' !== $heading ) : ?>
@@ -65,7 +65,7 @@ endif;
 
 if ( $is_campus ) :
 	?>
-<section class="wp-block-group py-24 px-6 md:px-12 max-w-[1236px] mx-auto box-border mb-16">
+<section class="wp-block-group vila-reveal py-24 px-6 md:px-12 max-w-[1236px] mx-auto box-border mb-16">
 	<div class="wp-block-group text-center mb-16">
 		<?php if ( '' !== $heading ) : ?>
 			<h2 class="wp-block-heading text-5xl font-headline text-on-surface mb-6"><?php echo esc_html( $heading ); ?></h2>
@@ -84,7 +84,7 @@ endif;
 
 // Home digi-family (or newsletter with image).
 ?>
-<div class="wp-block-columns alignfull va-home-digi-family is-not-stacked-on-mobile mx-auto mb-32 md:mb-40 editorial-shadow rounded-[2rem] md:rounded-[3rem] overflow-hidden items-stretch vila-columns-stretch gap-0 vila-split-flush md:min-h-[min(28rem,70vh)] max-w-[1236px] px-4 flex flex-col md:flex-row md:flex-nowrap w-full">
+<div class="wp-block-columns alignfull va-home-digi-family vila-reveal is-not-stacked-on-mobile mx-auto mb-32 md:mb-40 editorial-shadow rounded-[2rem] md:rounded-[3rem] overflow-hidden items-stretch vila-columns-stretch gap-0 vila-split-flush md:min-h-[min(28rem,70vh)] max-w-[1236px] px-4 flex flex-col md:flex-row md:flex-nowrap w-full">
 	<div class="wp-block-column bg-primary text-on-primary p-10 md:p-14 lg:p-16 flex flex-col justify-center min-h-0 space-y-6 w-full <?php echo $has_image ? 'md:w-2/3' : 'md:w-full'; ?>" style="flex-basis:<?php echo $has_image ? '66.66%' : '100%'; ?>">
 		<?php if ( '' !== $heading ) : ?>
 			<h2 class="wp-block-heading text-5xl md:text-7xl font-headline leading-tight"><?php echo esc_html( $heading ); ?></h2>

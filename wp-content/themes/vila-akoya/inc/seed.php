@@ -193,6 +193,7 @@ function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
 		'village_inquiry'    => 'vila-cf7 vila-cf7--booking',
 		'campus'             => 'vila-cf7 vila-cf7--campus',
 		'contact'            => 'vila-cf7 vila-cf7--contact',
+		'event_inquiry'      => 'vila-cf7 vila-cf7--event',
 	);
 
 	foreach ( $classes as $key => $class ) {
@@ -248,6 +249,7 @@ function vila_akoya_seed_nav_menus( array $page_ids ) {
 		array( 'slug' => 'campsite', 'label' => 'The Campsite' ),
 		array( 'slug' => 'booking', 'label' => 'Join us' ),
 		array( 'slug' => 'campus', 'label' => 'The Campus' ),
+		array( 'type' => 'custom', 'slug' => 'events', 'label' => 'Events' ),
 		array( 'slug' => 'the-kids', 'label' => 'The Kids' ),
 		array( 'slug' => 'about', 'label' => 'About Us' ),
 		array( 'slug' => 'contact', 'label' => 'Contact' ),
@@ -272,12 +274,12 @@ function vila_akoya_seed_nav_menus( array $page_ids ) {
 }
 
 /**
- * Ensure a nav menu exists with the given page items (idempotent).
+ * Ensure a nav menu exists with the given page/custom items (idempotent).
  *
- * @param string                                $menu_name Menu name.
- * @param string                                $location  Theme location slug (for logging only).
- * @param list<array{slug:string,label:string}> $items     Menu item definitions.
- * @param array<string, int>                    $page_ids  Page IDs keyed by slug.
+ * @param string $menu_name Menu name.
+ * @param string $location  Theme location slug (for logging only).
+ * @param list<array{slug:string,label:string,type?:string}> $items Menu item definitions.
+ * @param array<string, int> $page_ids Page IDs keyed by slug.
  * @return int Menu term ID or 0.
  */
 function vila_akoya_ensure_nav_menu( $menu_name, $location, array $items, array $page_ids ) {
@@ -294,15 +296,44 @@ function vila_akoya_ensure_nav_menu( $menu_name, $location, array $items, array 
 
 	$existing_items = wp_get_nav_menu_items( $menu_id );
 	$by_page_id     = array();
+	$by_custom_slug = array();
 	foreach ( (array) $existing_items as $existing ) {
 		if ( 'post_type' === $existing->type && 'page' === $existing->object && $existing->object_id ) {
 			$by_page_id[ (int) $existing->object_id ] = (int) $existing->ID;
+		}
+		if ( 'custom' === $existing->type ) {
+			$path = trim( (string) wp_parse_url( (string) $existing->url, PHP_URL_PATH ), '/' );
+			$parts = explode( '/', $path );
+			$slug  = $parts ? end( $parts ) : '';
+			if ( $slug ) {
+				$by_custom_slug[ $slug ] = (int) $existing->ID;
+			}
 		}
 	}
 
 	$position = 1;
 	foreach ( $items as $item ) {
-		$slug    = $item['slug'];
+		$slug = $item['slug'];
+		$type = isset( $item['type'] ) ? (string) $item['type'] : 'page';
+
+		if ( 'custom' === $type ) {
+			$url  = home_url( '/' . $slug . '/' );
+			$args = array(
+				'menu-item-title'    => $item['label'],
+				'menu-item-type'     => 'custom',
+				'menu-item-url'      => $url,
+				'menu-item-status'   => 'publish',
+				'menu-item-position' => $position,
+			);
+			if ( isset( $by_custom_slug[ $slug ] ) ) {
+				wp_update_nav_menu_item( $menu_id, $by_custom_slug[ $slug ], $args );
+			} else {
+				wp_update_nav_menu_item( $menu_id, 0, $args );
+			}
+			++$position;
+			continue;
+		}
+
 		$page_id = isset( $page_ids[ $slug ] ) ? (int) $page_ids[ $slug ] : 0;
 		if ( ! $page_id ) {
 			continue;

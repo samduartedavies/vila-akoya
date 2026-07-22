@@ -16,7 +16,7 @@ $card_2_icon  = (string) vila_akoya_section_field( 'card_2_icon', 'explore' );
 $card_2_title = (string) vila_akoya_section_field( 'card_2_title', '' );
 ?>
 <section class="wp-block-group max-w-[1236px] box-border mx-auto px-8 mb-32">
-	<div class="wp-block-group grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-6 h-auto md:h-[600px]">
+	<div class="wp-block-group vila-reveal-stagger grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-6 h-auto md:h-[600px]">
 		<div class="wp-block-group md:col-span-2 md:row-span-2 bg-primary text-on-primary p-12 rounded-xl flex flex-col justify-center">
 			<?php if ( '' !== $heading ) : ?>
 				<h2 class="wp-block-heading font-headline text-5xl mb-6"><?php echo esc_html( $heading ); ?></h2>

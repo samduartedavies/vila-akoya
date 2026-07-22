@@ -45,7 +45,7 @@ if ( 'contact' === $layout ) :
 	);
 	?>
 <section class="wp-block-group max-w-[1236px] mx-auto box-border px-8 mt-40 mb-0">
-	<div class="wp-block-columns gap-6 flex flex-col md:flex-row w-full">
+	<div class="wp-block-columns vila-reveal-stagger gap-6 flex flex-col md:flex-row w-full">
 		<?php foreach ( $cards as $i => $card ) : ?>
 			<?php
 			$key = $card['variant'];
@@ -81,10 +81,10 @@ endif;
 
 if ( 'campus' === $layout ) :
 	?>
-<section class="wp-block-group py-24 bg-surface-container-low textured-bg mb-0">
+<section class="wp-block-group vila-dappled-surface py-24 bg-surface-container-low textured-bg mb-0">
 	<div class="wp-block-group max-w-[1236px] mx-auto box-border px-6 md:px-12">
 		<?php if ( '' !== $heading || '' !== $intro ) : ?>
-			<header class="text-center max-w-3xl mx-auto mb-12 md:mb-16 space-y-4">
+			<header class="vila-reveal text-center max-w-3xl mx-auto mb-12 md:mb-16 space-y-4">
 				<?php if ( '' !== $heading ) : ?>
 					<h2 class="wp-block-heading font-headline text-4xl md:text-5xl text-on-surface"><?php echo esc_html( $heading ); ?></h2>
 				<?php endif; ?>
@@ -93,7 +93,7 @@ if ( 'campus' === $layout ) :
 				<?php endif; ?>
 			</header>
 		<?php endif; ?>
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+		<div class="vila-reveal-stagger grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
 			<?php foreach ( $cards as $card ) : ?>
 				<div class="wp-block-group bg-surface rounded-2xl p-8 md:p-10 space-y-4 flex flex-col editorial-shadow">
 					<?php if ( '' !== $card['icon'] ) : ?>
@@ -116,7 +116,7 @@ endif;
 ?>
 <section class="wp-block-group max-w-[1236px] mx-auto box-border px-8 mb-32 md:mb-40">
 	<?php if ( '' !== $heading || '' !== $intro ) : ?>
-		<header class="text-center max-w-3xl mx-auto mb-12 md:mb-16 space-y-4">
+		<header class="vila-reveal text-center max-w-3xl mx-auto mb-12 md:mb-16 space-y-4">
 			<?php if ( '' !== $heading ) : ?>
 				<h2 class="wp-block-heading font-headline text-4xl md:text-5xl text-on-surface"><?php echo esc_html( $heading ); ?></h2>
 			<?php endif; ?>
@@ -125,7 +125,7 @@ endif;
 			<?php endif; ?>
 		</header>
 	<?php endif; ?>
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+	<div class="vila-reveal-stagger grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
 		<?php foreach ( $cards as $card ) : ?>
 			<div class="wp-block-group bg-surface-container-low rounded-2xl p-8 md:p-10 space-y-4 flex flex-col">
 				<?php if ( '' !== $card['icon'] ) : ?>

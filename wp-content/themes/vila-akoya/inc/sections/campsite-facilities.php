@@ -43,16 +43,16 @@ if ( is_array( $little_image ) && ! empty( $little_image['url'] ) ) {
 	$little_url = $little_image;
 }
 ?>
-<section class="wp-block-group py-24 px-8 md:px-20 bg-surface-container-low campsite-brochure-section mb-0">
+<section class="wp-block-group vila-dappled-surface py-24 px-8 md:px-20 bg-surface-container-low campsite-brochure-section mb-0">
 	<div class="wp-block-group max-w-[1236px] box-border mx-auto space-y-16">
-		<div class="wp-block-group flex flex-col md:flex-row justify-between items-end gap-6">
+		<div class="wp-block-group vila-reveal flex flex-col md:flex-row justify-between items-end gap-6">
 			<h2 class="wp-block-heading text-4xl md:text-6xl font-normal text-secondary font-headline"><?php echo esc_html( $heading ); ?></h2>
 			<?php if ( '' !== $intro ) : ?>
 				<p class="max-w-md text-on-surface-variant italic mb-0"><?php echo esc_html( $intro ); ?></p>
 			<?php endif; ?>
 		</div>
 
-		<div class="wp-block-group bg-surface-container-high p-8 rounded-xl campsite-card campsite-card-river">
+		<div class="wp-block-group vila-reveal bg-surface-container-high p-8 rounded-xl campsite-card campsite-card-river">
 			<p class="mb-0"><span class="material-symbols-outlined text-5xl text-primary" aria-hidden="true">water</span></p>
 			<h3 class="wp-block-heading text-3xl font-headline text-on-surface mt-0"><?php echo esc_html( $river_heading ); ?></h3>
 			<p class="text-on-surface-variant mt-0"><?php echo esc_html( $river_body ); ?></p>
@@ -61,7 +61,7 @@ if ( is_array( $little_image ) && ! empty( $little_image['url'] ) ) {
 			</div>
 		</div>
 
-		<div class="wp-block-columns editorial-shadow campsite-card campsite-card-workshops gap-8 flex flex-col md:flex-row w-full">
+		<div class="wp-block-columns vila-reveal editorial-shadow campsite-card campsite-card-workshops gap-8 flex flex-col md:flex-row w-full">
 			<div class="wp-block-column relative overflow-hidden w-full md:w-1/2 space-y-4">
 				<p class="mb-0"><span class="material-symbols-outlined text-5xl text-tertiary" aria-hidden="true">palette</span></p>
 				<h3 class="wp-block-heading text-4xl font-headline text-on-surface"><?php echo esc_html( $workshop_heading ); ?></h3>
@@ -77,7 +77,7 @@ if ( is_array( $little_image ) && ! empty( $little_image['url'] ) ) {
 			</div>
 		</div>
 
-		<div class="va-cover-hero relative rounded-xl overflow-hidden campsite-card campsite-card-littler min-h-[280px] flex items-end">
+		<div class="va-cover-hero vila-reveal relative rounded-xl overflow-hidden campsite-card campsite-card-littler min-h-[280px] flex items-end">
 			<?php if ( '' !== $little_url ) : ?>
 				<img class="va-cover-hero__image absolute inset-0 z-0 w-full h-full object-cover" alt="" src="<?php echo esc_url( $little_url ); ?>" />
 			<?php endif; ?>
@@ -91,7 +91,7 @@ if ( is_array( $little_image ) && ! empty( $little_image['url'] ) ) {
 			</div>
 		</div>
 
-		<div class="wp-block-columns campsite-card campsite-card-trails-food gap-6 flex flex-col w-full">
+		<div class="wp-block-columns vila-reveal-stagger campsite-card campsite-card-trails-food gap-6 flex flex-col w-full">
 			<div class="wp-block-column w-full">
 				<div class="wp-block-group bg-surface-container p-8 rounded-xl h-full border border-outline-variant/10 flex flex-col justify-between">
 					<div>

@@ -960,6 +960,11 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 	if ( abs( $raw_unit - $unit_rate ) > 0.0001 ) {
 		$pitch_value = $expected_pitch;
 	}
+	// MWB's general_cost can arrive as 0 on an early/racey AJAX pass (dates and people not yet posted together),
+	// which understates the pitch line and Total. Fall back to our own computed pitch when it should be positive.
+	if ( $pitch_value <= 0 && $expected_pitch > 0 ) {
+		$pitch_value = $expected_pitch;
+	}
 
 	$night_word = ( 1 === $nights )
 		? __( 'night', 'vila-akoya' )

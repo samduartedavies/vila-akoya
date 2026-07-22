@@ -112,6 +112,7 @@ function vila_akoya_default_nav_items() {
 		array( 'slug' => 'campsite', 'label' => 'The Campsite' ),
 		array( 'slug' => 'booking', 'label' => 'Join us' ),
 		array( 'slug' => 'campus', 'label' => 'The Campus' ),
+		array( 'slug' => 'events', 'label' => 'Events' ),
 		array( 'slug' => 'the-kids', 'label' => 'The Kids' ),
 		array( 'slug' => 'about', 'label' => 'About Us' ),
 		array( 'slug' => 'contact', 'label' => 'Contact' ),
@@ -140,8 +141,13 @@ function vila_akoya_render_fallback_header_links( $variant, $current_nav, $h ) {
 	$base = 'mobile' === $variant
 		? 'block px-2 py-3 text-stone-600 transition-colors'
 		: 'text-stone-600 transition-colors px-3 py-1.5 rounded-full';
+	// Temporarily hidden from the header while Events is being finished (still linked in the footer).
+	$hidden_slugs = array( 'events' );
 	foreach ( vila_akoya_default_nav_items() as $item ) {
 		$slug   = $item['slug'];
+		if ( in_array( $slug, $hidden_slugs, true ) ) {
+			continue;
+		}
 		$attrs  = ' data-nav="' . esc_attr( $slug ) . '" class="' . esc_attr( $base ) . '"';
 		if ( $slug === $current_nav ) {
 			$attrs .= ' aria-current="page"';

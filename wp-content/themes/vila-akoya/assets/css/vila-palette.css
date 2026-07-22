@@ -60,6 +60,14 @@
   --vila-rgb-tertiary-container: 217 167 119;
   --vila-rgb-secondary-container: 226 230 216;
   --vila-rgb-secondary-dim: 74 82 64;
+  --vila-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --vila-motion-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --vila-forest-wash: radial-gradient(circle at 12% 18%, rgb(var(--vila-rgb-secondary-container) / 0.52), transparent 34%),
+    radial-gradient(circle at 86% 10%, rgb(var(--vila-rgb-tertiary-container) / 0.18), transparent 30%),
+    linear-gradient(135deg, rgb(var(--vila-rgb-surface) / 1), rgb(var(--vila-rgb-secondary-container) / 0.24));
+  --vila-dappled-wash: radial-gradient(circle at 20% 16%, rgb(var(--vila-rgb-surface-bright) / 0.28), transparent 16%),
+    radial-gradient(circle at 78% 28%, rgb(var(--vila-rgb-secondary) / 0.14), transparent 20%),
+    radial-gradient(circle at 42% 82%, rgb(var(--vila-rgb-primary-container) / 0.12), transparent 24%);
 }
 
 body.vila-page-booking,

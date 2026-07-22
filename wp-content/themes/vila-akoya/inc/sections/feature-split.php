@@ -23,7 +23,7 @@ $right = array(
 );
 ?>
 <section class="wp-block-group mb-32 md:mb-40">
-	<div class="wp-block-columns min-h-[min(100vh,70rem)] gap-0 vila-split-flush flex flex-col md:flex-row md:flex-nowrap w-full">
+	<div class="wp-block-columns vila-reveal-stagger vila-dappled-surface min-h-[min(100vh,70rem)] gap-0 vila-split-flush flex flex-col md:flex-row md:flex-nowrap w-full">
 		<div class="wp-block-column relative group flex flex-col items-center p-10 md:p-20 lg:p-24 bg-surface-container-low transition-all duration-700 hover:bg-surface-container overflow-hidden w-full md:w-1/2 md:flex-1">
 			<div class="absolute -top-10 -left-10 w-64 h-64 bg-tertiary/5 rounded-full blur-3xl group-hover:bg-tertiary/10 transition-colors pointer-events-none" aria-hidden="true"></div>
 			<div class="wp-block-group z-10 text-center space-y-7 md:space-y-8 max-w-[31rem] mx-auto">

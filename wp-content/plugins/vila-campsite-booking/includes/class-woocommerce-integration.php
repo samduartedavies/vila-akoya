@@ -1058,9 +1058,33 @@ class WooCommerce_Integration {
 			if ( ! $product ) {
 				continue;
 			}
-			$total = self::calculate_line_total( $product, $cin, $cout, $guests );
+			// MWB flow: the theme (booking-extras.php) adds children/infants/pets as separate itemized
+			// checkout fees. In that case the pitch line must stay adults-only, or those guests are
+			// charged twice. The plugin's own shortcode flow has no theme fields, so it still prices
+			// every guest category into the line.
+			$include_guest_supplements = ! self::theme_itemizes_guest_supplements( $cart_item );
+			$total = self::calculate_line_total( $product, $cin, $cout, $guests, $include_guest_supplements );
 			$product->set_price( $total );
 		}
+	}
+
+	/**
+	 * Whether the theme will add children/infants/pets as separate cart fees for this line.
+	 *
+	 * The theme's `vila_akoya_add_guest_breakdown_cart_item_data` always stores these keys on MWB
+	 * bookings (even when zero); their presence marks the MWB flow where the theme owns guest-category
+	 * pricing. When true, the plugin excludes those supplements from the pitch line to avoid double-charging.
+	 *
+	 * @param array<string, mixed> $cart_item Cart line.
+	 * @return bool
+	 */
+	private static function theme_itemizes_guest_supplements( array $cart_item ) {
+		if ( ! function_exists( 'vila_akoya_cart_guest_category_fees' ) ) {
+			return false;
+		}
+		return isset( $cart_item['vila_guest_children'] )
+			|| isset( $cart_item['vila_guest_infants'] )
+			|| isset( $cart_item['vila_guest_pets'] );
 	}
 
 	/**
@@ -1068,9 +1092,10 @@ class WooCommerce_Integration {
 	 * @param string      $check_in Y-m-d.
 	 * @param string      $check_out Y-m-d exclusive.
 	 * @param array       $guests Guest counts.
+	 * @param bool        $include_guest_supplements When false, price adults only (children/infants/pets billed elsewhere as separate fees).
 	 * @return float
 	 */
-	public static function calculate_line_total( $product, $check_in, $check_out, array $guests ) {
+	public static function calculate_line_total( $product, $check_in, $check_out, array $guests, $include_guest_supplements = true ) {
 		$nights = Dates::night_count( $check_in, $check_out );
 		if ( $nights < 1 ) {
 			return (float) $product->get_regular_price();
@@ -1082,13 +1107,16 @@ class WooCommerce_Integration {
 		$inf    = isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;
 		$pets   = isset( $guests['pets'] ) ? max( 0, (int) $guests['pets'] ) : 0;
 
-		$rates = Booking_Service::guest_category_rates( $pid );
-		$line  = ( $adults * $base * $nights )
-			+ ( $ch * (float) $rates['children'] * $nights )
-			+ ( $inf * (float) $rates['infants'] * $nights )
-			+ ( $pets * (float) $rates['pets'] * $nights );
+		$line = $adults * $base * $nights;
 
-		return apply_filters( 'vila_cb_calculated_line_total', (float) $line, $pid, $check_in, $check_out, $guests, $nights );
+		if ( $include_guest_supplements ) {
+			$rates = Booking_Service::guest_category_rates( $pid );
+			$line += ( $ch * (float) $rates['children'] * $nights )
+				+ ( $inf * (float) $rates['infants'] * $nights )
+				+ ( $pets * (float) $rates['pets'] * $nights );
+		}
+
+		return apply_filters( 'vila_cb_calculated_line_total', (float) $line, $pid, $check_in, $check_out, $guests, $nights, $include_guest_supplements );
 	}
 
 	/**
