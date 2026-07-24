@@ -193,6 +193,67 @@
   var vilaRangeUnavailable = false;
   var vilaUserPickedDates = false;
 
+  // ── Smooth live-total updates ────────────────────────────────────────────
+  // MWB re-renders its whole bill via admin-ajax on every recalc. Rapid changes
+  // (toggling extras, tapping the guest steppers) fire several overlapping
+  // requests whose out-of-order responses make rows pop in and out. We (a)
+  // debounce the extras-triggered recalc so a burst of clicks becomes one
+  // request, and (b) dim the bill while any MWB recalc is in flight so the user
+  // sees a single settle instead of intermediate flicker.
+  var vilaMwbBillRecalcTimer = null;
+  var vilaBillUpdatingSafety = null;
+
+  function getBookingBillEl() {
+    return $('.vila-wc-booking .mwb-mbfw-total-area').first();
+  }
+
+  function setBookingBillUpdating(on) {
+    var $bill = getBookingBillEl();
+    if (!$bill.length) {
+      return;
+    }
+    clearTimeout(vilaBillUpdatingSafety);
+    if (on) {
+      $bill.addClass('vila-bill-updating');
+      // Never leave the bill dimmed if an expected ajaxComplete never arrives.
+      vilaBillUpdatingSafety = setTimeout(function () {
+        getBookingBillEl().removeClass('vila-bill-updating');
+      }, 6000);
+    } else {
+      $bill.removeClass('vila-bill-updating');
+    }
+  }
+
+  function isMwbTotalsRequest(settings) {
+    if (!settings) {
+      return false;
+    }
+    var hay = '';
+    if (typeof settings.data === 'string') {
+      hay += settings.data;
+    }
+    if (typeof settings.url === 'string') {
+      hay += ' ' + settings.url;
+    }
+    return /mbfw/i.test(hay);
+  }
+
+  function scheduleMwbTotalsRecalc() {
+    clearTimeout(vilaMwbBillRecalcTimer);
+    // Dim immediately so the click feels responsive even before the debounce
+    // fires the actual (slow) request.
+    setBookingBillUpdating(true);
+    vilaMwbBillRecalcTimer = setTimeout(function () {
+      var $from = $('#mwb-mbfw-booking-from-time');
+      var $to = $('#mwb-mbfw-booking-to-time');
+      if ($from.length && $to.length && $from.val() && $to.val()) {
+        $from.trigger('change');
+      } else {
+        setBookingBillUpdating(false);
+      }
+    }, 300);
+  }
+
   function ensureAvailabilityBanner() {
     var $el = $('#vila-booking-availability-msg');
     if ($el.length) {
@@ -970,12 +1031,9 @@
     // custom fields it doesn't watch, so toggling one never refreshed the summary
     // and the selected extra was missing from the first-screen breakdown. Nudge
     // MWB's date field so it re-runs totals with the extras included in the POST.
+    // Debounced so a quick burst of toggles becomes a single recalc.
     $(document).on('change', 'input[name="vila_vehicle_types[]"]', function () {
-      var $from = $('#mwb-mbfw-booking-from-time');
-      var $to = $('#mwb-mbfw-booking-to-time');
-      if ($from.length && $to.length && $from.val() && $to.val()) {
-        $from.trigger('change');
-      }
+      scheduleMwbTotalsRecalc();
     });
 
     $(document).on(
@@ -1008,10 +1066,22 @@
       syncBookingTotalsAndCtaState();
     }, 150);
 
-    $(document).ajaxComplete(function () {
+    // Dim the bill while any MWB recalc is in flight (from extras, guest
+    // steppers or date changes) so the summary settles once instead of
+    // flickering rows in and out as overlapping responses land.
+    $(document).ajaxSend(function (e, xhr, settings) {
+      if (isMwbTotalsRequest(settings)) {
+        setBookingBillUpdating(true);
+      }
+    });
+
+    $(document).ajaxComplete(function (e, xhr, settings) {
       normaliseBookingBillLayout();
       syncBookingTotalsAndCtaState();
       setTimeout(syncBookingTotalsAndCtaState, 100);
+      if (isMwbTotalsRequest(settings)) {
+        setBookingBillUpdating(false);
+      }
     });
   });
 })(jQuery);

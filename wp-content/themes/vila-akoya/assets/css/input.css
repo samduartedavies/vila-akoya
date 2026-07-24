@@ -1759,6 +1759,14 @@
   .vila-wc-booking .mwb-mbfw-total-area {
     display: block;
     width: 100%;
+    transition: opacity 0.18s ease;
+  }
+
+  /* While a live-total recalc is in flight, dim the bill so it settles once
+   * instead of popping rows in and out on overlapping AJAX responses. */
+  .vila-wc-booking .mwb-mbfw-total-area.vila-bill-updating {
+    opacity: 0.45;
+    pointer-events: none;
   }
 
   .mbfw-total-listing-single-page {
