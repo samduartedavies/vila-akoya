@@ -2064,6 +2064,40 @@
     transform: none;
   }
 
+  /* Loading state: the live totals are still recalculating. Hide the label,
+   * swap the arrow pseudo-element for a spinner, and keep the button visibly
+   * active (overriding the faded disabled look) so it reads as "working". */
+  .vila-wc-booking .single_add_to_cart_button.button.vila-cta-loading,
+  .vila-wc-booking .single_add_to_cart_button.button.vila-cta-loading:disabled,
+  .vila-wc-booking .single_add_to_cart_button.button.vila-cta-loading[aria-disabled="true"] {
+    position: relative;
+    color: transparent !important;
+    opacity: 1 !important;
+    cursor: wait;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .vila-wc-booking .single_add_to_cart_button.button.vila-cta-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1.35rem;
+    height: 1.35rem;
+    margin: -0.675rem 0 0 -0.675rem;
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-top-color: #fff;
+    border-radius: 9999px;
+    animation: vila-cta-spin 0.7s linear infinite;
+  }
+
+  @keyframes vila-cta-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .vila-wc-booking .woocommerce-message,
   .vila-wc-booking .woocommerce-info,
   .vila-wc-booking .woocommerce-error {

@@ -202,26 +202,28 @@
   // sees a single settle instead of intermediate flicker.
   var vilaMwbBillRecalcTimer = null;
   var vilaBillUpdatingSafety = null;
+  var vilaTotalsUpdating = false;
 
   function getBookingBillEl() {
     return $('.vila-wc-booking .mwb-mbfw-total-area').first();
   }
 
   function setBookingBillUpdating(on) {
+    vilaTotalsUpdating = !!on;
     var $bill = getBookingBillEl();
-    if (!$bill.length) {
-      return;
-    }
     clearTimeout(vilaBillUpdatingSafety);
     if (on) {
       $bill.addClass('vila-bill-updating');
-      // Never leave the bill dimmed if an expected ajaxComplete never arrives.
+      // Never leave the bill dimmed / the CTA disabled if an expected
+      // ajaxComplete never arrives.
       vilaBillUpdatingSafety = setTimeout(function () {
-        getBookingBillEl().removeClass('vila-bill-updating');
+        setBookingBillUpdating(false);
       }, 6000);
     } else {
       $bill.removeClass('vila-bill-updating');
     }
+    // Reflect the loading state on the Book Now button (disabled + spinner).
+    syncBookingTotalsAndCtaState();
   }
 
   function isMwbTotalsRequest(settings) {
@@ -299,7 +301,26 @@
     // Programmatic updates from flatpickr may not carry originalEvent.
     var hasStay = !!getStayYmdFromMwbInputs();
     $('body').toggleClass('vila-booking-dates-selected', hasStay);
-    setAddToCartBlocked(!hasStay || vilaRangeUnavailable);
+    // Keep Book Now disabled while the live totals are still recalculating so
+    // guests can't submit against a stale/partial amount.
+    setAddToCartBlocked(!hasStay || vilaRangeUnavailable || vilaTotalsUpdating);
+    // Spinner only makes sense once dates are valid and we're mid-recalc;
+    // otherwise the button just reads as "select dates".
+    setCtaLoading(vilaTotalsUpdating && hasStay && !vilaRangeUnavailable);
+  }
+
+  function setCtaLoading(loading) {
+    var $btn = $(
+      'form.cart .single_add_to_cart_button,' +
+      ' form.cart button[name="add-to-cart"],' +
+      ' form.cart input.single_add_to_cart_button[type="submit"],' +
+      ' form.cart input[name="add-to-cart"][type="submit"]'
+    );
+    if (!$btn.length) {
+      return;
+    }
+    $btn.toggleClass('vila-cta-loading', !!loading);
+    $btn.attr('aria-busy', loading ? 'true' : 'false');
   }
 
   function clearAvailabilityWarning() {
