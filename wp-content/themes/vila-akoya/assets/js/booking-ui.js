@@ -965,6 +965,19 @@
       }
     );
 
+    // MWB only recalculates its live-total AJAX when its own date/people fields
+    // change. The "Your setup" extras (Caravan, Campervan, electricity, …) are
+    // custom fields it doesn't watch, so toggling one never refreshed the summary
+    // and the selected extra was missing from the first-screen breakdown. Nudge
+    // MWB's date field so it re-runs totals with the extras included in the POST.
+    $(document).on('change', 'input[name="vila_vehicle_types[]"]', function () {
+      var $from = $('#mwb-mbfw-booking-from-time');
+      var $to = $('#mwb-mbfw-booking-to-time');
+      if ($from.length && $to.length && $from.val() && $to.val()) {
+        $from.trigger('change');
+      }
+    });
+
     $(document).on(
       'change input',
       '#mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time',

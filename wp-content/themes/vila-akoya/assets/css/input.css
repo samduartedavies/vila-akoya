@@ -1356,8 +1356,27 @@
     -webkit-backdrop-filter: none !important;
   }
 
-  body.vila-page-booking .va-booking-reserve-card .va-booking-map-panel {
+  body.vila-page-booking .va-booking-reserve-card .va-booking-map-panel,
+  body.vila-page-booking .va-booking-map-panel {
     @apply border-outline-variant/25 bg-surface-container-low/70;
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+    z-index: auto !important;
+    display: block;
+    width: 100%;
+    margin-bottom: 2rem;
+  }
+
+  body.vila-page-booking .va-booking-map-shell {
+    display: block;
+    width: 100%;
+  }
+
+  body.vila-page-booking .va-booking-reserve-card .vila-wc-booking {
+    position: relative;
+    z-index: auto;
+    width: 100%;
   }
 
   body.vila-page-booking .va-booking-map-trigger {

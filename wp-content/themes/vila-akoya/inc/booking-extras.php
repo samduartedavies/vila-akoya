@@ -579,6 +579,83 @@ function vila_akoya_cart_guest_category_fees() {
 add_action( 'woocommerce_cart_calculate_fees', 'vila_akoya_cart_guest_category_fees', 25 );
 
 /**
+ * Safety net: keep the campsite pitch line adults-only for the MWB booking flow.
+ *
+ * The theme itemises children/infants/pets as their own checkout fees
+ * (vila_akoya_cart_guest_category_fees). The pitch line must therefore price
+ * adults only, otherwise those guests are billed twice — once inside the pitch
+ * line and once as the separate fee. The plugin already does this when up to
+ * date, but this override guarantees correct totals even if an older plugin
+ * build (which folds every guest category into the pitch line) is deployed.
+ *
+ * Runs after the plugin's own price hook (priority 100000) and mirrors its
+ * formula (adult rate × adults × nights, honouring vila_cb_adult_rate_per_night),
+ * so it produces an identical result when the up-to-date plugin is present.
+ *
+ * @param WC_Cart $cart Cart.
+ * @return void
+ */
+function vila_akoya_force_pitch_line_adults_only( $cart ) {
+	if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+		return;
+	}
+	if ( ! is_object( $cart ) || ! is_callable( array( $cart, 'get_cart' ) ) ) {
+		return;
+	}
+	foreach ( $cart->get_cart() as $cart_item ) {
+		if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
+			continue;
+		}
+		// Only the MWB booking flow itemises guest categories as separate fees.
+		// The plugin's own shortcode flow has no vila_guest_* keys and prices
+		// every guest into the pitch line, so those lines are left untouched.
+		$mwb_flow = isset( $cart_item['vila_guest_children'] )
+			|| isset( $cart_item['vila_guest_infants'] )
+			|| isset( $cart_item['vila_guest_pets'] );
+		if ( ! $mwb_flow ) {
+			continue;
+		}
+		if ( empty( $cart_item['data'] ) || ! is_object( $cart_item['data'] ) ) {
+			continue;
+		}
+		$product = $cart_item['data'];
+		$pid     = (int) $cart_item['product_id'];
+
+		$nights = 0;
+		$cin    = isset( $cart_item['vila_cb_check_in'] ) ? (string) $cart_item['vila_cb_check_in'] : '';
+		$cout   = isset( $cart_item['vila_cb_check_out'] ) ? (string) $cart_item['vila_cb_check_out'] : '';
+		if ( '' !== $cin && '' !== $cout ) {
+			$df = DateTime::createFromFormat( 'Y-m-d', $cin, wp_timezone() );
+			$dt = DateTime::createFromFormat( 'Y-m-d', $cout, wp_timezone() );
+			if ( $df && $dt ) {
+				$nights = max( 0, (int) $df->diff( $dt )->format( '%a' ) );
+			}
+		}
+		if ( $nights < 1 ) {
+			$nights = vila_akoya_cart_nights_for_line( $cart_item );
+		}
+		if ( $nights < 1 ) {
+			continue;
+		}
+
+		$adults = 1;
+		if ( ! empty( $cart_item['vila_cb_guests']['adults'] ) ) {
+			$adults = max( 1, (int) $cart_item['vila_cb_guests']['adults'] );
+		} elseif ( ! empty( $cart_item['mwb_mbfw_booking_values']['people_number'] ) ) {
+			$adults = max( 1, (int) $cart_item['mwb_mbfw_booking_values']['people_number'] );
+		}
+
+		$rate = (float) apply_filters( 'vila_cb_adult_rate_per_night', (float) $product->get_regular_price(), $pid );
+		if ( $rate <= 0 ) {
+			continue;
+		}
+
+		$product->set_price( $adults * $rate * $nights );
+	}
+}
+add_action( 'woocommerce_before_calculate_totals', 'vila_akoya_force_pitch_line_adults_only', 1000000 );
+
+/**
  * Cart / checkout line item meta display.
  *
  * @param array<string, mixed> $item_data Item data.
