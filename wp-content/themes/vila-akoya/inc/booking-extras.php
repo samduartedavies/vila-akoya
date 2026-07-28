@@ -1236,6 +1236,40 @@ function vila_akoya_enqueue_booking_ui_script() {
 		}
 	}
 
+	// Pricing data for the instant client-side bill. These mirror the exact
+	// rates/filters used by vila_akoya_mbfw_expand_booking_charge_breakdown()
+	// and the checkout fee hooks, so the live total matches checkout to the cent.
+	$live_product  = function_exists( 'wc_get_product' ) ? wc_get_product( $pid ) : null;
+	$regular_price = 0.0;
+	if ( $live_product ) {
+		$regular_price = (float) $live_product->get_regular_price();
+		if ( $regular_price <= 0 ) {
+			$regular_price = (float) $live_product->get_price();
+		}
+	}
+	$adult_rate  = (float) apply_filters( 'vila_cb_adult_rate_per_night', $regular_price, $pid );
+	$per_person  = function_exists( 'wps_booking_get_meta_data' )
+		? ( 'yes' === wps_booking_get_meta_data( $pid, 'mwb_mbfw_is_booking_unit_cost_per_people', true ) )
+		: true;
+	$guest_rates = vila_akoya_get_guest_category_nightly_rates( $pid );
+	$by_head     = (bool) apply_filters( 'vila_akoya_pitch_supplement_multiplies_by_guests', false, array() );
+
+	$vehicle_fees = array();
+	foreach ( vila_akoya_get_vehicle_types() as $slug => $info ) {
+		$vehicle_fees[ (string) $slug ] = array(
+			'label' => (string) $info['label'],
+			'fee'   => (float) $info['fee'],
+		);
+	}
+
+	$currency = array(
+		'symbol'      => function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) : '€',
+		'decimals'    => function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2,
+		'decimalSep'  => function_exists( 'wc_get_price_decimal_separator' ) ? wc_get_price_decimal_separator() : ',',
+		'thousandSep' => function_exists( 'wc_get_price_thousand_separator' ) ? wc_get_price_thousand_separator() : '.',
+		'format'      => function_exists( 'get_woocommerce_price_format' ) ? get_woocommerce_price_format() : '%1$s%2$s',
+	);
+
 	wp_localize_script(
 		'vila-akoya-booking-ui',
 		'vilaAkoyaBooking',
@@ -1245,11 +1279,37 @@ function vila_akoya_enqueue_booking_ui_script() {
 			'plotUnavailableYmd'         => $plot_unavail,
 			'useSharedCampsiteInventory' => $use_vila_pool_calendar,
 			'vilaCbAvailabilityRestUrl'  => $use_vila_pool_calendar ? esc_url_raw( rest_url( 'vila-campsite-booking/v1/availability' ) ) : '',
+			'pricing'                   => array(
+				'adultPerNight'   => (float) $adult_rate,
+				'perPerson'       => (bool) $per_person,
+				'vehicleByGuests' => (bool) $by_head,
+				'guestRates'      => array(
+					'children' => (float) $guest_rates['children'],
+					'infants'  => (float) $guest_rates['infants'],
+					'pets'     => (float) $guest_rates['pets'],
+				),
+				'vehicleFees'     => $vehicle_fees,
+			),
+			'currency'                  => $currency,
+			'billStrings'               => array(
+				'plotRatePerPerson' => __( 'Plot rate — %1$d adults × %2$s/adult/night × %3$d %4$s', 'vila-akoya' ),
+				'plotRateFlat'      => __( 'Plot rate — %1$s/night × %2$d %3$s', 'vila-akoya' ),
+				'children'          => __( 'Children — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
+				'infants'           => __( 'Babies — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
+				'pets'              => __( 'Pets — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
+				'vehicleFlat'       => __( '%1$s — %2$s/night × %3$d %4$s', 'vila-akoya' ),
+				'vehicleByGuests'   => __( '%1$s — %2$s/night × %3$d guests × %4$d %5$s', 'vila-akoya' ),
+				'total'             => __( 'Total', 'vila-akoya' ),
+				'nightSingular'     => __( 'night', 'vila-akoya' ),
+				'nightPlural'       => __( 'nights', 'vila-akoya' ),
+			),
 			'strings'                   => array(
 				'stayDates'               => __( 'Your dates', 'vila-akoya' ),
 				'rangeUnavailable'        => __( 'No pitch is free for this full stay on those dates. Choose different check-in and check-out — some nights can look available when each pitch is booked on different nights.', 'vila-akoya' ),
 				'placeholder'             => __( 'Check-in — Check-out', 'vila-akoya' ),
 				'guestCountAffectsRate'   => __( 'The amount above reflects adults at the per-guest nightly rate. Extra categories add supplements at checkout.', 'vila-akoya' ),
+				'finalising'              => __( 'Finalising your booking…', 'vila-akoya' ),
+				'finalisingSub'           => __( 'Securing your pitch and preparing checkout. This only takes a few seconds.', 'vila-akoya' ),
 			),
 			'guestStrings'              => array(
 				'oneGuest' => __( '1 guest', 'vila-akoya' ),

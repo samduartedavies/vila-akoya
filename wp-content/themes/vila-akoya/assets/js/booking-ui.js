@@ -193,67 +193,241 @@
   var vilaRangeUnavailable = false;
   var vilaUserPickedDates = false;
 
-  // ── Smooth live-total updates ────────────────────────────────────────────
-  // MWB re-renders its whole bill via admin-ajax on every recalc. Rapid changes
-  // (toggling extras, tapping the guest steppers) fire several overlapping
-  // requests whose out-of-order responses make rows pop in and out. We (a)
-  // debounce the extras-triggered recalc so a burst of clicks becomes one
-  // request, and (b) dim the bill while any MWB recalc is in flight so the user
-  // sees a single settle instead of intermediate flicker.
-  var vilaMwbBillRecalcTimer = null;
-  var vilaBillUpdatingSafety = null;
-  var vilaTotalsUpdating = false;
+  // ── Instant client-side bill ─────────────────────────────────────────────
+  // The live total used to depend on MWB's admin-ajax, which re-rendered the
+  // whole bill on every field change with no request sequencing. Overlapping,
+  // out-of-order responses meant a stale pass (e.g. computed before both dates
+  // were posted → "× 1 night") could land last and stick. We now compute and
+  // render the breakdown ourselves, synchronously, from the current form state.
+  // It's instant, race-free and always correct. MWB's own (now-hidden) AJAX
+  // still runs to keep its internal state happy, and the server remains
+  // authoritative at checkout — the numbers here mirror those formulas exactly.
 
-  function getBookingBillEl() {
-    return $('.vila-wc-booking .mwb-mbfw-total-area').first();
+  function vilaBookingData() {
+    return window.vilaAkoyaBooking || null;
   }
 
-  function setBookingBillUpdating(on) {
-    vilaTotalsUpdating = !!on;
-    var $bill = getBookingBillEl();
-    clearTimeout(vilaBillUpdatingSafety);
-    if (on) {
-      $bill.addClass('vila-bill-updating');
-      // Never leave the bill dimmed / the CTA disabled if an expected
-      // ajaxComplete never arrives.
-      vilaBillUpdatingSafety = setTimeout(function () {
-        setBookingBillUpdating(false);
-      }, 6000);
+  function vilaPricingReady() {
+    var d = vilaBookingData();
+    return !!(d && d.pricing && d.currency && d.billStrings);
+  }
+
+  // sprintf for PHP positional tokens (%1$d, %2$s, …), stringifying each arg.
+  function vilaSprintf(fmt) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return String(fmt).replace(/%(\d+)\$[ds]/g, function (m, i) {
+      var v = args[parseInt(i, 10) - 1];
+      return v === undefined || v === null ? '' : String(v);
+    });
+  }
+
+  function vilaEscapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Group digits + apply decimal/thousand separators — mirrors wc_price().
+  function vilaFormatNumber(amount) {
+    var c = vilaBookingData().currency;
+    var neg = amount < 0;
+    amount = Math.abs(amount);
+    var fixed = amount.toFixed(c.decimals);
+    var parts = fixed.split('.');
+    var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, c.thousandSep);
+    var out = c.decimals > 0 ? intPart + c.decimalSep + parts[1] : intPart;
+    return (neg ? '-' : '') + out;
+  }
+
+  // Plain price for breakdown titles (matches vila_akoya_format_price_plain()).
+  function vilaFormatPricePlain(amount) {
+    var c = vilaBookingData().currency;
+    return c.format
+      .replace('%1$s', c.symbol)
+      .replace('%2$s', vilaFormatNumber(amount))
+      .replace(/&nbsp;/g, '\u00a0');
+  }
+
+  // HTML price for the value column (matches wc_price() markup for styling).
+  function vilaFormatPriceHtml(amount) {
+    var c = vilaBookingData().currency;
+    var sym = '<span class="woocommerce-Price-currencySymbol">' + vilaEscapeHtml(c.symbol) + '</span>';
+    var body = c.format
+      .replace('%1$s', sym)
+      .replace('%2$s', vilaFormatNumber(amount))
+      .replace(/&nbsp;/g, '\u00a0');
+    return '<span class="woocommerce-Price-amount amount"><bdi>' + body + '</bdi></span>';
+  }
+
+  // Whole nights for the visible stay. The flatpickr range is the source of
+  // truth (MWB can transiently clear its hidden inputs during its own AJAX).
+  function getStayNights() {
+    var el = document.getElementById('vila-akoya-booking-range');
+    if (el && el._flatpickr && el._flatpickr.selectedDates.length === 2) {
+      var a = el._flatpickr.selectedDates[0];
+      var b = el._flatpickr.selectedDates[1];
+      return Math.max(1, Math.round((b - a) / 86400000));
+    }
+    var f = parseDMY($('#mwb-mbfw-booking-from-time').val());
+    var t = parseDMY($('#mwb-mbfw-booking-to-time').val());
+    if (f && t) {
+      return Math.max(1, Math.round((t - f) / 86400000));
+    }
+    return 0;
+  }
+
+  function ensureLiveBillContainer() {
+    var $existing = $('.vila-live-bill');
+    if ($existing.length) {
+      return $existing.first();
+    }
+    var $c = $('<div class="vila-live-bill" aria-live="polite"></div>');
+    var $mwb = $('.mwb-mbfw-total-area').first();
+    if ($mwb.length) {
+      $mwb.after($c);
     } else {
-      $bill.removeClass('vila-bill-updating');
-    }
-    // Reflect the loading state on the Book Now button (disabled + spinner).
-    syncBookingTotalsAndCtaState();
-  }
-
-  function isMwbTotalsRequest(settings) {
-    if (!settings) {
-      return false;
-    }
-    var hay = '';
-    if (typeof settings.data === 'string') {
-      hay += settings.data;
-    }
-    if (typeof settings.url === 'string') {
-      hay += ' ' + settings.url;
-    }
-    return /mbfw/i.test(hay);
-  }
-
-  function scheduleMwbTotalsRecalc() {
-    clearTimeout(vilaMwbBillRecalcTimer);
-    // Dim immediately so the click feels responsive even before the debounce
-    // fires the actual (slow) request.
-    setBookingBillUpdating(true);
-    vilaMwbBillRecalcTimer = setTimeout(function () {
-      var $from = $('#mwb-mbfw-booking-from-time');
-      var $to = $('#mwb-mbfw-booking-to-time');
-      if ($from.length && $to.length && $from.val() && $to.val()) {
-        $from.trigger('change');
+      var $btn = $(
+        'form.cart .single_add_to_cart_button, form.cart button[name="add-to-cart"], form.cart input[name="add-to-cart"]'
+      ).first();
+      if ($btn.length) {
+        $btn.before($c);
       } else {
-        setBookingBillUpdating(false);
+        $('form.cart').append($c);
       }
-    }, 300);
+    }
+    return $c;
+  }
+
+  function liveBillRow(title, value) {
+    return (
+      '<div class="mbfw-total-listing-single-page__wrapper">' +
+      '<div class="mbfw-total-listing-single-page">' + vilaEscapeHtml(title) + '</div>' +
+      '<div class="mbfw-total-listing-single-page">' + vilaFormatPriceHtml(value) + '</div>' +
+      '</div>'
+    );
+  }
+
+  // Build + inject the breakdown. Mirrors vila_akoya_mbfw_expand_booking_charge_breakdown().
+  function renderLiveBill() {
+    if (!vilaPricingReady()) {
+      return;
+    }
+    var $bill = ensureLiveBillContainer();
+    var d = vilaBookingData();
+    var P = d.pricing;
+    var S = d.billStrings;
+
+    var nights = getStayNights();
+    if (nights < 1) {
+      $bill.empty();
+      return;
+    }
+
+    var adults = Math.max(1, parseInt($('#mwb_mbfw_people_number').val(), 10) || 1);
+    var children = Math.max(0, parseInt($('#vila_guest_children').val(), 10) || 0);
+    var infants = Math.max(0, parseInt($('#vila_guest_infants').val(), 10) || 0);
+    var pets = Math.max(0, parseInt($('#vila_guest_pets').val(), 10) || 0);
+    var nightWord = nights === 1 ? S.nightSingular : S.nightPlural;
+
+    var rows = [];
+    var total = 0;
+
+    var unit = P.adultPerNight;
+    var pitchValue = P.perPerson ? unit * adults * nights : unit * nights;
+    total += pitchValue;
+    var pitchTitle = P.perPerson
+      ? vilaSprintf(S.plotRatePerPerson, adults, vilaFormatPricePlain(unit), nights, nightWord)
+      : vilaSprintf(S.plotRateFlat, vilaFormatPricePlain(unit), nights, nightWord);
+    rows.push(liveBillRow(pitchTitle, pitchValue));
+
+    $('input[name="vila_vehicle_types[]"]:checked').each(function () {
+      var slug = this.value;
+      var info = P.vehicleFees[slug];
+      if (!info || info.fee <= 0) {
+        return;
+      }
+      var lineValue = info.fee * nights * (P.vehicleByGuests ? adults : 1);
+      total += lineValue;
+      var title = P.vehicleByGuests
+        ? vilaSprintf(S.vehicleByGuests, info.label, vilaFormatPricePlain(info.fee), adults, nights, nightWord)
+        : vilaSprintf(S.vehicleFlat, info.label, vilaFormatPricePlain(info.fee), nights, nightWord);
+      rows.push(liveBillRow(title, lineValue));
+    });
+
+    if (children > 0 && P.guestRates.children > 0) {
+      var chVal = children * P.guestRates.children * nights;
+      total += chVal;
+      rows.push(liveBillRow(vilaSprintf(S.children, children, vilaFormatPricePlain(P.guestRates.children), nights, nightWord), chVal));
+    }
+    if (infants > 0 && P.guestRates.infants > 0) {
+      var infVal = infants * P.guestRates.infants * nights;
+      total += infVal;
+      rows.push(liveBillRow(vilaSprintf(S.infants, infants, vilaFormatPricePlain(P.guestRates.infants), nights, nightWord), infVal));
+    }
+    if (pets > 0 && P.guestRates.pets > 0) {
+      var petVal = pets * P.guestRates.pets * nights;
+      total += petVal;
+      rows.push(liveBillRow(vilaSprintf(S.pets, pets, vilaFormatPricePlain(P.guestRates.pets), nights, nightWord), petVal));
+    }
+
+    var html =
+      '<div class="mbfw-total-listing-single-page__wrapper-parent">' +
+      rows.join('') +
+      '<div class="mbfw-total-listing-single-page__wrapper mbfw-total-cost__wrapper">' +
+      '<div class="mbfw-total-listing-single-page">' + vilaEscapeHtml(S.total) + '</div>' +
+      '<div class="mbfw-total-listing-single-page">' + vilaFormatPriceHtml(total) + '</div>' +
+      '</div></div>';
+    $bill.html(html);
+  }
+
+  // ── "Finalising your booking" overlay ────────────────────────────────────
+  // Add-to-cart runs a slow AJAX add then redirects to checkout (can take
+  // several seconds). Without feedback the page just sits there. Show a
+  // full-screen loader on submit so the user knows it's working.
+  var vilaSubmitOverlaySafety = null;
+
+  function showBookingSubmitOverlay() {
+    if ($('.vila-booking-submit-overlay').length) {
+      return;
+    }
+    var d = vilaBookingData();
+    var s = (d && d.strings) || {};
+    var title = s.finalising || 'Finalising your booking…';
+    var sub = s.finalisingSub || 'Preparing checkout. This only takes a few seconds.';
+    var $overlay = $(
+      '<div class="vila-booking-submit-overlay" role="alert" aria-live="assertive" aria-busy="true">' +
+        '<div class="vila-booking-submit-overlay__spinner" aria-hidden="true"></div>' +
+        '<p class="vila-booking-submit-overlay__title"></p>' +
+        '<p class="vila-booking-submit-overlay__sub"></p>' +
+      '</div>'
+    );
+    $overlay.find('.vila-booking-submit-overlay__title').text(title);
+    $overlay.find('.vila-booking-submit-overlay__sub').text(sub);
+    $('body').append($overlay).addClass('vila-booking-submitting');
+    // Safety net: if add-to-cart errors without navigating, don't trap the user.
+    clearTimeout(vilaSubmitOverlaySafety);
+    vilaSubmitOverlaySafety = setTimeout(hideBookingSubmitOverlay, 30000);
+  }
+
+  function hideBookingSubmitOverlay() {
+    clearTimeout(vilaSubmitOverlaySafety);
+    $('.vila-booking-submit-overlay').remove();
+    $('body').removeClass('vila-booking-submitting');
+  }
+
+  // Keep MWB's own (hidden) totals/state in sync without depending on it for
+  // display. Debounced so rapid changes don't spam admin-ajax.
+  var vilaMwbNudgeTimer = null;
+  function nudgeMwbState() {
+    clearTimeout(vilaMwbNudgeTimer);
+    vilaMwbNudgeTimer = setTimeout(function () {
+      var $from = $('#mwb-mbfw-booking-from-time');
+      if ($from.length && $from.val() && $('#mwb-mbfw-booking-to-time').val()) {
+        $from.trigger('change');
+      }
+    }, 250);
   }
 
   function ensureAvailabilityBanner() {
@@ -299,28 +473,11 @@
   function syncBookingTotalsAndCtaState() {
     // Enable CTA based on actual valid stay dates in MWB inputs.
     // Programmatic updates from flatpickr may not carry originalEvent.
+    // The live total renders synchronously, so there's no "loading" gate here —
+    // the button is blocked only when there is no valid/available stay.
     var hasStay = !!getStayYmdFromMwbInputs();
     $('body').toggleClass('vila-booking-dates-selected', hasStay);
-    // Keep Book Now disabled while the live totals are still recalculating so
-    // guests can't submit against a stale/partial amount.
-    setAddToCartBlocked(!hasStay || vilaRangeUnavailable || vilaTotalsUpdating);
-    // Spinner only makes sense once dates are valid and we're mid-recalc;
-    // otherwise the button just reads as "select dates".
-    setCtaLoading(vilaTotalsUpdating && hasStay && !vilaRangeUnavailable);
-  }
-
-  function setCtaLoading(loading) {
-    var $btn = $(
-      'form.cart .single_add_to_cart_button,' +
-      ' form.cart button[name="add-to-cart"],' +
-      ' form.cart input.single_add_to_cart_button[type="submit"],' +
-      ' form.cart input[name="add-to-cart"][type="submit"]'
-    );
-    if (!$btn.length) {
-      return;
-    }
-    $btn.toggleClass('vila-cta-loading', !!loading);
-    $btn.attr('aria-busy', loading ? 'true' : 'false');
+    setAddToCartBlocked(!hasStay || vilaRangeUnavailable);
   }
 
   function clearAvailabilityWarning() {
@@ -677,6 +834,7 @@
     });
     updateGuestStepperUi($root, s, minA, maxP, maxPet);
     updateVehicleHint();
+    renderLiveBill();
   }
 
   function updateGuestStepperUi($root, s, minA, maxP, maxPet) {
@@ -918,15 +1076,18 @@
       onChange: function (selectedDates) {
         if (selectedDates.length === 2) {
           vilaUserPickedDates = true;
-          $(fromEl)
-            .val(formatDMY(selectedDates[0]))
-            .trigger('change');
-          $(toEl).val(formatDMY(selectedDates[1])).trigger('change');
+          // Populate BOTH date inputs, then render instantly from the range.
+          $(fromEl).val(formatDMY(selectedDates[0]));
+          $(toEl).val(formatDMY(selectedDates[1]));
+          renderLiveBill();
+          nudgeMwbState();
         }
         if (selectedDates.length === 0) {
           vilaUserPickedDates = false;
-          $(fromEl).val('').trigger('change');
-          $(toEl).val('').trigger('change');
+          $(fromEl).val('');
+          $(toEl).val('');
+          renderLiveBill();
+          nudgeMwbState();
         }
         syncBookingTotalsAndCtaState();
         updateVehicleHint();
@@ -1039,6 +1200,16 @@
     setTimeout(layoutBookingFormSections, 400);
     setTimeout(layoutBookingFormSections, 1000);
 
+    // Take ownership of the bill display: create our container and flag the
+    // body so CSS hides MWB's own (now redundant) total area. If pricing data
+    // is missing (e.g. stale cache), we skip this and MWB's AJAX bill remains
+    // the visible fallback.
+    if (vilaPricingReady()) {
+      $('body').addClass('vila-live-bill-active');
+      ensureLiveBillContainer();
+      renderLiveBill();
+    }
+
     $(document).on(
       'change input',
       'input[name="vila_vehicle_types[]"], #mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time, #mwb_mbfw_people_number',
@@ -1047,15 +1218,15 @@
       }
     );
 
-    // MWB only recalculates its live-total AJAX when its own date/people fields
-    // change. The "Your setup" extras (Caravan, Campervan, electricity, …) are
-    // custom fields it doesn't watch, so toggling one never refreshed the summary
-    // and the selected extra was missing from the first-screen breakdown. Nudge
-    // MWB's date field so it re-runs totals with the extras included in the POST.
-    // Debounced so a quick burst of toggles becomes a single recalc.
-    $(document).on('change', 'input[name="vila_vehicle_types[]"]', function () {
-      scheduleMwbTotalsRecalc();
-    });
+    // Single source of truth: re-render the bill instantly whenever any pricing
+    // input changes (dates, guests, extras). No AJAX, no races, no flicker.
+    $(document).on(
+      'change input',
+      'input[name="vila_vehicle_types[]"], #mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time, #mwb_mbfw_people_number, #vila_guest_children, #vila_guest_infants, #vila_guest_pets',
+      function () {
+        renderLiveBill();
+      }
+    );
 
     $(document).on(
       'change input',
@@ -1076,33 +1247,38 @@
     // Ensure backend receives dates that are visibly selected in our range picker.
     $(document).on('click', 'form.cart .single_add_to_cart_button, form.cart button[name="add-to-cart"], form.cart input[name="add-to-cart"]', function () {
       syncInputsFromVisibleRange();
+      var $btn = $(this);
+      var blocked = $btn.is(':disabled') || $btn.attr('aria-disabled') === 'true' || $btn.hasClass('disabled');
+      if (!blocked) {
+        showBookingSubmitOverlay();
+      }
     });
     $(document).on('submit', 'form.cart', function () {
       syncInputsFromVisibleRange();
+      showBookingSubmitOverlay();
+    });
+
+    // Clear the overlay if add-to-cart fails (so the user isn't trapped) and
+    // when returning to the page via the browser back/forward cache.
+    $(document).ajaxError(function () {
+      hideBookingSubmitOverlay();
+    });
+    $(window).on('pageshow', function () {
+      hideBookingSubmitOverlay();
     });
 
     setTimeout(scheduleStayRangeAvailabilityCheck, 600);
     setTimeout(function () {
-      normaliseBookingBillLayout();
       syncBookingTotalsAndCtaState();
+      renderLiveBill();
     }, 150);
 
-    // Dim the bill while any MWB recalc is in flight (from extras, guest
-    // steppers or date changes) so the summary settles once instead of
-    // flickering rows in and out as overlapping responses land.
-    $(document).ajaxSend(function (e, xhr, settings) {
-      if (isMwbTotalsRequest(settings)) {
-        setBookingBillUpdating(true);
-      }
-    });
-
-    $(document).ajaxComplete(function (e, xhr, settings) {
-      normaliseBookingBillLayout();
+    // MWB's hidden AJAX can rebuild its own total area and, in doing so, may
+    // recreate the shell before our container exists. Re-assert our bill after
+    // any AJAX settles so it always reflects the current form state.
+    $(document).ajaxComplete(function () {
       syncBookingTotalsAndCtaState();
-      setTimeout(syncBookingTotalsAndCtaState, 100);
-      if (isMwbTotalsRequest(settings)) {
-        setBookingBillUpdating(false);
-      }
+      renderLiveBill();
     });
   });
 })(jQuery);
