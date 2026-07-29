@@ -784,6 +784,24 @@
 }
 
 /* Booking edit: extras / unit types (multi-select) */
+.vila-cb-meal-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 1.1em;
+	max-width: 42em;
+}
+
+.vila-cb-meal-edit__title {
+	display: block;
+	margin-bottom: 0.45em;
+}
+
+.vila-cb-meal-edit__dates {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35em 0.75em;
+}
+
 .vila-cb-unit-types-checkboxes {
 	margin: 0;
 	padding: 0;
@@ -957,4 +975,207 @@
 	accent-color: #2271b1;
 	flex-shrink: 0;
 	align-self: flex-start;
+}
+
+/* -------------------------------------------------------------------------
+ * Meals plan
+ * ------------------------------------------------------------------------- */
+
+.vila-cb-kpi--meal-b {
+	border-color: #c7e2c7;
+	background: linear-gradient(180deg, #f4fbf4 0%, #fff 70%);
+}
+
+.vila-cb-kpi--meal-d {
+	border-color: #f0d9b8;
+	background: linear-gradient(180deg, #fff8f0 0%, #fff 70%);
+}
+
+.vila-cb-meal-days {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.vila-cb-meal-day {
+	background: var(--vila-cb-ui-card);
+	border: 1px solid var(--vila-cb-ui-border);
+	border-radius: var(--vila-cb-ui-radius);
+	box-shadow: var(--vila-cb-ui-shadow);
+	overflow: hidden;
+}
+
+.vila-cb-meal-day.is-today {
+	border-color: var(--vila-cb-ui-accent);
+	box-shadow: 0 0 0 1px var(--vila-cb-ui-accent-soft), var(--vila-cb-ui-shadow);
+}
+
+.vila-cb-meal-day.is-weekend {
+	background: #fafafa;
+}
+
+.vila-cb-meal-day.is-empty .vila-cb-meal-day__cols {
+	opacity: 0.72;
+}
+
+.vila-cb-meal-day__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px 16px;
+	padding: 14px 18px;
+	border-bottom: 1px solid var(--vila-cb-ui-border-soft);
+	background: #fcfcfc;
+}
+
+.vila-cb-meal-day.is-today .vila-cb-meal-day__head {
+	background: var(--vila-cb-ui-accent-soft);
+}
+
+.vila-cb-meal-day__dow {
+	display: block;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--vila-cb-ui-text);
+}
+
+.vila-cb-meal-day__date {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--vila-cb-ui-muted);
+}
+
+.vila-cb-meal-day__totals {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.vila-cb-meal-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.2;
+	border: 1px solid transparent;
+}
+
+.vila-cb-meal-pill--b {
+	background: #eaf6ea;
+	border-color: #b7dcb7;
+	color: #1e5c1e;
+}
+
+.vila-cb-meal-pill--d {
+	background: #fff1e2;
+	border-color: #e8c39a;
+	color: #7a4510;
+}
+
+.vila-cb-meal-pill--off {
+	background: #f0f0f1;
+	border-color: #dcdcde;
+	color: #646970;
+	font-weight: 500;
+}
+
+.vila-cb-meal-day__cols {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0;
+}
+
+@media (max-width: 782px) {
+	.vila-cb-meal-day__cols {
+		grid-template-columns: 1fr;
+	}
+}
+
+.vila-cb-meal-col {
+	padding: 14px 18px 16px;
+}
+
+.vila-cb-meal-col + .vila-cb-meal-col {
+	border-left: 1px solid var(--vila-cb-ui-border-soft);
+}
+
+@media (max-width: 782px) {
+	.vila-cb-meal-col + .vila-cb-meal-col {
+		border-left: 0;
+		border-top: 1px solid var(--vila-cb-ui-border-soft);
+	}
+}
+
+.vila-cb-meal-col__title {
+	margin: 0 0 10px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--vila-cb-ui-muted);
+}
+
+.vila-cb-meal-col__empty {
+	margin: 0;
+	font-size: 13px;
+	color: var(--vila-cb-ui-muted);
+}
+
+.vila-cb-meal-col__sum {
+	margin: 12px 0 0;
+	padding-top: 10px;
+	border-top: 1px dashed var(--vila-cb-ui-border-soft);
+	font-size: 12px;
+	color: var(--vila-cb-ui-text);
+}
+
+.vila-cb-meal-parties {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.vila-cb-meal-party {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px 12px;
+	padding: 10px 12px;
+	border: 1px solid var(--vila-cb-ui-border-soft);
+	border-radius: var(--vila-cb-ui-radius-sm);
+	background: #fff;
+}
+
+.vila-cb-meal-party__name {
+	display: block;
+	font-size: 13px;
+	color: var(--vila-cb-ui-text);
+}
+
+.vila-cb-meal-party__meta {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--vila-cb-ui-muted);
+}
+
+.vila-cb-meal-party__side {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.vila-cb-meal-party__cook {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--vila-cb-ui-text);
 }

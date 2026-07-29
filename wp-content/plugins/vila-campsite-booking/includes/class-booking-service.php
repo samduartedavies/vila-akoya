@@ -645,8 +645,8 @@ class Booking_Service {
 		$guest_arr = WooCommerce_Integration::normalize_guest_counts_array( $guests_in );
 		$existing  = json_decode( (string) $row['guest_json'], true );
 		if ( is_array( $existing ) ) {
-			foreach ( array( 'vehicle_slugs', 'extras_label' ) as $ek ) {
-				if ( isset( $guest_arr[ $ek ] ) ) {
+			foreach ( array( 'vehicle_slugs', 'extras_label', 'meal_options', 'meal_dates', 'meal_party' ) as $ek ) {
+				if ( array_key_exists( $ek, $guests_in ) ) {
 					continue;
 				}
 				if ( 'vehicle_slugs' === $ek && ! empty( $existing['vehicle_slugs'] ) && is_array( $existing['vehicle_slugs'] ) ) {
@@ -654,6 +654,15 @@ class Booking_Service {
 				}
 				if ( 'extras_label' === $ek && ! empty( $existing['extras_label'] ) && is_string( $existing['extras_label'] ) && '' !== trim( $existing['extras_label'] ) ) {
 					$guest_arr['extras_label'] = sanitize_text_field( $existing['extras_label'] );
+				}
+				if ( 'meal_options' === $ek && ! empty( $existing['meal_options'] ) ) {
+					$guest_arr['meal_options'] = Meal_Plan_Service::normalize_meal_slugs( $existing['meal_options'] );
+				}
+				if ( 'meal_dates' === $ek && ! empty( $existing['meal_dates'] ) && is_array( $existing['meal_dates'] ) ) {
+					$guest_arr['meal_dates'] = $existing['meal_dates'];
+				}
+				if ( 'meal_party' === $ek && ! empty( $existing['meal_party'] ) && is_array( $existing['meal_party'] ) ) {
+					$guest_arr['meal_party'] = $existing['meal_party'];
 				}
 			}
 		}
@@ -668,6 +677,42 @@ class Booking_Service {
 		}
 		if ( isset( $guests_in['extras_label'] ) && is_string( $guests_in['extras_label'] ) && '' === trim( $guests_in['extras_label'] ) ) {
 			unset( $guest_arr['extras_label'] );
+		}
+		// Explicit meal date edits from the booking form (empty = clear meals).
+		if ( array_key_exists( 'meal_dates', $guests_in ) ) {
+			$b_dates = Meal_Booking::sanitize_ymd_list( isset( $guests_in['meal_dates']['breakfast'] ) ? $guests_in['meal_dates']['breakfast'] : array() );
+			$d_dates = Meal_Booking::sanitize_ymd_list( isset( $guests_in['meal_dates']['dinner'] ) ? $guests_in['meal_dates']['dinner'] : array() );
+			$d_dates = array_values(
+				array_filter(
+					$d_dates,
+					static function ( $ymd ) {
+						return Meal_Plan_Service::is_weekday( $ymd );
+					}
+				)
+			);
+			$slugs = array();
+			if ( ! empty( $b_dates ) ) {
+				$slugs[] = 'breakfast';
+			}
+			if ( ! empty( $d_dates ) ) {
+				$slugs[] = 'dinner';
+			}
+			if ( empty( $slugs ) ) {
+				unset( $guest_arr['meal_options'], $guest_arr['meal_dates'], $guest_arr['meal_party'] );
+			} else {
+				$guest_arr['meal_options'] = $slugs;
+				$guest_arr['meal_dates']   = array(
+					'breakfast' => $b_dates,
+					'dinner'    => $d_dates,
+				);
+				if ( empty( $guest_arr['meal_party'] ) ) {
+					$guest_arr['meal_party'] = array(
+						'adults'   => (int) $guest_arr['adults'],
+						'children' => (int) $guest_arr['children'],
+						'infants'  => (int) $guest_arr['infants'],
+					);
+				}
+			}
 		}
 		$guest_json = wp_json_encode( $guest_arr );
 

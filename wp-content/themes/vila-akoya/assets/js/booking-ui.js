@@ -229,53 +229,83 @@
       .replace(/"/g, '&quot;');
   }
 
-  // Group digits + apply decimal/thousand separators — mirrors wc_price().
+  // Group digits + apply decimal/thousand separators.
+  // Whole amounts omit decimals (€5); fractional keep two digits (€7,50).
   function vilaFormatNumber(amount) {
     var c = vilaBookingData().currency;
     var neg = amount < 0;
-    amount = Math.abs(amount);
-    var fixed = amount.toFixed(c.decimals);
-    var parts = fixed.split('.');
-    var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, c.thousandSep);
-    var out = c.decimals > 0 ? intPart + c.decimalSep + parts[1] : intPart;
+    amount = Math.abs(Number(amount) || 0);
+    var rounded = Math.round(amount * 100) / 100;
+    var isWhole = Math.abs(rounded - Math.round(rounded)) < 0.00001;
+    var intPart;
+    var out;
+    if (isWhole) {
+      intPart = String(Math.round(rounded));
+      intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, c.thousandSep);
+      out = intPart;
+    } else {
+      var fixed = rounded.toFixed(2);
+      var parts = fixed.split('.');
+      intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, c.thousandSep);
+      out = intPart + c.decimalSep + parts[1];
+    }
     return (neg ? '-' : '') + out;
   }
 
   // Plain price for breakdown titles (matches vila_akoya_format_price_plain()).
+  // Always places the currency symbol before the number.
   function vilaFormatPricePlain(amount) {
     var c = vilaBookingData().currency;
-    return c.format
-      .replace('%1$s', c.symbol)
-      .replace('%2$s', vilaFormatNumber(amount))
-      .replace(/&nbsp;/g, '\u00a0');
+    return String(c.symbol || '€') + vilaFormatNumber(amount);
   }
 
-  // HTML price for the value column (matches wc_price() markup for styling).
+  // HTML price for the value column — symbol before amount, smart decimals.
   function vilaFormatPriceHtml(amount) {
     var c = vilaBookingData().currency;
-    var sym = '<span class="woocommerce-Price-currencySymbol">' + vilaEscapeHtml(c.symbol) + '</span>';
-    var body = c.format
-      .replace('%1$s', sym)
-      .replace('%2$s', vilaFormatNumber(amount))
-      .replace(/&nbsp;/g, '\u00a0');
-    return '<span class="woocommerce-Price-amount amount"><bdi>' + body + '</bdi></span>';
+    var sym = '<span class="woocommerce-Price-currencySymbol">' + vilaEscapeHtml(c.symbol || '€') + '</span>';
+    return '<span class="woocommerce-Price-amount amount"><bdi>' + sym + vilaFormatNumber(amount) + '</bdi></span>';
   }
 
   // Whole nights for the visible stay. The flatpickr range is the source of
   // truth (MWB can transiently clear its hidden inputs during its own AJAX).
-  function getStayNights() {
+  function getStayDatePair() {
     var el = document.getElementById('vila-akoya-booking-range');
     if (el && el._flatpickr && el._flatpickr.selectedDates.length === 2) {
-      var a = el._flatpickr.selectedDates[0];
-      var b = el._flatpickr.selectedDates[1];
-      return Math.max(1, Math.round((b - a) / 86400000));
+      return [el._flatpickr.selectedDates[0], el._flatpickr.selectedDates[1]];
     }
     var f = parseDMY($('#mwb-mbfw-booking-from-time').val());
     var t = parseDMY($('#mwb-mbfw-booking-to-time').val());
     if (f && t) {
-      return Math.max(1, Math.round((t - f) / 86400000));
+      return [f, t];
     }
-    return 0;
+    return null;
+  }
+
+  function getStayNights() {
+    var pair = getStayDatePair();
+    if (!pair) {
+      return 0;
+    }
+    return Math.max(1, Math.round((pair[1] - pair[0]) / 86400000));
+  }
+
+  // Count Mon–Fri nights (check-in inclusive, check-out exclusive).
+  function getWeekdayNights() {
+    var pair = getStayDatePair();
+    if (!pair) {
+      return 0;
+    }
+    var cur = new Date(pair[0].getFullYear(), pair[0].getMonth(), pair[0].getDate());
+    var end = new Date(pair[1].getFullYear(), pair[1].getMonth(), pair[1].getDate());
+    var count = 0;
+    while (cur < end) {
+      var day = cur.getDay(); // 0 Sun … 6 Sat
+      if (day >= 1 && day <= 5) {
+        count += 1;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return count;
   }
 
   function ensureLiveBillContainer() {
@@ -370,6 +400,42 @@
       var petVal = pets * P.guestRates.pets * nights;
       total += petVal;
       rows.push(liveBillRow(vilaSprintf(S.pets, pets, vilaFormatPricePlain(P.guestRates.pets), nights, nightWord), petVal));
+    }
+
+    var weekdayNights = getWeekdayNights();
+    var daySingular = S.daySingular || 'day';
+    var dayPlural = S.dayPlural || 'days';
+    if (P.mealFees) {
+      $('input[name="vila_meal_options[]"]:checked').each(function () {
+        var slug = this.value;
+        var info = P.mealFees[slug];
+        if (!info) {
+          return;
+        }
+        var days = info.dayMode === 'weekdays' ? weekdayNights : nights;
+        if (days < 1) {
+          return;
+        }
+        var lineValue =
+          (adults * (info.adultFee || 0) + children * (info.childFee || 0) + infants * (info.infantFee || 0)) * days;
+        if (lineValue <= 0) {
+          return;
+        }
+        total += lineValue;
+        var parts = [];
+        if (adults > 0 && info.adultFee > 0 && S.mealAdults) {
+          parts.push(vilaSprintf(S.mealAdults, adults, vilaFormatPricePlain(info.adultFee)));
+        }
+        if (children > 0 && info.childFee > 0 && S.mealKids) {
+          parts.push(vilaSprintf(S.mealKids, children, vilaFormatPricePlain(info.childFee)));
+        }
+        var peopleBit = parts.length ? parts.join(' + ') : vilaFormatPricePlain(0);
+        var dayWord = days === 1 ? daySingular : dayPlural;
+        var title = S.mealLine
+          ? vilaSprintf(S.mealLine, info.label, peopleBit, days, dayWord)
+          : info.label;
+        rows.push(liveBillRow(title, lineValue));
+      });
     }
 
     var html =
@@ -560,7 +626,7 @@
   }
 
   /**
-   * Desktop: Guests + Your dates side by side; Your setup; then Notes full width.
+   * Desktop: Guests + Your dates side by side; Your setup; Meals; then Notes full width.
    */
   function layoutBookingFormSections() {
     var $scopes = $('.vila-wc-booking form.cart');
@@ -576,6 +642,7 @@
       var $who = $form.find('.vila-airbnb-booking--who').first();
       var $notes = $form.find('.vila-booking-notes-wrap').first();
       var $setup = $form.find('.vila-airbnb-booking--units').first();
+      var $meals = $form.find('.vila-airbnb-booking--meals').first();
 
       if (!$datesWrap.length || !$who.length) {
         return;
@@ -588,8 +655,15 @@
         $row.append($datesWrap);
       }
 
-      if ($notes.length && $setup.length) {
-        $notes.insertAfter($setup);
+      if ($meals.length && $setup.length) {
+        $meals.insertAfter($setup);
+      }
+      if ($notes.length) {
+        if ($meals.length) {
+          $notes.insertAfter($meals);
+        } else if ($setup.length) {
+          $notes.insertAfter($setup);
+        }
       }
 
       $form.data('vilaBookingLayoutDone', true);
@@ -1222,7 +1296,7 @@
     // input changes (dates, guests, extras). No AJAX, no races, no flicker.
     $(document).on(
       'change input',
-      'input[name="vila_vehicle_types[]"], #mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time, #mwb_mbfw_people_number, #vila_guest_children, #vila_guest_infants, #vila_guest_pets',
+      'input[name="vila_vehicle_types[]"], input[name="vila_meal_options[]"], #mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time, #mwb_mbfw_people_number, #vila_guest_children, #vila_guest_infants, #vila_guest_pets',
       function () {
         renderLiveBill();
       }

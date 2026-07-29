@@ -374,6 +374,20 @@ class Guest_Registration_Repository {
 			$guests = json_decode( isset( $booking['guest_json'] ) ? (string) $booking['guest_json'] : '', true );
 			$adults = is_array( $guests ) && isset( $guests['adults'] ) ? max( 1, (int) $guests['adults'] ) : 1;
 			$kids   = is_array( $guests ) && isset( $guests['children'] ) ? max( 0, (int) $guests['children'] ) : 0;
+			$infants = is_array( $guests ) && isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;
+
+			$nights = Dates::nights_in_range( (string) $booking['check_in'], (string) $booking['check_out'] );
+			$dinner_dates = array();
+			$breakfast_dates = array();
+			foreach ( $nights as $night ) {
+				if ( Meal_Plan_Service::is_weekday( $night ) ) {
+					$dinner_dates[] = $night;
+				}
+				$nd = Dates::parse_ymd( $night );
+				if ( $nd ) {
+					$breakfast_dates[] = $nd->modify( '+1 day' )->format( 'Y-m-d' );
+				}
+			}
 
 			$out[] = array(
 				'booking_id'       => (int) $booking['id'],
@@ -383,7 +397,11 @@ class Guest_Registration_Repository {
 				'check_out'        => (string) $booking['check_out'],
 				'adults'           => $adults,
 				'children'         => $kids,
+				'infants'          => $infants,
 				'suggested_guests' => $adults + $kids,
+				'nights'           => $nights,
+				'dinner_dates'     => $dinner_dates,
+				'breakfast_dates'  => array_values( array_unique( $breakfast_dates ) ),
 			);
 		}
 		return $out;

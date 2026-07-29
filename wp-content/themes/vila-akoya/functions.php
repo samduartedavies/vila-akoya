@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.42' );
+define( 'VILA_AKOYA_VERSION', '1.0.46' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
@@ -22,6 +22,7 @@ require_once VILA_AKOYA_DIR . '/inc/cf7-email-copy-admin.php';
 require_once VILA_AKOYA_DIR . '/inc/mc4wp-cf7.php';
 require_once VILA_AKOYA_DIR . '/inc/nav-walkers.php';
 require_once VILA_AKOYA_DIR . '/inc/permalink-nav.php';
+require_once VILA_AKOYA_DIR . '/inc/location-map.php';
 require_once VILA_AKOYA_DIR . '/inc/blog.php';
 require_once VILA_AKOYA_DIR . '/inc/events.php';
 require_once VILA_AKOYA_DIR . '/inc/template-reset.php';

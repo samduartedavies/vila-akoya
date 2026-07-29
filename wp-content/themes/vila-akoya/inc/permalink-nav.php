@@ -311,6 +311,7 @@ function vila_akoya_shortcode_footer_nav() {
 <div class="space-y-4">
 <a class="text-2xl font-normal text-orange-50 font-barrio block hover:opacity-90" href="<?php echo $h( '' ); ?>">Vila Akoya</a>
 <p class="text-sm font-medium font-body text-orange-50/60 uppercase tracking-widest">A tiny house village and creative campsite</p>
+<p class="text-sm font-body text-orange-50/45 leading-relaxed mb-0"><a class="inline-flex items-center justify-center md:justify-start gap-2 hover:text-orange-50/80 transition-colors" href="https://maps.app.goo.gl/oBuiBrk987Q6FmTN6" target="_blank" rel="noopener noreferrer"><span class="material-symbols-outlined text-base opacity-70" aria-hidden="true">location_on</span><span>Horta da Bica, 7670-202 Ourique</span></a></p>
 </div>
 <div class="vila-footer-links flex flex-wrap justify-center md:justify-end gap-x-5 gap-y-2">
 <?php vila_akoya_render_footer_nav_links( 'footer', $h ); ?>

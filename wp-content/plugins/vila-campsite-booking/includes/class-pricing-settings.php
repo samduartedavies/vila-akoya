@@ -33,6 +33,7 @@ class Pricing_Settings {
 		add_filter( 'vila_akoya_vehicle_types', array( __CLASS__, 'filter_vehicle_types' ), 20, 1 );
 		// After fee overrides and any other filters: drop legacy slugs (priority last).
 		add_filter( 'vila_akoya_vehicle_types', array( __CLASS__, 'strip_deprecated_vehicle_types' ), 9999, 1 );
+		add_filter( 'vila_akoya_meal_options', array( __CLASS__, 'filter_meal_options' ), 20, 1 );
 	}
 
 	/**
@@ -54,6 +55,16 @@ class Pricing_Settings {
 				'camper'       => 6.0,
 				'electricity'  => 2.0,
 				'car'          => 2.0,
+			),
+			'meal_fees'       => array(
+				'breakfast' => array(
+					'adult' => 5.0,
+					'child' => 3.0,
+				),
+				'dinner'    => array(
+					'adult' => 10.0,
+					'child' => 7.5,
+				),
 			),
 		);
 	}
@@ -198,6 +209,35 @@ class Pricing_Settings {
 			}
 			$out['vehicle_fees'][ $slug ] = $fallback;
 		}
+		$out['meal_fees'] = self::merged_meal_fees_from_option();
+		return $out;
+	}
+
+	/**
+	 * Merged meal_fees from defaults + saved option.
+	 *
+	 * @return array<string, array{ adult: float, child: float }>
+	 */
+	private static function merged_meal_fees_from_option() {
+		$stored = get_option( self::OPTION_KEY, array() );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+		$base = self::defaults()['meal_fees'];
+		$out  = $base;
+		if ( ! empty( $stored['meal_fees'] ) && is_array( $stored['meal_fees'] ) ) {
+			foreach ( $base as $slug => $row ) {
+				$out[ $slug ] = $row;
+				if ( isset( $stored['meal_fees'][ $slug ] ) && is_array( $stored['meal_fees'][ $slug ] ) ) {
+					if ( isset( $stored['meal_fees'][ $slug ]['adult'] ) ) {
+						$out[ $slug ]['adult'] = max( 0.0, (float) $stored['meal_fees'][ $slug ]['adult'] );
+					}
+					if ( isset( $stored['meal_fees'][ $slug ]['child'] ) ) {
+						$out[ $slug ]['child'] = max( 0.0, (float) $stored['meal_fees'][ $slug ]['child'] );
+					}
+				}
+			}
+		}
 		return $out;
 	}
 
@@ -238,10 +278,21 @@ class Pricing_Settings {
 			}
 		}
 
+		$meals = $base['meal_fees'];
+		foreach ( array_keys( $base['meal_fees'] ) as $slug ) {
+			if ( isset( $raw['meal_fees'][ $slug ]['adult'] ) ) {
+				$meals[ $slug ]['adult'] = max( 0.0, self::sanitize_amount( $raw['meal_fees'][ $slug ]['adult'] ) );
+			}
+			if ( isset( $raw['meal_fees'][ $slug ]['child'] ) ) {
+				$meals[ $slug ]['child'] = max( 0.0, self::sanitize_amount( $raw['meal_fees'][ $slug ]['child'] ) );
+			}
+		}
+
 		return array(
 			'adult_per_night' => $adult,
 			'guest_rates'     => $guest,
 			'vehicle_fees'    => $veh,
+			'meal_fees'       => $meals,
 		);
 	}
 
@@ -395,5 +446,31 @@ class Pricing_Settings {
 			unset( $types[ $legacy ] );
 		}
 		return $types;
+	}
+
+	/**
+	 * Apply Campsite → Settings meal adult/child rates onto theme meal options.
+	 *
+	 * @param array<string, array<string, mixed>> $options Meal options from theme.
+	 * @return array<string, array<string, mixed>>
+	 */
+	public static function filter_meal_options( $options ) {
+		if ( ! is_array( $options ) ) {
+			return array();
+		}
+		$fees = self::merged_meal_fees_from_option();
+		foreach ( $options as $slug => &$row ) {
+			if ( ! is_array( $row ) || ! isset( $fees[ $slug ] ) ) {
+				continue;
+			}
+			if ( isset( $fees[ $slug ]['adult'] ) ) {
+				$row['adult_fee'] = (float) $fees[ $slug ]['adult'];
+			}
+			if ( isset( $fees[ $slug ]['child'] ) ) {
+				$row['child_fee'] = (float) $fees[ $slug ]['child'];
+			}
+		}
+		unset( $row );
+		return $options;
 	}
 }

@@ -16,6 +16,7 @@ class Install {
 
 	const OPTION_DB_VERSION = 'vila_cb_db_version';
 	const OPTION_GUEST_REGISTRATION_PAGE_ID = 'vila_cb_guest_registration_page_id';
+	const OPTION_MEAL_BOOKING_PAGE_ID = 'vila_cb_meal_booking_page_id';
 
 	/**
 	 * Plugin activation.
@@ -24,7 +25,8 @@ class Install {
 		self::create_tables();
 		self::seed_plots();
 		self::ensure_guest_registration_page();
-		update_option( self::OPTION_DB_VERSION, '1.1.1' );
+		self::ensure_meal_booking_page();
+		update_option( self::OPTION_DB_VERSION, '1.1.2' );
 	}
 
 	/**
@@ -37,6 +39,10 @@ class Install {
 			self::seed_plots();
 			self::maybe_schedule_guest_registration_page();
 			update_option( self::OPTION_DB_VERSION, '1.1.1' );
+		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.1.2', '<' ) ) {
+			self::maybe_schedule_meal_booking_page();
+			update_option( self::OPTION_DB_VERSION, '1.1.2' );
 		}
 	}
 
@@ -101,6 +107,63 @@ class Install {
 		}
 
 		update_option( self::OPTION_GUEST_REGISTRATION_PAGE_ID, (int) $page_id );
+		return (int) $page_id;
+	}
+
+	/**
+	 * Ensure meal booking page creation after init when needed.
+	 */
+	private static function maybe_schedule_meal_booking_page() {
+		if ( did_action( 'init' ) ) {
+			self::ensure_meal_booking_page();
+			return;
+		}
+		add_action( 'init', array( __CLASS__, 'ensure_meal_booking_page' ), 21 );
+	}
+
+	/**
+	 * Published page that hosts the meal booking shortcode.
+	 *
+	 * @return int Page ID.
+	 */
+	public static function ensure_meal_booking_page() {
+		$slug    = 'book-meals';
+		$content = "<!-- wp:shortcode -->\n[vila_meal_booking]\n<!-- /wp:shortcode -->";
+
+		$existing = get_page_by_path( $slug, OBJECT, 'page' );
+		if ( $existing instanceof \WP_Post ) {
+			$body = (string) $existing->post_content;
+			if ( false === strpos( $body, '[vila_meal_booking]' ) ) {
+				$body = trim( $body );
+				$body = '' === $body ? $content : $body . "\n\n" . $content;
+				wp_update_post(
+					array(
+						'ID'           => (int) $existing->ID,
+						'post_content' => $body,
+						'post_status'  => 'publish',
+					)
+				);
+			}
+			update_option( self::OPTION_MEAL_BOOKING_PAGE_ID, (int) $existing->ID );
+			return (int) $existing->ID;
+		}
+
+		$page_id = wp_insert_post(
+			array(
+				'post_title'   => __( 'Book meals', 'vila-campsite-booking' ),
+				'post_name'    => $slug,
+				'post_status'  => 'publish',
+				'post_type'    => 'page',
+				'post_content' => $content,
+			),
+			true
+		);
+
+		if ( is_wp_error( $page_id ) ) {
+			return 0;
+		}
+
+		update_option( self::OPTION_MEAL_BOOKING_PAGE_ID, (int) $page_id );
 		return (int) $page_id;
 	}
 

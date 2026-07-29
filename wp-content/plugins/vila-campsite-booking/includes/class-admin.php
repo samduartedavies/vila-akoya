@@ -16,6 +16,7 @@ class Admin {
 
 	const PAGE_OVERVIEW = 'vila-cb-overview';
 	const PAGE_CAL      = 'vila-cb-calendar';
+	const PAGE_MEALS    = 'vila-cb-meals';
 	const PAGE_PLOTS    = 'vila-cb-plots';
 	const PAGE_BLOCKS   = 'vila-cb-blocks';
 	const PAGE_SETTINGS = 'vila-cb-settings';
@@ -89,6 +90,17 @@ class Admin {
 				'parent' => false,
 			)
 		);
+		$wp_admin_bar->add_node(
+			array(
+				'id'     => 'vila-cb-toolbar-meals',
+				'title'  => __( 'Meals', 'vila-campsite-booking' ),
+				'href'   => admin_url( 'admin.php?page=' . self::PAGE_MEALS ),
+				'meta'   => array(
+					'title' => __( 'Campsite meal plan', 'vila-campsite-booking' ),
+				),
+				'parent' => false,
+			)
+		);
 	}
 
 	/**
@@ -135,6 +147,15 @@ class Admin {
 			'manage_woocommerce',
 			self::PAGE_CAL,
 			array( __CLASS__, 'render_calendar' )
+		);
+
+		add_submenu_page(
+			'woocommerce',
+			__( 'Campsite meals', 'vila-campsite-booking' ),
+			__( 'Campsite · Meals', 'vila-campsite-booking' ),
+			'manage_woocommerce',
+			self::PAGE_MEALS,
+			array( __CLASS__, 'render_meals' )
 		);
 
 		add_submenu_page(
@@ -263,6 +284,20 @@ class Admin {
 		$unit_label              = WooCommerce_Integration::extras_label_from_slugs( $vehicle_slugs );
 		if ( '' !== $unit_label ) {
 			$guests['extras_label'] = $unit_label;
+		}
+
+		// Always posted when the meals section is present (empty checkboxes = clear meals).
+		if ( isset( $_POST['vila_cb_meals_edited'] ) ) {
+			$posted_b = isset( $_POST['vila_cb_meal_breakfast_dates'] ) && is_array( $_POST['vila_cb_meal_breakfast_dates'] )
+				? wp_unslash( $_POST['vila_cb_meal_breakfast_dates'] )
+				: array();
+			$posted_d = isset( $_POST['vila_cb_meal_dinner_dates'] ) && is_array( $_POST['vila_cb_meal_dinner_dates'] )
+				? wp_unslash( $_POST['vila_cb_meal_dinner_dates'] )
+				: array();
+			$guests['meal_dates'] = array(
+				'breakfast' => $posted_b,
+				'dinner'    => $posted_d,
+			);
 		}
 
 		WooCommerce_Integration::log_debug(
@@ -510,6 +545,77 @@ class Admin {
 									$vslugs_checked
 								);
 								?>
+							</div>
+						</td>
+					</tr>
+					<?php
+					$meal_edit = Meal_Plan_Service::meal_edit_state_for_booking( $booking, $order );
+					$df_meal   = get_option( 'date_format' );
+					$df_meal   = ( is_string( $df_meal ) && '' !== $df_meal ) ? $df_meal : 'Y-m-d';
+					?>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Meals', 'vila-campsite-booking' ); ?></th>
+						<td>
+							<input type="hidden" name="vila_cb_meals_edited" value="1" />
+							<p class="description" style="margin-top:0;">
+								<?php esc_html_e( 'Tick the days this party has breakfast or weekday dinner. Uncheck all to remove meals from the booking.', 'vila-campsite-booking' ); ?>
+							</p>
+							<?php if ( ! empty( $meal_edit['meal_party'] ) ) : ?>
+								<p class="description">
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: 1: adults, 2: children, 3: infants */
+											__( 'Meal headcount (if booked separately): %1$d adults, %2$d children, %3$d babies.', 'vila-campsite-booking' ),
+											(int) $meal_edit['meal_party']['adults'],
+											(int) $meal_edit['meal_party']['children'],
+											(int) $meal_edit['meal_party']['infants']
+										)
+									);
+									?>
+								</p>
+							<?php endif; ?>
+							<div class="vila-cb-meal-edit">
+								<div class="vila-cb-meal-edit__block">
+									<strong class="vila-cb-meal-edit__title"><?php esc_html_e( 'Bio breakfast & coffee', 'vila-campsite-booking' ); ?></strong>
+									<?php if ( empty( $meal_edit['breakfast_choices'] ) ) : ?>
+										<p class="description"><?php esc_html_e( 'No breakfast mornings in this stay (need at least one night).', 'vila-campsite-booking' ); ?></p>
+									<?php else : ?>
+										<div class="vila-cb-unit-types-checkboxes vila-cb-meal-edit__dates" role="group">
+											<?php foreach ( $meal_edit['breakfast_choices'] as $ymd ) : ?>
+												<?php
+												$dt    = Dates::parse_ymd( $ymd );
+												$label = $dt ? $dt->format( 'D' ) . ' ' . $dt->format( $df_meal ) : $ymd;
+												$id    = 'vila_cb_meal_b_' . preg_replace( '/[^0-9]/', '', $ymd );
+												?>
+												<label class="vila-cb-unit-types-checkboxes__item" for="<?php echo esc_attr( $id ); ?>">
+													<input type="checkbox" name="vila_cb_meal_breakfast_dates[]" id="<?php echo esc_attr( $id ); ?>" value="<?php echo esc_attr( $ymd ); ?>" <?php checked( in_array( $ymd, $meal_edit['breakfast_checked'], true ) ); ?> />
+													<span><?php echo esc_html( $label ); ?></span>
+												</label>
+											<?php endforeach; ?>
+										</div>
+									<?php endif; ?>
+								</div>
+								<div class="vila-cb-meal-edit__block">
+									<strong class="vila-cb-meal-edit__title"><?php esc_html_e( 'Weekday dinner (Mon–Fri)', 'vila-campsite-booking' ); ?></strong>
+									<?php if ( empty( $meal_edit['dinner_choices'] ) ) : ?>
+										<p class="description"><?php esc_html_e( 'No weekday dinner nights in this stay.', 'vila-campsite-booking' ); ?></p>
+									<?php else : ?>
+										<div class="vila-cb-unit-types-checkboxes vila-cb-meal-edit__dates" role="group">
+											<?php foreach ( $meal_edit['dinner_choices'] as $ymd ) : ?>
+												<?php
+												$dt    = Dates::parse_ymd( $ymd );
+												$label = $dt ? $dt->format( 'D' ) . ' ' . $dt->format( $df_meal ) : $ymd;
+												$id    = 'vila_cb_meal_d_' . preg_replace( '/[^0-9]/', '', $ymd );
+												?>
+												<label class="vila-cb-unit-types-checkboxes__item" for="<?php echo esc_attr( $id ); ?>">
+													<input type="checkbox" name="vila_cb_meal_dinner_dates[]" id="<?php echo esc_attr( $id ); ?>" value="<?php echo esc_attr( $ymd ); ?>" <?php checked( in_array( $ymd, $meal_edit['dinner_checked'], true ) ); ?> />
+													<span><?php echo esc_html( $label ); ?></span>
+												</label>
+											<?php endforeach; ?>
+										</div>
+									<?php endif; ?>
+								</div>
 							</div>
 						</td>
 					</tr>
@@ -795,6 +901,245 @@ class Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Kitchen meal plan: breakfast / dinner headcounts for the next two weeks.
+	 */
+	public static function render_meals() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		self::enqueue_admin_assets();
+
+		$tz   = wp_timezone();
+		$base = new \DateTime( 'now', $tz );
+		$base->setTime( 0, 0, 0 );
+		if ( isset( $_GET['vila_cb_meals'] ) ) {
+			$raw = wp_unslash( Request_String::scalar( $_GET['vila_cb_meals'] ) );
+			$try = Dates::parse_ymd( sanitize_text_field( $raw ) );
+			if ( $try ) {
+				$base = new \DateTime( $try->format( 'Y-m-d' ), $tz );
+			}
+		}
+
+		$from = $base->format( 'Y-m-d' );
+		$to   = ( clone $base )->modify( '+13 days' )->format( 'Y-m-d' );
+		$prev = ( clone $base )->modify( '-14 days' )->format( 'Y-m-d' );
+		$nxt  = ( clone $base )->modify( '+14 days' )->format( 'Y-m-d' );
+
+		$plan   = ( new Meal_Plan_Service() )->get_range( $from, $to );
+		$days   = $plan['days'];
+		$totals = $plan['totals'];
+
+		$period_label = sprintf(
+			/* translators: 1: start date, 2: end date */
+			__( '%1$s – %2$s', 'vila-campsite-booking' ),
+			$base->format( self::wp_date_format_pattern() ),
+			( clone $base )->modify( '+13 days' )->format( self::wp_date_format_pattern() )
+		);
+
+		?>
+		<div class="wrap vila-cb-admin vila-cb-meals">
+			<div class="vila-cb-ui-hero">
+				<div class="vila-cb-ui-hero__text">
+					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Meals', 'vila-campsite-booking' ); ?></h1>
+					<p class="vila-cb-ui-lead">
+						<?php esc_html_e( 'How many guests to cook for. Breakfast is the morning after each night stayed; dinner is Mon–Fri evenings for guests staying that night. Under-2s are listed but not included in the cook total.', 'vila-campsite-booking' ); ?>
+					</p>
+				</div>
+				<form method="get" class="vila-cb-daynav vila-cb-ui-nav">
+					<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_MEALS ); ?>" />
+					<button type="submit" class="button vila-cb-ui-nav-btn" name="vila_cb_meals" value="<?php echo esc_attr( $prev ); ?>" aria-label="<?php esc_attr_e( 'Previous two weeks', 'vila-campsite-booking' ); ?>">
+						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">‹</span>
+						<span><?php esc_html_e( 'Prev', 'vila-campsite-booking' ); ?></span>
+					</button>
+					<div class="vila-cb-ui-nav-period">
+						<span class="vila-cb-ui-nav-month"><?php esc_html_e( '14 days', 'vila-campsite-booking' ); ?></span>
+						<span class="vila-cb-ui-nav-sub"><?php echo esc_html( $period_label ); ?></span>
+					</div>
+					<button type="submit" class="button vila-cb-ui-nav-btn vila-cb-ui-nav-btn--primary" name="vila_cb_meals" value="<?php echo esc_attr( $nxt ); ?>" aria-label="<?php esc_attr_e( 'Next two weeks', 'vila-campsite-booking' ); ?>">
+						<span><?php esc_html_e( 'Next', 'vila-campsite-booking' ); ?></span>
+						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">›</span>
+					</button>
+				</form>
+			</div>
+
+			<div class="vila-cb-kpis">
+				<div class="vila-cb-kpi vila-cb-kpi--meal-b">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Breakfast covers (period)', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $totals['breakfast_cook'] ); ?></strong>
+				</div>
+				<div class="vila-cb-kpi vila-cb-kpi--meal-d">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Dinner covers (period)', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $totals['dinner_cook'] ); ?></strong>
+				</div>
+				<div class="vila-cb-kpi vila-cb-kpi--stay">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Days with breakfast', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $totals['breakfast_days'] ); ?></strong>
+				</div>
+				<div class="vila-cb-kpi vila-cb-kpi--book">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Days with dinner', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $totals['dinner_days'] ); ?></strong>
+				</div>
+			</div>
+
+			<div class="vila-cb-meal-days">
+				<?php
+				if ( empty( $days ) ) {
+					echo '<div class="vila-cb-ui-panel"><p>' . esc_html__( 'No dates in this range.', 'vila-campsite-booking' ) . '</p></div>';
+				}
+				foreach ( $days as $day ) :
+					$b = $day['breakfast'];
+					$d = $day['dinner'];
+					$has_any = ( (int) $b['cook'] + (int) $d['cook'] + (int) $b['infants'] + (int) $d['infants'] ) > 0;
+					$row_class = 'vila-cb-meal-day';
+					if ( ! empty( $day['is_today'] ) ) {
+						$row_class .= ' is-today';
+					}
+					if ( empty( $day['is_weekday'] ) ) {
+						$row_class .= ' is-weekend';
+					}
+					if ( ! $has_any ) {
+						$row_class .= ' is-empty';
+					}
+					?>
+					<article class="<?php echo esc_attr( $row_class ); ?>">
+						<header class="vila-cb-meal-day__head">
+							<div>
+								<strong class="vila-cb-meal-day__dow"><?php echo esc_html( (string) $day['label'] ); ?></strong>
+								<span class="vila-cb-meal-day__date"><?php echo esc_html( (string) $day['date_label'] ); ?></span>
+							</div>
+							<div class="vila-cb-meal-day__totals" aria-label="<?php esc_attr_e( 'Cook totals', 'vila-campsite-booking' ); ?>">
+								<span class="vila-cb-meal-pill vila-cb-meal-pill--b" title="<?php esc_attr_e( 'Breakfast cook total', 'vila-campsite-booking' ); ?>">
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: %d: people to cook breakfast for */
+											__( 'Breakfast %d', 'vila-campsite-booking' ),
+											(int) $b['cook']
+										)
+									);
+									?>
+								</span>
+								<?php if ( ! empty( $day['is_weekday'] ) ) : ?>
+									<span class="vila-cb-meal-pill vila-cb-meal-pill--d" title="<?php esc_attr_e( 'Dinner cook total', 'vila-campsite-booking' ); ?>">
+										<?php
+										echo esc_html(
+											sprintf(
+												/* translators: %d: people to cook dinner for */
+												__( 'Dinner %d', 'vila-campsite-booking' ),
+												(int) $d['cook']
+											)
+										);
+										?>
+									</span>
+								<?php else : ?>
+									<span class="vila-cb-meal-pill vila-cb-meal-pill--off"><?php esc_html_e( 'No dinner (weekend)', 'vila-campsite-booking' ); ?></span>
+								<?php endif; ?>
+							</div>
+						</header>
+
+						<div class="vila-cb-meal-day__cols">
+							<section class="vila-cb-meal-col">
+								<h3 class="vila-cb-meal-col__title"><?php esc_html_e( 'Breakfast', 'vila-campsite-booking' ); ?></h3>
+								<?php self::render_meal_party_list( $b, __( 'No breakfast guests', 'vila-campsite-booking' ) ); ?>
+							</section>
+							<section class="vila-cb-meal-col">
+								<h3 class="vila-cb-meal-col__title"><?php esc_html_e( 'Dinner', 'vila-campsite-booking' ); ?></h3>
+								<?php
+								if ( empty( $day['is_weekday'] ) ) {
+									echo '<p class="vila-cb-meal-col__empty">' . esc_html__( 'Weekday dinners only.', 'vila-campsite-booking' ) . '</p>';
+								} else {
+									self::render_meal_party_list( $d, __( 'No dinner guests', 'vila-campsite-booking' ) );
+								}
+								?>
+							</section>
+						</div>
+					</article>
+					<?php
+				endforeach;
+				?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render party list for one meal bucket.
+	 *
+	 * @param array{adults: int, children: int, infants: int, cook: int, parties: array<int, array<string, mixed>>} $bucket Meal bucket.
+	 * @param string                                                                                                 $empty_label Empty state.
+	 */
+	private static function render_meal_party_list( array $bucket, $empty_label ) {
+		$parties = isset( $bucket['parties'] ) && is_array( $bucket['parties'] ) ? $bucket['parties'] : array();
+		if ( empty( $parties ) ) {
+			echo '<p class="vila-cb-meal-col__empty">' . esc_html( $empty_label ) . '</p>';
+			return;
+		}
+		echo '<ul class="vila-cb-meal-parties">';
+		foreach ( $parties as $p ) {
+			$breakdown = WooCommerce_Integration::format_guest_counts_calendar_line(
+				array(
+					'adults'   => isset( $p['adults'] ) ? (int) $p['adults'] : 0,
+					'children' => isset( $p['children'] ) ? (int) $p['children'] : 0,
+					'infants'  => isset( $p['infants'] ) ? (int) $p['infants'] : 0,
+					'pets'     => 0,
+				)
+			);
+			$cook = isset( $p['cook'] ) ? (int) $p['cook'] : 0;
+			echo '<li class="vila-cb-meal-party">';
+			echo '<div class="vila-cb-meal-party__main">';
+			echo '<strong class="vila-cb-meal-party__name">' . esc_html( (string) $p['name'] ) . '</strong>';
+			echo '<span class="vila-cb-meal-party__meta">' . esc_html( (string) $p['plot'] ) . ' · ' . esc_html( $breakdown ) . '</span>';
+			echo '</div>';
+			echo '<div class="vila-cb-meal-party__side">';
+			echo '<span class="vila-cb-meal-party__cook">' . esc_html(
+				sprintf(
+					/* translators: %d: cook count for this party */
+					_n( '%d to cook', '%d to cook', $cook, 'vila-campsite-booking' ),
+					$cook
+				)
+			) . '</span>';
+			if ( ! empty( $p['edit_url'] ) ) {
+				echo '<a class="button button-small" href="' . esc_url( (string) $p['edit_url'] ) . '">' . esc_html__( 'Booking', 'vila-campsite-booking' ) . '</a>';
+			}
+			echo '</div>';
+			echo '</li>';
+		}
+		echo '</ul>';
+		$summary_parts = array();
+		if ( (int) $bucket['adults'] > 0 ) {
+			$summary_parts[] = sprintf(
+				/* translators: %d: adults */
+				_n( '%d adult', '%d adults', (int) $bucket['adults'], 'vila-campsite-booking' ),
+				(int) $bucket['adults']
+			);
+		}
+		if ( (int) $bucket['children'] > 0 ) {
+			$summary_parts[] = sprintf(
+				/* translators: %d: children */
+				_n( '%d child', '%d children', (int) $bucket['children'], 'vila-campsite-booking' ),
+				(int) $bucket['children']
+			);
+		}
+		if ( (int) $bucket['infants'] > 0 ) {
+			$summary_parts[] = sprintf(
+				/* translators: %d: babies (not in cook total) */
+				_n( '%d baby (not counted)', '%d babies (not counted)', (int) $bucket['infants'], 'vila-campsite-booking' ),
+				(int) $bucket['infants']
+			);
+		}
+		if ( $summary_parts ) {
+			echo '<p class="vila-cb-meal-col__sum"><strong>' . esc_html(
+				sprintf(
+					/* translators: %d: cook total */
+					__( 'Cook for %d', 'vila-campsite-booking' ),
+					(int) $bucket['cook']
+				)
+			) . '</strong> — ' . esc_html( implode( ', ', $summary_parts ) ) . '</p>';
+		}
 	}
 
 	/**
@@ -1827,6 +2172,34 @@ class Admin {
 						}
 						?>
 					</table>
+					<h3 class="vila-cb-ui-section-title" style="margin-top:1.5em;font-size:14px;"><?php esc_html_e( 'Meals', 'vila-campsite-booking' ); ?></h3>
+					<p class="description"><?php esc_html_e( 'Optional meal add-ons on the booking form. Breakfast is charged for every night of the stay; dinner only for Monday–Friday nights. Babies (under 2) are free.', 'vila-campsite-booking' ); ?></p>
+					<table class="form-table vila-cb-ui-form-table" role="presentation">
+						<?php
+						$meal_labels = array(
+							'breakfast' => __( 'Bio breakfast & coffee', 'vila-campsite-booking' ),
+							'dinner'    => __( 'Weekday dinner (Mon–Fri)', 'vila-campsite-booking' ),
+						);
+						$meal_fees = isset( $pricing['meal_fees'] ) && is_array( $pricing['meal_fees'] ) ? $pricing['meal_fees'] : array();
+						foreach ( $meal_labels as $mslug => $mlab ) {
+							$mrow = isset( $meal_fees[ $mslug ] ) && is_array( $meal_fees[ $mslug ] ) ? $meal_fees[ $mslug ] : array();
+							$madult = isset( $mrow['adult'] ) ? $mrow['adult'] : 0;
+							$mchild = isset( $mrow['child'] ) ? $mrow['child'] : 0;
+							?>
+							<tr>
+								<th scope="row"><?php echo esc_html( $mlab ); ?></th>
+								<td>
+									<label for="vila_cb_mf_<?php echo esc_attr( $mslug ); ?>_adult" class="screen-reader-text"><?php echo esc_html( sprintf( __( '%s adult rate', 'vila-campsite-booking' ), $mlab ) ); ?></label>
+									<input name="vila_cb_pricing[meal_fees][<?php echo esc_attr( $mslug ); ?>][adult]" id="vila_cb_mf_<?php echo esc_attr( $mslug ); ?>_adult" type="number" min="0" step="0.01" value="<?php echo esc_attr( (string) $madult ); ?>" class="small-text" /> <?php esc_html_e( 'EUR / adult / day', 'vila-campsite-booking' ); ?>
+									&nbsp;&nbsp;
+									<label for="vila_cb_mf_<?php echo esc_attr( $mslug ); ?>_child" class="screen-reader-text"><?php echo esc_html( sprintf( __( '%s child rate', 'vila-campsite-booking' ), $mlab ) ); ?></label>
+									<input name="vila_cb_pricing[meal_fees][<?php echo esc_attr( $mslug ); ?>][child]" id="vila_cb_mf_<?php echo esc_attr( $mslug ); ?>_child" type="number" min="0" step="0.01" value="<?php echo esc_attr( (string) $mchild ); ?>" class="small-text" /> <?php esc_html_e( 'EUR / child / day', 'vila-campsite-booking' ); ?>
+								</td>
+							</tr>
+							<?php
+						}
+						?>
+					</table>
 					<?php submit_button( __( 'Save settings', 'vila-campsite-booking' ), 'primary', '', false, array( 'class' => 'vila-cb-ui-submit' ) ); ?>
 				</div>
 			</form>
@@ -1836,15 +2209,26 @@ class Admin {
 				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Optional: [vila_campsite_booking product_id="123" label="Your label"]. The label overrides the “Where” text (defaults to a generic campsite name, not the WC product title).', 'vila-campsite-booking' ); ?></p>
 				<p class="vila-cb-ui-code-wrap" style="margin-top:14px;"><code class="vila-cb-ui-code">[vila_guest_registration]</code></p>
 				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Add this shortcode to a guest-facing page where people can search their booking or enter stay details manually for SIBA registration.', 'vila-campsite-booking' ); ?></p>
+				<p class="vila-cb-ui-code-wrap" style="margin-top:14px;"><code class="vila-cb-ui-code">[vila_meal_booking]</code></p>
+				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Guest page to book and pay for breakfast/dinner — link to an existing stay or book meals as a walk-in.', 'vila-campsite-booking' ); ?></p>
 				<?php
 				$guest_page = (int) get_option( Install::OPTION_GUEST_REGISTRATION_PAGE_ID, 0 );
 				if ( ! $guest_page ) {
 					$guest_page = Install::ensure_guest_registration_page();
 				}
+				$meal_page = (int) get_option( Install::OPTION_MEAL_BOOKING_PAGE_ID, 0 );
+				if ( ! $meal_page ) {
+					$meal_page = Install::ensure_meal_booking_page();
+				}
 				if ( $guest_page ) :
 					?>
 					<p class="description vila-cb-ui-footnote">
 						<a href="<?php echo esc_url( get_permalink( $guest_page ) ); ?>" target="_blank" rel="noreferrer"><?php esc_html_e( 'Open guest registration page', 'vila-campsite-booking' ); ?></a>
+					</p>
+				<?php endif; ?>
+				<?php if ( $meal_page ) : ?>
+					<p class="description vila-cb-ui-footnote">
+						<a href="<?php echo esc_url( get_permalink( $meal_page ) ); ?>" target="_blank" rel="noreferrer"><?php esc_html_e( 'Open meal booking page', 'vila-campsite-booking' ); ?></a>
 					</p>
 				<?php endif; ?>
 			</div>

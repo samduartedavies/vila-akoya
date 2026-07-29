@@ -277,24 +277,73 @@
 
 .vila-cb-gr label span {
   display: block;
-  margin-bottom: 5px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #625b48;
 }
 
-.vila-cb-gr input,
-.vila-cb-gr select {
+.vila-cb-gr input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+.vila-cb-gr select,
+.vila-cb-gr textarea {
   width: 100%;
-  min-height: 42px;
-  padding: 9px 11px;
+  min-height: 3.25rem;
+  padding: 0.9rem 1.15rem;
   border: 1px solid var(--vila-cb-border);
-  border-radius: 10px;
-  background: #fff;
+  border-radius: 12px;
+  background: rgb(var(--vila-rgb-surface-bright, 255 255 255) / 1);
+  color: #332e1e;
   font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.45;
   box-sizing: border-box;
+  box-shadow: inset 0 1px 2px rgba(51, 46, 30, 0.04);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.vila-cb-gr input:not([type='checkbox']):not([type='radio']):not([type='hidden'])::placeholder,
+.vila-cb-gr textarea::placeholder {
+  color: rgba(98, 91, 72, 0.72);
+}
+
+.vila-cb-gr input:not([type='checkbox']):not([type='radio']):not([type='hidden']):hover:not(:disabled),
+.vila-cb-gr select:hover:not(:disabled),
+.vila-cb-gr textarea:hover:not(:disabled) {
+  background: #fff;
+  border-color: rgba(126, 118, 98, 0.45);
+}
+
+.vila-cb-gr input:not([type='checkbox']):not([type='radio']):not([type='hidden']):focus,
+.vila-cb-gr select:focus,
+.vila-cb-gr textarea:focus {
+  outline: none;
+  background: #fff;
+  border-color: rgba(154, 63, 33, 0.45);
+  box-shadow:
+    inset 0 1px 2px rgba(51, 46, 30, 0.04),
+    0 0 0 3px rgba(154, 63, 33, 0.12);
+}
+
+.vila-cb-gr input[type='date'] {
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: light;
+  min-width: 0;
+}
+
+.vila-cb-gr input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+.vila-cb-gr input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
 }
 
 .vila-cb-gr__lookup .vila-cb__cta {
@@ -411,4 +460,259 @@
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* Meal booking */
+.vila-cb-mb__guests {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vila-cb-mb__rates {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--vila-cb-border);
+}
+
+.vila-cb-mb__rate {
+  display: grid;
+  gap: 4px;
+}
+
+.vila-cb-mb__rate-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #332e1e;
+}
+
+.vila-cb-mb__rate-meta {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #625b48;
+}
+
+.vila-cb-mb__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+  min-height: 1.5rem;
+}
+
+.vila-cb-mb__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.vila-cb-mb__chip > span {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #332e1e;
+  line-height: 1.2;
+}
+
+.vila-cb-mb__chip input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  border: 2px solid var(--vila-cb-accent, #9a3f21);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: none;
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+}
+
+.vila-cb-mb__chip input[type='checkbox']:checked {
+  background: var(--vila-cb-accent, #9a3f21);
+  border-color: var(--vila-cb-accent, #9a3f21);
+}
+
+.vila-cb-mb__chip input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 0.28rem;
+  height: 0.55rem;
+  border: solid #ffefeb;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.vila-cb-mb__chip input[type='checkbox']:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(154, 63, 33, 0.2);
+}
+
+.vila-cb-mb__calendar {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: var(--vila-cb-radius);
+  background: #fff;
+}
+
+.vila-cb-mb__calendar .vila-cb-cal__nav {
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.vila-cb-mb__calendar .vila-cb-cal__nav .button {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: 10px;
+  background: rgb(var(--vila-rgb-surface-container-low, 251 240 213) / 1);
+  cursor: pointer;
+  font: inherit;
+}
+
+.vila-cb-mb__calendar .vila-cb-cal__day.is-selected {
+  background: var(--vila-cb-accent);
+  color: #ffefeb;
+}
+
+.vila-cb-mb__calendar .vila-cb-cal__day.is-selected:hover:not(:disabled) {
+  background: var(--vila-cb-accent);
+  filter: brightness(1.05);
+}
+
+.vila-cb-mb__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.vila-cb-mb__bill {
+  flex: 1 1 280px;
+  min-width: min(100%, 280px);
+}
+
+.vila-cb-mb__breakdown {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.vila-cb-mb__breakdown-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(126, 118, 98, 0.2);
+}
+
+.vila-cb-mb__breakdown-line:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.vila-cb-mb__breakdown-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vila-cb-mb__breakdown-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #332e1e;
+}
+
+.vila-cb-mb__breakdown-detail {
+  font-size: 12px;
+  color: #625b48;
+}
+
+.vila-cb-mb__breakdown-amount {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+  color: #332e1e;
+  white-space: nowrap;
+}
+
+.vila-cb-mb__breakdown-empty {
+  margin: 0;
+  font-size: 13px;
+  color: #625b48;
+}
+
+.vila-cb-mb__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--vila-cb-border);
+}
+
+.vila-cb-mb__total-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #332e1e;
+}
+
+.vila-cb-mb__total-amount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #332e1e;
+}
+
+.vila-cb-mb__summary .vila-cb__cta {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.vila-cb-gr__result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.vila-cb-gr__result span {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #625b48;
+}
+
+.vila-cb-gr__message.is-error {
+  color: #b00020;
 }

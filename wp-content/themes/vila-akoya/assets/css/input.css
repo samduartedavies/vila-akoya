@@ -15,12 +15,28 @@
     --vila-font-barrio: var(--wp--preset--font-family--barrio, Barrio, system-ui, sans-serif);
   }
 
+  html {
+    height: 100%;
+  }
+
   body {
     @apply font-body antialiased bg-surface text-on-surface;
+    min-height: 100%;
     background-image:
       radial-gradient(circle at 10% 8%, rgb(var(--vila-rgb-secondary-container) / 0.28), transparent 24rem),
       radial-gradient(circle at 88% 18%, rgb(var(--vila-rgb-primary-container) / 0.08), transparent 22rem),
       linear-gradient(180deg, rgb(var(--vila-rgb-surface-bright) / 0.92), rgb(var(--vila-rgb-surface) / 1));
+  }
+
+  /* Keep footer at the bottom when page content is shorter than the viewport. */
+  .wp-site-blocks {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+
+  .wp-site-blocks > main {
+    flex: 1 1 auto;
   }
 }
 
@@ -1147,6 +1163,33 @@
       0 6px 20px rgba(51, 46, 30, 0.04);
   }
 
+  /* Contact location map: Google embed tinted to Palette B cream / olive / terracotta */
+  .vila-location-map__card {
+    box-shadow:
+      0 20px 40px rgba(28, 28, 22, 0.06),
+      0 6px 20px rgba(28, 28, 22, 0.04);
+  }
+
+  .vila-location-map__iframe {
+    filter: sepia(0.28) saturate(0.72) hue-rotate(18deg) brightness(1.04) contrast(0.94);
+  }
+
+  .vila-location-map__wash {
+    background:
+      linear-gradient(135deg, rgb(var(--vila-rgb-surface) / 0.22), transparent 42%),
+      linear-gradient(to top, rgb(var(--vila-rgb-secondary) / 0.1), transparent 36%),
+      radial-gradient(circle at 78% 22%, rgb(var(--vila-rgb-primary-container) / 0.12), transparent 40%);
+    mix-blend-mode: soft-light;
+  }
+
+  .vila-location-map__frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px rgb(var(--vila-rgb-outline-variant) / 0.18);
+  }
+
   body.vila-page-contact .va-contact-form-card .wpcf7-form {
     @apply space-y-6;
   }
@@ -1947,6 +1990,43 @@
 
   .vila-wc-booking .vila-vehicle-grid.vila-airbnb-booking__chip-grid,
   body.single-product .vila-vehicle-grid.vila-airbnb-booking__chip-grid {
+    @apply mx-auto w-full max-w-xl gap-3;
+  }
+
+  /* Meal add-on chips — stacked title + rate line */
+  .vila-wc-booking .vila-meal-option .vila-airbnb-booking__chip-body,
+  body.single-product .vila-meal-option .vila-airbnb-booking__chip-body {
+    @apply min-h-[3.5rem] flex flex-col items-center justify-center gap-0.5 text-center rounded-lg border-2 border-transparent bg-surface-container-low px-4 py-3 shadow-none;
+  }
+
+  .vila-wc-booking .vila-meal-option .vila-airbnb-booking__chip-title,
+  body.single-product .vila-meal-option .vila-airbnb-booking__chip-title {
+    white-space: normal;
+  }
+
+  .vila-wc-booking .vila-meal-option .vila-airbnb-booking__chip-meta,
+  body.single-product .vila-meal-option .vila-airbnb-booking__chip-meta {
+    @apply text-xs leading-snug text-on-surface-variant;
+    white-space: normal;
+  }
+
+  .vila-wc-booking .vila-meal-option:hover .vila-airbnb-booking__chip-body,
+  body.single-product .vila-meal-option:hover .vila-airbnb-booking__chip-body {
+    @apply bg-surface-container-high border-outline-variant/20;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip .vila-meal-input:checked ~ .vila-airbnb-booking__chip-body,
+  body.single-product .vila-airbnb-booking__chip .vila-meal-input:checked ~ .vila-airbnb-booking__chip-body {
+    @apply border-primary bg-primary/5 text-primary shadow-none ring-0;
+  }
+
+  .vila-wc-booking .vila-airbnb-booking__chip .vila-meal-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title,
+  body.single-product .vila-airbnb-booking__chip .vila-meal-input:checked ~ .vila-airbnb-booking__chip-body .vila-airbnb-booking__chip-title {
+    @apply text-primary;
+  }
+
+  .vila-wc-booking .vila-meal-grid.vila-airbnb-booking__chip-grid,
+  body.single-product .vila-meal-grid.vila-airbnb-booking__chip-grid {
     @apply mx-auto w-full max-w-xl gap-3;
   }
 

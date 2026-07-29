@@ -16,6 +16,7 @@ class Shortcode {
 
 	const SHORTCODE = 'vila_campsite_booking';
 	const GUEST_REGISTRATION_SHORTCODE = 'vila_guest_registration';
+	const MEAL_BOOKING_SHORTCODE = 'vila_meal_booking';
 
 	/**
 	 * Init hooks.
@@ -23,6 +24,7 @@ class Shortcode {
 	public static function init() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_shortcode( self::GUEST_REGISTRATION_SHORTCODE, array( __CLASS__, 'render_guest_registration' ) );
+		add_shortcode( self::MEAL_BOOKING_SHORTCODE, array( __CLASS__, 'render_meal_booking' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 	}
 
@@ -46,6 +48,13 @@ class Shortcode {
 		wp_register_script(
 			'vila-cb-guest-registration',
 			VILA_CB_URL . 'assets/js/guest-registration.js',
+			array(),
+			VILA_CB_VERSION,
+			true
+		);
+		wp_register_script(
+			'vila-cb-meal-booking',
+			VILA_CB_URL . 'assets/js/meal-booking.js',
 			array(),
 			VILA_CB_VERSION,
 			true
@@ -346,6 +355,234 @@ class Shortcode {
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Public meal booking / payment form.
+	 *
+	 * @return string
+	 */
+	public static function render_meal_booking() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return '';
+		}
+		$product_id = Meal_Booking::ensure_product();
+		if ( $product_id < 1 ) {
+			return '<p class="vila-cb-msg vila-cb-msg--error">' . esc_html__( 'Meal booking is not available yet.', 'vila-campsite-booking' ) . '</p>';
+		}
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return '<p class="vila-cb-msg vila-cb-msg--error">' . esc_html__( 'Meal booking is not available yet.', 'vila-campsite-booking' ) . '</p>';
+		}
+
+		wp_enqueue_style( 'vila-cb-frontend' );
+		wp_enqueue_script( 'vila-cb-meal-booking' );
+
+		$lookup_url = esc_url_raw( rest_url( 'vila-campsite-booking/v1/guest-registration/lookup' ) );
+		$nonce      = wp_create_nonce( 'wp_rest' );
+		$checkout   = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' );
+
+		$catalog = function_exists( 'vila_akoya_get_meal_options' ) ? vila_akoya_get_meal_options() : array();
+		$pricing = array(
+			'breakfast' => array(
+				'adult' => isset( $catalog['breakfast']['adult_fee'] ) ? (float) $catalog['breakfast']['adult_fee'] : 5.0,
+				'child' => isset( $catalog['breakfast']['child_fee'] ) ? (float) $catalog['breakfast']['child_fee'] : 3.0,
+				'label' => isset( $catalog['breakfast']['label'] ) ? (string) $catalog['breakfast']['label'] : __( 'Bio breakfast & coffee', 'vila-campsite-booking' ),
+			),
+			'dinner'    => array(
+				'adult' => isset( $catalog['dinner']['adult_fee'] ) ? (float) $catalog['dinner']['adult_fee'] : 10.0,
+				'child' => isset( $catalog['dinner']['child_fee'] ) ? (float) $catalog['dinner']['child_fee'] : 7.5,
+				'label' => isset( $catalog['dinner']['label'] ) ? (string) $catalog['dinner']['label'] : __( 'Weekday dinner (Mon–Fri)', 'vila-campsite-booking' ),
+			),
+		);
+
+		$currency = array(
+			'symbol'     => function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) : '€',
+			'decimalSep' => function_exists( 'wc_get_price_decimal_separator' ) ? wc_get_price_decimal_separator() : ',',
+		);
+
+		wp_localize_script(
+			'vila-cb-meal-booking',
+			'vilaMealBooking',
+			array(
+				'lookupUrl' => $lookup_url,
+				'nonce'     => $nonce,
+				'checkout'  => $checkout,
+				'pricing'   => $pricing,
+				'currency'  => $currency,
+				'strings'   => array(
+					'searching'     => __( 'Searching bookings…', 'vila-campsite-booking' ),
+					'noBookings'    => __( 'No matching booking found. You can book meals without linking a stay.', 'vila-campsite-booking' ),
+					'selectBooking' => __( 'Use this booking', 'vila-campsite-booking' ),
+					'linked'        => __( 'Linked to your stay — dates for your nights are pre-selected. Untick any you do not need.', 'vila-campsite-booking' ),
+					'standalone'    => __( 'Walk-in meal booking (not linked to a campsite stay).', 'vila-campsite-booking' ),
+					'needDates'     => __( 'Select at least one breakfast or dinner date.', 'vila-campsite-booking' ),
+					'needGuests'    => __( 'Add at least one adult or child.', 'vila-campsite-booking' ),
+					'needName'      => __( 'Please enter your name.', 'vila-campsite-booking' ),
+					'total'         => __( 'Total', 'vila-campsite-booking' ),
+					'breakdownEmpty'=> __( 'Select breakfast or dinner dates above to see your estimate.', 'vila-campsite-booking' ),
+					'mornings'      => __( 'mornings', 'vila-campsite-booking' ),
+					'evenings'      => __( 'evenings', 'vila-campsite-booking' ),
+					'perDay'        => __( '%s / day', 'vila-campsite-booking' ),
+					'adult'         => __( 'adult', 'vila-campsite-booking' ),
+					'adults'        => __( 'adults', 'vila-campsite-booking' ),
+					'child'         => __( 'child', 'vila-campsite-booking' ),
+					'children'      => __( 'children', 'vila-campsite-booking' ),
+				),
+			)
+		);
+
+		$action = esc_url( get_permalink( $product_id ) );
+		if ( ! $action ) {
+			$action = esc_url( home_url( '/' ) );
+		}
+
+		ob_start();
+		?>
+		<div
+			class="vila-cb vila-cb-gr vila-cb-mb"
+			data-vila-mb-root
+			data-lookup-url="<?php echo esc_url( $lookup_url ); ?>"
+			data-nonce="<?php echo esc_attr( $nonce ); ?>"
+			data-pricing="<?php echo esc_attr( wp_json_encode( $pricing ) ); ?>"
+			data-currency="<?php echo esc_attr( wp_json_encode( $currency ) ); ?>"
+		>
+			<div class="vila-cb-gr__intro">
+				<p class="vila-cb__hint"><?php esc_html_e( 'Book breakfast and weekday dinners for your stay — find your campsite booking to pre-fill dates, or book meals on their own.', 'vila-campsite-booking' ); ?></p>
+			</div>
+
+			<section class="vila-cb-gr__panel" data-vila-mb-lookup-panel>
+				<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Find your booking', 'vila-campsite-booking' ); ?></h2>
+				<form class="vila-cb-gr__lookup" data-vila-mb-lookup-form>
+					<label>
+						<span><?php esc_html_e( 'Booking last name', 'vila-campsite-booking' ); ?></span>
+						<input type="text" name="last_name" autocomplete="family-name" required />
+					</label>
+					<label>
+						<span><?php esc_html_e( 'Booking email', 'vila-campsite-booking' ); ?></span>
+						<input type="email" name="email" autocomplete="email" required />
+					</label>
+					<button type="submit" class="vila-cb__cta"><?php esc_html_e( 'Search', 'vila-campsite-booking' ); ?></button>
+				</form>
+				<div class="vila-cb-gr__results" data-vila-mb-results></div>
+				<button type="button" class="vila-cb-gr__manual" data-vila-mb-standalone><?php esc_html_e( 'Book meals without a campsite booking', 'vila-campsite-booking' ); ?></button>
+			</section>
+
+			<form class="vila-cb-gr__form" method="post" action="<?php echo esc_url( $action ); ?>" data-vila-mb-form hidden>
+				<?php wp_nonce_field( 'vila_meal_booking', 'vila_meal_booking_nonce' ); ?>
+				<input type="hidden" name="add-to-cart" value="<?php echo esc_attr( (string) $product_id ); ?>" />
+				<input type="hidden" name="quantity" value="1" />
+				<input type="hidden" name="vila_meal_booking_id" value="0" data-vila-mb-booking-id />
+				<input type="hidden" name="vila_meal_order_id" value="0" data-vila-mb-order-id />
+
+				<section class="vila-cb-gr__panel">
+					<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Your details', 'vila-campsite-booking' ); ?></h2>
+					<p class="vila-cb-gr__selected" data-vila-mb-selected></p>
+					<div class="vila-cb-gr__manual-fields" data-vila-mb-details>
+						<label>
+							<span><?php esc_html_e( 'Name', 'vila-campsite-booking' ); ?></span>
+							<input type="text" name="vila_meal_booker_name" autocomplete="name" required data-vila-mb-name />
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Email', 'vila-campsite-booking' ); ?></span>
+							<input type="email" name="vila_meal_contact_email" autocomplete="email" data-vila-mb-email />
+						</label>
+					</div>
+				</section>
+
+				<section class="vila-cb-gr__panel">
+					<h2 class="vila-cb-gr__title"><?php esc_html_e( 'How many people', 'vila-campsite-booking' ); ?></h2>
+					<div class="vila-cb-mb__guests">
+						<?php echo self::guest_row( 'adults', __( 'Adults', 'vila-campsite-booking' ), __( 'Ages 13+', 'vila-campsite-booking' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo self::guest_row( 'children', __( 'Children', 'vila-campsite-booking' ), __( 'Ages 2–12', 'vila-campsite-booking' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo self::guest_row( 'infants', __( 'Under 2', 'vila-campsite-booking' ), __( 'Free for meals', 'vila-campsite-booking' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					</div>
+					<input type="hidden" name="vila_meal_adults" value="1" data-vila-mb-adults />
+					<input type="hidden" name="vila_meal_children" value="0" data-vila-mb-children />
+					<input type="hidden" name="vila_meal_infants" value="0" data-vila-mb-infants />
+					<div class="vila-cb-mb__rates" aria-label="<?php esc_attr_e( 'Meal prices', 'vila-campsite-booking' ); ?>">
+						<div class="vila-cb-mb__rate">
+							<strong class="vila-cb-mb__rate-title"><?php echo esc_html( $pricing['breakfast']['label'] ); ?></strong>
+							<span class="vila-cb-mb__rate-meta"><?php echo esc_html( self::meal_rate_blurb( 'breakfast', $pricing, $catalog ) ); ?></span>
+						</div>
+						<div class="vila-cb-mb__rate">
+							<strong class="vila-cb-mb__rate-title"><?php echo esc_html( $pricing['dinner']['label'] ); ?></strong>
+							<span class="vila-cb-mb__rate-meta"><?php echo esc_html( self::meal_rate_blurb( 'dinner', $pricing, $catalog ) ); ?></span>
+						</div>
+					</div>
+				</section>
+
+				<section class="vila-cb-gr__panel">
+					<h2 class="vila-cb-gr__title"><?php echo esc_html( $pricing['breakfast']['label'] ); ?></h2>
+					<p class="vila-cb__hint"><?php esc_html_e( 'Tap days on the calendar to add or remove them — you can select multiple mornings.', 'vila-campsite-booking' ); ?></p>
+					<div class="vila-cb-mb__dates" data-vila-mb-breakfast-dates></div>
+					<div class="vila-cb-mb__calendar" data-vila-mb-calendar="breakfast" aria-label="<?php esc_attr_e( 'Breakfast dates calendar', 'vila-campsite-booking' ); ?>"></div>
+				</section>
+
+				<section class="vila-cb-gr__panel">
+					<h2 class="vila-cb-gr__title"><?php echo esc_html( $pricing['dinner']['label'] ); ?></h2>
+					<p class="vila-cb__hint"><?php esc_html_e( 'Tap weekday evenings (Monday–Friday) on the calendar — select as many as you need.', 'vila-campsite-booking' ); ?></p>
+					<div class="vila-cb-mb__dates" data-vila-mb-dinner-dates></div>
+					<div class="vila-cb-mb__calendar" data-vila-mb-calendar="dinner" aria-label="<?php esc_attr_e( 'Dinner dates calendar', 'vila-campsite-booking' ); ?>"></div>
+				</section>
+
+				<section class="vila-cb-gr__panel vila-cb-mb__summary">
+					<div class="vila-cb-mb__bill">
+						<ul class="vila-cb-mb__breakdown" data-vila-mb-breakdown aria-live="polite"></ul>
+						<p class="vila-cb-mb__total">
+							<span class="vila-cb-mb__total-label"><?php esc_html_e( 'Total', 'vila-campsite-booking' ); ?></span>
+							<span class="vila-cb-mb__total-amount" data-vila-mb-total>€0</span>
+						</p>
+					</div>
+					<button type="submit" class="vila-cb__cta"><?php esc_html_e( 'Continue to payment', 'vila-campsite-booking' ); ?></button>
+				</section>
+			</form>
+
+			<div class="vila-cb-gr__message" data-vila-mb-message role="status" aria-live="polite"></div>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Human-readable per-person meal rates for the booking form.
+	 *
+	 * @param string               $slug    breakfast|dinner.
+	 * @param array<string, mixed> $pricing Normalized pricing array.
+	 * @param array<string, mixed> $catalog Theme meal catalog.
+	 * @return string
+	 */
+	private static function meal_rate_blurb( $slug, array $pricing, array $catalog ) {
+		if ( isset( $catalog[ $slug ]['meta'] ) && is_string( $catalog[ $slug ]['meta'] ) && '' !== trim( $catalog[ $slug ]['meta'] ) ) {
+			return (string) $catalog[ $slug ]['meta'];
+		}
+		$row = isset( $pricing[ $slug ] ) && is_array( $pricing[ $slug ] ) ? $pricing[ $slug ] : array();
+		$adult = isset( $row['adult'] ) ? (float) $row['adult'] : 0.0;
+		$child = isset( $row['child'] ) ? (float) $row['child'] : 0.0;
+		$fmt   = static function ( $amount ) {
+			if ( function_exists( 'vila_akoya_format_price_plain' ) ) {
+				return vila_akoya_format_price_plain( $amount );
+			}
+			$n = round( (float) $amount, 2 );
+			if ( abs( $n - round( $n ) ) < 0.00001 ) {
+				return '€' . (string) (int) round( $n );
+			}
+			return '€' . number_format( $n, 2, ',', '' );
+		};
+		if ( 'dinner' === $slug ) {
+			return sprintf(
+				/* translators: 1: adult price, 2: child price */
+				__( 'Adults %1$s · Kids %2$s · Under 2 free', 'vila-campsite-booking' ),
+				$fmt( $adult ),
+				$fmt( $child )
+			);
+		}
+		return sprintf(
+			/* translators: 1: adult price, 2: child price */
+			__( 'Adults %1$s · Kids %2$s / day', 'vila-campsite-booking' ),
+			$fmt( $adult ),
+			$fmt( $child )
+		);
 	}
 
 	/**

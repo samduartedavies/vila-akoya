@@ -35,6 +35,9 @@ class Vila_Akoya_Header_Nav_Walker extends Walker_Nav_Menu {
 		unset( $depth, $id );
 		$args   = is_object( $args ) ? $args : (object) array();
 		$slug   = vila_akoya_nav_item_slug( $item );
+		if ( in_array( $slug, vila_akoya_hidden_nav_slugs(), true ) ) {
+			return;
+		}
 		$base   = 'mobile' === $this->variant
 			? 'block px-2 py-3 text-stone-600 transition-colors'
 			: 'text-stone-600 transition-colors px-3 py-1.5 rounded-full';
@@ -70,6 +73,9 @@ class Vila_Akoya_Footer_Nav_Walker extends Walker_Nav_Menu {
 	 */
 	public function start_el( &$output, $item, $depth = 0, $args = null, $id = 0 ) {
 		unset( $depth, $id );
+		if ( in_array( vila_akoya_nav_item_slug( $item ), vila_akoya_hidden_nav_slugs(), true ) ) {
+			return;
+		}
 		$class = 'text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300';
 		$output .= '<a class="' . esc_attr( $class ) . '" href="' . esc_url( $item->url ) . '">' . esc_html( $item->title ) . '</a>';
 	}
@@ -99,6 +105,15 @@ function vila_akoya_nav_item_slug( $item ) {
 	}
 	$parts = explode( '/', $path );
 	return sanitize_title( (string) end( $parts ) );
+}
+
+/**
+ * Nav slugs temporarily hidden from header and footer.
+ *
+ * @return list<string>
+ */
+function vila_akoya_hidden_nav_slugs() {
+	return array( 'events' );
 }
 
 /**
@@ -141,14 +156,12 @@ function vila_akoya_render_fallback_header_links( $variant, $current_nav, $h ) {
 	$base = 'mobile' === $variant
 		? 'block px-2 py-3 text-stone-600 transition-colors'
 		: 'text-stone-600 transition-colors px-3 py-1.5 rounded-full';
-	// Temporarily hidden from the header while Events is being finished (still linked in the footer).
-	$hidden_slugs = array( 'events' );
 	foreach ( vila_akoya_default_nav_items() as $item ) {
-		$slug   = $item['slug'];
-		if ( in_array( $slug, $hidden_slugs, true ) ) {
+		$slug = $item['slug'];
+		if ( in_array( $slug, vila_akoya_hidden_nav_slugs(), true ) ) {
 			continue;
 		}
-		$attrs  = ' data-nav="' . esc_attr( $slug ) . '" class="' . esc_attr( $base ) . '"';
+		$attrs = ' data-nav="' . esc_attr( $slug ) . '" class="' . esc_attr( $base ) . '"';
 		if ( $slug === $current_nav ) {
 			$attrs .= ' aria-current="page"';
 		}
@@ -164,6 +177,9 @@ function vila_akoya_render_fallback_header_links( $variant, $current_nav, $h ) {
 function vila_akoya_render_fallback_footer_links( $h ) {
 	$class = 'text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300';
 	foreach ( vila_akoya_default_footer_nav_items() as $item ) {
+		if ( in_array( $item['slug'], vila_akoya_hidden_nav_slugs(), true ) ) {
+			continue;
+		}
 		echo '<a class="' . esc_attr( $class ) . '" href="' . esc_url( $h( $item['slug'] ) ) . '">' . esc_html( $item['label'] ) . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 }

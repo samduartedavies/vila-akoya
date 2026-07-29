@@ -390,10 +390,11 @@ class WooCommerce_Integration {
 
 		return self::normalize_guests_for_storage(
 			array(
-				'adults'   => $adults,
-				'children' => $children,
-				'infants'  => $infants,
-				'pets'     => $pets,
+				'adults'        => $adults,
+				'children'      => $children,
+				'infants'       => $infants,
+				'pets'          => $pets,
+				'meal_options'  => isset( $_POST['vila_meal_options'] ) ? wp_unslash( $_POST['vila_meal_options'] ) : array(),
 			)
 		);
 	}
@@ -1135,6 +1136,9 @@ class WooCommerce_Integration {
 		$cin    = isset( $merged['vila_cb_check_in'] ) ? (string) $merged['vila_cb_check_in'] : '';
 		$cout   = isset( $merged['vila_cb_check_out'] ) ? (string) $merged['vila_cb_check_out'] : '';
 		$guests = isset( $merged['vila_cb_guests'] ) && is_array( $merged['vila_cb_guests'] ) ? $merged['vila_cb_guests'] : array();
+		if ( empty( $guests['meal_options'] ) && ! empty( $merged['vila_meal_options'] ) ) {
+			$guests['meal_options'] = $merged['vila_meal_options'];
+		}
 		$guests = self::normalize_guests_for_storage( $guests );
 
 		self::debug_log(
@@ -1805,6 +1809,28 @@ class WooCommerce_Integration {
 		if ( isset( $guests['extras_label'] ) && is_string( $guests['extras_label'] ) && '' !== trim( $guests['extras_label'] ) ) {
 			$out['extras_label'] = sanitize_text_field( $guests['extras_label'] );
 		}
+		if ( ! empty( $guests['meal_options'] ) ) {
+			$meals = Meal_Plan_Service::normalize_meal_slugs( $guests['meal_options'] );
+			if ( array() !== $meals ) {
+				$out['meal_options'] = $meals;
+			}
+		}
+		if ( isset( $guests['meal_dates'] ) && is_array( $guests['meal_dates'] ) ) {
+			$md = array(
+				'breakfast' => Meal_Booking::sanitize_ymd_list( isset( $guests['meal_dates']['breakfast'] ) ? $guests['meal_dates']['breakfast'] : array() ),
+				'dinner'    => Meal_Booking::sanitize_ymd_list( isset( $guests['meal_dates']['dinner'] ) ? $guests['meal_dates']['dinner'] : array() ),
+			);
+			if ( ! empty( $md['breakfast'] ) || ! empty( $md['dinner'] ) ) {
+				$out['meal_dates'] = $md;
+			}
+		}
+		if ( isset( $guests['meal_party'] ) && is_array( $guests['meal_party'] ) ) {
+			$out['meal_party'] = array(
+				'adults'   => isset( $guests['meal_party']['adults'] ) ? max( 0, (int) $guests['meal_party']['adults'] ) : 0,
+				'children' => isset( $guests['meal_party']['children'] ) ? max( 0, (int) $guests['meal_party']['children'] ) : 0,
+				'infants'  => isset( $guests['meal_party']['infants'] ) ? max( 0, (int) $guests['meal_party']['infants'] ) : 0,
+			);
+		}
 		return $out;
 	}
 
@@ -2082,6 +2108,16 @@ class WooCommerce_Integration {
 			$item->update_meta_data( '_vila_vehicle_slugs', wp_json_encode( array_values( $guests['vehicle_slugs'] ) ) );
 		} else {
 			$item->update_meta_data( '_vila_vehicle_slugs', '[]' );
+		}
+
+		$meal_slugs = ! empty( $guests['meal_options'] ) ? Meal_Plan_Service::normalize_meal_slugs( $guests['meal_options'] ) : array();
+		$item->update_meta_data( Meal_Plan_Service::META_MEAL_OPTIONS, wp_json_encode( $meal_slugs ) );
+		if ( ! empty( $meal_slugs ) && function_exists( 'vila_akoya_meal_labels_join' ) ) {
+			$item->update_meta_data( __( 'Meals', 'vila-akoya' ), vila_akoya_meal_labels_join( $meal_slugs ) );
+			$item->update_meta_data( 'Meals', vila_akoya_meal_labels_join( $meal_slugs ) );
+		} elseif ( is_callable( array( $item, 'delete_meta_data' ) ) ) {
+			$item->delete_meta_data( 'Meals' );
+			$item->delete_meta_data( __( 'Meals', 'vila-akoya' ) );
 		}
 
 		$cin = Dates::parse_ymd( (string) $check_in_ymd );
@@ -3165,6 +3201,7 @@ class WooCommerce_Integration {
 		$hidden[] = self::META_BOOKING_NOTES;
 		// Theme/plugin JSON for multi-select; managed via Campsite extras UI (do not edit raw JSON in the line meta box).
 		$hidden[] = '_vila_vehicle_slugs';
+		$hidden[] = '_vila_meal_options';
 		return array_values( array_unique( array_map( 'strval', $hidden ) ) );
 	}
 
