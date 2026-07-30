@@ -2292,13 +2292,23 @@ class WooCommerce_Integration {
 	 * @param \WC_Product|mixed   $product Product or null.
 	 */
 	public static function render_order_item_admin_booking_notes( $item_id, $item, $product ) {
-		unset( $product, $item_id );
+		unset( $product );
 		if ( ! is_admin() || ! $item || ! is_callable( array( $item, 'get_product_id' ) ) ) {
 			return;
 		}
 		if ( ! self::is_campsite_product( (int) $item->get_product_id() ) ) {
 			return;
 		}
+
+		$booking_id = (int) $item->get_meta( self::META_BOOKING_ID, true );
+		if ( $booking_id > 0 ) {
+			$reg     = ( new Guest_Registration_Repository() )->get_by_booking_id( $booking_id );
+			$reg_id  = $reg ? (int) $reg['id'] : 0;
+			echo '<div class="vila-cb-order-item-guest-checkin" style="margin:8px 0;">';
+			echo Admin::guest_checkin_badge_html( $reg_id > 0, $reg_id, 'large' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper
+			echo '</div>';
+		}
+
 		$notes = self::sanitize_booking_notes( (string) $item->get_meta( self::META_BOOKING_NOTES, true ) );
 		if ( '' === $notes ) {
 			return;

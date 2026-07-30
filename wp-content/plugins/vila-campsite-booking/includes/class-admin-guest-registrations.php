@@ -24,6 +24,7 @@ class Admin_Guest_Registrations {
 		add_action( 'admin_post_vila_cb_guest_registration_save', array( __CLASS__, 'handle_save' ) );
 		add_action( 'admin_post_vila_cb_guest_registration_status', array( __CLASS__, 'handle_status' ) );
 		add_action( 'admin_post_vila_cb_guest_registration_export', array( __CLASS__, 'handle_export' ) );
+		add_action( 'admin_post_vila_cb_guest_registration_siba_submit', array( __CLASS__, 'handle_siba_submit' ) );
 	}
 
 	/**
@@ -67,15 +68,17 @@ class Admin_Guest_Registrations {
 		$rows    = $repo->list_registrations( $filters );
 		?>
 		<div class="wrap vila-cb-admin vila-cb-guest-reg">
+			<?php Admin::render_section_nav( self::PAGE ); ?>
 			<?php self::notice(); ?>
 			<div class="vila-cb-ui-hero">
 				<div class="vila-cb-ui-hero__text">
 					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Guest registrations', 'vila-campsite-booking' ); ?></h1>
-					<p class="vila-cb-ui-lead"><?php esc_html_e( 'Review guest identity details collected for SIBA and export non-Portuguese guests for portal upload.', 'vila-campsite-booking' ); ?></p>
+					<p class="vila-cb-ui-lead"><?php esc_html_e( 'Review guest identity details collected for SIBA and submit non-Portuguese guests via Web Service (or export DAT as backup).', 'vila-campsite-booking' ); ?></p>
 				</div>
 				<div class="vila-cb-ui-nav vila-cb-daynav">
+					<a class="button button-primary vila-cb-ui-nav-btn vila-cb-ui-nav-btn--primary" href="<?php echo esc_url( self::siba_submit_url( $filters ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Submit pending SIBA guests to the configured Web Service environment?', 'vila-campsite-booking' ) ); ?>');"><?php esc_html_e( 'Submit to SIBA', 'vila-campsite-booking' ); ?></a>
 					<a class="button vila-cb-ui-nav-btn" href="<?php echo esc_url( self::export_url( 'csv', $filters ) ); ?>"><?php esc_html_e( 'Export CSV', 'vila-campsite-booking' ); ?></a>
-					<a class="button button-primary vila-cb-ui-nav-btn vila-cb-ui-nav-btn--primary" href="<?php echo esc_url( self::export_url( 'dat', $filters ) ); ?>"><?php esc_html_e( 'Export SIBA DAT', 'vila-campsite-booking' ); ?></a>
+					<a class="button vila-cb-ui-nav-btn" href="<?php echo esc_url( self::export_url( 'dat', $filters ) ); ?>"><?php esc_html_e( 'Export SIBA DAT', 'vila-campsite-booking' ); ?></a>
 				</div>
 			</div>
 
@@ -173,6 +176,7 @@ class Admin_Guest_Registrations {
 		$persons = $data['persons'];
 		?>
 		<div class="wrap vila-cb-admin vila-cb-guest-reg">
+			<?php Admin::render_section_nav( self::PAGE ); ?>
 			<?php self::notice(); ?>
 			<div class="vila-cb-ui-hero">
 				<div class="vila-cb-ui-hero__text">
@@ -447,6 +451,89 @@ class Admin_Guest_Registrations {
 	}
 
 	/**
+	 * Submit filtered pending rows to SIBA Web Service.
+	 */
+	public static function handle_siba_submit() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'vila-campsite-booking' ), '', array( 'response' => 403 ) );
+		}
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_GET['_wpnonce'] ) ) ), 'vila_cb_guest_registration_siba_submit' ) ) {
+			wp_die( esc_html__( 'Security check failed. Please try again.', 'vila-campsite-booking' ), '', array( 'response' => 403 ) );
+		}
+
+		$filters = self::filters_from_request();
+		if ( empty( $filters['status'] ) || 'all' === $filters['status'] ) {
+			$filters['status'] = 'pending';
+		}
+
+		$repo = new Guest_Registration_Repository();
+		$rows = $repo->export_person_rows( $filters );
+		$res  = Siba_Client::submit( $rows );
+
+		if ( is_wp_error( $res ) ) {
+			set_transient(
+				'vila_cb_siba_submit_notice_' . get_current_user_id(),
+				array(
+					'type' => 'error',
+					'text' => $res->get_error_message(),
+				),
+				MINUTE_IN_SECONDS * 5
+			);
+			wp_safe_redirect( admin_url( 'admin.php?page=' . self::PAGE . '&vila_cb_msg=siba_error' ) );
+			exit;
+		}
+
+		$ids = array();
+		foreach ( $rows as $row ) {
+			if ( ! empty( $row['registration_id'] ) ) {
+				$ids[ (int) $row['registration_id'] ] = true;
+			}
+		}
+		foreach ( array_keys( $ids ) as $id ) {
+			$repo->update_status( (int) $id, 'exported' );
+		}
+
+		$env = Guest_Registration_Exporter::settings()['environment'];
+		set_transient(
+			'vila_cb_siba_submit_notice_' . get_current_user_id(),
+			array(
+				'type' => 'success',
+				'text' => sprintf(
+					/* translators: 1: guest count, 2: file number, 3: environment */
+					__( 'Submitted %1$d guest(s) to SIBA (file #%2$d, %3$s).', 'vila-campsite-booking' ),
+					count( $rows ),
+					(int) $res['file_number'],
+					'prod' === $env ? 'production' : 'development'
+				),
+			),
+			MINUTE_IN_SECONDS * 5
+		);
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::PAGE . '&vila_cb_msg=siba_ok' ) );
+		exit;
+	}
+
+	/**
+	 * @param array<string, mixed> $filters Filters.
+	 * @return string
+	 */
+	private static function siba_submit_url( array $filters ) {
+		return wp_nonce_url(
+			admin_url(
+				add_query_arg(
+					array_merge(
+						array(
+							'action' => 'vila_cb_guest_registration_siba_submit',
+						),
+						$filters
+					),
+					'admin-post.php'
+				)
+			),
+			'vila_cb_guest_registration_siba_submit'
+		);
+	}
+
+	/**
 	 * @param string               $format Format.
 	 * @param array<string, mixed> $filters Filters.
 	 * @return string
@@ -487,6 +574,12 @@ class Admin_Guest_Registrations {
 	 * Render notices.
 	 */
 	private static function notice() {
+		$user_notice = get_transient( 'vila_cb_siba_submit_notice_' . get_current_user_id() );
+		if ( is_array( $user_notice ) && ! empty( $user_notice['text'] ) ) {
+			delete_transient( 'vila_cb_siba_submit_notice_' . get_current_user_id() );
+			$type = isset( $user_notice['type'] ) && 'error' === $user_notice['type'] ? 'error' : 'success';
+			echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( (string) $user_notice['text'] ) . '</p></div>';
+		}
 		if ( empty( $_GET['vila_cb_msg'] ) ) {
 			return;
 		}
@@ -498,6 +591,8 @@ class Admin_Guest_Registrations {
 			$type = 'error';
 		} elseif ( 'status' === $msg ) {
 			$text = __( 'Status updated.', 'vila-campsite-booking' );
+		} elseif ( 'siba_ok' === $msg || 'siba_error' === $msg ) {
+			return;
 		}
 		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $text ) . '</p></div>';
 	}

@@ -406,8 +406,67 @@
 }
 
 .vila-cb-gr__person legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: calc(100% - 12px);
   padding: 0 6px;
   font-weight: 700;
+}
+
+.vila-cb-gr__person-title {
+  font-weight: 700;
+}
+
+.vila-cb-gr__remove-guest {
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: 999px;
+  background: transparent;
+  color: #625b48;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vila-cb-gr__remove-guest:hover,
+.vila-cb-gr__remove-guest:focus {
+  border-color: #b00020;
+  color: #b00020;
+}
+
+.vila-cb-gr__add-wrap {
+  margin-top: 8px;
+}
+
+.vila-cb-gr__add-guest {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 16px 24px;
+  border: 2px dashed var(--vila-cb-accent);
+  border-radius: 14px;
+  background: rgba(154, 63, 33, 0.06);
+  color: var(--vila-cb-accent);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.vila-cb-gr__add-guest:hover,
+.vila-cb-gr__add-guest:focus {
+  background: rgba(154, 63, 33, 0.12);
+}
+
+.vila-cb-gr__add-guest:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .vila-cb-gr__wide {
@@ -440,8 +499,128 @@
   font-weight: 600;
 }
 
+.vila-cb-gr__message[hidden] {
+  display: none;
+}
+
 .vila-cb-gr__message.is-error {
   color: #b00020;
+}
+
+.vila-cb-gr__success {
+  margin-top: 8px;
+}
+
+.vila-cb-gr__success[hidden] {
+  display: none;
+}
+
+.vila-cb-gr__success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  padding: 48px 32px;
+  text-align: center;
+  border: 1px solid var(--vila-cb-border);
+  border-radius: var(--vila-cb-radius);
+  box-shadow: var(--vila-cb-shadow);
+  background: var(--vila-cb-surface);
+}
+
+.vila-cb-gr__success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 112px;
+  margin-bottom: 24px;
+  border-radius: 50%;
+  color: #2d6a3e;
+  background: linear-gradient(180deg, rgba(184, 240, 200, 0.55) 0%, rgba(184, 240, 200, 0.2) 100%);
+}
+
+.vila-cb-gr__success-title {
+  margin: 0 0 12px;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #332e1e;
+}
+
+.vila-cb-gr__success-lead {
+  max-width: 34em;
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: #625b48;
+}
+
+.vila-cb-gr__success-stay {
+  margin: 0 0 14px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(154, 63, 33, 0.08);
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--vila-cb-accent);
+}
+
+.vila-cb-gr__success-stay[hidden] {
+  display: none;
+}
+
+.vila-cb-gr__success-enjoy {
+  max-width: 30em;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #332e1e;
+}
+
+.vila-cb-gr__country {
+  position: relative;
+}
+
+.vila-cb-gr__country-wrap {
+  position: relative;
+}
+
+.vila-cb-gr__country-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 0.35rem 0;
+  list-style: none;
+  background: #fffdf8;
+  border: 1px solid #d8ccb5;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(51, 46, 30, 0.12);
+}
+
+.vila-cb-gr__country-option,
+.vila-cb-gr__country-empty {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: #332e1e;
+  cursor: pointer;
+}
+
+.vila-cb-gr__country-empty {
+  cursor: default;
+  color: #7a7163;
+}
+
+.vila-cb-gr__country-option:hover,
+.vila-cb-gr__country-option.is-active {
+  background: #f3e8d6;
 }
 
 .vila-cb-gr__hp {

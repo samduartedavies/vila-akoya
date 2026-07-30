@@ -23,6 +23,50 @@
  * Shared: hero, nav, panels
  * ------------------------------------------------------------------------- */
 
+.vila-cb-ui-section-nav {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 16px;
+	padding: 10px 12px;
+	background: var(--vila-cb-ui-card);
+	border: 1px solid var(--vila-cb-ui-border);
+	border-radius: var(--vila-cb-ui-radius-sm);
+	box-shadow: var(--vila-cb-ui-shadow);
+}
+
+.vila-cb-ui-section-nav__link {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 14px;
+	border-radius: 8px;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--vila-cb-ui-text);
+	text-decoration: none;
+	background: transparent;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vila-cb-ui-section-nav__link:hover,
+.vila-cb-ui-section-nav__link:focus {
+	color: var(--vila-cb-ui-accent);
+	background: var(--vila-cb-ui-accent-soft);
+}
+
+.vila-cb-ui-section-nav__link.is-current {
+	color: #fff;
+	background: var(--vila-cb-ui-accent);
+}
+
+.vila-cb-ui-section-nav__link.is-current:hover,
+.vila-cb-ui-section-nav__link.is-current:focus {
+	color: #fff;
+	background: #135e96;
+}
+
 .vila-cb-ui-hero {
 	display: flex;
 	flex-wrap: wrap;
@@ -624,6 +668,78 @@
 	line-height: 1.3;
 	color: #1d2327;
 	text-align: left;
+}
+
+.vila-cb-guest-badge {
+	display: inline-block;
+	vertical-align: middle;
+	margin: 2px 0;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.35;
+	letter-spacing: 0.01em;
+	white-space: nowrap;
+	border: 1px solid transparent;
+}
+
+.vila-cb-guest-badge--ok {
+	color: #0a3d1f;
+	background: #b8f0c8;
+	border-color: #3fa85c;
+}
+
+.vila-cb-guest-badge--pending {
+	color: #5c3b00;
+	background: #ffe08a;
+	border-color: #e0a800;
+}
+
+.vila-cb-guest-badge--compact {
+	display: inline-block;
+	margin-top: 3px;
+	margin-bottom: 2px;
+	padding: 1px 6px;
+	font-size: 9px;
+	line-height: 1.3;
+	text-align: left;
+}
+
+.vila-cb-guest-badge--large {
+	padding: 6px 12px;
+	font-size: 13px;
+}
+
+.vila-cb-guest-badge-link {
+	text-decoration: none;
+}
+
+.vila-cb-guest-badge-link:hover .vila-cb-guest-badge,
+.vila-cb-guest-badge-link:focus .vila-cb-guest-badge {
+	filter: brightness(0.97);
+}
+
+.vila-cb-guest-checkin-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin: 8px 0 12px;
+}
+
+.vila-cb-cal .vila-cb-grid__busy-bar .vila-cb-grid__cell-link .vila-cb-guest-badge {
+	color: inherit;
+}
+
+.vila-cb-cal .vila-cb-grid__busy-bar .vila-cb-grid__cell-link .vila-cb-guest-badge--ok {
+	color: #0a3d1f;
+	background: #b8f0c8;
+}
+
+.vila-cb-cal .vila-cb-grid__busy-bar .vila-cb-grid__cell-link .vila-cb-guest-badge--pending {
+	color: #5c3b00;
+	background: #ffe08a;
 }
 
 .vila-cb-cal .vila-cb-grid__busy-bar .vila-cb-grid__cell-link:hover,

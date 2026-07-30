@@ -27,6 +27,7 @@ class Guest_Registration_Exporter {
 			'nif'           => '519423178',
 			'establishment' => '0',
 			'unit_name'     => 'Povoado Gentil LDA',
+			'abbreviation'  => 'POVOADO GENTIL',
 			'address'       => 'Lugar Serro da Bica S/N Monte Horta da Bica',
 			'locality'      => 'ALDEIA DOS PALHEIROS',
 			'postal_code'   => '7670-202',
@@ -34,6 +35,8 @@ class Guest_Registration_Exporter {
 			'fax'           => '',
 			'contact_name'  => 'Hans Wolfgramm',
 			'contact_email' => 'Hans.wolfgramm@icloud.com',
+			'access_key'    => '986501541973',
+			'environment'   => 'prod',
 		);
 	}
 
@@ -46,6 +49,7 @@ class Guest_Registration_Exporter {
 			'nif'           => $prefill['nif'],
 			'establishment' => $prefill['establishment'],
 			'unit_name'     => $prefill['unit_name'] !== '' ? $prefill['unit_name'] : get_bloginfo( 'name' ),
+			'abbreviation'  => $prefill['abbreviation'],
 			'address'       => $prefill['address'],
 			'locality'      => $prefill['locality'],
 			'postal_code'   => $prefill['postal_code'],
@@ -53,6 +57,8 @@ class Guest_Registration_Exporter {
 			'fax'           => $prefill['fax'],
 			'contact_name'  => $prefill['contact_name'],
 			'contact_email' => $prefill['contact_email'] !== '' ? $prefill['contact_email'] : get_option( 'admin_email' ),
+			'access_key'    => $prefill['access_key'],
+			'environment'   => $prefill['environment'],
 		);
 	}
 
@@ -109,10 +115,15 @@ class Guest_Registration_Exporter {
 		$out = self::default_settings();
 		foreach ( $out as $key => $default ) {
 			$value = isset( $raw[ $key ] ) ? (string) $raw[ $key ] : $default;
-			if ( in_array( $key, array( 'nif', 'establishment', 'phone', 'fax', 'postal_code' ), true ) ) {
+			if ( in_array( $key, array( 'nif', 'establishment', 'phone', 'fax', 'postal_code', 'access_key' ), true ) ) {
 				$value = preg_replace( '/[^0-9]/', '', $value );
 			} elseif ( 'contact_email' === $key ) {
 				$value = sanitize_email( $value );
+			} elseif ( 'environment' === $key ) {
+				$value = 'prod' === $value ? 'prod' : 'dev';
+			} elseif ( 'abbreviation' === $key ) {
+				$value = sanitize_text_field( $value );
+				$value = function_exists( 'mb_substr' ) ? mb_substr( $value, 0, 15 ) : substr( $value, 0, 15 );
 			} else {
 				$value = sanitize_text_field( $value );
 			}

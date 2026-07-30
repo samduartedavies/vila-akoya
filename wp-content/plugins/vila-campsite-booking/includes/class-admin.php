@@ -101,6 +101,66 @@ class Admin {
 				'parent' => false,
 			)
 		);
+		$wp_admin_bar->add_node(
+			array(
+				'id'     => 'vila-cb-toolbar-guest-checkin',
+				'title'  => __( 'Guest check-in', 'vila-campsite-booking' ),
+				'href'   => admin_url( 'admin.php?page=' . Admin_Guest_Registrations::PAGE ),
+				'meta'   => array(
+					'title' => __( 'Campsite guest registrations (SIBA)', 'vila-campsite-booking' ),
+				),
+				'parent' => false,
+			)
+		);
+	}
+
+	/**
+	 * Quick links across Campsite admin screens.
+	 *
+	 * @param string $current Current page slug (optional).
+	 */
+	public static function render_section_nav( $current = '' ) {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( '' === $current && isset( $_GET['page'] ) ) {
+			$current = sanitize_key( wp_unslash( Request_String::scalar( $_GET['page'] ) ) );
+		}
+		$items = array(
+			array(
+				'page'  => self::PAGE_OVERVIEW,
+				'label' => __( 'Overview', 'vila-campsite-booking' ),
+			),
+			array(
+				'page'  => self::PAGE_CAL,
+				'label' => __( 'Calendar', 'vila-campsite-booking' ),
+			),
+			array(
+				'page'  => self::PAGE_MEALS,
+				'label' => __( 'Meals', 'vila-campsite-booking' ),
+			),
+			array(
+				'page'  => Admin_Guest_Registrations::PAGE,
+				'label' => __( 'Guest check-in', 'vila-campsite-booking' ),
+			),
+			array(
+				'page'  => self::PAGE_SETTINGS,
+				'label' => __( 'Settings', 'vila-campsite-booking' ),
+			),
+		);
+		?>
+		<nav class="vila-cb-ui-section-nav" aria-label="<?php esc_attr_e( 'Campsite', 'vila-campsite-booking' ); ?>">
+			<?php foreach ( $items as $item ) : ?>
+				<?php
+				$is_current = $current === $item['page'];
+				$classes    = 'vila-cb-ui-section-nav__link' . ( $is_current ? ' is-current' : '' );
+				?>
+				<a class="<?php echo esc_attr( $classes ); ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=' . $item['page'] ) ); ?>"<?php echo $is_current ? ' aria-current="page"' : ''; ?>>
+					<?php echo esc_html( $item['label'] ); ?>
+				</a>
+			<?php endforeach; ?>
+		</nav>
+		<?php
 	}
 
 	/**
@@ -422,6 +482,12 @@ class Admin {
 
 		$order_edit = $order ? $order->get_edit_order_url() : '';
 
+		$guest_reg     = ( new Guest_Registration_Repository() )->get_by_booking_id( $booking_id );
+		$guest_reg_id  = $guest_reg ? (int) $guest_reg['id'] : 0;
+		$guest_reg_url = $guest_reg_id > 0
+			? admin_url( 'admin.php?page=' . Admin_Guest_Registrations::PAGE . '&registration_id=' . $guest_reg_id )
+			: '';
+
 		if ( isset( $_GET['updated'] ) ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Booking saved.', 'vila-campsite-booking' ) . '</p></div>';
 		}
@@ -434,7 +500,14 @@ class Admin {
 
 		?>
 		<div class="wrap vila-cb-admin">
+			<?php self::render_section_nav( self::PAGE_BOOKING ); ?>
 			<h1><?php esc_html_e( 'Edit campsite booking', 'vila-campsite-booking' ); ?></h1>
+			<p class="vila-cb-guest-checkin-status">
+				<?php echo self::guest_checkin_badge_html( $guest_reg_id > 0, $guest_reg_id, 'large' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper ?>
+				<?php if ( $guest_reg_url ) : ?>
+					<a class="button button-small" href="<?php echo esc_url( $guest_reg_url ); ?>"><?php esc_html_e( 'View guest registration', 'vila-campsite-booking' ); ?></a>
+				<?php endif; ?>
+			</p>
 			<p class="description">
 				<?php
 				echo esc_html(
@@ -773,6 +846,15 @@ class Admin {
 		$repo = new Booking_Repository();
 		$rows = $repo->get_activity_for_day( $ymd );
 
+		$guest_reg_by_booking = ( new Guest_Registration_Repository() )->get_registration_ids_by_booking_ids(
+			array_map(
+				static function ( $b ) {
+					return isset( $b['id'] ) ? (int) $b['id'] : 0;
+				},
+				$rows
+			)
+		);
+
 		$prev = ( clone $base )->modify( '-1 day' )->format( 'Y-m-d' );
 		$nxt  = ( clone $base )->modify( '+1 day' )->format( 'Y-m-d' );
 
@@ -781,6 +863,7 @@ class Admin {
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-overview">
+			<?php self::render_section_nav( self::PAGE_OVERVIEW ); ?>
 			<?php if ( $show_deploy ) : ?>
 				<div class="notice notice-warning" style="margin:12px 0 0;">
 					<p>
@@ -901,7 +984,12 @@ class Admin {
 						?>
 						<tr>
 							<td>
-								<strong><?php echo esc_html( $name ); ?></strong><br />
+								<strong><?php echo esc_html( $name ); ?></strong>
+								<?php
+								$reg_id = isset( $guest_reg_by_booking[ (int) $b['id'] ] ) ? (int) $guest_reg_by_booking[ (int) $b['id'] ] : 0;
+								echo ' ' . self::guest_checkin_badge_html( $reg_id > 0, $reg_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper
+								?>
+								<br />
 								<?php
 								echo esc_html(
 									sprintf(
@@ -979,6 +1067,7 @@ class Admin {
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-meals">
+			<?php self::render_section_nav( self::PAGE_MEALS ); ?>
 			<div class="vila-cb-ui-hero">
 				<div class="vila-cb-ui-hero__text">
 					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Meals', 'vila-campsite-booking' ); ?></h1>
@@ -1227,6 +1316,15 @@ class Admin {
 		$plots        = $plot_repo->get_all();
 		$blocks_index = self::calendar_blocks_index( ( new Plot_Block_Repository() )->get_overlapping( $from, $to ) );
 
+		$guest_reg_by_booking = ( new Guest_Registration_Repository() )->get_registration_ids_by_booking_ids(
+			array_map(
+				static function ( $b ) {
+					return isset( $b['id'] ) ? (int) $b['id'] : 0;
+				},
+				$bookings
+			)
+		);
+
 		$by_plot = array();
 		foreach ( $plots as $p ) {
 			$by_plot[ (int) $p['id'] ] = array();
@@ -1245,6 +1343,7 @@ class Admin {
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-cal">
+			<?php self::render_section_nav( self::PAGE_CAL ); ?>
 			<?php if ( isset( $_GET['updated'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Booking saved.', 'vila-campsite-booking' ); ?></p></div>
 			<?php endif; ?>
@@ -1423,7 +1522,7 @@ class Admin {
 										$span++;
 									}
 
-									$payload              = self::calendar_booking_cell_payload( $seg );
+									$payload              = self::calendar_booking_cell_payload( $seg, $guest_reg_by_booking );
 									$range_includes_today = self::calendar_day_range_includes( $days, $j, $span, $today_ymd );
 									$cell_classes         = array_filter(
 										array(
@@ -1554,9 +1653,10 @@ class Admin {
 	 * Guest / order data for one booking bar.
 	 *
 	 * @param array<string, mixed> $seg Booking row.
+	 * @param array<int, int>      $guest_reg_by_booking booking_id => registration_id.
 	 * @return array{cell_title: string, cell_html: string}
 	 */
-	private static function calendar_booking_cell_payload( array $seg ) {
+	private static function calendar_booking_cell_payload( array $seg, array $guest_reg_by_booking = array() ) {
 		$oid   = (int) $seg['order_id'];
 		$order = $oid ? wc_get_order( $oid ) : null;
 		$bid   = (int) $seg['id'];
@@ -1582,12 +1682,17 @@ class Admin {
 		$unit_type   = $order ? (string) WooCommerce_Integration::get_order_line_unit_type_label( $order, $line_id ) : '';
 
 		$date_range = self::calendar_booking_stay_date_range_label( (string) $seg['check_in'], (string) $seg['check_out'] );
+		$reg_id     = isset( $guest_reg_by_booking[ $bid ] ) ? (int) $guest_reg_by_booking[ $bid ] : 0;
+		$submitted  = $reg_id > 0;
 
 		$tip_bits = array();
 		if ( '' !== $date_range ) {
 			$tip_bits[] = $date_range;
 		}
 		$tip_bits[] = $guest_name;
+		$tip_bits[] = $submitted
+			? __( 'Guest details received', 'vila-campsite-booking' )
+			: __( 'Guest details pending', 'vila-campsite-booking' );
 		$tip_bits[] = $detail_line;
 		if ( '' !== $unit_type ) {
 			$tip_bits[] = $unit_type;
@@ -1596,7 +1701,7 @@ class Admin {
 
 		return array(
 			'cell_title' => implode( ' — ', $tip_bits ),
-			'cell_html'  => self::render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range ),
+			'cell_html'  => self::render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range, $submitted, $reg_id ),
 		);
 	}
 
@@ -1608,9 +1713,11 @@ class Admin {
 	 * @param string $unit_type   Unit type label, e.g. Caravan.
 	 * @param string $url         Booking edit URL or empty.
 	 * @param string $date_range  Compact d/m - d/m range or empty.
+	 * @param bool   $submitted   Whether guest registration exists.
+	 * @param int    $reg_id      Registration ID when submitted.
 	 * @return string Safe HTML.
 	 */
-	private static function render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range = '' ) {
+	private static function render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range = '', $submitted = false, $reg_id = 0 ) {
 		$guest_name  = (string) $guest_name;
 		$detail_line = (string) $detail_line;
 		$unit_type   = (string) $unit_type;
@@ -1622,6 +1729,7 @@ class Admin {
 			$inner .= '<span class="vila-cb-grid__cell-dates">' . esc_html( $date_range ) . '</span>';
 		}
 		$inner .= '<span class="vila-cb-grid__cell-name">' . esc_html( $guest_name ) . '</span>';
+		$inner .= self::guest_checkin_badge_html( (bool) $submitted, (int) $reg_id, 'compact' );
 		$inner .= '' !== $detail_line
 			? '<span class="vila-cb-grid__cell-guests">' . esc_html( $detail_line ) . '</span>'
 			: '';
@@ -1634,6 +1742,39 @@ class Admin {
 		}
 
 		return '<span class="vila-cb-grid__cell-link vila-cb-grid__cell-link--static">' . $inner . '</span>';
+	}
+
+	/**
+	 * Green / yellow badge for legal guest-registration completeness.
+	 *
+	 * @param bool   $submitted Whether a registration row exists for the booking.
+	 * @param int    $reg_id    Registration ID (optional link target for large badges).
+	 * @param string $size      default|compact|large.
+	 * @return string Safe HTML.
+	 */
+	public static function guest_checkin_badge_html( $submitted, $reg_id = 0, $size = 'default' ) {
+		$submitted = (bool) $submitted;
+		$size      = in_array( $size, array( 'default', 'compact', 'large' ), true ) ? $size : 'default';
+		$classes   = array(
+			'vila-cb-guest-badge',
+			$submitted ? 'vila-cb-guest-badge--ok' : 'vila-cb-guest-badge--pending',
+			'vila-cb-guest-badge--' . $size,
+		);
+		$label = $submitted
+			? __( 'Details received', 'vila-campsite-booking' )
+			: __( 'Details pending', 'vila-campsite-booking' );
+		$title = $submitted
+			? __( 'Legal guest registration has been submitted for this booking.', 'vila-campsite-booking' )
+			: __( 'Guests have not submitted legal registration details yet.', 'vila-campsite-booking' );
+
+		$html = '<span class="' . esc_attr( implode( ' ', $classes ) ) . '" title="' . esc_attr( $title ) . '">' . esc_html( $label ) . '</span>';
+
+		if ( $submitted && (int) $reg_id > 0 && 'compact' !== $size ) {
+			$url = admin_url( 'admin.php?page=' . Admin_Guest_Registrations::PAGE . '&registration_id=' . (int) $reg_id );
+			$html = '<a class="vila-cb-guest-badge-link" href="' . esc_url( $url ) . '">' . $html . '</a>';
+		}
+
+		return $html;
 	}
 
 	/**
@@ -1651,6 +1792,7 @@ class Admin {
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-plots">
+			<?php self::render_section_nav( self::PAGE_PLOTS ); ?>
 			<?php if ( isset( $_GET['updated'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Plots saved.', 'vila-campsite-booking' ); ?></p></div>
 			<?php endif; ?>
@@ -1733,6 +1875,7 @@ class Admin {
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-blocks">
+			<?php self::render_section_nav( self::PAGE_BLOCKS ); ?>
 			<?php if ( isset( $_GET['updated'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Date blocks saved.', 'vila-campsite-booking' ); ?></p></div>
 			<?php endif; ?>
@@ -2058,6 +2201,7 @@ class Admin {
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-settings">
+			<?php self::render_section_nav( self::PAGE_SETTINGS ); ?>
 			<?php if ( isset( $_GET['updated'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'vila-campsite-booking' ); ?></p></div>
 			<?php endif; ?>
@@ -2100,8 +2244,8 @@ class Admin {
 
 				<div class="vila-cb-ui-panel">
 					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'SIBA export', 'vila-campsite-booking' ); ?></h2>
-					<p class="description"><?php esc_html_e( 'These fields build the BA03 header for SIBA DAT file uploads. Match the details issued by SIBA for the accommodation unit.', 'vila-campsite-booking' ); ?></p>
-					<p class="description"><?php esc_html_e( 'Establishment number is the 4-digit código de estabelecimento from the SIBA portal technical sheet (not the activation key).', 'vila-campsite-booking' ); ?></p>
+					<p class="description"><?php esc_html_e( 'These fields build the BA03 header and the Web Service MovimentoBAL XML for SIBA.', 'vila-campsite-booking' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Establishment number is from the SIBA portal (0 is valid). Access key is the activation key from the ofício — used for Web Service only.', 'vila-campsite-booking' ); ?></p>
 					<table class="form-table vila-cb-ui-form-table" role="presentation">
 						<tr>
 							<th scope="row"><label for="vila_cb_siba_nif"><?php esc_html_e( 'NIF', 'vila-campsite-booking' ); ?></label></th>
@@ -2112,8 +2256,25 @@ class Admin {
 							<td><input name="vila_cb_siba[establishment]" id="vila_cb_siba_establishment" type="text" value="<?php echo esc_attr( $siba['establishment'] ); ?>" class="regular-text" maxlength="4" /></td>
 						</tr>
 						<tr>
+							<th scope="row"><label for="vila_cb_siba_access_key"><?php esc_html_e( 'Access key (chave de ativação)', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[access_key]" id="vila_cb_siba_access_key" type="text" value="<?php echo esc_attr( $siba['access_key'] ); ?>" class="regular-text" autocomplete="off" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_environment"><?php esc_html_e( 'Web Service environment', 'vila-campsite-booking' ); ?></label></th>
+							<td>
+								<select name="vila_cb_siba[environment]" id="vila_cb_siba_environment">
+									<option value="dev" <?php selected( $siba['environment'], 'dev' ); ?>><?php esc_html_e( 'Development (bawsdev) — test first', 'vila-campsite-booking' ); ?></option>
+									<option value="prod" <?php selected( $siba['environment'], 'prod' ); ?>><?php esc_html_e( 'Production (baws)', 'vila-campsite-booking' ); ?></option>
+								</select>
+							</td>
+						</tr>
+						<tr>
 							<th scope="row"><label for="vila_cb_siba_unit_name"><?php esc_html_e( 'Unit name', 'vila-campsite-booking' ); ?></label></th>
 							<td><input name="vila_cb_siba[unit_name]" id="vila_cb_siba_unit_name" type="text" value="<?php echo esc_attr( $siba['unit_name'] ); ?>" class="regular-text" maxlength="40" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_siba_abbreviation"><?php esc_html_e( 'Abbreviation', 'vila-campsite-booking' ); ?></label></th>
+							<td><input name="vila_cb_siba[abbreviation]" id="vila_cb_siba_abbreviation" type="text" value="<?php echo esc_attr( $siba['abbreviation'] ); ?>" class="regular-text" maxlength="15" /></td>
 						</tr>
 						<tr>
 							<th scope="row"><label for="vila_cb_siba_address"><?php esc_html_e( 'Address', 'vila-campsite-booking' ); ?></label></th>

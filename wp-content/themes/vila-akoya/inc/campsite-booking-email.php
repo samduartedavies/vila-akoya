@@ -36,6 +36,29 @@ function vila_akoya_order_has_campsite_booking( $order ) {
 }
 
 /**
+ * Public URL for the legal guest check-in / SIBA registration form.
+ *
+ * @return string Absolute URL or empty if unavailable.
+ */
+function vila_akoya_guest_registration_url() {
+	$page_id = 0;
+	if ( class_exists( 'Vila_CB\\Install' ) ) {
+		$page_id = (int) get_option( \Vila_CB\Install::OPTION_GUEST_REGISTRATION_PAGE_ID, 0 );
+	}
+	if ( $page_id <= 0 ) {
+		$page = get_page_by_path( 'guest-registration' );
+		if ( $page instanceof WP_Post ) {
+			$page_id = (int) $page->ID;
+		}
+	}
+	if ( $page_id > 0 ) {
+		$url = get_permalink( $page_id );
+		return is_string( $url ) ? $url : '';
+	}
+	return home_url( '/guest-registration/' );
+}
+
+/**
  * Register campsite booking confirmation email with WooCommerce.
  *
  * @param array<string, WC_Email> $emails Email classes.

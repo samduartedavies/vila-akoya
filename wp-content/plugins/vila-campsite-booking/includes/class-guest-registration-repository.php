@@ -20,7 +20,12 @@ class Guest_Registration_Repository {
 	 */
 	public static function country_code( $value ) {
 		$value = strtoupper( preg_replace( '/[^A-Z]/', '', (string) $value ) );
-		return substr( $value, 0, 3 );
+		$value = substr( $value, 0, 3 );
+		$map   = array(
+			'DEU' => 'D',
+			'ROU' => 'ROM',
+		);
+		return isset( $map[ $value ] ) ? $map[ $value ] : $value;
 	}
 
 	/**
@@ -41,6 +46,41 @@ class Guest_Registration_Repository {
 		$t   = Database::guest_registrations_table();
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $t WHERE booking_id = %d ORDER BY id DESC LIMIT 1", (int) $booking_id ), ARRAY_A );
 		return is_array( $row ) ? $row : null;
+	}
+
+	/**
+	 * Map booking_id => registration_id for bookings that have submitted guest details.
+	 *
+	 * @param array<int, int|string> $booking_ids Booking IDs.
+	 * @return array<int, int>
+	 */
+	public function get_registration_ids_by_booking_ids( array $booking_ids ) {
+		global $wpdb;
+		$ids = array_values(
+			array_unique(
+				array_filter(
+					array_map( 'absint', $booking_ids )
+				)
+			)
+		);
+		if ( empty( $ids ) ) {
+			return array();
+		}
+		$t    = Database::guest_registrations_table();
+		$ph   = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql  = "SELECT booking_id, MAX(id) AS registration_id FROM $t WHERE booking_id IN ($ph) GROUP BY booking_id";
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $ids ), ARRAY_A );
+		$out  = array();
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$bid = (int) $row['booking_id'];
+				$rid = (int) $row['registration_id'];
+				if ( $bid > 0 && $rid > 0 ) {
+					$out[ $bid ] = $rid;
+				}
+			}
+		}
+		return $out;
 	}
 
 	/**

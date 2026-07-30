@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Vila Campsite Booking
  * Description: Multi-plot campsite inventory with WooCommerce checkout, Airbnb-style booking UI, and operations dashboard.
- * Version: 1.3.4
+ * Version: 1.4.1
  * Author: Vila Akoya
  * Text Domain: vila-campsite-booking
  * Requires at least: 6.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_CB_VERSION', '1.3.4' );
+define( 'VILA_CB_VERSION', '1.4.1' );
 define( 'VILA_CB_FILE', __FILE__ );
 define( 'VILA_CB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VILA_CB_URL', plugin_dir_url( __FILE__ ) );
@@ -42,6 +42,7 @@ require_once VILA_CB_DIR . 'includes/class-plot-block-repository.php';
 require_once VILA_CB_DIR . 'includes/class-booking-repository.php';
 require_once VILA_CB_DIR . 'includes/class-guest-registration-repository.php';
 require_once VILA_CB_DIR . 'includes/class-guest-registration-exporter.php';
+require_once VILA_CB_DIR . 'includes/class-siba-client.php';
 require_once VILA_CB_DIR . 'includes/class-booking-service.php';
 require_once VILA_CB_DIR . 'includes/class-meal-plan-service.php';
 require_once VILA_CB_DIR . 'includes/class-meal-booking.php';

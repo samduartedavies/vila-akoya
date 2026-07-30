@@ -46,9 +46,16 @@ class Shortcode {
 			true
 		);
 		wp_register_script(
+			'vila-cb-icao-countries',
+			VILA_CB_URL . 'assets/js/icao-countries.js',
+			array(),
+			VILA_CB_VERSION,
+			true
+		);
+		wp_register_script(
 			'vila-cb-guest-registration',
 			VILA_CB_URL . 'assets/js/guest-registration.js',
-			array(),
+			array( 'vila-cb-icao-countries' ),
 			VILA_CB_VERSION,
 			true
 		);
@@ -270,7 +277,13 @@ class Shortcode {
 					'noBookings'    => __( 'No matching booking found. You can enter the stay details manually.', 'vila-campsite-booking' ),
 					'selectBooking' => __( 'Use this booking', 'vila-campsite-booking' ),
 					'guestHeading'  => __( 'Guest', 'vila-campsite-booking' ),
+					'addGuest'      => __( 'Add guest', 'vila-campsite-booking' ),
+					'removeGuest'   => __( 'Remove', 'vila-campsite-booking' ),
 					'saved'         => __( 'Thank you. Your legal guest registration details have been saved.', 'vila-campsite-booking' ),
+					'successTitle'  => __( "You're all set", 'vila-campsite-booking' ),
+					'successLead'   => __( 'Your guest details have been submitted successfully. We have everything we need for your stay.', 'vila-campsite-booking' ),
+					'successEnjoy'  => __( 'We look forward to welcoming you. Enjoy your stay at Vila Akoya!', 'vila-campsite-booking' ),
+					'successStay'   => __( 'Your stay: %1$s to %2$s', 'vila-campsite-booking' ),
 					'failed'        => __( 'Could not save the registration. Please check the fields and try again.', 'vila-campsite-booking' ),
 					'required'      => __( 'Please complete the required fields.', 'vila-campsite-booking' ),
 				),
@@ -286,7 +299,7 @@ class Shortcode {
 			data-submit-url="<?php echo esc_url( $submit_url ); ?>"
 			data-nonce="<?php echo esc_attr( $nonce ); ?>"
 		>
-			<div class="vila-cb-gr__intro">
+			<div class="vila-cb-gr__intro" data-vila-gr-intro>
 				<p class="vila-cb__hint"><?php esc_html_e( 'Portuguese law requires us to collect guest details for SIBA before or at check-in. Search for your booking, or enter your stay details manually.', 'vila-campsite-booking' ); ?></p>
 			</div>
 
@@ -338,12 +351,17 @@ class Shortcode {
 				<section class="vila-cb-gr__panel">
 					<div class="vila-cb-gr__guest-tools">
 						<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Guests', 'vila-campsite-booking' ); ?></h2>
-						<label>
+						<label class="vila-cb-gr__count-label">
 							<span><?php esc_html_e( 'Number of people', 'vila-campsite-booking' ); ?></span>
 							<input type="number" min="1" max="20" value="1" data-vila-gr-count />
 						</label>
 					</div>
 					<div data-vila-gr-persons></div>
+					<div class="vila-cb-gr__add-wrap">
+						<button type="button" class="vila-cb-gr__add-guest" data-vila-gr-add-guest>
+							<?php esc_html_e( 'Add guest', 'vila-campsite-booking' ); ?>
+						</button>
+					</div>
 				</section>
 
 				<div class="vila-cb-gr__actions">
@@ -351,7 +369,22 @@ class Shortcode {
 				</div>
 			</form>
 
-			<div class="vila-cb-gr__message" data-vila-gr-message role="status" aria-live="polite"></div>
+			<div class="vila-cb-gr__success" data-vila-gr-success hidden>
+				<div class="vila-cb-gr__success-card" role="status" aria-live="polite">
+					<div class="vila-cb-gr__success-icon" aria-hidden="true">
+						<svg viewBox="0 0 64 64" width="72" height="72" focusable="false">
+							<circle cx="32" cy="32" r="30" fill="currentColor" opacity="0.14" />
+							<path fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M18 33l10 10 18-20" />
+						</svg>
+					</div>
+					<h2 class="vila-cb-gr__success-title" data-vila-gr-success-title><?php esc_html_e( "You're all set", 'vila-campsite-booking' ); ?></h2>
+					<p class="vila-cb-gr__success-lead" data-vila-gr-success-lead><?php esc_html_e( 'Your guest details have been submitted successfully. We have everything we need for your stay.', 'vila-campsite-booking' ); ?></p>
+					<p class="vila-cb-gr__success-stay" data-vila-gr-success-stay hidden></p>
+					<p class="vila-cb-gr__success-enjoy" data-vila-gr-success-enjoy><?php esc_html_e( 'We look forward to welcoming you. Enjoy your stay at Vila Akoya!', 'vila-campsite-booking' ); ?></p>
+				</div>
+			</div>
+
+			<div class="vila-cb-gr__message" data-vila-gr-message role="alert" aria-live="assertive"></div>
 		</div>
 		<?php
 		return (string) ob_get_clean();

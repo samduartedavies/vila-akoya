@@ -160,6 +160,10 @@ class Install {
 			Guest_Registration_Exporter::apply_siba_prefill( true );
 			update_option( self::OPTION_DB_VERSION, '1.1.4' );
 		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.1.5', '<' ) ) {
+			Guest_Registration_Exporter::seed_siba_settings();
+			update_option( self::OPTION_DB_VERSION, '1.1.5' );
+		}
 		self::schedule_public_pages_check();
 	}
 
