@@ -18,21 +18,76 @@ class Guest_Registration_Exporter {
 	const OPTION_SEQ      = 'vila_cb_siba_file_sequence';
 
 	/**
+	 * Official SIBA portal registration (Povoado Gentil LDA / Parque de campismo).
+	 *
+	 * @return array<string, string>
+	 */
+	public static function prefill_settings() {
+		return array(
+			'nif'           => '519423178',
+			'establishment' => '0',
+			'unit_name'     => 'Povoado Gentil LDA',
+			'address'       => 'Lugar Serro da Bica S/N Monte Horta da Bica',
+			'locality'      => 'ALDEIA DOS PALHEIROS',
+			'postal_code'   => '7670-202',
+			'phone'         => '960446285',
+			'fax'           => '',
+			'contact_name'  => 'Hans Wolfgramm',
+			'contact_email' => 'Hans.wolfgramm@icloud.com',
+		);
+	}
+
+	/**
 	 * @return array<string, string>
 	 */
 	public static function default_settings() {
+		$prefill = self::prefill_settings();
 		return array(
-			'nif'           => '',
-			'establishment' => '',
-			'unit_name'     => get_bloginfo( 'name' ),
-			'address'       => '',
-			'locality'      => '',
-			'postal_code'   => '',
-			'phone'         => '',
-			'fax'           => '',
-			'contact_name'  => '',
-			'contact_email' => get_option( 'admin_email' ),
+			'nif'           => $prefill['nif'],
+			'establishment' => $prefill['establishment'],
+			'unit_name'     => $prefill['unit_name'] !== '' ? $prefill['unit_name'] : get_bloginfo( 'name' ),
+			'address'       => $prefill['address'],
+			'locality'      => $prefill['locality'],
+			'postal_code'   => $prefill['postal_code'],
+			'phone'         => $prefill['phone'],
+			'fax'           => $prefill['fax'],
+			'contact_name'  => $prefill['contact_name'],
+			'contact_email' => $prefill['contact_email'] !== '' ? $prefill['contact_email'] : get_option( 'admin_email' ),
 		);
+	}
+
+	/**
+	 * Fill empty stored SIBA settings from prefill_settings() without overwriting edits.
+	 */
+	public static function seed_siba_settings() {
+		self::apply_siba_prefill( false );
+	}
+
+	/**
+	 * Apply official SIBA portal values to stored settings.
+	 *
+	 * @param bool $overwrite When true, replace all prefill keys (used after correcting seeded data).
+	 */
+	public static function apply_siba_prefill( $overwrite = false ) {
+		$stored = get_option( self::OPTION_SETTINGS, array() );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+		$changed = false;
+		foreach ( self::prefill_settings() as $key => $value ) {
+			if ( ! $overwrite && ( ! isset( $stored[ $key ] ) || '' === (string) $stored[ $key ] ) ) {
+				$stored[ $key ] = (string) $value;
+				$changed        = true;
+				continue;
+			}
+			if ( $overwrite && ( ! isset( $stored[ $key ] ) || (string) $stored[ $key ] !== (string) $value ) ) {
+				$stored[ $key ] = (string) $value;
+				$changed        = true;
+			}
+		}
+		if ( $changed ) {
+			update_option( self::OPTION_SETTINGS, self::sanitize_settings( $stored ) );
+		}
 	}
 
 	/**

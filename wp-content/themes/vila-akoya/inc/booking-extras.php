@@ -61,9 +61,13 @@ function vila_akoya_get_vehicle_types() {
 	return apply_filters(
 		'vila_akoya_vehicle_types',
 		array(
+			'tent'         => array(
+				'label' => __( 'Tent', 'vila-akoya' ),
+				'fee'   => 3,
+			),
 			'caravan'      => array(
 				'label' => __( 'Caravan', 'vila-akoya' ),
-				'fee'   => 6,
+				'fee'   => 5,
 			),
 			'camper'       => array(
 				'label' => __( 'Campervan', 'vila-akoya' ),
@@ -192,7 +196,7 @@ function vila_akoya_cart_vehicle_types( array $cart_item ) {
 function vila_akoya_get_meal_options() {
 	$breakfast_meta = sprintf(
 		/* translators: 1: adult price plain, 2: child price plain */
-		__( 'Adults %1$s · Kids %2$s / day', 'vila-akoya' ),
+		__( 'Adults %1$s · Kids %2$s · Under 2 free', 'vila-akoya' ),
 		vila_akoya_format_price_plain( 5 ),
 		vila_akoya_format_price_plain( 3 )
 	);
@@ -239,21 +243,15 @@ function vila_akoya_get_meal_options() {
 		$row['day_mode']   = isset( $row['day_mode'] ) && 'weekdays' === $row['day_mode'] ? 'weekdays' : 'all_nights';
 		if ( 'dinner' === $slug || 'weekdays' === $row['day_mode'] ) {
 			$row['label'] = __( 'Weekday dinner (Mon–Fri)', 'vila-akoya' );
-			$row['meta']  = sprintf(
-				/* translators: 1: adult price plain, 2: child price plain */
-				__( 'Adults %1$s · Kids %2$s · Under 2 free', 'vila-akoya' ),
-				vila_akoya_format_price_plain( $row['adult_fee'] ),
-				vila_akoya_format_price_plain( $row['child_fee'] )
-			);
 		} else {
 			$row['label'] = isset( $row['label'] ) ? (string) $row['label'] : (string) $slug;
-			$row['meta']  = sprintf(
-				/* translators: 1: adult price plain, 2: child price plain */
-				__( 'Adults %1$s · Kids %2$s / day', 'vila-akoya' ),
-				vila_akoya_format_price_plain( $row['adult_fee'] ),
-				vila_akoya_format_price_plain( $row['child_fee'] )
-			);
 		}
+		$row['meta'] = sprintf(
+			/* translators: 1: adult price plain, 2: child price plain */
+			__( 'Adults %1$s · Kids %2$s · Under 2 free', 'vila-akoya' ),
+			vila_akoya_format_price_plain( $row['adult_fee'] ),
+			vila_akoya_format_price_plain( $row['child_fee'] )
+		);
 	}
 	unset( $row );
 

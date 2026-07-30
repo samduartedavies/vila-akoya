@@ -490,7 +490,7 @@ class WooCommerce_Integration {
 	}
 
 	/**
-	 * One booking per cart: quantity 1, no other products while a campsite line exists; adding a new booking replaces the cart.
+	 * One booking per cart: adding a campsite stay or meal purchase replaces any previous cart line.
 	 *
 	 * @param bool $passed      Passed.
 	 * @param int  $product_id Product ID.
@@ -501,16 +501,26 @@ class WooCommerce_Integration {
 		if ( ! $passed || ! function_exists( 'WC' ) || ! WC()->cart ) {
 			return $passed;
 		}
-		$product_id = (int) $product_id;
-		$quantity   = (int) $quantity;
-		$campsite   = self::is_campsite_product( $product_id );
+		$product_id   = (int) $product_id;
+		$quantity     = (int) $quantity;
+		$campsite     = self::is_campsite_product( $product_id );
+		$is_meals     = Meal_Booking::is_meals_product( $product_id );
+		$replace_cart = $campsite || $is_meals;
 
-		if ( $campsite && $quantity > 1 ) {
-			wc_add_notice( __( 'You can only add one campsite stay at a time (quantity must be 1).', 'vila-campsite-booking' ), 'error' );
+		if ( $replace_cart && $quantity > 1 ) {
+			wc_add_notice( __( 'You can only add one booking at a time (quantity must be 1).', 'vila-campsite-booking' ), 'error' );
 			return false;
 		}
 
-		if ( ! $campsite && self::cart_contains_campsite_line() ) {
+		if ( $replace_cart && ! WC()->cart->is_empty() ) {
+			WC()->cart->empty_cart( true );
+			if ( apply_filters( 'vila_cb_show_notice_cart_cleared_for_booking', false ) ) {
+				wc_add_notice( __( 'Previous cart items were cleared so your new booking can be added.', 'vila-campsite-booking' ), 'notice' );
+			}
+			return $passed;
+		}
+
+		if ( ! $replace_cart && self::cart_contains_vila_checkout_line() ) {
 			wc_add_notice(
 				__( 'Your cart already contains a campsite booking. Complete checkout or remove it before adding other products.', 'vila-campsite-booking' ),
 				'error'
@@ -518,21 +528,16 @@ class WooCommerce_Integration {
 			return false;
 		}
 
-		if ( $campsite && ! WC()->cart->is_empty() ) {
-			WC()->cart->empty_cart( true );
-			if ( apply_filters( 'vila_cb_show_notice_cart_cleared_for_booking', false ) ) {
-				wc_add_notice( __( 'Previous cart items were cleared so your new booking can be added.', 'vila-campsite-booking' ), 'notice' );
-			}
-		}
-
 		return $passed;
 	}
 
 	/**
+	 * Whether the cart already has a campsite stay or meal booking line.
+	 *
 	 * @param \WC_Cart|null $cart Cart.
 	 * @return bool
 	 */
-	private static function cart_contains_campsite_line( $cart = null ) {
+	private static function cart_contains_vila_checkout_line( $cart = null ) {
 		if ( ! $cart ) {
 			if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
 				return false;
@@ -549,6 +554,9 @@ class WooCommerce_Integration {
 			$pid = isset( $row['product_id'] ) ? (int) $row['product_id'] : 0;
 			$vid = isset( $row['variation_id'] ) ? (int) $row['variation_id'] : 0;
 			if ( self::is_campsite_product( $pid ) || ( $vid && self::is_campsite_product( $vid ) ) ) {
+				return true;
+			}
+			if ( Meal_Booking::is_meals_product( $pid ) ) {
 				return true;
 			}
 		}

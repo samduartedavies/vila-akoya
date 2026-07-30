@@ -432,9 +432,11 @@ class Shortcode {
 			)
 		);
 
-		$action = esc_url( get_permalink( $product_id ) );
+		$action = self::meal_booking_form_action_url();
 		if ( ! $action ) {
 			$action = esc_url( home_url( '/' ) );
+		} else {
+			$action = esc_url( $action );
 		}
 
 		ob_start();
@@ -444,9 +446,15 @@ class Shortcode {
 			data-vila-mb-root
 			data-lookup-url="<?php echo esc_url( $lookup_url ); ?>"
 			data-nonce="<?php echo esc_attr( $nonce ); ?>"
+			data-checkout-url="<?php echo esc_url( $checkout ); ?>"
 			data-pricing="<?php echo esc_attr( wp_json_encode( $pricing ) ); ?>"
 			data-currency="<?php echo esc_attr( wp_json_encode( $currency ) ); ?>"
 		>
+			<?php if ( function_exists( 'wc_print_notices' ) ) : ?>
+				<div class="vila-cb-mb__notices">
+					<?php wc_print_notices(); ?>
+				</div>
+			<?php endif; ?>
 			<div class="vila-cb-gr__intro">
 				<p class="vila-cb__hint"><?php esc_html_e( 'Book breakfast and weekday dinners for your stay — find your campsite booking to pre-fill dates, or book meals on their own.', 'vila-campsite-booking' ); ?></p>
 			</div>
@@ -468,10 +476,12 @@ class Shortcode {
 				<button type="button" class="vila-cb-gr__manual" data-vila-mb-standalone><?php esc_html_e( 'Book meals without a campsite booking', 'vila-campsite-booking' ); ?></button>
 			</section>
 
-			<form class="vila-cb-gr__form" method="post" action="<?php echo esc_url( $action ); ?>" data-vila-mb-form hidden>
+			<form class="vila-cb-gr__form" method="post" action="<?php echo $action; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" data-vila-mb-form hidden>
 				<?php wp_nonce_field( 'vila_meal_booking', 'vila_meal_booking_nonce' ); ?>
 				<input type="hidden" name="add-to-cart" value="<?php echo esc_attr( (string) $product_id ); ?>" />
 				<input type="hidden" name="quantity" value="1" />
+				<div data-vila-mb-hidden-breakfast></div>
+				<div data-vila-mb-hidden-dinner></div>
 				<input type="hidden" name="vila_meal_booking_id" value="0" data-vila-mb-booking-id />
 				<input type="hidden" name="vila_meal_order_id" value="0" data-vila-mb-order-id />
 
@@ -545,6 +555,29 @@ class Shortcode {
 	}
 
 	/**
+	 * POST target for the meal form: stay on the public book-meals page, not the hidden WC product.
+	 *
+	 * @return string
+	 */
+	private static function meal_booking_form_action_url() {
+		$page_id = (int) get_queried_object_id();
+		if ( $page_id > 0 && 'page' === get_post_type( $page_id ) ) {
+			$url = get_permalink( $page_id );
+			if ( is_string( $url ) && '' !== $url ) {
+				return $url;
+			}
+		}
+		$meal_page = Install::get_meal_booking_page_id();
+		if ( $meal_page > 0 ) {
+			$url = get_permalink( $meal_page );
+			if ( is_string( $url ) && '' !== $url ) {
+				return $url;
+			}
+		}
+		return '';
+	}
+
+	/**
 	 * Human-readable per-person meal rates for the booking form.
 	 *
 	 * @param string               $slug    breakfast|dinner.
@@ -569,17 +602,9 @@ class Shortcode {
 			}
 			return '€' . number_format( $n, 2, ',', '' );
 		};
-		if ( 'dinner' === $slug ) {
-			return sprintf(
-				/* translators: 1: adult price, 2: child price */
-				__( 'Adults %1$s · Kids %2$s · Under 2 free', 'vila-campsite-booking' ),
-				$fmt( $adult ),
-				$fmt( $child )
-			);
-		}
 		return sprintf(
 			/* translators: 1: adult price, 2: child price */
-			__( 'Adults %1$s · Kids %2$s / day', 'vila-campsite-booking' ),
+			__( 'Adults %1$s · Kids %2$s · Under 2 free', 'vila-campsite-booking' ),
 			$fmt( $adult ),
 			$fmt( $child )
 		);

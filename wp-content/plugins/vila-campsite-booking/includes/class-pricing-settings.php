@@ -20,6 +20,10 @@ class Pricing_Settings {
 
 	const PRICING_SCHEMA_VERSION = '2026-05';
 
+	const VEHICLE_FEES_SCHEMA_VERSION_OPTION = 'vila_cb_vehicle_fees_schema_version';
+
+	const VEHICLE_FEES_SCHEMA_VERSION = '2026-07';
+
 	/**
 	 * Bootstrap hooks.
 	 */
@@ -50,8 +54,8 @@ class Pricing_Settings {
 				'pets'     => 2.0,
 			),
 			'vehicle_fees'    => array(
-				'tent'         => 0.0,
-				'caravan'      => 6.0,
+				'tent'         => 3.0,
+				'caravan'      => 5.0,
 				'camper'       => 6.0,
 				'electricity'  => 2.0,
 				'car'          => 2.0,
@@ -102,6 +106,29 @@ class Pricing_Settings {
 
 		update_option( self::OPTION_KEY, $cfg );
 		update_option( self::PRICING_SCHEMA_VERSION_OPTION, self::PRICING_SCHEMA_VERSION );
+	}
+
+	/**
+	 * One-time update: tent €3/night, caravan €5/night on saved Campsite → Settings extras.
+	 */
+	public static function migrate_vehicle_fees_tent_caravan() {
+		$ver = get_option( self::VEHICLE_FEES_SCHEMA_VERSION_OPTION, '' );
+		if ( is_string( $ver ) && version_compare( $ver, self::VEHICLE_FEES_SCHEMA_VERSION, '>=' ) ) {
+			return;
+		}
+
+		$cfg = get_option( self::OPTION_KEY, array() );
+		if ( ! is_array( $cfg ) ) {
+			$cfg = array();
+		}
+		if ( ! isset( $cfg['vehicle_fees'] ) || ! is_array( $cfg['vehicle_fees'] ) ) {
+			$cfg['vehicle_fees'] = array();
+		}
+		$cfg['vehicle_fees']['tent']    = 3.0;
+		$cfg['vehicle_fees']['caravan'] = 5.0;
+
+		update_option( self::OPTION_KEY, $cfg );
+		update_option( self::VEHICLE_FEES_SCHEMA_VERSION_OPTION, self::VEHICLE_FEES_SCHEMA_VERSION );
 	}
 
 	/**

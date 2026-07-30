@@ -616,7 +616,16 @@ function vila_akoya_campsite_add_to_cart_redirect_checkout( $url, $product = nul
 		$pid = vila_akoya_add_to_cart_request_product_id();
 	}
 	$passthrough = is_string( $url ) ? $url : (string) ( $url ?? '' );
-	if ( ! $pid || ! vila_akoya_is_campsite_product_id( $pid ) ) {
+	if ( ! $pid ) {
+		return $passthrough;
+	}
+	if ( class_exists( '\Vila_CB\Meal_Booking' ) && \Vila_CB\Meal_Booking::is_meals_product( $pid ) ) {
+		if ( wc_get_page_id( 'checkout' ) <= 0 ) {
+			return $passthrough;
+		}
+		return wc_get_checkout_url();
+	}
+	if ( ! vila_akoya_is_campsite_product_id( $pid ) ) {
 		return $passthrough;
 	}
 	if ( wc_get_page_id( 'checkout' ) <= 0 ) {

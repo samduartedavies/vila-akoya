@@ -36,7 +36,11 @@ class Meal_Booking {
 		add_action( 'woocommerce_order_status_on-hold', array( __CLASS__, 'on_order_paid' ), 20, 1 );
 		add_filter( 'woocommerce_hidden_order_itemmeta', array( __CLASS__, 'hidden_order_itemmeta' ), 20, 1 );
 		add_filter( 'woocommerce_is_purchasable', array( __CLASS__, 'force_purchasable' ), 10, 2 );
-		add_filter( 'woocommerce_add_to_cart_redirect', array( __CLASS__, 'redirect_to_checkout' ), 20, 1 );
+		add_filter( 'woocommerce_add_to_cart_redirect', array( __CLASS__, 'redirect_to_checkout' ), 100, 1 );
+		add_action( 'woocommerce_add_to_cart', array( __CLASS__, 'redirect_after_meal_added_to_cart' ), 20, 6 );
+		add_action( 'wp_loaded', array( __CLASS__, 'maybe_redirect_meal_booking_to_checkout' ), 25 );
+		add_filter( 'woocommerce_cart_redirect_after_error', array( __CLASS__, 'redirect_meal_errors_to_booking_page' ), 10, 1 );
+		add_action( 'template_redirect', array( __CLASS__, 'redirect_public_meals_product_page' ), 5 );
 	}
 
 	/**
@@ -84,6 +88,7 @@ class Meal_Booking {
 		}
 		$existing = self::get_product_id();
 		if ( $existing > 0 ) {
+			self::sync_product_settings( $existing );
 			return $existing;
 		}
 
@@ -107,6 +112,55 @@ class Meal_Booking {
 	}
 
 	/**
+	 * Keep the hidden meals checkout product out of the shop and at price 0.
+	 *
+	 * @param int $product_id Product ID.
+	 */
+	private static function sync_product_settings( $product_id ) {
+		$product = wc_get_product( (int) $product_id );
+		if ( ! $product ) {
+			return;
+		}
+		$changed = false;
+		if ( 'hidden' !== $product->get_catalog_visibility() ) {
+			$product->set_catalog_visibility( 'hidden' );
+			$changed = true;
+		}
+		if ( (float) $product->get_price() !== 0.0 ) {
+			$product->set_price( 0 );
+			$changed = true;
+		}
+		if ( (float) $product->get_regular_price() !== 0.0 ) {
+			$product->set_regular_price( 0 );
+			$changed = true;
+		}
+		if ( $changed ) {
+			$product->save();
+		}
+	}
+
+	/**
+	 * Guests should use /book-meals/, not the internal WC product page.
+	 */
+	public static function redirect_public_meals_product_page() {
+		if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+			return;
+		}
+		if ( isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === strtoupper( (string) $_SERVER['REQUEST_METHOD'] ) ) {
+			return;
+		}
+		$product_id = (int) get_queried_object_id();
+		if ( ! self::is_meals_product( $product_id ) ) {
+			return;
+		}
+		$page_id = Install::get_meal_booking_page_id();
+		if ( $page_id > 0 ) {
+			wp_safe_redirect( get_permalink( $page_id ) );
+			exit;
+		}
+	}
+
+	/**
 	 * Keep the hidden meals product buyable even at price 0.
 	 *
 	 * @param bool        $purchasable Purchasable.
@@ -127,6 +181,9 @@ class Meal_Booking {
 	 * @return string
 	 */
 	public static function redirect_to_checkout( $url ) {
+		if ( self::is_meal_booking_post_request() ) {
+			return function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : $url;
+		}
 		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
 			return $url;
 		}
@@ -137,6 +194,132 @@ class Meal_Booking {
 			}
 		}
 		return $url;
+	}
+
+	/**
+	 * Immediately send meal bookings to checkout once the cart line is created.
+	 *
+	 * @param string               $cart_item_key  Cart item key.
+	 * @param int                  $product_id     Product ID.
+	 * @param int                  $quantity       Quantity.
+	 * @param int                  $variation_id   Variation ID.
+	 * @param array<string, mixed> $variation      Variation data.
+	 * @param array<string, mixed> $cart_item_data Cart item data.
+	 */
+	public static function redirect_after_meal_added_to_cart( $cart_item_key, $product_id, $quantity, $variation_id = 0, $variation = array(), $cart_item_data = array() ) {
+		unset( $quantity, $variation_id, $variation );
+		if ( ! self::is_meals_product( (int) $product_id ) || ! self::is_meal_booking_post_request() ) {
+			return;
+		}
+		$purchase = self::resolve_cart_purchase_payload( $cart_item_key, $cart_item_data );
+		if ( ! $purchase ) {
+			if ( function_exists( 'WC' ) && WC()->cart && $cart_item_key ) {
+				WC()->cart->remove_cart_item( $cart_item_key );
+			}
+			wc_add_notice( __( 'Meal booking could not be added. Please select dates and try again.', 'vila-campsite-booking' ), 'error' );
+			return;
+		}
+		self::redirect_to_checkout_now();
+	}
+
+	/**
+	 * Fallback after WC_Form_Handler::add_to_cart_action (wp_loaded priority 20).
+	 */
+	public static function maybe_redirect_meal_booking_to_checkout() {
+		if ( ! self::is_meal_booking_post_request() ) {
+			return;
+		}
+		if ( ! isset( $_REQUEST['add-to-cart'] ) ) {
+			return;
+		}
+		$product_id = absint( wp_unslash( Request_String::scalar( $_REQUEST['add-to-cart'] ) ) );
+		if ( ! self::is_meals_product( $product_id ) ) {
+			return;
+		}
+		if ( self::cart_has_valid_meal_line() ) {
+			self::redirect_to_checkout_now();
+		}
+	}
+
+	/**
+	 * Failed meal add-to-cart should return to /book-meals/, not the hidden product page.
+	 *
+	 * @param string $url Redirect URL.
+	 * @return string
+	 */
+	public static function redirect_meal_errors_to_booking_page( $url ) {
+		if ( ! self::is_meal_booking_post_request() ) {
+			return $url;
+		}
+		$page_id = Install::get_meal_booking_page_id();
+		if ( $page_id > 0 ) {
+			$meal_url = get_permalink( $page_id );
+			if ( is_string( $meal_url ) && '' !== $meal_url ) {
+				return $meal_url;
+			}
+		}
+		return $url;
+	}
+
+	/**
+	 * @param string               $cart_item_key  Cart item key.
+	 * @param array<string, mixed> $cart_item_data Data passed to the add-to-cart hook (may be empty).
+	 * @return array<string, mixed>|null
+	 */
+	private static function resolve_cart_purchase_payload( $cart_item_key, $cart_item_data ) {
+		if ( is_array( $cart_item_data ) && ! empty( $cart_item_data[ self::CART_KEY ] ) && is_array( $cart_item_data[ self::CART_KEY ] ) ) {
+			return $cart_item_data[ self::CART_KEY ];
+		}
+		if ( function_exists( 'WC' ) && WC()->cart && is_string( $cart_item_key ) && '' !== $cart_item_key ) {
+			$line = WC()->cart->get_cart_item( $cart_item_key );
+			if ( is_array( $line ) && ! empty( $line[ self::CART_KEY ] ) && is_array( $line[ self::CART_KEY ] ) ) {
+				return $line[ self::CART_KEY ];
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @return bool
+	 */
+	private static function cart_has_valid_meal_line() {
+		if ( ! function_exists( 'WC' ) || ! WC()->cart || WC()->cart->is_empty() ) {
+			return false;
+		}
+		foreach ( WC()->cart->get_cart() as $item ) {
+			$pid = isset( $item['product_id'] ) ? (int) $item['product_id'] : 0;
+			if ( self::is_meals_product( $pid ) && ! empty( $item[ self::CART_KEY ] ) && is_array( $item[ self::CART_KEY ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Send the browser to checkout (no-op if checkout URL unavailable).
+	 */
+	private static function redirect_to_checkout_now() {
+		if ( ! function_exists( 'wc_get_checkout_url' ) ) {
+			return;
+		}
+		$checkout = wc_get_checkout_url();
+		if ( is_string( $checkout ) && '' !== $checkout ) {
+			wp_safe_redirect( $checkout );
+			exit;
+		}
+	}
+
+	/**
+	 * @return bool
+	 */
+	private static function is_meal_booking_post_request() {
+		if ( ! isset( $_POST['vila_meal_booking_nonce'] ) ) {
+			return false;
+		}
+		return (bool) wp_verify_nonce(
+			sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_meal_booking_nonce'] ) ) ),
+			'vila_meal_booking'
+		);
 	}
 
 	/**
@@ -291,8 +474,12 @@ class Meal_Booking {
 		if ( ! $passed || ! self::is_meals_product( (int) $product_id ) ) {
 			return $passed;
 		}
-		if ( ! isset( $_POST['vila_meal_booking_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['vila_meal_booking_nonce'] ) ) ), 'vila_meal_booking' ) ) {
-			wc_add_notice( __( 'Security check failed. Please reload and try again.', 'vila-campsite-booking' ), 'error' );
+		// Block the bare hidden product page "Add to cart" (shop managers can still open the product URL).
+		if ( ! self::is_meal_booking_post_request() ) {
+			wc_add_notice(
+				__( 'Please book meals using the form on the Book meals page.', 'vila-campsite-booking' ),
+				'error'
+			);
 			return false;
 		}
 		self::remove_meal_items_from_cart();

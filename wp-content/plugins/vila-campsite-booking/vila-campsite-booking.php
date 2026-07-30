@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Vila Campsite Booking
  * Description: Multi-plot campsite inventory with WooCommerce checkout, Airbnb-style booking UI, and operations dashboard.
- * Version: 1.1.7
+ * Version: 1.3.3
  * Author: Vila Akoya
  * Text Domain: vila-campsite-booking
  * Requires at least: 6.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_CB_VERSION', '1.2.7' );
+define( 'VILA_CB_VERSION', '1.3.3' );
 define( 'VILA_CB_FILE', __FILE__ );
 define( 'VILA_CB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VILA_CB_URL', plugin_dir_url( __FILE__ ) );
@@ -52,6 +52,9 @@ require_once VILA_CB_DIR . 'includes/class-admin-guest-registrations.php';
 require_once VILA_CB_DIR . 'includes/class-pricing-settings.php';
 require_once VILA_CB_DIR . 'includes/class-shortcode.php';
 
+add_action( 'init', array( 'Vila_CB\\Install', 'ensure_public_pages_now' ), 21 );
+add_action( 'plugins_loaded', array( 'Vila_CB\\Install', 'init' ), 1 );
+
 /**
  * Warn if WooCommerce is missing (plugin still shows under Plugins).
  */
@@ -81,6 +84,7 @@ function vila_cb_bootstrap() {
 	Vila_CB\Install::maybe_upgrade();
 	Vila_CB\Pricing_Settings::migrate_legacy_pricing_option();
 	Vila_CB\Pricing_Settings::migrate_pricing_rates_2026();
+	Vila_CB\Pricing_Settings::migrate_vehicle_fees_tent_caravan();
 	Vila_CB\Pricing_Settings::init();
 	Vila_CB\Meal_Booking::init();
 	Vila_CB\WooCommerce_Integration::init();

@@ -776,8 +776,45 @@ class Admin {
 		$prev = ( clone $base )->modify( '-1 day' )->format( 'Y-m-d' );
 		$nxt  = ( clone $base )->modify( '+1 day' )->format( 'Y-m-d' );
 
+		$meal_page_id = Install::get_meal_booking_page_id();
+		$show_deploy  = ! Install::meals_module_available() || $meal_page_id <= 0;
+
 		?>
 		<div class="wrap vila-cb-admin vila-cb-overview">
+			<?php if ( $show_deploy ) : ?>
+				<div class="notice notice-warning" style="margin:12px 0 0;">
+					<p>
+						<strong><?php esc_html_e( 'Meals module', 'vila-campsite-booking' ); ?></strong>
+						<?php
+						echo ' · ';
+						echo esc_html(
+							sprintf(
+								/* translators: %s: plugin version */
+								__( 'Plugin build %s', 'vila-campsite-booking' ),
+								defined( 'VILA_CB_VERSION' ) ? (string) VILA_CB_VERSION : '?'
+							)
+						);
+						echo ' · ';
+						echo Install::meals_module_available()
+							? esc_html__( 'code loaded', 'vila-campsite-booking' )
+							: esc_html__( 'code missing on server — re-upload the full plugin folder', 'vila-campsite-booking' );
+						if ( $meal_page_id <= 0 ) {
+							echo ' · ';
+							echo esc_html__( 'book-meals page missing', 'vila-campsite-booking' );
+							echo ' — ';
+							echo '<a href="' . esc_url( wp_nonce_url( admin_url( 'admin.php?vila_cb_create_public_pages=1' ), 'vila_cb_create_public_pages' ) ) . '">';
+							esc_html_e( 'Create pages now', 'vila-campsite-booking' );
+							echo '</a>';
+						} elseif ( Install::meals_module_available() ) {
+							echo ' · ';
+							echo '<a href="' . esc_url( admin_url( 'admin.php?page=' . self::PAGE_MEALS ) ) . '">';
+							esc_html_e( 'Open Campsite · Meals', 'vila-campsite-booking' );
+							echo '</a>';
+						}
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
 			<div class="vila-cb-ui-hero">
 				<div class="vila-cb-ui-hero__text">
 					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Overview', 'vila-campsite-booking' ); ?></h1>
@@ -2024,6 +2061,9 @@ class Admin {
 			<?php if ( isset( $_GET['updated'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'vila-campsite-booking' ); ?></p></div>
 			<?php endif; ?>
+			<?php if ( isset( $_GET['vila_cb_pages_created'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Guest and meal pages were created (or refreshed).', 'vila-campsite-booking' ); ?></p></div>
+			<?php endif; ?>
 			<div class="vila-cb-ui-hero">
 				<div class="vila-cb-ui-hero__text">
 					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Settings', 'vila-campsite-booking' ); ?></h1>
@@ -2061,6 +2101,7 @@ class Admin {
 				<div class="vila-cb-ui-panel">
 					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'SIBA export', 'vila-campsite-booking' ); ?></h2>
 					<p class="description"><?php esc_html_e( 'These fields build the BA03 header for SIBA DAT file uploads. Match the details issued by SIBA for the accommodation unit.', 'vila-campsite-booking' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Establishment number is the 4-digit código de estabelecimento from the SIBA portal technical sheet (not the activation key).', 'vila-campsite-booking' ); ?></p>
 					<table class="form-table vila-cb-ui-form-table" role="presentation">
 						<tr>
 							<th scope="row"><label for="vila_cb_siba_nif"><?php esc_html_e( 'NIF', 'vila-campsite-booking' ); ?></label></th>
@@ -2136,7 +2177,7 @@ class Admin {
 						</tr>
 					</table>
 					<h3 class="vila-cb-ui-section-title" style="margin-top:1.5em;font-size:14px;"><?php esc_html_e( 'Extras', 'vila-campsite-booking' ); ?></h3>
-					<p class="description"><?php esc_html_e( 'Per-night amounts for each option on the booking form (pitch type, electricity, car, etc.). Selected lines add together. Tent is usually 0.', 'vila-campsite-booking' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Per-night amounts for each option on the booking form (pitch type, electricity, car, etc.). Selected lines add together.', 'vila-campsite-booking' ); ?></p>
 					<table class="form-table vila-cb-ui-form-table" role="presentation">
 						<?php
 						$vlabels = array();
@@ -2211,14 +2252,27 @@ class Admin {
 				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Add this shortcode to a guest-facing page where people can search their booking or enter stay details manually for SIBA registration.', 'vila-campsite-booking' ); ?></p>
 				<p class="vila-cb-ui-code-wrap" style="margin-top:14px;"><code class="vila-cb-ui-code">[vila_meal_booking]</code></p>
 				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Guest page to book and pay for breakfast/dinner — link to an existing stay or book meals as a walk-in.', 'vila-campsite-booking' ); ?></p>
+				<p class="description vila-cb-ui-footnote">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: %s: plugin version */
+							__( 'Plugin build: %s', 'vila-campsite-booking' ),
+							defined( 'VILA_CB_VERSION' ) ? (string) VILA_CB_VERSION : '?'
+						)
+					);
+					echo ' · ';
+					echo Install::meals_module_available()
+						? esc_html__( 'Meals module: loaded', 'vila-campsite-booking' )
+						: esc_html__( 'Meals module: missing — re-upload the full plugin folder', 'vila-campsite-booking' );
+					?>
+				</p>
 				<?php
+				Install::ensure_public_pages_now();
 				$guest_page = (int) get_option( Install::OPTION_GUEST_REGISTRATION_PAGE_ID, 0 );
-				if ( ! $guest_page ) {
-					$guest_page = Install::ensure_guest_registration_page();
-				}
-				$meal_page = (int) get_option( Install::OPTION_MEAL_BOOKING_PAGE_ID, 0 );
+				$meal_page  = Install::get_meal_booking_page_id();
 				if ( ! $meal_page ) {
-					$meal_page = Install::ensure_meal_booking_page();
+					$meal_page = (int) Install::ensure_meal_booking_page();
 				}
 				if ( $guest_page ) :
 					?>
@@ -2229,6 +2283,11 @@ class Admin {
 				<?php if ( $meal_page ) : ?>
 					<p class="description vila-cb-ui-footnote">
 						<a href="<?php echo esc_url( get_permalink( $meal_page ) ); ?>" target="_blank" rel="noreferrer"><?php esc_html_e( 'Open meal booking page', 'vila-campsite-booking' ); ?></a>
+					</p>
+				<?php else : ?>
+					<p class="description vila-cb-ui-footnote" style="color:#b00020;">
+						<?php esc_html_e( 'Book meals page not found.', 'vila-campsite-booking' ); ?>
+						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?vila_cb_create_public_pages=1' ), 'vila_cb_create_public_pages' ) ); ?>"><?php esc_html_e( 'Create it now', 'vila-campsite-booking' ); ?></a>
 					</p>
 				<?php endif; ?>
 			</div>

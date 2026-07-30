@@ -29,6 +29,114 @@ class Install {
 		update_option( self::OPTION_DB_VERSION, '1.1.2' );
 	}
 
+	public static function init() {
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
+		add_action( 'admin_init', array( __CLASS__, 'handle_force_public_pages' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'maybe_admin_deploy_notice' ) );
+	}
+
+	/**
+	 * Whether meal booking PHP files exist in this plugin directory.
+	 *
+	 * @return bool
+	 */
+	public static function meals_files_present() {
+		return is_readable( VILA_CB_DIR . 'includes/class-meal-booking.php' )
+			&& is_readable( VILA_CB_DIR . 'includes/class-meal-plan-service.php' )
+			&& is_readable( VILA_CB_DIR . 'assets/js/meal-booking.js' );
+	}
+
+	/**
+	 * Whether meal booking PHP (admin calendar + guest form) is present in this plugin build.
+	 *
+	 * @return bool
+	 */
+	public static function meals_module_available() {
+		return self::meals_files_present()
+			&& class_exists( Meal_Plan_Service::class )
+			&& class_exists( Meal_Booking::class )
+			&& method_exists( Admin::class, 'render_meals' );
+	}
+
+	/**
+	 * Warn when an old plugin copy is deployed (meals code missing).
+	 */
+	public static function maybe_admin_deploy_notice() {
+		if ( ! is_admin() || ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( ! self::meals_files_present() ) {
+			echo '<div class="notice notice-error"><p>';
+			echo esc_html__(
+				'Vila Campsite Booking on this server is missing the meals module files. Re-upload the full wp-content/plugins/vila-campsite-booking folder (include class-meal-booking.php and class-meal-plan-service.php), then deactivate and reactivate the plugin.',
+				'vila-campsite-booking'
+			);
+			echo ' <strong>' . esc_html(
+				sprintf(
+					/* translators: %s: plugin version constant */
+					__( 'Installed build: %s', 'vila-campsite-booking' ),
+					defined( 'VILA_CB_VERSION' ) ? (string) VILA_CB_VERSION : '?'
+				)
+			) . '</strong>';
+			echo '</p></div>';
+		}
+	}
+
+	/**
+	 * Admin ?vila_cb_create_public_pages=1 — force-create guest / meal pages.
+	 */
+	public static function handle_force_public_pages() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( empty( $_GET['vila_cb_create_public_pages'] ) ) {
+			return;
+		}
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( Request_String::scalar( $_GET['_wpnonce'] ) ) ), 'vila_cb_create_public_pages' ) ) {
+			return;
+		}
+		self::ensure_meal_booking_page();
+		self::ensure_guest_registration_page();
+		if ( function_exists( 'flush_rewrite_rules' ) ) {
+			flush_rewrite_rules( false );
+		}
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'                    => Admin::PAGE_SETTINGS,
+					'vila_cb_pages_created'   => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * @return int
+	 */
+	private static function default_page_author_id() {
+		$uid = (int) get_current_user_id();
+		if ( $uid > 0 ) {
+			return $uid;
+		}
+		$admins = get_users(
+			array(
+				'role'   => 'administrator',
+				'number' => 1,
+				'fields' => array( 'ID' ),
+			)
+		);
+		if ( ! empty( $admins[0]->ID ) ) {
+			return (int) $admins[0]->ID;
+		}
+		return 1;
+	}
+
 	/**
 	 * Run on plugins_loaded if version changed.
 	 */
@@ -44,6 +152,69 @@ class Install {
 			self::maybe_schedule_meal_booking_page();
 			update_option( self::OPTION_DB_VERSION, '1.1.2' );
 		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.1.3', '<' ) ) {
+			Guest_Registration_Exporter::seed_siba_settings();
+			update_option( self::OPTION_DB_VERSION, '1.1.3' );
+		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.1.4', '<' ) ) {
+			Guest_Registration_Exporter::apply_siba_prefill( true );
+			update_option( self::OPTION_DB_VERSION, '1.1.4' );
+		}
+		self::schedule_public_pages_check();
+	}
+
+	/**
+	 * Idempotent: create guest-registration / book-meals pages when missing (e.g. file-only deploys).
+	 */
+	public static function ensure_public_pages() {
+		self::schedule_public_pages_check();
+	}
+
+	/**
+	 * Run page checks on init so wp_insert_post / permalinks are ready.
+	 */
+	private static function schedule_public_pages_check() {
+		static $scheduled = false;
+		if ( $scheduled ) {
+			return;
+		}
+		$scheduled = true;
+		if ( did_action( 'init' ) ) {
+			self::ensure_public_pages_now();
+			return;
+		}
+		add_action( 'init', array( __CLASS__, 'ensure_public_pages_now' ), 21 );
+	}
+
+	/**
+	 * Create missing shortcode pages and sync stored page IDs.
+	 */
+	public static function ensure_public_pages_now() {
+		if ( ! self::is_public_page_valid( self::OPTION_MEAL_BOOKING_PAGE_ID, 'book-meals', '[vila_meal_booking]' ) ) {
+			self::ensure_meal_booking_page();
+		}
+		if ( ! self::is_public_page_valid( self::OPTION_GUEST_REGISTRATION_PAGE_ID, 'guest-registration', '[vila_guest_registration]' ) ) {
+			self::ensure_guest_registration_page();
+		}
+	}
+
+	/**
+	 * @param string $option_key   Option storing page ID.
+	 * @param string $slug         Expected page slug.
+	 * @param string $shortcode_snippet Shortcode substring that must appear in content.
+	 * @return bool
+	 */
+	private static function is_public_page_valid( $option_key, $slug, $shortcode_snippet ) {
+		$id = (int) get_option( $option_key, 0 );
+		if ( $id > 0 ) {
+			$post = get_post( $id );
+			if ( $post instanceof \WP_Post && 'page' === $post->post_type && 'publish' === $post->post_status ) {
+				return false !== strpos( (string) $post->post_content, $shortcode_snippet );
+			}
+		}
+		$existing = get_page_by_path( $slug, OBJECT, 'page' );
+		return $existing instanceof \WP_Post && 'publish' === $existing->post_status
+			&& false !== strpos( (string) $existing->post_content, $shortcode_snippet );
 	}
 
 	/**
@@ -97,6 +268,7 @@ class Install {
 				'post_name'    => $slug,
 				'post_status'  => 'publish',
 				'post_type'    => 'page',
+				'post_author'  => self::default_page_author_id(),
 				'post_content' => $content,
 			),
 			true
@@ -154,6 +326,7 @@ class Install {
 				'post_name'    => $slug,
 				'post_status'  => 'publish',
 				'post_type'    => 'page',
+				'post_author'  => self::default_page_author_id(),
 				'post_content' => $content,
 			),
 			true
@@ -164,7 +337,27 @@ class Install {
 		}
 
 		update_option( self::OPTION_MEAL_BOOKING_PAGE_ID, (int) $page_id );
+		if ( function_exists( 'flush_rewrite_rules' ) ) {
+			flush_rewrite_rules( false );
+		}
 		return (int) $page_id;
+	}
+
+	/**
+	 * Resolve published meal booking page ID (0 if missing).
+	 *
+	 * @return int
+	 */
+	public static function get_meal_booking_page_id() {
+		if ( self::is_public_page_valid( self::OPTION_MEAL_BOOKING_PAGE_ID, 'book-meals', '[vila_meal_booking]' ) ) {
+			$id = (int) get_option( self::OPTION_MEAL_BOOKING_PAGE_ID, 0 );
+			if ( $id > 0 && 'publish' === get_post_status( $id ) ) {
+				return $id;
+			}
+			$existing = get_page_by_path( 'book-meals', OBJECT, 'page' );
+			return $existing instanceof \WP_Post ? (int) $existing->ID : 0;
+		}
+		return 0;
 	}
 
 	/**

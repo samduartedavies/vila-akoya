@@ -463,6 +463,16 @@
 }
 
 /* Meal booking */
+.vila-cb-mb__notices {
+  margin-bottom: 16px;
+}
+
+.vila-cb-mb__notices .woocommerce-error,
+.vila-cb-mb__notices .woocommerce-message,
+.vila-cb-mb__notices .woocommerce-info {
+  margin: 0 0 10px;
+}
+
 .vila-cb-mb__guests {
   display: flex;
   flex-direction: column;

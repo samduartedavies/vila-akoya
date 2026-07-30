@@ -557,6 +557,35 @@
         });
     });
 
+    function syncDateHiddenInputs() {
+      var breakfastHidden = qs(form, '[data-vila-mb-hidden-breakfast]');
+      var dinnerHidden = qs(form, '[data-vila-mb-hidden-dinner]');
+      if (breakfastHidden) {
+        breakfastHidden.innerHTML = '';
+        Object.keys(breakfastSet)
+          .sort()
+          .forEach(function (ymd) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'vila_meal_breakfast_dates[]';
+            input.value = ymd;
+            breakfastHidden.appendChild(input);
+          });
+      }
+      if (dinnerHidden) {
+        dinnerHidden.innerHTML = '';
+        Object.keys(dinnerSet)
+          .sort()
+          .forEach(function (ymd) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'vila_meal_dinner_dates[]';
+            input.value = ymd;
+            dinnerHidden.appendChild(input);
+          });
+      }
+    }
+
     form.addEventListener('submit', function (e) {
       var name = (qs(root, '[data-vila-mb-name]').value || '').trim();
       if (!name) {
@@ -575,6 +604,7 @@
         return;
       }
       syncCountInputs();
+      syncDateHiddenInputs();
     });
 
     syncCountInputs();
