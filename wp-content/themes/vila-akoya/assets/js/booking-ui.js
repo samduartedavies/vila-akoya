@@ -339,6 +339,24 @@
     );
   }
 
+  function vilaMealBundleLabel(slugs, S) {
+    if (!slugs || !slugs.length) {
+      return '';
+    }
+    var hasBreakfast = slugs.indexOf('breakfast') !== -1;
+    var hasDinner = slugs.indexOf('dinner') !== -1;
+    if (hasBreakfast && hasDinner) {
+      return S.mealBundleBoth || 'Campsite stay with breakfast & weekday dinner included';
+    }
+    if (hasBreakfast) {
+      return S.mealBundleBreakfast || 'Campsite stay with breakfast included';
+    }
+    if (hasDinner) {
+      return S.mealBundleDinner || 'Campsite stay with weekday dinner included';
+    }
+    return '';
+  }
+
   // Build + inject the breakdown. Mirrors vila_akoya_mbfw_expand_booking_charge_breakdown().
   function renderLiveBill() {
     if (!vilaPricingReady()) {
@@ -366,11 +384,45 @@
 
     var unit = P.adultPerNight;
     var pitchValue = P.perPerson ? unit * adults * nights : unit * nights;
-    total += pitchValue;
     var pitchTitle = P.perPerson
       ? vilaSprintf(S.plotRatePerPerson, adults, vilaFormatPricePlain(unit), nights, nightWord)
       : vilaSprintf(S.plotRateFlat, vilaFormatPricePlain(unit), nights, nightWord);
-    rows.push(liveBillRow(pitchTitle, pitchValue));
+
+    var weekdayNights = getWeekdayNights();
+    var mealSlugs = [];
+    var mealTotal = 0;
+    if (P.mealFees) {
+      $('input[name="vila_meal_options[]"]:checked').each(function () {
+        var slug = this.value;
+        var info = P.mealFees[slug];
+        if (!info) {
+          return;
+        }
+        var days = info.dayMode === 'weekdays' ? weekdayNights : nights;
+        if (days < 1) {
+          return;
+        }
+        var lineValue =
+          (adults * (info.adultFee || 0) + children * (info.childFee || 0) + infants * (info.infantFee || 0)) * days;
+        if (lineValue <= 0) {
+          return;
+        }
+        mealSlugs.push(slug);
+        mealTotal += lineValue;
+      });
+    }
+    var bundleTitle = vilaMealBundleLabel(mealSlugs, S);
+    if (bundleTitle && mealTotal > 0) {
+      rows.push(liveBillRow(bundleTitle, pitchValue + mealTotal));
+      total += pitchValue + mealTotal;
+    } else {
+      rows.push(liveBillRow(pitchTitle, pitchValue));
+      total += pitchValue;
+      if (mealTotal > 0) {
+        rows.push(liveBillRow('Meals included', mealTotal));
+        total += mealTotal;
+      }
+    }
 
     $('input[name="vila_vehicle_types[]"]:checked').each(function () {
       var slug = this.value;
@@ -400,42 +452,6 @@
       var petVal = pets * P.guestRates.pets * nights;
       total += petVal;
       rows.push(liveBillRow(vilaSprintf(S.pets, pets, vilaFormatPricePlain(P.guestRates.pets), nights, nightWord), petVal));
-    }
-
-    var weekdayNights = getWeekdayNights();
-    var daySingular = S.daySingular || 'day';
-    var dayPlural = S.dayPlural || 'days';
-    if (P.mealFees) {
-      $('input[name="vila_meal_options[]"]:checked').each(function () {
-        var slug = this.value;
-        var info = P.mealFees[slug];
-        if (!info) {
-          return;
-        }
-        var days = info.dayMode === 'weekdays' ? weekdayNights : nights;
-        if (days < 1) {
-          return;
-        }
-        var lineValue =
-          (adults * (info.adultFee || 0) + children * (info.childFee || 0) + infants * (info.infantFee || 0)) * days;
-        if (lineValue <= 0) {
-          return;
-        }
-        total += lineValue;
-        var parts = [];
-        if (adults > 0 && info.adultFee > 0 && S.mealAdults) {
-          parts.push(vilaSprintf(S.mealAdults, adults, vilaFormatPricePlain(info.adultFee)));
-        }
-        if (children > 0 && info.childFee > 0 && S.mealKids) {
-          parts.push(vilaSprintf(S.mealKids, children, vilaFormatPricePlain(info.childFee)));
-        }
-        var peopleBit = parts.length ? parts.join(' + ') : vilaFormatPricePlain(0);
-        var dayWord = days === 1 ? daySingular : dayPlural;
-        var title = S.mealLine
-          ? vilaSprintf(S.mealLine, info.label, peopleBit, days, dayWord)
-          : info.label;
-        rows.push(liveBillRow(title, lineValue));
-      });
     }
 
     var html =

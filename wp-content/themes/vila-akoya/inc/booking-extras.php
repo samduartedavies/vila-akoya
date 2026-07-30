@@ -312,6 +312,79 @@ function vila_akoya_meal_labels_join( array $slugs ) {
 }
 
 /**
+ * Guest-facing bundled stay title when meals are included with a campsite booking.
+ *
+ * @param string[] $slugs Normalized meal slugs.
+ * @return string Empty when no meals.
+ */
+function vila_akoya_meal_bundle_label( array $slugs ) {
+	$slugs = vila_akoya_normalize_meal_options_array( $slugs );
+	if ( empty( $slugs ) ) {
+		return '';
+	}
+	$has_breakfast = in_array( 'breakfast', $slugs, true );
+	$has_dinner    = in_array( 'dinner', $slugs, true );
+	if ( $has_breakfast && $has_dinner ) {
+		return __( 'Campsite stay with breakfast & weekday dinner included', 'vila-akoya' );
+	}
+	if ( $has_breakfast ) {
+		return __( 'Campsite stay with breakfast included', 'vila-akoya' );
+	}
+	if ( $has_dinner ) {
+		return __( 'Campsite stay with weekday dinner included', 'vila-akoya' );
+	}
+	return '';
+}
+
+/**
+ * Total meal add-on cost for a campsite cart line (not itemised as separate fees).
+ *
+ * @param array<string, mixed> $cart_item Cart row.
+ * @return float
+ */
+function vila_akoya_cart_meal_total_for_line( array $cart_item ) {
+	$meals = vila_akoya_cart_meal_options( $cart_item );
+	if ( empty( $meals ) ) {
+		return 0.0;
+	}
+	$catalog        = vila_akoya_get_meal_options();
+	$nights         = vila_akoya_cart_nights_for_line( $cart_item );
+	$weekday_nights = vila_akoya_cart_weekday_nights_for_line( $cart_item );
+	$adults         = vila_akoya_cart_people_for_line( $cart_item );
+	$children       = isset( $cart_item['vila_guest_children'] ) ? (int) $cart_item['vila_guest_children'] : 0;
+	$infants        = isset( $cart_item['vila_guest_infants'] ) ? (int) $cart_item['vila_guest_infants'] : 0;
+	$total          = 0.0;
+	foreach ( $meals as $slug ) {
+		if ( ! isset( $catalog[ $slug ] ) ) {
+			continue;
+		}
+		$days = vila_akoya_meal_days_for_option( $catalog[ $slug ], $nights, $weekday_nights );
+		$total += vila_akoya_meal_line_total( $catalog[ $slug ], $adults, $children, $infants, $days );
+	}
+	return (float) $total;
+}
+
+/**
+ * Whether an order fee row is a legacy itemised meal fee (pre-bundle receipts).
+ *
+ * @param string $name Fee name on the order.
+ * @return bool
+ */
+function vila_akoya_is_legacy_meal_fee_name( $name ) {
+	$name = (string) $name;
+	if ( '' === $name || 0 === strpos( $name, 'vila_meal_fee:' ) ) {
+		return '' !== $name;
+	}
+	foreach ( vila_akoya_get_meal_options() as $info ) {
+		$label = isset( $info['label'] ) ? (string) $info['label'] : '';
+		if ( '' !== $label && false !== strpos( $name, $label ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Count Mon–Fri nights between check-in (inclusive) and check-out (exclusive).
  *
  * @param DateTimeInterface $from Check-in.
@@ -866,57 +939,66 @@ add_action( 'woocommerce_cart_calculate_fees', 'vila_akoya_cart_guest_category_f
 
 
 /**
- * Per-person meal add-ons (breakfast every night; dinner Mon–Fri nights).
+ * Roll meal add-ons into the pitch line price so receipts show one bundled stay total.
+ *
+ * @param WC_Cart $cart Cart.
  */
-function vila_akoya_cart_meal_fees() {
+function vila_akoya_roll_meals_into_pitch_line_price( $cart ) {
 	if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
 		return;
 	}
-	if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+	if ( ! is_object( $cart ) || ! is_callable( array( $cart, 'get_cart' ) ) ) {
 		return;
 	}
-
-	$meal_catalog = vila_akoya_get_meal_options();
-
-	foreach ( WC()->cart->get_cart() as $cart_item ) {
-		if ( ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
+	foreach ( $cart->get_cart() as $cart_item ) {
+		if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
 			continue;
 		}
-		$meals = vila_akoya_cart_meal_options( $cart_item );
-		if ( empty( $meals ) ) {
+		if ( empty( $cart_item['data'] ) || ! is_object( $cart_item['data'] ) ) {
 			continue;
 		}
-		$nights         = vila_akoya_cart_nights_for_line( $cart_item );
-		$weekday_nights = vila_akoya_cart_weekday_nights_for_line( $cart_item );
-		$adults         = vila_akoya_cart_people_for_line( $cart_item );
-		$children       = isset( $cart_item['vila_guest_children'] ) ? (int) $cart_item['vila_guest_children'] : 0;
-		$infants        = isset( $cart_item['vila_guest_infants'] ) ? (int) $cart_item['vila_guest_infants'] : 0;
-
-		foreach ( $meals as $slug ) {
-			if ( ! isset( $meal_catalog[ $slug ] ) ) {
-				continue;
-			}
-			$info  = $meal_catalog[ $slug ];
-			$days  = vila_akoya_meal_days_for_option( $info, $nights, $weekday_nights );
-			$total = vila_akoya_meal_line_total( $info, $adults, $children, $infants, $days );
-			if ( $total <= 0 ) {
-				continue;
-			}
-			$day_word = ( 1 === $days )
-				? __( 'day', 'vila-akoya' )
-				: __( 'days', 'vila-akoya' );
-			WC()->cart->add_fee(
-				sprintf(
-					/* translators: 1: meal label, 2: number of days, 3: "day" or "days" */
-					__( '%1$s (%2$d %3$s)', 'vila-akoya' ),
-					$info['label'],
-					$days,
-					$day_word
-				),
-				$total
-			);
+		$meal_total = vila_akoya_cart_meal_total_for_line( $cart_item );
+		if ( $meal_total <= 0 ) {
+			continue;
 		}
+		$cart_item['data']->set_price( (float) $cart_item['data']->get_price( 'edit' ) + $meal_total );
 	}
+}
+add_action( 'woocommerce_before_calculate_totals', 'vila_akoya_roll_meals_into_pitch_line_price', 1000001 );
+
+/**
+ * Hide legacy itemised meal fee rows on customer receipts/emails (meals are bundled into the stay line).
+ *
+ * @param array<string, array<string, string>> $total_rows Total rows.
+ * @param WC_Order                             $order      Order.
+ * @param string                               $tax_display Tax mode.
+ * @return array<string, array<string, string>>
+ */
+function vila_akoya_hide_meal_fees_from_customer_totals( $total_rows, $order, $tax_display ) {
+	unset( $tax_display );
+	if ( is_admin() && ! wp_doing_ajax() ) {
+		return $total_rows;
+	}
+	if ( ! $order instanceof WC_Order ) {
+		return $total_rows;
+	}
+	foreach ( $order->get_fees() as $fee ) {
+		if ( ! vila_akoya_is_legacy_meal_fee_name( (string) $fee->get_name() ) ) {
+			continue;
+		}
+		unset( $total_rows[ 'fee_' . $fee->get_id() ] );
+	}
+	return $total_rows;
+}
+add_filter( 'woocommerce_get_order_item_totals', 'vila_akoya_hide_meal_fees_from_customer_totals', 20, 3 );
+
+/**
+ * Per-person meal add-ons (breakfast every night; dinner Mon–Fri nights).
+ *
+ * Meals are rolled into the pitch line total for guest-facing receipts; this hook is intentionally unused.
+ */
+function vila_akoya_cart_meal_fees() {
+	return;
 }
 add_action( 'woocommerce_cart_calculate_fees', 'vila_akoya_cart_meal_fees', 26 );
 
@@ -1062,6 +1144,9 @@ function vila_akoya_get_item_data_meals( $item_data, $cart_item ) {
 	if ( empty( $meals ) ) {
 		return $item_data;
 	}
+	if ( vila_akoya_meal_bundle_label( $meals ) ) {
+		return $item_data;
+	}
 	$item_data[] = array(
 		'name'    => __( 'Meals', 'vila-akoya' ),
 		'display' => esc_html( vila_akoya_meal_labels_join( $meals ) ),
@@ -1132,7 +1217,7 @@ function vila_akoya_checkout_save_meal_meta( $item, $cart_key, $values, $order )
 	if ( empty( $meals ) ) {
 		return;
 	}
-	$item->add_meta_data( __( 'Meals', 'vila-akoya' ), vila_akoya_meal_labels_join( $meals ), true );
+	$item->add_meta_data( __( 'Meals', 'vila-akoya' ), vila_akoya_meal_labels_join( $meals ), ! vila_akoya_meal_bundle_label( $meals ) );
 	$item->add_meta_data( '_vila_meal_options', wp_json_encode( $meals ), false );
 }
 add_action( 'woocommerce_checkout_create_order_line_item', 'vila_akoya_checkout_save_meal_meta', 18, 4 );
@@ -1621,9 +1706,7 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 	$meal_slugs = vila_akoya_normalize_meal_options_array( $raw_meals );
 	$weekday_nights = vila_akoya_weekday_nights_from_request();
 	$meal_catalog = vila_akoya_get_meal_options();
-	$day_singular = __( 'day', 'vila-akoya' );
-	$day_plural   = __( 'days', 'vila-akoya' );
-
+	$meal_total   = 0.0;
 	foreach ( $meal_slugs as $slug ) {
 		if ( ! isset( $meal_catalog[ $slug ] ) ) {
 			continue;
@@ -1634,37 +1717,21 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 		if ( $line_total <= 0 || $days < 1 ) {
 			continue;
 		}
-		$day_word = ( 1 === $days ) ? $day_singular : $day_plural;
-		$parts = array();
-		if ( $adults > 0 && (float) $info['adult_fee'] > 0 ) {
-			$parts[] = sprintf(
-				/* translators: 1: adult count, 2: price each */
-				__( '%1$d adults × %2$s', 'vila-akoya' ),
-				$adults,
-				vila_akoya_format_price_plain( (float) $info['adult_fee'] )
+		$meal_total += $line_total;
+	}
+	if ( $meal_total > 0 ) {
+		$bundle = vila_akoya_meal_bundle_label( $meal_slugs );
+		if ( $bundle ) {
+			$new['vila_pitch'] = array(
+				'title' => $bundle,
+				'value' => (float) $new['vila_pitch']['value'] + $meal_total,
+			);
+		} else {
+			$new['vila_meal_bundle'] = array(
+				'title' => __( 'Meals included', 'vila-akoya' ),
+				'value' => $meal_total,
 			);
 		}
-		if ( $ch > 0 && (float) $info['child_fee'] > 0 ) {
-			$parts[] = sprintf(
-				/* translators: 1: children count, 2: price each */
-				__( '%1$d kids × %2$s', 'vila-akoya' ),
-				$ch,
-				vila_akoya_format_price_plain( (float) $info['child_fee'] )
-			);
-		}
-		$people_bit = $parts ? implode( ' + ', $parts ) : vila_akoya_format_price_plain( 0 );
-		$title = sprintf(
-			/* translators: 1: meal label, 2: people pricing summary, 3: days, 4: day/days */
-			__( '%1$s — (%2$s) × %3$d %4$s', 'vila-akoya' ),
-			$info['label'],
-			$people_bit,
-			$days,
-			$day_word
-		);
-		$new[ 'vila_meal_' . $slug ] = array(
-			'title' => $title,
-			'value' => $line_total,
-		);
 	}
 
 	if ( isset( $charges['additional_charge'] ) && (float) $charges['additional_charge']['value'] > 0 ) {
@@ -1795,6 +1862,9 @@ function vila_akoya_enqueue_booking_ui_script() {
 				'vehicleFlat'       => __( '%1$s — %2$s/night × %3$d %4$s', 'vila-akoya' ),
 				'vehicleByGuests'   => __( '%1$s — %2$s/night × %3$d guests × %4$d %5$s', 'vila-akoya' ),
 				'mealLine'          => __( '%1$s — (%2$s) × %3$d %4$s', 'vila-akoya' ),
+				'mealBundleBreakfast' => __( 'Campsite stay with breakfast included', 'vila-akoya' ),
+				'mealBundleDinner'    => __( 'Campsite stay with weekday dinner included', 'vila-akoya' ),
+				'mealBundleBoth'      => __( 'Campsite stay with breakfast & weekday dinner included', 'vila-akoya' ),
 				'mealAdults'        => __( '%1$d adults × %2$s', 'vila-akoya' ),
 				'mealKids'          => __( '%1$d kids × %2$s', 'vila-akoya' ),
 				'total'             => __( 'Total', 'vila-akoya' ),

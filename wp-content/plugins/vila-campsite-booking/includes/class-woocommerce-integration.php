@@ -616,7 +616,9 @@ class WooCommerce_Integration {
 		if ( ! self::is_campsite_product( $pid ) && ! ( $vid && self::is_campsite_product( $vid ) ) ) {
 			return $name;
 		}
-		$name   = esc_html( __( 'Campsite booking', 'vila-campsite-booking' ) );
+		$meals  = function_exists( 'vila_akoya_cart_meal_options' ) ? vila_akoya_cart_meal_options( $cart_item ) : array();
+		$bundle = function_exists( 'vila_akoya_meal_bundle_label' ) ? vila_akoya_meal_bundle_label( $meals ) : '';
+		$name   = $bundle ? esc_html( $bundle ) : esc_html( __( 'Campsite booking', 'vila-campsite-booking' ) );
 		$merged = self::cart_item_flattened_for_stay_check( $cart_item );
 		$cin    = isset( $merged['vila_cb_check_in'] ) ? trim( (string) $merged['vila_cb_check_in'] ) : '';
 		$cout   = isset( $merged['vila_cb_check_out'] ) ? trim( (string) $merged['vila_cb_check_out'] ) : '';
@@ -646,7 +648,35 @@ class WooCommerce_Integration {
 		if ( ! self::is_campsite_product( $pid ) ) {
 			return $item_name;
 		}
+		$meals  = self::order_line_meal_slugs( $item );
+		$bundle = function_exists( 'vila_akoya_meal_bundle_label' ) ? vila_akoya_meal_bundle_label( $meals ) : '';
+		if ( $bundle ) {
+			return esc_html( $bundle );
+		}
 		return esc_html( __( 'Campsite booking', 'vila-campsite-booking' ) );
+	}
+
+	/**
+	 * Meal slugs stored on a campsite order line.
+	 *
+	 * @param \WC_Order_Item_Product $item Order line.
+	 * @return string[]
+	 */
+	private static function order_line_meal_slugs( $item ) {
+		if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_meta' ) ) ) {
+			return array();
+		}
+		$raw = (string) $item->get_meta( '_vila_meal_options', true );
+		if ( '' === $raw ) {
+			return array();
+		}
+		$decoded = json_decode( $raw, true );
+		if ( ! is_array( $decoded ) ) {
+			return array();
+		}
+		return function_exists( 'vila_akoya_normalize_meal_options_array' )
+			? vila_akoya_normalize_meal_options_array( $decoded )
+			: array();
 	}
 
 	/**
@@ -2121,8 +2151,11 @@ class WooCommerce_Integration {
 		$meal_slugs = ! empty( $guests['meal_options'] ) ? Meal_Plan_Service::normalize_meal_slugs( $guests['meal_options'] ) : array();
 		$item->update_meta_data( Meal_Plan_Service::META_MEAL_OPTIONS, wp_json_encode( $meal_slugs ) );
 		if ( ! empty( $meal_slugs ) && function_exists( 'vila_akoya_meal_labels_join' ) ) {
-			$item->update_meta_data( __( 'Meals', 'vila-akoya' ), vila_akoya_meal_labels_join( $meal_slugs ) );
-			$item->update_meta_data( 'Meals', vila_akoya_meal_labels_join( $meal_slugs ) );
+			$labels  = vila_akoya_meal_labels_join( $meal_slugs );
+			$visible = ! ( function_exists( 'vila_akoya_meal_bundle_label' ) && vila_akoya_meal_bundle_label( $meal_slugs ) );
+			$item->delete_meta_data( 'Meals' );
+			$item->delete_meta_data( __( 'Meals', 'vila-akoya' ) );
+			$item->add_meta_data( __( 'Meals', 'vila-akoya' ), $labels, $visible );
 		} elseif ( is_callable( array( $item, 'delete_meta_data' ) ) ) {
 			$item->delete_meta_data( 'Meals' );
 			$item->delete_meta_data( __( 'Meals', 'vila-akoya' ) );
@@ -3239,7 +3272,12 @@ class WooCommerce_Integration {
 		);
 		$stay_label   = __( 'Stay', 'vila-campsite-booking' );
 		$guests_label = __( 'Guests', 'vila-campsite-booking' );
+		$meals_label  = __( 'Meals', 'vila-akoya' );
 		$extras_label_key = __( 'Extras', 'vila-campsite-booking' );
+		$meal_slugs       = self::order_line_meal_slugs( $item );
+		$hide_meals_meta  = ! empty( $meal_slugs )
+			&& function_exists( 'vila_akoya_meal_bundle_label' )
+			&& vila_akoya_meal_bundle_label( $meal_slugs );
 		$out              = array();
 		foreach ( $formatted_meta as $m ) {
 			$key = is_object( $m ) && isset( $m->key ) ? (string) $m->key : '';
@@ -3247,6 +3285,9 @@ class WooCommerce_Integration {
 				continue;
 			}
 			if ( is_string( $key ) && 0 === strpos( $key, '_vila_cb_' ) ) {
+				continue;
+			}
+			if ( $hide_meals_meta && ( 'Meals' === $key || $meals_label === $key ) ) {
 				continue;
 			}
 			// Older plugin versions stored a duplicate human-readable Guests row; we replace it below.
@@ -3260,6 +3301,9 @@ class WooCommerce_Integration {
 					continue;
 				}
 				if ( $dk === $guests_label || $dk === 'Guests' ) {
+					continue;
+				}
+				if ( $hide_meals_meta && ( $dk === $meals_label || $dk === 'Meals' ) ) {
 					continue;
 				}
 			}
