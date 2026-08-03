@@ -9,7 +9,7 @@
  *   monthly:last-Fri
  *   daily
  *
- * Also accepts common natural phrases when reading from Monday or chat.
+ * Also accepts common natural phrases when reading from Notion or chat.
  */
 
 "use strict";

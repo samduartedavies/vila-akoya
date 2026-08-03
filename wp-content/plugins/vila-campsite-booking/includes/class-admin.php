@@ -2217,25 +2217,26 @@ class Admin {
 			<form method="post" class="vila-cb-settings-form">
 				<?php wp_nonce_field( 'vila_cb_settings', 'vila_cb_settings_nonce' ); ?>
 				<div class="vila-cb-ui-panel">
-					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Monday.com sync', 'vila-campsite-booking' ); ?></h2>
-					<p class="description"><?php esc_html_e( 'When a campsite or meal booking is paid or edited, WordPress pushes updates to the Campsite Bookings and Campsite Meals boards. The Telegram bot reads those boards only (it does not call the website). Put the Monday token in wp-config.php so it stays out of the database and git.', 'vila-campsite-booking' ); ?></p>
+					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Notion sync', 'vila-campsite-booking' ); ?></h2>
+					<p class="description"><?php esc_html_e( 'When a campsite or meal booking is paid or edited, WordPress pushes updates to the Campsite Bookings and Campsite Meals databases in Notion. The Telegram bot reads those databases only (it does not call the website). Put the Notion integration key in wp-config.php so it stays out of the database and git.', 'vila-campsite-booking' ); ?></p>
 					<table class="form-table vila-cb-ui-form-table" role="presentation">
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Monday write token', 'vila-campsite-booking' ); ?></th>
+							<th scope="row"><?php esc_html_e( 'Notion API key', 'vila-campsite-booking' ); ?></th>
 							<td>
-								<?php if ( Monday_Sync::is_configured() ) : ?>
-									<span class="vila-cb-guest-badge vila-cb-guest-badge--ok"><?php esc_html_e( 'Configured (VILA_MONDAY_API_TOKEN)', 'vila-campsite-booking' ); ?></span>
+								<?php if ( Notion_Sync::is_configured() ) : ?>
+									<span class="vila-cb-guest-badge vila-cb-guest-badge--ok"><?php esc_html_e( 'Configured (VILA_NOTION_API_KEY)', 'vila-campsite-booking' ); ?></span>
 								<?php else : ?>
-									<span class="vila-cb-guest-badge vila-cb-guest-badge--pending"><?php esc_html_e( 'Missing — add VILA_MONDAY_API_TOKEN to wp-config.php', 'vila-campsite-booking' ); ?></span>
+									<span class="vila-cb-guest-badge vila-cb-guest-badge--pending"><?php esc_html_e( 'Missing — add VILA_NOTION_API_KEY to wp-config.php', 'vila-campsite-booking' ); ?></span>
 								<?php endif; ?>
-								<p class="description"><code>define( 'VILA_MONDAY_API_TOKEN', 'your-monday-api-token' );</code></p>
+								<p class="description"><code>define( 'VILA_NOTION_API_KEY', 'your-notion-integration-key' );</code></p>
+								<p class="description"><?php esc_html_e( 'Optional: VILA_NOTION_BOOKINGS_DB_ID and VILA_NOTION_MEALS_DB_ID if database IDs are known. Otherwise they are resolved from the catalog option or Notion search on first sync.', 'vila-campsite-booking' ); ?></p>
 							</td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Boards', 'vila-campsite-booking' ); ?></th>
+							<th scope="row"><?php esc_html_e( 'Databases', 'vila-campsite-booking' ); ?></th>
 							<td>
-								<p class="description"><?php echo esc_html( Monday_Sync::bookings_board_name() ); ?> · <?php echo esc_html( Monday_Sync::meals_board_name() ); ?></p>
-								<p class="description"><?php esc_html_e( 'Create/finish those boards with npm run monday:setup, then add Calendar views in Monday. Telegram recap and “who’s checking in / dinner numbers?” questions read from these boards.', 'vila-campsite-booking' ); ?></p>
+								<p class="description"><?php echo esc_html( Notion_Sync::bookings_database_name() ); ?> · <?php echo esc_html( Notion_Sync::meals_database_name() ); ?></p>
+								<p class="description"><?php esc_html_e( 'Create those databases with npm run notion:setup, then add Calendar layouts on Date in Notion. Telegram recap and “who’s checking in / dinner numbers?” questions read from these databases.', 'vila-campsite-booking' ); ?></p>
 							</td>
 						</tr>
 					</table>

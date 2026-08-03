@@ -1,143 +1,135 @@
 /**
- * Vila Akoya — documentation indexer
+ * Vila Akoya — documentation indexer (Notion)
  *
- * Pulls monday.com docs (workdocs) from the workspace, extracts their text,
- * chunks + embeds it with OpenAI, and writes a small local vector index that
- * the Telegram bot's /ask command searches.
+ * Indexes:
+ *   1. Rows in the Documentation database
+ *   2. Freeform pages under Documentation hub (e.g. Tech → Wifi)
  *
- * Run whenever docs change (manually, or on a cron / launchd timer):
- *   MONDAY_API_TOKEN="..." OPENAI_API_KEY="..." \
- *   node scripts/index-vila-akoya-docs.js
- *
- * Optional env:
- *   MONDAY_WORKSPACE_ID   limit to one workspace (recommended)
- *   MONDAY_API_VERSION    default "2026-10"
- *   DOCS_INDEX_FILE       where to write the index (default lib/.vila-akoya-docs-index.json)
+ *   NOTION_API_KEY="..." OPENAI_API_KEY="..." node scripts/index-vila-akoya-docs.js
  */
 
 "use strict";
 
 const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
+const notion = require("./lib/notion");
 
-const MONDAY_API_TOKEN =
-  process.env.MONDAY_API_TOKEN ||
-  "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjY3NzQ0MDk2NywiYWFpIjoxMSwidWlkIjoxMDcyNzM0NDIsImlhZCI6IjIwMjYtMDctMDFUMDk6NDU6NTYuMDAwWiIsInBlciI6Im1lOndyaXRlIiwiYWN0aWQiOjM1ODIxNzEyLCJyZ24iOiJldWMxIn0.fUMN4Zpvsm7hOx8xyo4Qb76Ovi_tDs-7nhhdu8ZIyEg";
-const WORKSPACE_ID = process.env.MONDAY_WORKSPACE_ID || 6923231;
-const MONDAY_API_VERSION = process.env.MONDAY_API_VERSION || "2026-10";
-const MONDAY_API_URL = "https://api.monday.com/v2";
+const HUB_PAGE_NAME = "Documentation hub";
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function monday(query, variables = {}, attempt = 1) {
-  const res = await fetch(MONDAY_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: MONDAY_API_TOKEN,
-      "Content-Type": "application/json",
-      "API-Version": MONDAY_API_VERSION,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = await res.json();
-
-  const complexityError = json.errors?.find(
-    (err) => err.extensions?.code === "COMPLEXITY_BUDGET_EXHAUSTED"
-  );
-  if (complexityError && attempt <= 8) {
-    const wait =
-      Number(complexityError.extensions?.retry_in_seconds || 0) ||
-      Math.min(60, attempt * 5);
-    console.log(`Complexity budget exhausted, waiting ${wait + 2}s...`);
-    await sleep((wait + 2) * 1000);
-    return monday(query, variables, attempt + 1);
-  }
-  if (json.errors) throw new Error(JSON.stringify(json.errors));
-  if (!res.ok) throw new Error(`monday HTTP ${res.status}`);
-  return json.data;
-}
-
-// Recursively pull every "insert" string out of a monday doc block's content.
-function extractInserts(node, out) {
-  if (node == null) return;
-  if (Array.isArray(node)) {
-    for (const child of node) extractInserts(child, out);
-    return;
-  }
-  if (typeof node === "object") {
-    if (typeof node.insert === "string") out.push(node.insert);
-    for (const key of Object.keys(node)) {
-      if (key !== "insert") extractInserts(node[key], out);
-    }
-  }
-}
-
-function blockToText(block) {
-  if (!block?.content) return "";
-  let parsed;
-  try {
-    parsed = JSON.parse(block.content);
-  } catch {
-    return "";
-  }
-  const inserts = [];
-  extractInserts(parsed, inserts);
-  return inserts.join("").trim();
-}
-
-async function fetchAllDocs() {
+async function collectFromDocsDatabase() {
+  const { pages } = await notion.queryDatabase(notion.DB.DOCS);
   const docs = [];
-  let page = 1;
-  const wsFilter = WORKSPACE_ID ? `, workspace_ids: [${WORKSPACE_ID}]` : "";
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const data = await monday(`
-      query {
-        docs(limit: 50, page: ${page}${wsFilter}) {
-          id
-          object_id
-          name
-          url
-          blocks { id type content }
-        }
-      }
-    `);
-    const batch = data.docs || [];
-    docs.push(...batch);
-    if (batch.length < 50) break;
-    page += 1;
+  for (const page of pages) {
+    const status = notion.pagePropText(page, "Doc status");
+    if (status === "Deprecated") continue;
+    const name = notion.pageTitle(page);
+    const summary = notion.pagePropText(page, "Summary");
+    const notes = notion.pagePropText(page, "Notes");
+    let body = "";
+    try {
+      body = await notion.pageBodyText(page.id);
+    } catch (err) {
+      console.warn(`  Could not read body for ${name}: ${err.message}`);
+    }
+    const text = [summary, notes, body].filter(Boolean).join("\n\n").trim();
+    if (!text) continue;
+    docs.push({
+      id: page.id,
+      name,
+      url: page.url,
+      text,
+    });
   }
   return docs;
+}
+
+async function walkChildPages(pageId, pathLabels, out, seen) {
+  if (seen.has(pageId)) return;
+  seen.add(pageId);
+
+  let blocks;
+  try {
+    blocks = await notion.getBlockChildren(pageId);
+  } catch (err) {
+    console.warn(`  Could not list children of ${pageId}: ${err.message}`);
+    return;
+  }
+
+  for (const block of blocks) {
+    if (block.type !== "child_page") continue;
+    const title = block.child_page?.title || "Untitled";
+    const childPath = [...pathLabels, title];
+    const url = `https://www.notion.so/${block.id.replace(/-/g, "")}`;
+
+    let body = "";
+    try {
+      body = await notion.pageBodyText(block.id);
+    } catch (err) {
+      console.warn(`  Could not read body for ${title}: ${err.message}`);
+    }
+
+    if (body.trim()) {
+      out.push({
+        id: block.id,
+        name: childPath.join(" › "),
+        url,
+        text: body.trim(),
+      });
+    }
+
+    await walkChildPages(block.id, childPath, out, seen);
+  }
+}
+
+async function collectFromDocsHub() {
+  const catalog = notion.loadCatalog();
+  let hubId = catalog.pages?.[HUB_PAGE_NAME];
+  if (!hubId) {
+    const found = await notion.searchByTitle(HUB_PAGE_NAME, "page");
+    hubId = found?.id;
+  }
+  if (!hubId) {
+    console.warn("  Documentation hub page not found — skipping freeform pages.");
+    return [];
+  }
+
+  const docs = [];
+  await walkChildPages(hubId, [], docs, new Set());
+  return docs;
+}
+
+async function fetchDocPages() {
+  const fromDb = await collectFromDocsDatabase();
+  console.log(`  Documentation database: ${fromDb.length}`);
+  const fromHub = await collectFromDocsHub();
+  console.log(`  Documentation hub pages: ${fromHub.length}`);
+
+  // Prefer DB rows when the same page id appears twice; otherwise keep both.
+  const byId = new Map();
+  for (const doc of [...fromHub, ...fromDb]) {
+    byId.set(doc.id, doc);
+  }
+  return [...byId.values()];
 }
 
 async function main() {
   if (!openaiLib.isEnabled()) {
     throw new Error("Missing OPENAI_API_KEY — cannot build the docs index.");
   }
-  if (!MONDAY_API_TOKEN) {
-    throw new Error("Missing MONDAY_API_TOKEN.");
-  }
+  notion.assertKey();
 
-  console.log("Fetching monday docs...");
-  const docs = await fetchAllDocs();
-  console.log(`Found ${docs.length} docs.`);
+  console.log("Fetching Notion documentation...");
+  const docs = await fetchDocPages();
+  console.log(`Found ${docs.length} docs with text.`);
 
   const chunks = [];
   for (const doc of docs) {
-    const text = (doc.blocks || [])
-      .map(blockToText)
-      .filter(Boolean)
-      .join("\n\n");
-    if (!text.trim()) continue;
-
-    const pieces = docsIndex.chunkText(text);
+    const pieces = docsIndex.chunkText(doc.text);
     pieces.forEach((piece, i) => {
       chunks.push({
         id: `${doc.id}-${i}`,
         docId: doc.id,
-        docName: doc.name || `Doc ${doc.id}`,
+        docName: doc.name,
         url: doc.url || null,
         text: piece,
       });
@@ -147,7 +139,7 @@ async function main() {
 
   if (!chunks.length) {
     console.log(
-      "No text found in any doc. Create monday docs (e.g. from the '50 — Documentation Register' board) and rerun."
+      "No text found. Add docs in the Documentation database or under Documentation hub, then rerun."
     );
     docsIndex.saveIndex({ model: openaiLib.EMBED_MODEL, chunks: [] });
     return;

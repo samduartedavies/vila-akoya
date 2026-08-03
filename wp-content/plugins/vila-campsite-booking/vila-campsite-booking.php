@@ -48,7 +48,7 @@ require_once VILA_CB_DIR . 'includes/class-meal-plan-service.php';
 require_once VILA_CB_DIR . 'includes/class-meal-booking.php';
 require_once VILA_CB_DIR . 'includes/class-woocommerce-integration.php';
 require_once VILA_CB_DIR . 'includes/class-ops-snapshot.php';
-require_once VILA_CB_DIR . 'includes/class-monday-sync.php';
+require_once VILA_CB_DIR . 'includes/class-notion-sync.php';
 require_once VILA_CB_DIR . 'includes/class-rest-controller.php';
 require_once VILA_CB_DIR . 'includes/class-admin.php';
 require_once VILA_CB_DIR . 'includes/class-admin-guest-registrations.php';
@@ -91,7 +91,7 @@ function vila_cb_bootstrap() {
 	Vila_CB\Pricing_Settings::init();
 	Vila_CB\Meal_Booking::init();
 	Vila_CB\WooCommerce_Integration::init();
-	Vila_CB\Monday_Sync::init();
+	Vila_CB\Notion_Sync::init();
 	Vila_CB\Rest_Controller::init();
 	Vila_CB\Admin::init();
 	Vila_CB\Admin_Guest_Registrations::init();

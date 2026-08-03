@@ -1,32 +1,32 @@
 /**
- * Vila Akoya — Telegram <-> monday.com bridge
+ * Vila Akoya — Telegram <-> Notion bridge
  *
  * Two-way community bot with ZERO npm dependencies (Node 18+ only).
  * It uses Telegram long-polling, so it needs NO public URL / webhook and can
  * run for free on a laptop, Raspberry Pi, home server or any always-on box.
  *
  * ── What it does ──────────────────────────────────────────────────────────
- * Telegram -> monday.com
+ * Telegram -> Notion
  *   - Listens to all messages in the Jobs group (+ DMs).
- *   - Voice notes in the group are transcribed; documentation dumps become structured monday workdocs.
+ *   - Voice notes in the group are transcribed; documentation dumps become structured Notion pages.
  *   - Tagged @bot, reply-to-bot, or private DM: text, photos, and voice notes.
- *   - Every group message is classified by AI → monday.com actions (events, tasks, completions, cancellations) or questions.
+ *   - Every group message is classified by AI → Notion actions (events, tasks, completions, cancellations) or questions.
  *   - Tagged @bot or reply-to-bot: always get a response.
  *   - Daily recap (~08:00 Europe/Lisbon): today's chores + events + campsite
- *     check-ins/outs + meal headcounts (all from monday.com) + yesterday's chat highlights.
+ *     check-ins/outs + meal headcounts (all from Notion) + yesterday's chat highlights.
  *   - /ask, /task, /register, /mytasks, /done, /help as before.
  *   - Schedule questions ("anyone checking in today?", "how many for dinner?")
- *     are answered from monday.com Campsite Bookings / Campsite Meals boards.
+ *     are answered from Notion Campsite Bookings / Campsite Meals databases.
  *
  * Requires (for smart features): OPENAI_API_KEY, and a docs index built
  * with `node scripts/index-vila-akoya-docs.js`.
  * Voice notes use OPENAI_TRANSCRIBE_MODEL (default gpt-4o-mini-transcribe).
  *
- * monday.com -> Telegram (posted to one group chat)
- *   - New tasks, completions, assignments on watched boards.
+ * Notion -> Telegram (posted to one group chat)
+ *   - New pages, completions, status changes on watched databases.
  *
  * ── Setup ─────────────────────────────────────────────────────────────────
- * 1. Run setup-vila-akoya-monday.js first so the boards/columns exist.
+ * 1. Run setup-vila-akoya-notion.js first so the databases exist.
  * 2. Create a bot with @BotFather, add to your community group.
  * 3. Run: npm run telegram:bot
  *
@@ -38,14 +38,16 @@
  *   DAILY_RECAP             "false" to disable morning recap
  *   RECAP_TIME              HH:MM in RECAP_TZ (default "08:00")
  *   RECAP_TZ                default "Europe/Lisbon"
- *   EVENT_CAPTURE_GROUP     monday group for new events (default "Upcoming")
- *   EVENT_RECURRING_GROUP   monday group for repeating events (default "Recurring")
+ *   EVENT_CAPTURE_GROUP     Notion Stage for new events (default "Upcoming")
+ *   EVENT_RECURRING_GROUP   Notion Stage for repeating events (default "Recurring")
+ *   NOTION_POLL_SECONDS     how often to poll Notion for changes (default 60)
  */
 
 "use strict";
 
 const fs = require("fs");
 const path = require("path");
+const notion = require("./lib/notion");
 const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
 const {
@@ -64,11 +66,6 @@ const {
 } = require("./lib/event-recurrence");
 
 // ── Config ──────────────────────────────────────────────────────────────────
-const MONDAY_API_TOKEN =
-  process.env.MONDAY_API_TOKEN ||
-  // Falls back to the same token used by setup-vila-akoya-monday.js.
-  "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjY4ODQzNjgyOSwiYWFpIjoxMSwidWlkIjoxMTIwMzE1MTQsImlhZCI6IjIwMjYtMDctMzFUMDc6NDY6MzQuNzQzWiIsInBlciI6Im1lOndyaXRlIiwiYWN0aWQiOjM1ODIxNzEyLCJyZ24iOiJldWMxIn0.zBodylFeTzIyJ1sa0V0NoZo4lURdunHbuahXavBviN8";
-
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8991030236:AAEbLuvsa5HRn2rMwCDu8468kAKERo9DhxY";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-5438367592";
 
@@ -76,33 +73,21 @@ const TASK_GROUP_CHAT_ID =
   process.env.TASK_GROUP_CHAT_ID || TELEGRAM_CHAT_ID;
 const ALLOW_DM_INTAKE = process.env.ALLOW_DM_INTAKE !== "false";
 
-const MONDAY_API_VERSION = process.env.MONDAY_API_VERSION || "2026-10";
-const MONDAY_API_URL = "https://api.monday.com/v2";
-const MONDAY_FILE_URL = "https://api.monday.com/v2/file";
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 const TELEGRAM_FILE_API = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}`;
 
-const TASK_INBOX_BOARD_NAME =
-  process.env.TASK_INBOX_BOARD_NAME || "00 — Task Inbox";
-const MEMBERS_BOARD_NAME =
-  process.env.MEMBERS_BOARD_NAME || "70 — Community Members";
-const EVENTS_BOARD_NAME =
-  process.env.EVENTS_BOARD_NAME || "80 — Events & Gatherings";
-const RECURRING_BOARD_NAME =
-  process.env.RECURRING_BOARD_NAME || "10 — Recurring Duties";
-const GUEST_BOARD_NAME =
-  process.env.GUEST_BOARD_NAME || "30 — Campsite & Guest Issues";
-const MAINTENANCE_BOARD_NAME =
-  process.env.MAINTENANCE_BOARD_NAME || "20 — Maintenance & Infrastructure";
-const DECISIONS_BOARD_NAME =
-  process.env.DECISIONS_BOARD_NAME || "90 — Decisions & Proposals";
-const DOCS_BOARD_NAME =
-  process.env.DOCS_BOARD_NAME || "50 — Documentation Register";
-const CAMPSITE_BOOKINGS_BOARD_NAME =
-  process.env.CAMPSITE_BOOKINGS_BOARD || "35 — Campsite Bookings";
-const CAMPSITE_MEALS_BOARD_NAME =
-  process.env.CAMPSITE_MEALS_BOARD || "36 — Campsite Meals";
-const MONDAY_WORKSPACE_ID = process.env.MONDAY_WORKSPACE_ID || 6923231;
+// ── Notion database names (env overrides, defaulting to notion.DB.*) ──────────
+const TASKS_DB_NAME = process.env.TASKS_DB_NAME || notion.DB.TASKS;
+const MEMBERS_DB_NAME = process.env.MEMBERS_DB_NAME || notion.DB.MEMBERS;
+const EVENTS_DB_NAME = process.env.EVENTS_DB_NAME || notion.DB.EVENTS;
+const RECURRING_DB_NAME = process.env.RECURRING_DB_NAME || notion.DB.RECURRING;
+const GUEST_DB_NAME = process.env.GUEST_DB_NAME || notion.DB.GUEST_ISSUES;
+const MAINTENANCE_DB_NAME = process.env.MAINTENANCE_DB_NAME || notion.DB.MAINTENANCE;
+const DECISIONS_DB_NAME = process.env.DECISIONS_DB_NAME || notion.DB.DECISIONS;
+const DOCS_DB_NAME = process.env.DOCS_DB_NAME || notion.DB.DOCS;
+const CAMPSITE_BOOKINGS_DB_NAME =
+  process.env.CAMPSITE_BOOKINGS_DB || notion.DB.BOOKINGS;
+const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
 
 const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE !== "false";
 const AMBIENT_MIN_CONFIDENCE = Number(process.env.AMBIENT_MIN_CONFIDENCE || 0.7);
@@ -116,19 +101,12 @@ const EVENT_CAPTURE_GROUP = process.env.EVENT_CAPTURE_GROUP || "Upcoming";
 const EVENT_RECURRING_GROUP = process.env.EVENT_RECURRING_GROUP || "Recurring";
 const ADDRESS_WINDOW_MS = Number(process.env.ADDRESS_WINDOW_MS || 120000);
 
-const DEFAULT_WATCH_BOARDS = [
-  "00 — Task Inbox",
-  "20 — Maintenance & Infrastructure",
-  "30 — Campsite & Guest Issues",
-  "40 — Village Projects",
-  "80 — Events & Gatherings",
-];
-const WATCH_BOARD_NAMES = (process.env.WATCH_BOARD_NAMES
-  ? process.env.WATCH_BOARD_NAMES.split(",").map((s) => s.trim())
-  : DEFAULT_WATCH_BOARDS
+const WATCH_DB_NAMES = (process.env.WATCH_DB_NAMES
+  ? process.env.WATCH_DB_NAMES.split(",").map((s) => s.trim())
+  : notion.WATCH_DB_NAMES
 ).filter(Boolean);
 
-const MONDAY_POLL_SECONDS = Number(process.env.MONDAY_POLL_SECONDS || 60);
+const NOTION_POLL_SECONDS = Number(process.env.NOTION_POLL_SECONDS || 60);
 const ANNOUNCE_NEW_ITEMS = process.env.ANNOUNCE_NEW_ITEMS !== "false";
 const STATE_FILE =
   process.env.STATE_FILE ||
@@ -552,11 +530,18 @@ function loadState() {
     if (!s.chatActivity) s.chatActivity = [];
     if (!s.chatLog) s.chatLog = [];
     if (!s.items) s.items = {};
+    // Migrate from the old monday version once. Its item cache keys are numeric
+    // monday IDs (incompatible with Notion page UUIDs), so drop them and force a
+    // silent Notion re-seed to avoid announcing every existing page as "new".
+    if (s.seededNotion === undefined) {
+      if (s.seededMonday !== undefined) s.items = {};
+      s.seededNotion = false;
+    }
     return s;
   } catch {
     return {
       telegramOffset: 0,
-      seededMonday: false,
+      seededNotion: false,
       lastRecapDate: null,
       ambientKeys: {},
       chatActivity: [],
@@ -576,134 +561,41 @@ function saveState() {
   }
 }
 
-// ── monday.com client ─────────────────────────────────────────────────────
-async function monday(query, variables = {}, attempt = 1) {
-  const res = await fetchWithRetry(
-    MONDAY_API_URL,
-    {
-      method: "POST",
-      headers: {
-        Authorization: MONDAY_API_TOKEN,
-        "Content-Type": "application/json",
-        "API-Version": MONDAY_API_VERSION,
-      },
-      body: JSON.stringify({ query, variables }),
-    },
-    { label: "monday API", attempts: 4 }
-  );
-
-  const json = await readJsonResponse(res, "monday API");
-
-  const complexityError = json.errors?.find(
-    (err) => err.extensions?.code === "COMPLEXITY_BUDGET_EXHAUSTED"
-  );
-
-  if (complexityError && attempt <= 8) {
-    const retrySeconds =
-      Number(complexityError.extensions?.retry_in_seconds || 0) ||
-      Math.min(60, attempt * 5);
-    log(`monday complexity budget exhausted, waiting ${retrySeconds + 2}s...`);
-    await sleep((retrySeconds + 2) * 1000);
-    return monday(query, variables, attempt + 1);
-  }
-
-  if (json.errors) {
-    throw new Error("monday API error: " + JSON.stringify(json.errors));
-  }
-  if (!res.ok) {
-    throw new Error(`monday HTTP ${res.status}`);
-  }
-  return json.data;
+// ── Notion helpers ─────────────────────────────────────────────────────────
+/** Human-readable "captured from Telegram" note appended to Notes. */
+function telegramNote({ from, chatId, extra = "", sourceText = "" }) {
+  const parts = [
+    `From Telegram: ${senderDisplayName(from)} (${senderHandle(from)})`,
+    `Chat: ${chatId}`,
+  ];
+  if (extra) parts.push(extra);
+  if (sourceText) parts.push(`\nOriginal message:\n${sourceText}`);
+  return parts.join("\n");
 }
 
-// Board cache: name -> { id, name, columns, groups }
-const boardCache = new Map();
-let accountSlug = null;
-
-async function getAccountSlug() {
-  if (accountSlug) return accountSlug;
-  try {
-    const data = await monday(`query { me { account { slug } } }`);
-    accountSlug = data?.me?.account?.slug || null;
-  } catch (err) {
-    log("Could not read account slug:", err.message);
-  }
-  return accountSlug;
+/** Does this Notion page count as completed for announcement / listing? */
+function pageIsDone(page) {
+  const stage = notion.pagePropText(page, "Stage");
+  const status = notion.pagePropText(page, "Status");
+  return notion.isDoneStage(stage) || isDoneName(status);
 }
 
-async function resolveBoard(boardName) {
-  if (boardCache.has(boardName)) return boardCache.get(boardName);
-
-  const data = await monday(`
-    query {
-      boards(limit: 500) {
-        id
-        name
-        state
-        columns { id title type }
-        groups { id title }
-      }
-    }
-  `);
-
-  for (const board of data.boards || []) {
-    if (board.state === "archived") continue;
-    if (!boardCache.has(board.name)) boardCache.set(board.name, board);
-  }
-
-  const board = boardCache.get(boardName);
-  if (!board) throw new Error(`Board not found: ${boardName}`);
-  return board;
+/** Snapshot of a page used by the change poller. */
+function pageSnapshot(page) {
+  const stage = notion.pagePropText(page, "Stage");
+  const status = notion.pagePropText(page, "Status");
+  const doer =
+    notion.pagePropText(page, "Doer name") ||
+    notion.pagePropText(page, "Helpers / doers") ||
+    "";
+  return { stage, status, doer, done: pageIsDone(page) };
 }
 
-function columnId(board, title, type) {
-  const col = board.columns.find(
-    (c) => c.title === title && (!type || c.type === type)
-  );
-  return col ? col.id : null;
-}
-
-async function ensureTextColumn(board, title) {
-  const existing = columnId(board, title, "text");
-  if (existing) return existing;
-  try {
-    const data = await monday(
-      `mutation ($boardId: ID!, $title: String!) {
-        create_column(board_id: $boardId, title: $title, column_type: text) { id title type }
-      }`,
-      { boardId: String(board.id), title }
-    );
-    const column = data.create_column;
-    if (column) {
-      board.columns.push(column);
-      log(`Created Monday column "${title}" on ${board.name}`);
-      return column.id;
-    }
-  } catch (err) {
-    log(`Could not create column "${title}":`, err.message);
-  }
-  return null;
-}
-
-function itemUrl(boardId, itemId) {
-  if (!accountSlug) return null;
-  return `https://${accountSlug}.monday.com/boards/${boardId}/pulses/${itemId}`;
-}
-
-async function changeColumnValues(boardId, itemId, values) {
-  await monday(
-    `
-      mutation ($boardId: ID!, $itemId: ID!, $vals: JSON!) {
-        change_multiple_column_values(
-          board_id: $boardId,
-          item_id: $itemId,
-          column_values: $vals,
-          create_labels_if_missing: true
-        ) { id }
-      }
-    `,
-    { boardId: String(boardId), itemId: String(itemId), vals: JSON.stringify(values) }
-  );
+/** Pre-mark a freshly created page as seen so the poller won't re-announce it. */
+function markPageSeen(pageId, snapshot) {
+  state.items[pageId] =
+    snapshot || { stage: "", status: "", doer: "", done: false };
+  saveState();
 }
 
 // ── Telegram client ─────────────────────────────────────────────────────────
@@ -825,201 +717,7 @@ async function transcribeVoiceFile(fileId) {
   return openaiLib.transcribeAudio(buf, filename);
 }
 
-// ── Monday workdocs (documentation) ───────────────────────────────────────────
-const DOC_FOLDER_BY_AREA = {
-  Water: "Water",
-  "Compost & toilets": "Compost & toilets",
-  "Solar / electric": "Solar / electric",
-  "Buildings / structures": "Buildings / structures",
-  "Tools / workshop": "Tools / workshop",
-  "Land / roads / drainage": "Land / roads / drainage",
-  "Campsite / guest": "Campsite / guest",
-  Garden: "Garden",
-  "Community / events": "Community / events",
-  "Safety & emergency": "Safety & emergency",
-  "Admin / money": "Admin / money",
-  Other: "Admin / money",
-};
-
-const DOC_REGISTER_GROUP_BY_AREA = {
-  Water: "Infrastructure docs",
-  "Compost & toilets": "Infrastructure docs",
-  "Solar / electric": "Infrastructure docs",
-  "Buildings / structures": "Infrastructure docs",
-  "Tools / workshop": "Infrastructure docs",
-  "Land / roads / drainage": "Infrastructure docs",
-  Garden: "Infrastructure docs",
-  "Campsite / guest": "Guest / campsite docs",
-  "Community / events": "Community agreements",
-  "Admin / money": "Community agreements",
-  Other: "Drafts",
-};
-
-let docFolderCache = { loadedAt: 0, byName: new Map() };
-
-function markdownToHtml(markdown) {
-  const inline = (s) =>
-    String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/`(.+?)`/g, "<code>$1</code>");
-
-  const lines = String(markdown).split(/\r?\n/);
-  const out = [];
-  let inUl = false;
-  let inOl = false;
-
-  const closeLists = () => {
-    if (inUl) {
-      out.push("</ul>");
-      inUl = false;
-    }
-    if (inOl) {
-      out.push("</ol>");
-      inOl = false;
-    }
-  };
-
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-    if (!line.trim()) {
-      closeLists();
-      continue;
-    }
-    if (line.startsWith("### ")) {
-      closeLists();
-      out.push(`<h3>${inline(line.slice(4))}</h3>`);
-      continue;
-    }
-    if (line.startsWith("## ")) {
-      closeLists();
-      out.push(`<h2>${inline(line.slice(3))}</h2>`);
-      continue;
-    }
-    if (line.startsWith("# ")) {
-      closeLists();
-      out.push(`<h1>${inline(line.slice(2))}</h1>`);
-      continue;
-    }
-    if (/^[-*] /.test(line)) {
-      if (!inUl) {
-        closeLists();
-        out.push("<ul>");
-        inUl = true;
-      }
-      out.push(`<li>${inline(line.replace(/^[-*] /, ""))}</li>`);
-      continue;
-    }
-    if (/^\d+\. /.test(line)) {
-      if (!inOl) {
-        closeLists();
-        out.push("<ol>");
-        inOl = true;
-      }
-      out.push(`<li>${inline(line.replace(/^\d+\. /, ""))}</li>`);
-      continue;
-    }
-    closeLists();
-    out.push(`<p>${inline(line)}</p>`);
-  }
-  closeLists();
-  return out.join("\n");
-}
-
-async function loadDocFolders() {
-  const now = Date.now();
-  if (now - docFolderCache.loadedAt < 3600000 && docFolderCache.byName.size) {
-    return docFolderCache.byName;
-  }
-
-  const data = await monday(
-    `
-      query ($workspaceIds: [ID!]) {
-        folders(workspace_ids: $workspaceIds, limit: 100) {
-          id
-          name
-          parent { id }
-        }
-      }
-    `,
-    { workspaceIds: [String(MONDAY_WORKSPACE_ID)] }
-  );
-
-  const byName = new Map();
-  const folders = data.folders || [];
-  const parent = folders.find(
-    (f) => f.name === "📚 Documentation" && !f.parent?.id
-  );
-  if (parent) {
-    for (const folder of folders) {
-      if (folder.parent?.id === parent.id) {
-        byName.set(folder.name, folder.id);
-      }
-    }
-  }
-  docFolderCache = { loadedAt: now, byName };
-  return byName;
-}
-
-async function resolveDocFolderId(area) {
-  const folders = await loadDocFolders();
-  const folderName = DOC_FOLDER_BY_AREA[area] || DOC_FOLDER_BY_AREA.Other;
-  return folders.get(folderName) || null;
-}
-
-async function createWorkdocFromMarkdown({ title, markdown, folderId }) {
-  const html = markdownToHtml(markdown);
-  const variables = {
-    workspaceId: String(MONDAY_WORKSPACE_ID),
-    title: String(title).slice(0, 200),
-    html,
-  };
-  if (folderId) variables.folderId = String(folderId);
-
-  const imported = await monday(
-    `
-      mutation ($workspaceId: ID!, $title: String!, $folderId: ID, $html: String!) {
-        import_doc_from_html(
-          workspaceId: $workspaceId
-          title: $title
-          folderId: $folderId
-          kind: public
-          html: $html
-        ) {
-          success
-          doc_id
-          error
-        }
-      }
-    `,
-    variables
-  );
-
-  const result = imported.import_doc_from_html;
-  if (!result?.success || !result.doc_id) {
-    throw new Error(result?.error || "import_doc_from_html failed");
-  }
-
-  const docData = await monday(
-    `
-      query ($ids: [ID!]) {
-        docs(ids: $ids) { id name url object_id }
-      }
-    `,
-    { ids: [String(result.doc_id)] }
-  );
-
-  const doc = docData.docs?.[0];
-  return {
-    id: result.doc_id,
-    url: doc?.url || null,
-    name: doc?.name || title,
-  };
-}
-
+// ── Notion documentation ─────────────────────────────────────────────────────
 async function createDocumentation({ rawText, from, chatId, sourceText }) {
   const structured = await openaiLib.structureDocumentation(rawText, {
     proposer: senderDisplayName(from),
@@ -1029,275 +727,152 @@ async function createDocumentation({ rawText, from, chatId, sourceText }) {
     throw new Error("Could not structure documentation from that message");
   }
 
-  const folderId = await resolveDocFolderId(structured.area);
-  const doc = await createWorkdocFromMarkdown({
+  const notes =
+    `${structured.summary}\n\n` +
+    `Captured from Telegram: ${senderDisplayName(from)} (${senderHandle(from)})\n` +
+    `Chat: ${chatId}\n\n` +
+    `Original notes:\n${String(sourceText || rawText).slice(0, 800)}`;
+
+  const children = notion.markdownToBlocks(structured.markdown);
+  const page = await notion.createPage({
+    databaseName: DOCS_DB_NAME,
     title: structured.title,
-    markdown: structured.markdown,
-    folderId,
-  });
-
-  const board = await resolveBoard(DOCS_BOARD_NAME);
-  const values = {};
-  const statusCol = columnId(board, "Doc status", "status");
-  if (statusCol) values[statusCol] = { label: "Draft" };
-  const areaCol = columnId(board, "Area", "status");
-  if (areaCol) values[areaCol] = { label: structured.area };
-  const linkCol = columnId(board, "Linked workdoc", "link");
-  if (linkCol && doc.url) {
-    values[linkCol] = { url: doc.url, text: structured.title };
-  }
-  const notesCol = columnId(board, "Notes", "long_text");
-  if (notesCol) {
-    values[notesCol] = {
-      text:
-        `${structured.summary}\n\n` +
-        `Captured from Telegram: ${senderDisplayName(from)} (${senderHandle(from)})\n` +
-        `Chat: ${chatId}\n\n` +
-        `Original notes:\n${String(sourceText || rawText).slice(0, 800)}`,
-    };
-  }
-
-  const register = await createBoardItem({
-    boardName: DOCS_BOARD_NAME,
-    groupTitle: DOC_REGISTER_GROUP_BY_AREA[structured.area] || "Drafts",
-    itemName: structured.title,
-    columnValues: values,
-    from,
-    chatId,
-    sourceText: null,
-  });
-
-  return { doc, register, structured };
-}
-
-async function uploadFileToColumn(boardId, itemId, columnId, buf, filename) {
-  // GraphQL multipart request spec — wrapped in try/catch by caller.
-  const form = new FormData();
-  form.append(
-    "query",
-    `mutation ($file: File!) { add_file_to_column(item_id: ${itemId}, column_id: "${columnId}", file: $file) { id } }`
-  );
-  form.append("map", JSON.stringify({ image: "variables.file" }));
-  form.append("image", new Blob([buf]), filename);
-
-  const res = await fetch(MONDAY_FILE_URL, {
-    method: "POST",
-    headers: {
-      Authorization: MONDAY_API_TOKEN,
-      "API-Version": MONDAY_API_VERSION,
+    properties: {
+      "Doc status": "Draft",
+      Area: structured.area,
+      "Telegram user": senderHandle(from),
+      Summary: structured.summary || "",
+      Notes: notes,
     },
-    body: form,
+    children,
   });
-  const json = await res.json();
-  if (json.errors) throw new Error(JSON.stringify(json.errors));
+
+  return { doc: { url: page.url, id: page.id }, structured };
 }
 
-// ── Telegram -> monday.com: create a task ─────────────────────────────────────
+// ── Telegram -> Notion: create a task ─────────────────────────────────────────
 async function createInboxTask({ text, from, chatId, photoFileId, classification }) {
-  const board = await resolveBoard(TASK_INBOX_BOARD_NAME);
-
   const cleanText = String(text || "").trim() || "(no text)";
 
-  // If the classifier ran, use its title and route to the review group.
-  const reviewGroup = board.groups.find((g) => g.title === "Needs review");
-  const group = classification && reviewGroup ? reviewGroup : board.groups[0];
-
+  // If the classifier ran, use its title and route to the review stage.
+  const stage = classification ? "Needs review" : "New brain dumps";
   const rawName = classification?.title || cleanText;
   const name = rawName.length > 200 ? rawName.slice(0, 197) + "..." : rawName;
 
-  const created = await monday(
-    `
-      mutation ($boardId: ID!, $groupId: String!, $name: String!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: $name) { id }
-      }
-    `,
-    { boardId: String(board.id), groupId: group.id, name }
-  );
-  const itemId = created.create_item.id;
+  const suggested = classification?.suggested_board
+    ? `Suggested board: ${classification.suggested_board}\n`
+    : "";
+  const summary = classification?.summary ? `Summary: ${classification.summary}\n` : "";
+  const notes = telegramNote({
+    from,
+    chatId,
+    extra: `${suggested}${summary}`.trim(),
+    sourceText: cleanText,
+  });
 
-  const values = {};
-  const sourceCol = columnId(board, "Source", "status");
-  if (sourceCol) values[sourceCol] = { label: "Telegram" };
-
-  const tgUserCol = columnId(board, "Telegram user", "text");
-  if (tgUserCol) values[tgUserCol] = senderHandle(from);
-
-  const tgChatCol = columnId(board, "Telegram chat ID", "text");
-  if (tgChatCol) values[tgChatCol] = String(chatId);
-
+  const properties = {
+    Stage: stage,
+    Source: "Telegram",
+    "Telegram user": senderHandle(from),
+    "Telegram chat ID": String(chatId),
+    Notes: notes,
+  };
   if (classification) {
-    const areaCol = columnId(board, "Area", "status");
-    if (areaCol && classification.area) values[areaCol] = { label: classification.area };
-
-    const priorityCol = columnId(board, "Priority", "status");
-    if (priorityCol && classification.priority)
-      values[priorityCol] = { label: classification.priority };
-
-    const safetyCol = columnId(board, "Safety critical?", "checkbox");
-    if (safetyCol && classification.safety_critical) values[safetyCol] = { checked: "true" };
-
-    const materialsCol = columnId(board, "Needs materials?", "checkbox");
-    if (materialsCol && classification.needs_materials)
-      values[materialsCol] = { checked: "true" };
-
-    const moneyCol = columnId(board, "Needs money?", "checkbox");
-    if (moneyCol && classification.needs_money) values[moneyCol] = { checked: "true" };
+    if (classification.area) properties.Area = classification.area;
+    if (classification.priority) properties.Priority = classification.priority;
+    if (classification.safety_critical) properties["Safety critical?"] = true;
+    if (classification.needs_materials) properties["Needs materials?"] = true;
+    if (classification.needs_money) properties["Needs money?"] = true;
   }
+  if (photoFileId) properties.Notes = `${notes}\n\n[Photo attached in Telegram]`;
 
-  const notesCol = columnId(board, "Notes", "long_text");
-  if (notesCol) {
-    const suggested = classification?.suggested_board
-      ? `Suggested board: ${classification.suggested_board}\n`
-      : "";
-    const summary = classification?.summary ? `Summary: ${classification.summary}\n` : "";
-    values[notesCol] = {
-      text:
-        `From Telegram: ${senderDisplayName(from)} (${senderHandle(from)})\n` +
-        `Chat: ${chatId}\n${suggested}${summary}\nOriginal message:\n${cleanText}`,
-    };
-  }
+  const page = await notion.createPage({
+    databaseName: TASKS_DB_NAME,
+    title: name,
+    properties,
+  });
 
-  if (Object.keys(values).length) {
-    try {
-      await changeColumnValues(board.id, itemId, values);
-    } catch (err) {
-      log("Could not set inbox columns:", err.message);
-    }
-  }
-
-  if (photoFileId) {
-    const fileCol = columnId(board, "Photo / file", "file");
-    if (fileCol) {
-      try {
-        const { buf, filename } = await downloadTelegramPhoto(photoFileId);
-        await uploadFileToColumn(board.id, itemId, fileCol, buf, filename);
-      } catch (err) {
-        log("Photo upload skipped:", err.message);
-      }
-    }
-  }
-
-  // Pre-mark as seen so the poller doesn't double-announce our own item.
-  state.items[itemId] = { status: "", assignees: "", done: false };
-  saveState();
-
-  return { itemId, boardId: board.id, url: itemUrl(board.id, itemId) };
+  markPageSeen(page.id, { stage, status: "", doer: "", done: notion.isDoneStage(stage) });
+  return { itemId: page.id, url: page.url };
 }
 
-async function createBoardItem({
-  boardName,
-  groupTitle,
+/** Generic create in any Notion DB, mirroring the old createBoardItem shape. */
+async function createDbPage({
+  databaseName,
+  stage,
   itemName,
-  columnValues = {},
+  properties = {},
   from,
   chatId,
   sourceText,
 }) {
-  const board = await resolveBoard(boardName);
-  const group =
-    board.groups.find((g) => g.title === groupTitle) || board.groups[0];
-  const name = String(itemName || "Item").slice(0, 200);
-
-  const created = await monday(
-    `
-      mutation ($boardId: ID!, $groupId: String!, $name: String!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: $name) { id }
-      }
-    `,
-    { boardId: String(board.id), groupId: group.id, name }
-  );
-  const itemId = created.create_item.id;
-
-  const values = { ...columnValues };
-  const sourceCol = columnId(board, "Source", "status");
-  if (sourceCol && !values[sourceCol]) values[sourceCol] = { label: "Telegram" };
-  const tgUserCol = columnId(board, "Telegram user", "text");
-  if (tgUserCol) values[tgUserCol] = senderHandle(from);
-  const notesCol = columnId(board, "Notes", "long_text");
-  if (notesCol && sourceText && !values[notesCol]) {
-    values[notesCol] = {
-      text:
-        `From Telegram: ${senderDisplayName(from)} (${senderHandle(from)})\n` +
-        `Chat: ${chatId}\n\nOriginal message:\n${sourceText}`,
-    };
+  const props = { ...properties };
+  if (stage && props.Stage === undefined) props.Stage = stage;
+  if (props.Source === undefined) props.Source = "Telegram";
+  if (from && props["Telegram user"] === undefined) {
+    props["Telegram user"] = senderHandle(from);
+  }
+  if (sourceText && props.Notes === undefined) {
+    props.Notes = telegramNote({ from, chatId, sourceText });
   }
 
-  if (Object.keys(values).length) {
-    try {
-      await changeColumnValues(board.id, itemId, values);
-    } catch (err) {
-      log(`Could not set columns on ${boardName}:`, err.message);
-    }
-  }
+  const page = await notion.createPage({
+    databaseName,
+    title: String(itemName || "Item").slice(0, 200),
+    properties: props,
+  });
 
-  state.items[itemId] = { status: "", assignees: "", done: false };
-  saveState();
-  return { itemId, boardId: board.id, url: itemUrl(board.id, itemId), boardName };
+  markPageSeen(page.id, {
+    stage: stage || "",
+    status: "",
+    doer: "",
+    done: notion.isDoneStage(stage),
+  });
+  return { itemId: page.id, url: page.url, databaseName, boardName: databaseName };
 }
 
 async function createTaskFromClassification({ classified, text, from, chatId, photoFileId }) {
   const task = classified.task;
   const isGuest = classified.action === "guest_issue";
-  const boardName = isGuest
-    ? GUEST_BOARD_NAME
+  const databaseName = isGuest
+    ? GUEST_DB_NAME
     : task?.route_maintenance
-      ? MAINTENANCE_BOARD_NAME
-      : TASK_INBOX_BOARD_NAME;
-  const groupTitle = isGuest
+      ? MAINTENANCE_DB_NAME
+      : TASKS_DB_NAME;
+  const stage = isGuest
     ? "New guest issues"
     : task?.route_maintenance
       ? MAINTENANCE_GROUP_BY_AREA[task.area] || "Water"
       : "Needs review";
 
-  const board = await resolveBoard(boardName);
-  const values = {};
-  const areaCol = columnId(board, "Area", "status");
-  if (areaCol && task?.area) values[areaCol] = { label: task.area };
-  const priorityCol = columnId(board, "Priority", "status");
-  if (priorityCol && task?.priority) values[priorityCol] = { label: task.priority };
-  const safetyCol = columnId(board, "Safety critical?", "checkbox");
-  if (safetyCol && task?.safety_critical) values[safetyCol] = { checked: "true" };
+  const properties = {};
+  if (task?.area && !task?.route_maintenance) properties.Area = task.area;
+  if (task?.priority) properties.Priority = task.priority;
+  if (task?.safety_critical) properties["Safety critical?"] = true;
+  let sourceText = text;
+  if (photoFileId) sourceText = `${text || ""}\n\n[Photo attached in Telegram]`.trim();
 
-  const result = await createBoardItem({
-    boardName,
-    groupTitle,
+  return createDbPage({
+    databaseName,
+    stage,
     itemName: task?.title || text,
-    columnValues: values,
+    properties,
     from,
     chatId,
-    sourceText: text,
+    sourceText,
   });
-
-  if (photoFileId) {
-    const fileCol = columnId(board, "Photo / file", "file");
-    if (fileCol) {
-      try {
-        const { buf, filename } = await downloadTelegramPhoto(photoFileId);
-        await uploadFileToColumn(board.id, result.itemId, fileCol, buf, filename);
-      } catch (err) {
-        log("Photo upload skipped:", err.message);
-      }
-    }
-  }
-  return result;
 }
 
 async function createDecision({ decision, from, chatId, sourceText }) {
-  const board = await resolveBoard(DECISIONS_BOARD_NAME);
-  const values = {};
-  const catCol = columnId(board, "Category", "status");
-  if (catCol && decision.category) values[catCol] = { label: decision.category };
-  const proposedCol = columnId(board, "Proposed by", "text");
-  if (proposedCol) values[proposedCol] = senderDisplayName(from);
-  if (decision.summary) {
-    const notesCol = columnId(board, "Notes", "long_text");
-    if (notesCol) values[notesCol] = { text: decision.summary };
-  }
-  return createBoardItem({
-    boardName: DECISIONS_BOARD_NAME,
-    groupTitle: "Proposed",
+  const properties = {};
+  if (decision.category) properties.Category = decision.category;
+  properties["Proposed by"] = senderDisplayName(from);
+  if (decision.summary) properties.Notes = decision.summary;
+  return createDbPage({
+    databaseName: DECISIONS_DB_NAME,
+    stage: "Proposed",
     itemName: decision.title,
-    columnValues: values,
+    properties,
     from,
     chatId,
     sourceText,
@@ -1305,24 +880,8 @@ async function createDecision({ decision, from, chatId, sourceText }) {
 }
 
 async function createEvent({ title, date, eventType, recurrence, from, chatId, sourceText }) {
-  const board = await resolveBoard(EVENTS_BOARD_NAME);
   const recurrenceInfo = normalizeRecurrenceField(recurrence || "");
-  const preferGroup = recurrenceInfo.rule ? EVENT_RECURRING_GROUP : EVENT_CAPTURE_GROUP;
-  const group =
-    board.groups.find((g) => g.title === preferGroup) ||
-    board.groups.find((g) => g.title === EVENT_CAPTURE_GROUP) ||
-    board.groups[0];
-
-  const name = String(title || "Event").slice(0, 200);
-  const created = await monday(
-    `
-      mutation ($boardId: ID!, $groupId: String!, $name: String!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: $name) { id }
-      }
-    `,
-    { boardId: String(board.id), groupId: group.id, name }
-  );
-  const itemId = created.create_item.id;
+  const stage = recurrenceInfo.rule ? EVENT_RECURRING_GROUP : EVENT_CAPTURE_GROUP;
 
   let eventDate = date;
   if (recurrenceInfo.rule) {
@@ -1332,56 +891,41 @@ async function createEvent({ title, date, eventType, recurrence, from, chatId, s
       date;
   }
 
-  const values = {};
-  const dateCol = columnId(board, "Date", "date");
-  if (dateCol && eventDate) values[dateCol] = { date: eventDate };
+  const recurNote = recurrenceInfo.label
+    ? `Recurrence: ${recurrenceInfo.canonical} (${recurrenceInfo.label})`
+    : "";
+  const notes = telegramNote({
+    from,
+    chatId,
+    extra: recurNote,
+    sourceText: sourceText || title,
+  });
 
-  const typeCol = columnId(board, "Event type", "status");
-  if (typeCol && eventType) values[typeCol] = { label: eventType };
+  const properties = {
+    Stage: stage,
+    "Announce on Telegram?": true,
+    Source: "Telegram",
+    Notes: notes,
+  };
+  if (eventDate) properties.Date = eventDate;
+  if (eventType) properties["Event type"] = eventType;
+  if (recurrenceInfo.canonical) properties.Recurrence = recurrenceInfo.canonical;
 
-  if (recurrenceInfo.canonical) {
-    try {
-      const recurrenceCol = await ensureTextColumn(board, "Recurrence");
-      if (recurrenceCol) values[recurrenceCol] = recurrenceInfo.canonical;
-    } catch (err) {
-      log("Could not ensure Recurrence column (will store in Notes):", err.message);
-    }
-  }
+  const page = await notion.createPage({
+    databaseName: EVENTS_DB_NAME,
+    title: String(title || "Event").slice(0, 200),
+    properties,
+  });
 
-  const announceCol =
-    columnId(board, "Announce?", "checkbox") ||
-    columnId(board, "Announce on Telegram?", "checkbox");
-  if (announceCol) values[announceCol] = { checked: "true" };
-
-  const sourceCol = columnId(board, "Source", "status");
-  if (sourceCol) values[sourceCol] = { label: "Telegram" };
-
-  const notesCol = columnId(board, "Notes", "long_text");
-  if (notesCol) {
-    const recurNote = recurrenceInfo.label
-      ? `\nRecurrence: ${recurrenceInfo.canonical} (${recurrenceInfo.label})`
-      : "";
-    values[notesCol] = {
-      text:
-        `From Telegram: ${senderDisplayName(from)} (${senderHandle(from)})\n` +
-        `Chat: ${chatId}${recurNote}\n\nOriginal message:\n${sourceText || name}`,
-    };
-  }
-
-  if (Object.keys(values).length) {
-    try {
-      await changeColumnValues(board.id, itemId, values);
-    } catch (err) {
-      log("Could not set event columns:", err.message);
-    }
-  }
-
-  state.items[itemId] = { status: "", assignees: "", done: false };
-  saveState();
+  markPageSeen(page.id, {
+    stage,
+    status: "",
+    doer: "",
+    done: notion.isDoneStage(stage),
+  });
   return {
-    itemId,
-    boardId: board.id,
-    url: itemUrl(board.id, itemId),
+    itemId: page.id,
+    url: page.url,
     date: eventDate,
     recurrence: recurrenceInfo.canonical || null,
     recurrenceLabel: recurrenceInfo.label || null,
@@ -1389,35 +933,21 @@ async function createEvent({ title, date, eventType, recurrence, from, chatId, s
 }
 
 async function fetchRotaForDay(dateISO) {
-  const board = await resolveBoard(RECURRING_BOARD_NAME);
   const dayKey = dayKeyFromISO(dateISO);
-  const dayCol = columnId(board, dayKey, "text");
-  if (!dayCol) return [];
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(RECURRING_DB_NAME, {
+      filter: { property: "Stage", select: { equals: "Community chore rota" } },
+    }));
+  } catch (err) {
+    log("Rota fetch failed:", err.message);
+    return [];
+  }
 
-  const group = board.groups.find((g) => g.title === "Community chore rota");
-  if (!group) return [];
-
-  const data = await monday(
-    `
-      query ($boardId: ID!, $groupId: String!) {
-        boards(ids: [$boardId]) {
-          groups(ids: [$groupId]) {
-            items_page(limit: 100) {
-              items { id name column_values { id text } }
-            }
-          }
-        }
-      }
-    `,
-    { boardId: String(board.id), groupId: group.id }
-  );
-
-  const items = data.boards?.[0]?.groups?.[0]?.items_page?.items || [];
   const chores = [];
-  for (const item of items) {
-    const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
-    const assignee = (cv[dayCol] || "").trim();
-    if (assignee) chores.push({ chore: item.name, assignee });
+  for (const page of pages) {
+    const assignee = notion.pagePropText(page, dayKey).trim();
+    if (assignee) chores.push({ chore: notion.pageTitle(page), assignee });
   }
   return chores;
 }
@@ -1431,23 +961,20 @@ function eventMatchesDate(itemDate, recurrenceText, dateISO) {
   return itemDate && itemDate.slice(0, 10) === dateISO;
 }
 
-/** Read recurrence from dedicated column, or "Recurrence: …" / canonical rule in Notes. */
-function recurrenceTextFromColumns(cv, recurrenceCol, notesCol) {
-  if (recurrenceCol) {
-    const direct = (cv[recurrenceCol] || "").trim();
-    if (direct && parseRecurrence(direct)) return direct;
-  }
-  const notes = notesCol ? cv[notesCol] || "" : "";
+/** Read recurrence from the Recurrence prop, or "Recurrence: …" / canonical rule in Notes. */
+function recurrenceTextFromPage(page) {
+  const direct = notion.pagePropText(page, "Recurrence").trim();
+  if (direct && parseRecurrence(direct)) return direct;
+
+  const notes = notion.pagePropText(page, "Notes") || "";
   const marked = notes.match(/Recurrence:\s*([^\n(]+)/i);
   if (marked) {
     const raw = marked[1].trim();
     if (parseRecurrence(raw)) return raw;
   }
-  const canonical = notes.match(
-    /\b((?:daily|weekly|monthly):[A-Za-z0-9,_-]+)\b/i
-  );
+  const canonical = notes.match(/\b((?:daily|weekly|monthly):[A-Za-z0-9,_-]+)\b/i);
   if (canonical && parseRecurrence(canonical[1])) return canonical[1];
-  return recurrenceCol ? (cv[recurrenceCol] || "").trim() : "";
+  return direct;
 }
 
 function collectEventOccurrences(itemDate, recurrenceText, startISO, endISO) {
@@ -1464,96 +991,54 @@ function collectEventOccurrences(itemDate, recurrenceText, startISO, endISO) {
 }
 
 async function fetchEventsForDate(dateISO) {
-  const board = await resolveBoard(EVENTS_BOARD_NAME);
-  const dateCol = columnId(board, "Date", "date");
-  const recurrenceCol =
-    columnId(board, "Recurrence", "text") || columnId(board, "Recurrence");
-  const notesCol = columnId(board, "Notes", "long_text") || columnId(board, "Notes");
-  if (!dateCol && !recurrenceCol && !notesCol) return [];
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(EVENTS_DB_NAME));
+  } catch (err) {
+    log("Events fetch failed:", err.message);
+    return [];
+  }
 
   const events = [];
-  let cursor = null;
-  do {
-    const data = await monday(
-      `
-        query ($boardId: ID!, $cursor: String) {
-          boards(ids: [$boardId]) {
-            items_page(limit: 100, cursor: $cursor) {
-              cursor
-              items { id name group { title } column_values { id text } }
-            }
-          }
-        }
-      `,
-      { boardId: String(board.id), cursor }
-    );
-    const page = data.boards?.[0]?.items_page;
-    for (const item of page?.items || []) {
-      if (isDoneName(item.group?.title)) continue;
-      const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
-      const itemDate = dateCol ? cv[dateCol] || "" : "";
-      const recurrenceText = recurrenceTextFromColumns(cv, recurrenceCol, notesCol);
-      if (!eventMatchesDate(itemDate, recurrenceText, dateISO)) continue;
-      const typeCol = columnId(board, "Event type", "status");
-      const rule = parseRecurrence(recurrenceText);
-      events.push({
-        title: item.name,
-        type: typeCol ? cv[typeCol] || "" : "",
-        recurrence: rule ? describeRecurrence(rule) : "",
-      });
-    }
-    cursor = page?.cursor || null;
-  } while (cursor);
+  for (const page of pages) {
+    if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+    const itemDate = notion.pageDateISO(page, "Date");
+    const recurrenceText = recurrenceTextFromPage(page);
+    if (!eventMatchesDate(itemDate, recurrenceText, dateISO)) continue;
+    const rule = parseRecurrence(recurrenceText);
+    events.push({
+      title: notion.pageTitle(page),
+      type: notion.pagePropText(page, "Event type"),
+      recurrence: rule ? describeRecurrence(rule) : "",
+    });
+  }
   return events;
 }
 
 async function fetchEventsBetween(startISO, endISO) {
-  const board = await resolveBoard(EVENTS_BOARD_NAME);
-  const dateCol = columnId(board, "Date", "date");
-  const recurrenceCol =
-    columnId(board, "Recurrence", "text") || columnId(board, "Recurrence");
-  const notesCol = columnId(board, "Notes", "long_text") || columnId(board, "Notes");
-  if (!dateCol && !recurrenceCol && !notesCol) return [];
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(EVENTS_DB_NAME));
+  } catch (err) {
+    log("Events fetch failed:", err.message);
+    return [];
+  }
 
   const events = [];
-  let cursor = null;
-  do {
-    const data = await monday(
-      `
-        query ($boardId: ID!, $cursor: String) {
-          boards(ids: [$boardId]) {
-            items_page(limit: 100, cursor: $cursor) {
-              cursor
-              items { id name group { title } column_values { id text } }
-            }
-          }
-        }
-      `,
-      { boardId: String(board.id), cursor }
-    );
-    const page = data.boards?.[0]?.items_page;
-    for (const item of page?.items || []) {
-      if (isDoneName(item.group?.title)) continue;
-      const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
-      const itemDate = dateCol ? cv[dateCol] || "" : "";
-      const recurrenceText = recurrenceTextFromColumns(cv, recurrenceCol, notesCol);
-      const dates = collectEventOccurrences(itemDate, recurrenceText, startISO, endISO);
-      if (!dates.length) continue;
-      const typeCol = columnId(board, "Event type", "status");
-      const type = typeCol ? cv[typeCol] || "" : "";
-      const rule = parseRecurrence(recurrenceText);
-      const recurrenceLabel = rule ? describeRecurrence(rule) : "";
-      for (const d of dates) {
-        events.push({
-          title: item.name,
-          date: d,
-          type,
-          recurrence: recurrenceLabel,
-        });
-      }
+  for (const page of pages) {
+    if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+    const itemDate = notion.pageDateISO(page, "Date");
+    const recurrenceText = recurrenceTextFromPage(page);
+    const dates = collectEventOccurrences(itemDate, recurrenceText, startISO, endISO);
+    if (!dates.length) continue;
+    const type = notion.pagePropText(page, "Event type");
+    const rule = parseRecurrence(recurrenceText);
+    const recurrenceLabel = rule ? describeRecurrence(rule) : "";
+    const title = notion.pageTitle(page);
+    for (const d of dates) {
+      events.push({ title, date: d, type, recurrence: recurrenceLabel });
     }
-    cursor = page?.cursor || null;
-  } while (cursor);
+  }
   return events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
 }
 
@@ -1572,61 +1057,26 @@ function resolveScheduleRangeForToday(range) {
   return resolveScheduleRange(range, todayISO(), RECAP_TZ);
 }
 
-/** Normalize monday date column text to YYYY-MM-DD when possible. */
-function mondayDateTextToISO(text) {
-  const raw = String(text || "").trim();
-  if (!raw) return "";
-  const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (iso) return iso[1];
-  const d = new Date(raw);
-  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  return "";
-}
-
-function colText(cv, board, title, type) {
-  const id = columnId(board, title, type) || columnId(board, title);
-  if (!id) return "";
-  return String(cv[id] || "").trim();
-}
-
-async function fetchAllBoardItems(board) {
-  const items = [];
-  let cursor = null;
-  do {
-    const data = await monday(
-      `
-        query ($boardId: ID!, $cursor: String) {
-          boards(ids: [$boardId]) {
-            items_page(limit: 100, cursor: $cursor) {
-              cursor
-              items { id name group { title } column_values { id text } }
-            }
-          }
-        }
-      `,
-      { boardId: String(board.id), cursor }
-    );
-    const page = data.boards?.[0]?.items_page;
-    items.push(...(page?.items || []));
-    cursor = page?.cursor || null;
-  } while (cursor);
-  return items;
+/** Match a Notion campsite/meals page against a calendar day (by Day ID or Date). */
+function pageMatchesDay(page, dateISO) {
+  const dayId = notion.pagePropText(page, "Day ID").trim();
+  const date = notion.pageDateISO(page, "Date");
+  return date === dateISO || dayId === dateISO;
 }
 
 /**
- * Campsite occupancy for a calendar day from monday.com.
- * Day items mirror meals: Checking in / Checking out / On site text lists.
+ * Campsite occupancy for a calendar day from Notion.
+ * Rows mirror meals: Checking in / Checking out / Staying text lists.
  */
 async function fetchCampsiteActivityForDay(dateISO) {
-  let board;
+  let pages;
   try {
-    board = await resolveBoard(CAMPSITE_BOOKINGS_BOARD_NAME);
+    ({ pages } = await notion.queryDatabase(CAMPSITE_BOOKINGS_DB_NAME));
   } catch (err) {
-    log("Campsite bookings board unavailable:", err.message);
+    log("Campsite bookings database unavailable:", err.message);
     return { arrivals: [], departures: [], staying: [] };
   }
 
-  const items = await fetchAllBoardItems(board);
   const linesFromDetail = (text) =>
     String(text || "")
       .split("\n")
@@ -1634,34 +1084,11 @@ async function fetchCampsiteActivityForDay(dateISO) {
       .filter(Boolean)
       .map((line) => ({ line, name: line.split(" · ")[0] || line }));
 
-  for (const item of items) {
-    const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
-    const dayId = colText(cv, board, "Day ID", "text");
-    const date =
-      mondayDateTextToISO(colText(cv, board, "Date", "date")) || mondayDateTextToISO(dayId);
-    if (date !== dateISO && dayId !== dateISO) continue;
-
-    const hasListCols =
-      columnId(board, "Checking in", "long_text") ||
-      columnId(board, "Arrivals detail", "long_text") ||
-      columnId(board, "Checking out", "long_text") ||
-      columnId(board, "Departures detail", "long_text");
-    if (!hasListCols) break;
-
-    const arrivals = linesFromDetail(
-      colText(cv, board, "Checking in", "long_text") ||
-        colText(cv, board, "Arrivals detail", "long_text")
-    );
-    const departures = linesFromDetail(
-      colText(cv, board, "Checking out", "long_text") ||
-        colText(cv, board, "Departures detail", "long_text")
-    );
-    const staying = linesFromDetail(
-      colText(cv, board, "Staying", "long_text") ||
-        colText(cv, board, "On site detail", "long_text") ||
-        colText(cv, board, "On site", "long_text")
-    );
-
+  for (const page of pages) {
+    if (!pageMatchesDay(page, dateISO)) continue;
+    const arrivals = linesFromDetail(notion.pagePropText(page, "Checking in"));
+    const departures = linesFromDetail(notion.pagePropText(page, "Checking out"));
+    const staying = linesFromDetail(notion.pagePropText(page, "Staying"));
     return { arrivals, departures, staying };
   }
 
@@ -1669,32 +1096,28 @@ async function fetchCampsiteActivityForDay(dateISO) {
 }
 
 async function fetchCampsiteMealsForDay(dateISO) {
-  let board;
+  let pages;
   try {
-    board = await resolveBoard(CAMPSITE_MEALS_BOARD_NAME);
+    ({ pages } = await notion.queryDatabase(CAMPSITE_MEALS_DB_NAME));
   } catch (err) {
-    log("Campsite meals board unavailable:", err.message);
+    log("Campsite meals database unavailable:", err.message);
     return null;
   }
 
-  const items = await fetchAllBoardItems(board);
-  for (const item of items) {
-    const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
-    const dayId = colText(cv, board, "Day ID", "text");
-    const date = mondayDateTextToISO(colText(cv, board, "Date", "date")) || mondayDateTextToISO(dayId);
-    if (date !== dateISO && dayId !== dateISO) continue;
+  for (const page of pages) {
+    if (!pageMatchesDay(page, dateISO)) continue;
 
-    const breakfastCook = Number(colText(cv, board, "Breakfast cooks", "numbers") || 0) || 0;
-    const dinnerCook = Number(colText(cv, board, "Dinner cooks", "numbers") || 0) || 0;
-    const breakfastDetail = colText(cv, board, "Breakfast detail", "long_text");
-    const dinnerDetail = colText(cv, board, "Dinner detail", "long_text");
-    const weekdayRaw = colText(cv, board, "Weekday dinner?", "checkbox").toLowerCase();
+    const breakfastCook = Number(notion.pagePropText(page, "Breakfast cooks") || 0) || 0;
+    const dinnerCook = Number(notion.pagePropText(page, "Dinner cooks") || 0) || 0;
+    const breakfastDetail = notion.pagePropText(page, "Breakfast detail");
+    const dinnerDetail = notion.pagePropText(page, "Dinner detail");
+    const weekdayRaw = notion.pagePropText(page, "Weekday dinner?").toLowerCase();
     const isWeekday =
-      weekdayRaw === "v" ||
-      weekdayRaw === "true" ||
-      weekdayRaw === "checked" ||
-      weekdayRaw === "yes" ||
-      (weekdayRaw === "" ? null : false);
+      weekdayRaw === "true"
+        ? true
+        : weekdayRaw === "false"
+          ? false
+          : null;
 
     return {
       breakfastCook,
@@ -1702,7 +1125,7 @@ async function fetchCampsiteMealsForDay(dateISO) {
       breakfastDetail,
       dinnerDetail,
       isWeekday,
-      name: item.name,
+      name: notion.pageTitle(page),
     };
   }
   return {
@@ -1716,7 +1139,7 @@ async function fetchCampsiteMealsForDay(dateISO) {
 }
 
 function formatCampsiteSnapshot(dateISO, activity, meals) {
-  const lines = ["Campsite bookings (monday.com):"];
+  const lines = ["Campsite bookings (Notion):"];
   if (activity.arrivals.length) {
     lines.push(`Checking in (${activity.arrivals.length}):`);
     for (const b of activity.arrivals) lines.push(`- ${b.line}`);
@@ -1736,9 +1159,9 @@ function formatCampsiteSnapshot(dateISO, activity, meals) {
     for (const b of activity.staying) lines.push(`- ${b.line}`);
   }
 
-  lines.push("", "Meals (monday.com):");
+  lines.push("", "Meals (Notion):");
   if (!meals) {
-    lines.push("- (meals board not available)");
+    lines.push("- (meals database not available)");
   } else {
     lines.push(`Breakfast cooks: ${meals.breakfastCook}`);
     if (meals.breakfastDetail) {
@@ -1768,7 +1191,7 @@ async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
   if (start === end) {
     lines.push(await buildDataSnapshot(start).then((s) => s.split("\n").slice(2).join("\n")));
   } else {
-    lines.push("Events (on monday.com):");
+    lines.push("Events (on Notion):");
     const events = await fetchEventsBetween(start, end);
     if (events.length) {
       for (const e of events) {
@@ -1860,7 +1283,7 @@ async function buildDataSnapshot(dateISO) {
   return lines.join("\n");
 }
 
-async function answerFromMondayData(question) {
+async function answerFromNotionData(question) {
   const snapshot = await buildScheduleSnapshot(question);
   return openaiLib.answerFromData(question, snapshot);
 }
@@ -1876,7 +1299,7 @@ async function buildDailyRecap(dateISO) {
     activity = await fetchCampsiteActivityForDay(dateISO);
     meals = await fetchCampsiteMealsForDay(dateISO);
   } catch (err) {
-    log("Campsite monday fetch for recap failed:", err.message);
+    log("Campsite Notion fetch for recap failed:", err.message);
   }
   const dayName = new Intl.DateTimeFormat("en-GB", {
     timeZone: RECAP_TZ,
@@ -1986,46 +1409,35 @@ async function maybeSendDailyRecap() {
 
 // Log a documentation gap when /ask finds nothing.
 async function createDocGapTask({ question, from, chatId }) {
-  const board = await resolveBoard(TASK_INBOX_BOARD_NAME);
-  const group =
-    board.groups.find((g) => g.title === "Documentation gap") || board.groups[0];
   const name = `Document: ${question}`.slice(0, 200);
+  const notes =
+    `Auto-logged documentation gap.\n` +
+    `Asked by ${senderDisplayName(from)} (${senderHandle(from)}) via Telegram.\n` +
+    `Chat: ${chatId}\n\n` +
+    `Question: ${question}`;
 
-  const created = await monday(
-    `
-      mutation ($boardId: ID!, $groupId: String!, $name: String!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: $name) { id }
-      }
-    `,
-    { boardId: String(board.id), groupId: group.id, name }
-  );
-  const itemId = created.create_item.id;
+  const page = await notion.createPage({
+    databaseName: TASKS_DB_NAME,
+    title: name,
+    properties: {
+      Stage: "Documentation gap",
+      Source: "Telegram",
+      "Telegram user": senderHandle(from),
+      "Telegram chat ID": String(chatId),
+      Notes: notes,
+    },
+  });
 
-  const values = {};
-  const sourceCol = columnId(board, "Source", "status");
-  if (sourceCol) values[sourceCol] = { label: "Telegram" };
-  const notesCol = columnId(board, "Notes", "long_text");
-  if (notesCol) {
-    values[notesCol] = {
-      text:
-        `Auto-logged documentation gap.\n` +
-        `Asked by ${senderDisplayName(from)} (${senderHandle(from)}) via Telegram.\n\n` +
-        `Question: ${question}`,
-    };
-  }
-  if (Object.keys(values).length) {
-    try {
-      await changeColumnValues(board.id, itemId, values);
-    } catch (err) {
-      log("Could not set doc-gap columns:", err.message);
-    }
-  }
-  state.items[itemId] = { status: "", assignees: "", done: false };
-  saveState();
-  return itemId;
+  markPageSeen(page.id, {
+    stage: "Documentation gap",
+    status: "",
+    doer: "",
+    done: false,
+  });
+  return page.id;
 }
 
-// ── /ask: retrieval-augmented answers over the monday docs ──────────────────
+// ── /ask: retrieval-augmented answers over the Notion docs ──────────────────
 let docsIndexCache = { index: null, mtime: 0 };
 
 function getDocsIndex() {
@@ -2072,169 +1484,147 @@ async function answerQuestion(question) {
   };
 }
 
-// ── Telegram -> monday.com: register a member ────────────────────────────────
-async function findMemberByTelegram(handle) {
-  const board = await resolveBoard(MEMBERS_BOARD_NAME);
-  const tgCol = columnId(board, "Telegram username", "text");
-  if (!tgCol) return { board, item: null };
-
-  let cursor = null;
-  do {
-    const data = await monday(
-      `
-        query ($boardId: ID!, $cursor: String) {
-          boards(ids: [$boardId]) {
-            items_page(limit: 100, cursor: $cursor) {
-              cursor
-              items { id name column_values { id text } }
-            }
-          }
-        }
-      `,
-      { boardId: String(board.id), cursor }
-    );
-    const page = data.boards?.[0]?.items_page;
-    for (const item of page?.items || []) {
-      const cv = item.column_values.find((c) => c.id === tgCol);
-      if (cv && cv.text && cv.text.toLowerCase() === handle.toLowerCase()) {
-        return { board, item };
-      }
+// ── Resolve which Notion DB a page id belongs to ─────────────────────────────
+async function resolveDbNameById(databaseId) {
+  if (!databaseId) return null;
+  const candidates = [
+    ...new Set([
+      ...WATCH_DB_NAMES,
+      EVENTS_DB_NAME,
+      DECISIONS_DB_NAME,
+      MAINTENANCE_DB_NAME,
+      GUEST_DB_NAME,
+      TASKS_DB_NAME,
+      RECURRING_DB_NAME,
+    ]),
+  ];
+  for (const name of candidates) {
+    try {
+      const db = await notion.resolveDatabase(name);
+      if (db.id === databaseId) return name;
+    } catch {
+      // ignore missing DBs
     }
-    cursor = page?.cursor || null;
-  } while (cursor);
+  }
+  return null;
+}
 
-  return { board, item: null };
+/** Stage label that marks a page complete for a given database. */
+function doneStageFor(dbName) {
+  if (dbName === EVENTS_DB_NAME) return "Done / past";
+  if (dbName === RECURRING_DB_NAME) return "Done / logged";
+  return "Done";
+}
+
+// ── Telegram -> Notion: register a member ────────────────────────────────────
+async function findMemberByTelegram(handle) {
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(MEMBERS_DB_NAME));
+  } catch (err) {
+    log("Members fetch failed:", err.message);
+    return { page: null };
+  }
+  const lower = String(handle || "").toLowerCase();
+  for (const page of pages) {
+    const uname = notion.pagePropText(page, "Telegram username").toLowerCase();
+    if (uname && uname === lower) return { page };
+  }
+  return { page: null };
 }
 
 async function registerMember({ displayName, from, chatId }) {
   const handle = senderHandle(from);
-  const { board, item } = await findMemberByTelegram(handle);
+  const { page } = await findMemberByTelegram(handle);
 
-  const values = {};
-  const tgUserCol = columnId(board, "Telegram username", "text");
-  if (tgUserCol) values[tgUserCol] = handle;
-  const tgChatCol = columnId(board, "Telegram chat ID", "text");
-  if (tgChatCol) values[tgChatCol] = String(chatId);
-  const nameCol = columnId(board, "Display name", "text");
-  if (nameCol) values[nameCol] = displayName;
-  const activeCol = columnId(board, "Active?", "checkbox");
-  if (activeCol) values[activeCol] = { checked: "true" };
+  const properties = {
+    "Display name": displayName,
+    "Telegram username": handle,
+    "Telegram chat ID": String(chatId),
+    "Active?": true,
+  };
 
-  if (item) {
-    await changeColumnValues(board.id, item.id, values);
+  if (page) {
+    await notion.updatePageProps(MEMBERS_DB_NAME, page.id, properties);
     return { updated: true };
   }
 
-  const group = board.groups.find((g) => g.title === "Onboarding") || board.groups[0];
-  const created = await monday(
-    `
-      mutation ($boardId: ID!, $groupId: String!, $name: String!) {
-        create_item(board_id: $boardId, group_id: $groupId, item_name: $name) { id }
-      }
-    `,
-    { boardId: String(board.id), groupId: group.id, name: displayName }
-  );
-  await changeColumnValues(board.id, created.create_item.id, values);
+  await notion.createPage({
+    databaseName: MEMBERS_DB_NAME,
+    title: displayName,
+    properties: { Stage: "Onboarding", ...properties },
+  });
   return { updated: false };
 }
 
-// ── Telegram -> monday.com: list my open tasks ───────────────────────────────
+// ── Telegram -> Notion: list my open tasks ───────────────────────────────────
 async function listMyTasks(from) {
   const handle = senderHandle(from);
-  const { item: member } = await findMemberByTelegram(handle);
-  const displayName = member ? member.name : senderDisplayName(from);
+  const { page: member } = await findMemberByTelegram(handle);
+  const displayName = member
+    ? notion.pagePropText(member, "Display name") || notion.pageTitle(member)
+    : senderDisplayName(from);
 
   const matches = [];
-  for (const boardName of WATCH_BOARD_NAMES) {
-    let board;
+  for (const dbName of WATCH_DB_NAMES) {
+    let pages;
     try {
-      board = await resolveBoard(boardName);
+      ({ pages } = await notion.queryDatabase(dbName));
     } catch {
       continue;
     }
-    const doerCol = columnId(board, "Doer name", "text");
-    const helpersCol =
-      columnId(board, "Helpers / doers", "text") ||
-      columnId(board, "Doer name", "text");
-    const statusCol = columnId(board, "Status", "status");
-
-    let cursor = null;
-    do {
-      const data = await monday(
-        `
-          query ($boardId: ID!, $cursor: String) {
-            boards(ids: [$boardId]) {
-              items_page(limit: 100, cursor: $cursor) {
-                cursor
-                items { id name group { title } column_values { id text } }
-              }
-            }
-          }
-        `,
-        { boardId: String(board.id), cursor }
-      );
-      const page = data.boards?.[0]?.items_page;
-      for (const item of page?.items || []) {
-        if (isDoneName(item.group?.title)) continue;
-        const cvById = Object.fromEntries(
-          item.column_values.map((c) => [c.id, c.text || ""])
-        );
-        const doer = (cvById[doerCol] || "") + " " + (cvById[helpersCol] || "");
-        const matchesName =
-          displayName &&
-          doer.toLowerCase().includes(displayName.toLowerCase());
-        const matchesHandle = doer.toLowerCase().includes(handle.toLowerCase());
-        if (matchesName || matchesHandle) {
-          const status = statusCol ? cvById[statusCol] : "";
-          matches.push({
-            id: item.id,
-            name: item.name,
-            board: boardName,
-            status,
-          });
-        }
+    for (const page of pages) {
+      if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+      const doer =
+        notion.pagePropText(page, "Doer name") +
+        " " +
+        notion.pagePropText(page, "Helpers / doers");
+      const matchesName =
+        displayName && doer.toLowerCase().includes(displayName.toLowerCase());
+      const matchesHandle = doer.toLowerCase().includes(handle.toLowerCase());
+      if (matchesName || matchesHandle) {
+        matches.push({
+          id: page.id,
+          name: notion.pageTitle(page),
+          board: dbName,
+          status: notion.pagePropText(page, "Status"),
+        });
       }
-      cursor = page?.cursor || null;
-    } while (cursor);
+    }
   }
   return { displayName, matches };
 }
 
-// ── Telegram -> monday.com: mark done ─────────────────────────────────────────
-async function markItemDone(itemId) {
-  const data = await monday(
-    `
-      query ($itemId: [ID!]) {
-        items(ids: $itemId) { id name board { id name } }
-      }
-    `,
-    { itemId: [String(itemId)] }
-  );
-  const item = data.items?.[0];
-  if (!item) return { ok: false };
-
-  const board = await resolveBoard(item.board.name);
-  const statusCol = columnId(board, "Status", "status");
-  const doneGroup = board.groups.find((g) => isDoneName(g.title));
-
-  if (statusCol) {
-    await changeColumnValues(board.id, itemId, { [statusCol]: { label: "Done" } });
+// ── Telegram -> Notion: mark done ─────────────────────────────────────────────
+async function markItemDone(pageId) {
+  let page;
+  try {
+    page = await notion.notion("GET", `/pages/${pageId}`);
+  } catch {
+    return { ok: false };
   }
-  if (doneGroup) {
-    try {
-      await monday(
-        `
-          mutation ($itemId: ID!, $groupId: String!) {
-            move_item_to_group(item_id: $itemId, group_id: $groupId) { id }
-          }
-        `,
-        { itemId: String(itemId), groupId: doneGroup.id }
-      );
-    } catch (err) {
-      log("Could not move item to done group:", err.message);
-    }
+  if (!page || page.object !== "page") return { ok: false };
+
+  const dbName = await resolveDbNameById(page.parent?.database_id);
+  if (!dbName) return { ok: false };
+
+  const name = notion.pageTitle(page);
+  const db = await notion.resolveDatabase(dbName);
+  const map = {};
+  if (notion.prop(db, "Stage")) map.Stage = doneStageFor(dbName);
+  if (notion.prop(db, "Status")) map.Status = "Done";
+
+  if (Object.keys(map).length) {
+    await notion.updatePageProps(dbName, pageId, map);
   }
-  return { ok: true, name: item.name, boardName: item.board.name };
+  state.items[pageId] = {
+    stage: map.Stage || "",
+    status: map.Status || "",
+    doer: "",
+    done: true,
+  };
+  saveState();
+  return { ok: true, name, boardName: dbName };
 }
 
 function titleMatches(query, itemName) {
@@ -2248,57 +1638,38 @@ function titleMatches(query, itemName) {
   return hits.length >= Math.min(2, qWords.length);
 }
 
-async function findItemsByTarget({ boardNames, target }) {
+async function findItemsByTarget({ dbNames, target }) {
   if (target?.item_id) {
-    const data = await monday(
-      `
-        query ($itemId: [ID!]) {
-          items(ids: $itemId) { id name board { name } group { title } }
-        }
-      `,
-      { itemId: [String(target.item_id)] }
-    );
-    const item = data.items?.[0];
-    if (!item) return [];
-    if (isDoneName(item.group?.title)) return [];
-    return [{ id: item.id, name: item.name, boardName: item.board.name }];
+    let page;
+    try {
+      page = await notion.notion("GET", `/pages/${target.item_id}`);
+    } catch {
+      return [];
+    }
+    if (!page || page.object !== "page") return [];
+    if (pageIsDone(page)) return [];
+    const dbName = await resolveDbNameById(page.parent?.database_id);
+    return [{ id: page.id, name: notion.pageTitle(page), boardName: dbName || "" }];
   }
 
   const title = target?.title;
   if (!title) return [];
 
   const matches = [];
-  for (const boardName of boardNames) {
-    let board;
+  for (const dbName of dbNames) {
+    let pages;
     try {
-      board = await resolveBoard(boardName);
+      ({ pages } = await notion.queryDatabase(dbName));
     } catch {
       continue;
     }
-    let cursor = null;
-    do {
-      const data = await monday(
-        `
-          query ($boardId: ID!, $cursor: String) {
-            boards(ids: [$boardId]) {
-              items_page(limit: 100, cursor: $cursor) {
-                cursor
-                items { id name group { title } }
-              }
-            }
-          }
-        `,
-        { boardId: String(board.id), cursor }
-      );
-      const page = data.boards?.[0]?.items_page;
-      for (const item of page?.items || []) {
-        if (isDoneName(item.group?.title)) continue;
-        if (titleMatches(title, item.name)) {
-          matches.push({ id: item.id, name: item.name, boardName });
-        }
+    for (const page of pages) {
+      if (pageIsDone(page)) continue;
+      const name = notion.pageTitle(page);
+      if (titleMatches(title, name)) {
+        matches.push({ id: page.id, name, boardName: dbName });
       }
-      cursor = page?.cursor || null;
-    } while (cursor);
+    }
   }
   return matches;
 }
@@ -2308,7 +1679,7 @@ async function completeTaskFromChat({ target, text, from, chatId }) {
   if (wasRecentlyCaptured(key)) return { ok: true, duplicate: true };
 
   const matches = await findItemsByTarget({
-    boardNames: WATCH_BOARD_NAMES,
+    dbNames: WATCH_DB_NAMES,
     target,
   });
   if (!matches.length) return { ok: false, reason: "not_found" };
@@ -2333,7 +1704,7 @@ async function cancelEventFromChat({ target, text, from, chatId }) {
   if (wasRecentlyCaptured(key)) return { ok: true, duplicate: true };
 
   const matches = await findItemsByTarget({
-    boardNames: [EVENTS_BOARD_NAME],
+    dbNames: [EVENTS_DB_NAME],
     target,
   });
   if (!matches.length) return { ok: false, reason: "not_found" };
@@ -2359,7 +1730,7 @@ const HELP_TEXT = [
   "",
   "Tag me (@bot), reply to me, or DM me for questions, schedule info, tasks and events.",
   "Voice notes in the group are picked up automatically — explain how something works to create a structured doc.",
-  "In the group I also watch text chat and log events, tasks, docs, completions and cancellations on monday — I'll confirm when I act.",
+  "In the group I also watch text chat and log events, tasks, docs, completions and cancellations in Notion — I'll confirm when I act.",
   "",
   "<b>Commands</b>",
   "/task &lt;text&gt; — add a task",
@@ -2414,7 +1785,7 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
         return true;
       }
     } catch (err) {
-      log("answerFromMondayData error:", err.message);
+      log("answerFromNotionData error:", err.message);
     }
     try {
       const snapshot = await buildScheduleSnapshot(text, rangeOpts);
@@ -2434,7 +1805,7 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
 
   const docResult = await handleAsk({ question: text, from, chatId, logGap: logDocGaps });
   if (docResult.answered) return true;
-  const dataResult = await answerFromMondayData(text);
+  const dataResult = await answerFromNotionData(text);
   if (dataResult.answered && dataResult.answer) {
     await sendMessage(chatId, escapeHtml(dataResult.answer));
     return true;
@@ -2447,7 +1818,7 @@ async function captureAmbientDocumentation({ text, from, chatId, interactive }) 
   if (wasRecentlyCaptured(key)) return true;
   try {
     await telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
-    const { doc, structured, register } = await createDocumentation({
+    const { doc, structured } = await createDocumentation({
       rawText: text,
       from,
       chatId,
@@ -2462,8 +1833,7 @@ async function captureAmbientDocumentation({ text, from, chatId, interactive }) 
       text,
     });
     let reply = `📝 Documentation draft: <b>${escapeHtml(structured.title)}</b>`;
-    if (doc.url) reply += `\n<a href="${doc.url}">Open workdoc</a>`;
-    if (register?.url) reply += ` · <a href="${register.url}">Register</a>`;
+    if (doc.url) reply += `\n<a href="${doc.url}">Open doc in Notion</a>`;
     reply += `\n<i>Draft — ready for steward review.</i>`;
     await sendMessage(chatId, reply);
     log(`Documentation created: ${structured.title}`);
@@ -2503,7 +1873,7 @@ async function captureAmbientTask({ classified, text, from, chatId, photoFileId 
     const icon = classified.action === "guest_issue" ? "🏕️" : "📋";
     let reply = `${icon} Logged: <b>${escapeHtml(title)}</b>`;
     if (boardName) reply += ` (${escapeHtml(boardName)})`;
-    if (url) reply += ` — <a href="${url}">monday</a>`;
+    if (url) reply += ` — <a href="${url}">Notion</a>`;
     await sendMessage(chatId, reply);
     log(`Task captured (${classified.action}): ${title}`);
     return true;
@@ -2604,7 +1974,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
         const names = result.matches.map((m) => m.name).join(", ");
         await sendMessage(chatId, `Which one? I found: ${escapeHtml(names)}. Be more specific or use /done &lt;id&gt;.`);
       } else if (result.reason === "not_found" && interactive) {
-        await sendMessage(chatId, "I couldn't find a matching open task on monday.");
+        await sendMessage(chatId, "I couldn't find a matching open task in Notion.");
       }
     } catch (err) {
       log("completeTaskFromChat error:", err.message);
@@ -2623,7 +1993,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
         const names = result.matches.map((m) => m.name).join(", ");
         await sendMessage(chatId, `Which event? I found: ${escapeHtml(names)}.`);
       } else if (result.reason === "not_found" && interactive) {
-        await sendMessage(chatId, "I couldn't find a matching upcoming event on monday.");
+        await sendMessage(chatId, "I couldn't find a matching upcoming event in Notion.");
       }
     } catch (err) {
       log("cancelEventFromChat error:", err.message);
@@ -2646,7 +2016,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
         markCaptured(key);
         recordChatActivity({ kind: "decision_logged", from, chatId, title: c.decision.title, text });
         let reply = `🗳️ Logged for discussion: <b>${escapeHtml(c.decision.title)}</b>`;
-        if (url) reply += ` — <a href="${url}">monday</a>`;
+        if (url) reply += ` — <a href="${url}">Notion</a>`;
         await sendMessage(chatId, reply);
       } catch (err) {
         log("createDecision error:", err.message);
@@ -2814,9 +2184,17 @@ async function handleMessage(message) {
   }
 
   if (isCommand && cmd === "/done") {
-    const id = args.replace(/[^0-9]/g, "");
+    // Notion page IDs are UUIDs (32 hex chars, optionally dashed). Accept either form.
+    const raw = args.trim().split(/\s+/)[0] || "";
+    const hex = raw.replace(/-/g, "");
+    const id = /^[0-9a-f]{32}$/i.test(hex)
+      ? hex.replace(
+          /^([0-9a-f]{8})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{12})$/i,
+          "$1-$2-$3-$4-$5"
+        )
+      : "";
     if (!id) {
-      await sendMessage(chatId, "Usage: /done <item id> (see ids in /mytasks)");
+      await sendMessage(chatId, "Usage: /done <page id> (see ids in /mytasks)");
       return;
     }
     try {
@@ -2849,7 +2227,7 @@ async function handleMessage(message) {
         classification,
       });
       let reply = `📋 Logged task: <b>${escapeHtml(classification?.title || args || "(photo)")}</b>`;
-      if (url) reply += `\n<a href="${url}">Open in monday</a>`;
+      if (url) reply += `\n<a href="${url}">Open in Notion</a>`;
       await sendMessage(chatId, reply);
     } catch (err) {
       log("createInboxTask error:", err.message);
@@ -2964,7 +2342,7 @@ async function captureAmbientEvent({ classified, text, from, chatId }) {
       ? created.recurrenceLabel
       : created.date || date || "date TBD";
     let reply = `📅 Logged: <b>${escapeHtml(classified.event.title)}</b> (${escapeHtml(when)})`;
-    if (created.url) reply += ` — <a href="${created.url}">monday</a>`;
+    if (created.url) reply += ` — <a href="${created.url}">Notion</a>`;
     await sendMessage(chatId, reply);
     log(
       `Event captured: ${classified.event.title}` +
@@ -3046,85 +2424,60 @@ async function pollTelegramOnce() {
   if (updates.length) saveState();
 }
 
-// ── monday.com -> Telegram: announce changes ──────────────────────────────────
+// ── Notion -> Telegram: announce changes ──────────────────────────────────────
 async function scanBoardsForChanges({ announce }) {
-  for (const boardName of WATCH_BOARD_NAMES) {
-    let board;
+  for (const dbName of WATCH_DB_NAMES) {
+    let pages;
     try {
-      board = await resolveBoard(boardName);
+      ({ pages } = await notion.queryDatabase(dbName));
     } catch (err) {
-      log(`Watch board missing (${boardName}):`, err.message);
+      log(`Watch database missing (${dbName}):`, err.message);
       continue;
     }
 
-    const statusCol = columnId(board, "Status", "status");
-    const peopleCols = board.columns
-      .filter((c) => c.type === "people")
-      .map((c) => c.id);
+    for (const page of pages) {
+      const snap = pageSnapshot(page);
+      const { stage, status, doer, done } = snap;
+      const name = notion.pageTitle(page);
 
-    let cursor = null;
-    do {
-      const data = await monday(
-        `
-          query ($boardId: ID!, $cursor: String) {
-            boards(ids: [$boardId]) {
-              items_page(limit: 100, cursor: $cursor) {
-                cursor
-                items { id name group { title } column_values { id text type } }
-              }
-            }
-          }
-        `,
-        { boardId: String(board.id), cursor }
-      );
-      const page = data.boards?.[0]?.items_page;
+      const prev = state.items[page.id];
+      const url = page.url;
+      const link = url ? ` <a href="${url}">open</a>` : "";
 
-      for (const item of page?.items || []) {
-        const cvById = Object.fromEntries(
-          item.column_values.map((c) => [c.id, c.text || ""])
-        );
-        const status = statusCol ? cvById[statusCol] : "";
-        const assignees = peopleCols
-          .map((id) => cvById[id])
-          .filter(Boolean)
-          .join(", ");
-        const done = isDoneName(item.group?.title) || isDoneName(status);
-
-        const prev = state.items[item.id];
-        const url = itemUrl(board.id, item.id);
-        const link = url ? ` <a href="${url}">open</a>` : "";
-
-        if (!prev) {
-          if (announce && ANNOUNCE_NEW_ITEMS && !done) {
-            await sendMessage(
-              TELEGRAM_CHAT_ID,
-              `🆕 New task on <b>${escapeHtml(boardName)}</b>: ` +
-                `${escapeHtml(item.name)}${link}`
-            );
-          }
-        } else if (announce) {
-          if (!prev.done && done) {
-            await sendMessage(
-              TELEGRAM_CHAT_ID,
-              `✅ Completed: <b>${escapeHtml(item.name)}</b> (${escapeHtml(boardName)})${link}`
-            );
-          } else if (assignees && assignees !== prev.assignees) {
-            await sendMessage(
-              TELEGRAM_CHAT_ID,
-              `👤 <b>${escapeHtml(item.name)}</b> assigned to ${escapeHtml(assignees)} (${escapeHtml(boardName)})${link}`
-            );
-          } else if (status && status !== prev.status && !done) {
-            await sendMessage(
-              TELEGRAM_CHAT_ID,
-              `🔧 <b>${escapeHtml(item.name)}</b> → ${escapeHtml(status)} (${escapeHtml(boardName)})${link}`
-            );
-          }
+      if (!prev) {
+        if (announce && ANNOUNCE_NEW_ITEMS && !done) {
+          await sendMessage(
+            TELEGRAM_CHAT_ID,
+            `🆕 New item on <b>${escapeHtml(dbName)}</b>: ` +
+              `${escapeHtml(name)}${link}`
+          );
         }
-
-        state.items[item.id] = { status, assignees, done };
+      } else if (announce) {
+        if (!prev.done && done) {
+          await sendMessage(
+            TELEGRAM_CHAT_ID,
+            `✅ Completed: <b>${escapeHtml(name)}</b> (${escapeHtml(dbName)})${link}`
+          );
+        } else if (doer && doer !== prev.doer) {
+          await sendMessage(
+            TELEGRAM_CHAT_ID,
+            `👤 <b>${escapeHtml(name)}</b> assigned to ${escapeHtml(doer)} (${escapeHtml(dbName)})${link}`
+          );
+        } else if (
+          !done &&
+          ((status && status !== prev.status) ||
+            (stage && stage !== prev.stage))
+        ) {
+          const label = status || stage;
+          await sendMessage(
+            TELEGRAM_CHAT_ID,
+            `🔧 <b>${escapeHtml(name)}</b> → ${escapeHtml(label)} (${escapeHtml(dbName)})${link}`
+          );
+        }
       }
-      cursor = page?.cursor || null;
-    } while (cursor);
+
+      state.items[page.id] = snap;
+    }
   }
   saveState();
 }
@@ -3134,21 +2487,18 @@ async function main() {
   if (!TELEGRAM_BOT_TOKEN) {
     throw new Error("Missing TELEGRAM_BOT_TOKEN env variable.");
   }
-  if (!MONDAY_API_TOKEN) {
-    throw new Error("Missing MONDAY_API_TOKEN env variable.");
-  }
+  notion.assertKey();
 
   const me = await telegram("getMe");
   botMe = me;
   log(`Telegram bot online: @${me.username}`);
-  await getAccountSlug();
-  log(`Watching boards: ${WATCH_BOARD_NAMES.join(", ")}`);
+  log(`Watching Notion databases: ${WATCH_DB_NAMES.join(", ")}`);
   log(
     `Task intake: group ${TASK_GROUP_CHAT_ID}${ALLOW_DM_INTAKE ? " + private DMs" : ""}`
   );
   log(`Ambient capture: ${AMBIENT_CAPTURE ? "ON" : "OFF"} (AI-only routing, task≥${AMBIENT_MIN_CONFIDENCE}, event≥${EVENT_MIN_CONFIDENCE})`);
   log(`Daily recap: ${DAILY_RECAP ? `ON at ${RECAP_TIME} ${RECAP_TZ}` : "OFF"}`);
-  log(`Monday announcements → chat ${TELEGRAM_CHAT_ID || "(off)"}`);
+  log(`Notion announcements → chat ${TELEGRAM_CHAT_ID || "(off)"}`);
 
   if (openaiLib.isEnabled()) {
     const idx = getDocsIndex();
@@ -3156,7 +2506,7 @@ async function main() {
       `OpenAI enabled: smart intake ON, /ask ON (${idx.chunks.length} doc chunks indexed).`
     );
     if (!idx.chunks.length) {
-      log("  Tip: run `node scripts/index-vila-akoya-docs.js` to index monday docs.");
+      log("  Tip: run `node scripts/index-vila-akoya-docs.js` to index Notion docs.");
     }
   } else {
     log("OPENAI_API_KEY not set — smart intake and /ask are OFF (tasks still work).");
@@ -3164,25 +2514,25 @@ async function main() {
 
   if (!TELEGRAM_CHAT_ID) {
     log(
-      "No TELEGRAM_CHAT_ID set — monday->Telegram announcements are OFF. " +
+      "No TELEGRAM_CHAT_ID set — Notion->Telegram announcements are OFF. " +
         "Add the bot to your group, send a message, and copy the chat id logged above."
     );
   }
 
-  // Seed the item cache on first run so we don't spam old items.
-  if (!state.seededMonday) {
-    log("First run: indexing existing monday items (no announcements)...");
+  // Seed the page cache on first run so we don't spam old items.
+  if (!state.seededNotion) {
+    log("First run: indexing existing Notion pages (no announcements)...");
     try {
       await scanBoardsForChanges({ announce: false });
     } catch (err) {
-      log("Initial monday scan failed:", err.message);
+      log("Initial Notion scan failed:", err.message);
     }
-    state.seededMonday = true;
+    state.seededNotion = true;
     saveState();
     log("Indexing done.");
   }
 
-  let lastMondayPoll = 0;
+  let lastNotionPoll = 0;
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -3190,15 +2540,15 @@ async function main() {
     await maybeSendDailyRecap();
 
     const now = Date.now();
-    if (TELEGRAM_CHAT_ID && now - lastMondayPoll >= MONDAY_POLL_SECONDS * 1000) {
-      lastMondayPoll = now;
+    if (TELEGRAM_CHAT_ID && now - lastNotionPoll >= NOTION_POLL_SECONDS * 1000) {
+      lastNotionPoll = now;
       try {
         await scanBoardsForChanges({ announce: true });
       } catch (err) {
         if (isTransientNetworkError(err)) {
-          logTransientError("monday poll", err, networkState.retryMs);
+          logTransientError("Notion poll", err, networkState.retryMs);
         } else {
-          log("monday poll error:", err.message);
+          log("Notion poll error:", err.message);
         }
       }
     }

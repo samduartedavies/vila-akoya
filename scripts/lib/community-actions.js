@@ -1,6 +1,6 @@
 /**
- * Community message actions and Monday routing for Vila Akoya.
- * The AI picks ONE action per message; the bot executes it on monday.com when applicable.
+ * Community message actions and Notion routing for Vila Akoya.
+ * The AI picks ONE action per message; the bot executes it on Notion when applicable.
  */
 
 "use strict";
@@ -76,14 +76,15 @@ const CHAT_ACTIVITY_KIND = {
   announcement: "announcement",
 };
 
-const MONDAY_BOARDS = [
-  "00 — Task Inbox",
-  "10 — Recurring Duties",
-  "20 — Maintenance & Infrastructure",
-  "30 — Campsite & Guest Issues",
-  "40 — Village Projects",
-  "80 — Events & Gatherings",
-  "90 — Decisions & Proposals",
+const NOTION_DATABASES = [
+  "Tasks",
+  "Recurring Duties",
+  "Maintenance",
+  "Guest Issues",
+  "Projects",
+  "Events",
+  "Decisions",
+  "Documentation",
 ];
 
 const SCHEDULE_RANGES = ["today", "this_week", "next_week", "two_weeks"];
@@ -216,14 +217,14 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "",
     "Pick ONE primary action:",
     "",
-    "── Questions (answer only, do NOT create monday items) ──",
+    "── Questions (answer only, do NOT create Notion items) ──",
     "- question_doc: how systems work, procedures, what equipment uses (water, wifi, compost, electric, etc.)",
-    "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, or meal headcounts already on monday.com",
+    "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, or meal headcounts already in Notion",
     "    Set schedule_lookup=true and schedule_range: today | this_week | next_week | two_weeks",
     "    Pick the range that matches what the speaker asked (use WEEK CALENDAR above).",
     "    Guest arrival/departure and breakfast/dinner cook counts → question_schedule (NOT guest_issue).",
     "",
-    "── Monday.com actions (create or update boards) ──",
+    "── Notion actions (create or update databases) ──",
     `- create_event: new gathering, trip, meal, delivery, or open invite with a timeframe.`,
     `    event.event_type: ${eventTypes.join(", ")}.`,
     `    event.recurrence: null for one-offs, OR a rule string when it repeats:`,
@@ -248,7 +249,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '       "here\'s how the water shutoff valves work" (voice or text dump)',
     '  PT: "documenta como funciona o sistema de água", "escreve o procedimento do wifi"',
     "",
-    "── Recap only (no monday item) ──",
+    "── Recap only (no Notion item) ──",
     "- offer_help, help_wanted, availability, announcement",
     "",
     "- chat: casual only when nothing else applies",
@@ -256,7 +257,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     `task.area: ${areas.join(", ")}`,
     `task.priority: ${priorities.join(", ")} (Urgent for safety/power/water emergencies)`,
     `decision.category: ${DECISION_CATEGORIES.join(", ")}`,
-    `monday boards: ${MONDAY_BOARDS.join(", ")}`,
+    `Notion databases: ${NOTION_DATABASES.join(", ")}`,
     "",
     "Return JSON:",
     '{ "actionable": bool, "action": string, "confidence": 0.0-1.0,',
@@ -409,7 +410,8 @@ module.exports = {
   MAINTENANCE_GROUP_BY_AREA,
   CHAT_ACTIVITY_KIND,
   EVENT_TYPES,
-  MONDAY_BOARDS,
+  MONDAY_BOARDS: NOTION_DATABASES,
+  NOTION_DATABASES,
   SCHEDULE_RANGES,
   buildWeekCalendarContext,
   resolveScheduleRange,

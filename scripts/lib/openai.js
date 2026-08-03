@@ -92,14 +92,14 @@ const AREAS = [
 
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 
-const SUGGESTED_BOARDS = [
-  "00 — Task Inbox",
-  "10 — Recurring Duties",
-  "20 — Maintenance & Infrastructure",
-  "30 — Campsite & Guest Issues",
-  "40 — Village Projects",
-  "80 — Events & Gatherings",
-  "90 — Decisions & Proposals",
+const SUGGESTED_DATABASES = [
+  "Tasks",
+  "Recurring Duties",
+  "Maintenance",
+  "Guest Issues",
+  "Projects",
+  "Events",
+  "Decisions",
 ];
 
 /**
@@ -118,7 +118,7 @@ async function classifyTask(text) {
     "",
     `area must be one of: ${AREAS.join(", ")}.`,
     `priority must be one of: ${PRIORITIES.join(", ")}.`,
-    `suggested_board must be one of: ${SUGGESTED_BOARDS.join(", ")}.`,
+    `suggested_board must be one of: ${SUGGESTED_DATABASES.join(", ")}.`,
     "",
     "Return JSON with keys:",
     "title (short imperative task title, max 80 chars),",
@@ -136,9 +136,9 @@ async function classifyTask(text) {
       summary: String(result.summary || ""),
       area: AREAS.includes(result.area) ? result.area : "Other",
       priority: PRIORITIES.includes(result.priority) ? result.priority : "Medium",
-      suggested_board: SUGGESTED_BOARDS.includes(result.suggested_board)
+      suggested_board: SUGGESTED_DATABASES.includes(result.suggested_board)
         ? result.suggested_board
-        : "00 — Task Inbox",
+        : "Tasks",
       safety_critical: Boolean(result.safety_critical),
       needs_materials: Boolean(result.needs_materials),
       needs_money: Boolean(result.needs_money),
@@ -200,7 +200,7 @@ const {
 } = require("./community-actions");
 
 /**
- * Classify a community group message into an action + Monday routing hints.
+ * Classify a community group message into an action + Notion routing hints.
  */
 async function classifyGroupMessage(text, todayISO) {
   if (!isEnabled()) {
@@ -293,7 +293,7 @@ async function answerFromData(question, snapshot) {
     "The data includes a WEEK CALENDAR: this week is always Monday–Sunday containing today;",
     "next week is always the Monday–Sunday period after this Sunday.",
     "Only mention events/bookings/meals whose dates fall inside the range the user asked about.",
-    "Campsite check-ins, check-outs, who is on site, breakfast/dinner cook counts come from monday.com.",
+    "Campsite check-ins, check-outs, who is on site, breakfast/dinner cook counts come from Notion.",
     "If the answer is not in the data, set answered=false and do not guess.",
     "Keep answers short, friendly and practical.",
     'Return JSON: { "answered": bool, "answer": string }.',
