@@ -12,9 +12,11 @@
  *   - Tagged @bot, reply-to-bot, or private DM: text, photos, and voice notes.
  *   - Every group message is classified by AI → monday.com actions (events, tasks, completions, cancellations) or questions.
  *   - Tagged @bot or reply-to-bot: always get a response.
- *   - Daily recap (~08:00 Europe/Lisbon): today's chores + events (including recurring
- *     monthly/weekly rules like "3rd Sunday") + yesterday's important group-chat highlights.
+ *   - Daily recap (~08:00 Europe/Lisbon): today's chores + events + campsite
+ *     check-ins/outs + meal headcounts (all from monday.com) + yesterday's chat highlights.
  *   - /ask, /task, /register, /mytasks, /done, /help as before.
+ *   - Schedule questions ("anyone checking in today?", "how many for dinner?")
+ *     are answered from monday.com Campsite Bookings / Campsite Meals boards.
  *
  * Requires (for smart features): OPENAI_API_KEY, and a docs index built
  * with `node scripts/index-vila-akoya-docs.js`.
@@ -65,7 +67,7 @@ const {
 const MONDAY_API_TOKEN =
   process.env.MONDAY_API_TOKEN ||
   // Falls back to the same token used by setup-vila-akoya-monday.js.
-  "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjY3NzQ0MDk2NywiYWFpIjoxMSwidWlkIjoxMDcyNzM0NDIsImlhZCI6IjIwMjYtMDctMDFUMDk6NDU6NTYuMDAwWiIsInBlciI6Im1lOndyaXRlIiwiYWN0aWQiOjM1ODIxNzEyLCJyZ24iOiJldWMxIn0.fUMN4Zpvsm7hOx8xyo4Qb76Ovi_tDs-7nhhdu8ZIyEg";
+  "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjY4ODQzNjgyOSwiYWFpIjoxMSwidWlkIjoxMTIwMzE1MTQsImlhZCI6IjIwMjYtMDctMzFUMDc6NDY6MzQuNzQzWiIsInBlciI6Im1lOndyaXRlIiwiYWN0aWQiOjM1ODIxNzEyLCJyZ24iOiJldWMxIn0.zBodylFeTzIyJ1sa0V0NoZo4lURdunHbuahXavBviN8";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8991030236:AAEbLuvsa5HRn2rMwCDu8468kAKERo9DhxY";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-5438367592";
@@ -96,6 +98,10 @@ const DECISIONS_BOARD_NAME =
   process.env.DECISIONS_BOARD_NAME || "90 — Decisions & Proposals";
 const DOCS_BOARD_NAME =
   process.env.DOCS_BOARD_NAME || "50 — Documentation Register";
+const CAMPSITE_BOOKINGS_BOARD_NAME =
+  process.env.CAMPSITE_BOOKINGS_BOARD || "35 — Campsite Bookings";
+const CAMPSITE_MEALS_BOARD_NAME =
+  process.env.CAMPSITE_MEALS_BOARD || "36 — Campsite Meals";
 const MONDAY_WORKSPACE_ID = process.env.MONDAY_WORKSPACE_ID || 6923231;
 
 const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE !== "false";
@@ -1566,6 +1572,194 @@ function resolveScheduleRangeForToday(range) {
   return resolveScheduleRange(range, todayISO(), RECAP_TZ);
 }
 
+/** Normalize monday date column text to YYYY-MM-DD when possible. */
+function mondayDateTextToISO(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  return "";
+}
+
+function colText(cv, board, title, type) {
+  const id = columnId(board, title, type) || columnId(board, title);
+  if (!id) return "";
+  return String(cv[id] || "").trim();
+}
+
+async function fetchAllBoardItems(board) {
+  const items = [];
+  let cursor = null;
+  do {
+    const data = await monday(
+      `
+        query ($boardId: ID!, $cursor: String) {
+          boards(ids: [$boardId]) {
+            items_page(limit: 100, cursor: $cursor) {
+              cursor
+              items { id name group { title } column_values { id text } }
+            }
+          }
+        }
+      `,
+      { boardId: String(board.id), cursor }
+    );
+    const page = data.boards?.[0]?.items_page;
+    items.push(...(page?.items || []));
+    cursor = page?.cursor || null;
+  } while (cursor);
+  return items;
+}
+
+/**
+ * Campsite occupancy for a calendar day from monday.com.
+ * Day items mirror meals: Checking in / Checking out / On site text lists.
+ */
+async function fetchCampsiteActivityForDay(dateISO) {
+  let board;
+  try {
+    board = await resolveBoard(CAMPSITE_BOOKINGS_BOARD_NAME);
+  } catch (err) {
+    log("Campsite bookings board unavailable:", err.message);
+    return { arrivals: [], departures: [], staying: [] };
+  }
+
+  const items = await fetchAllBoardItems(board);
+  const linesFromDetail = (text) =>
+    String(text || "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((line) => ({ line, name: line.split(" · ")[0] || line }));
+
+  for (const item of items) {
+    const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
+    const dayId = colText(cv, board, "Day ID", "text");
+    const date =
+      mondayDateTextToISO(colText(cv, board, "Date", "date")) || mondayDateTextToISO(dayId);
+    if (date !== dateISO && dayId !== dateISO) continue;
+
+    const hasListCols =
+      columnId(board, "Checking in", "long_text") ||
+      columnId(board, "Arrivals detail", "long_text") ||
+      columnId(board, "Checking out", "long_text") ||
+      columnId(board, "Departures detail", "long_text");
+    if (!hasListCols) break;
+
+    const arrivals = linesFromDetail(
+      colText(cv, board, "Checking in", "long_text") ||
+        colText(cv, board, "Arrivals detail", "long_text")
+    );
+    const departures = linesFromDetail(
+      colText(cv, board, "Checking out", "long_text") ||
+        colText(cv, board, "Departures detail", "long_text")
+    );
+    const staying = linesFromDetail(
+      colText(cv, board, "Staying", "long_text") ||
+        colText(cv, board, "On site detail", "long_text") ||
+        colText(cv, board, "On site", "long_text")
+    );
+
+    return { arrivals, departures, staying };
+  }
+
+  return { arrivals: [], departures: [], staying: [] };
+}
+
+async function fetchCampsiteMealsForDay(dateISO) {
+  let board;
+  try {
+    board = await resolveBoard(CAMPSITE_MEALS_BOARD_NAME);
+  } catch (err) {
+    log("Campsite meals board unavailable:", err.message);
+    return null;
+  }
+
+  const items = await fetchAllBoardItems(board);
+  for (const item of items) {
+    const cv = Object.fromEntries(item.column_values.map((c) => [c.id, c.text || ""]));
+    const dayId = colText(cv, board, "Day ID", "text");
+    const date = mondayDateTextToISO(colText(cv, board, "Date", "date")) || mondayDateTextToISO(dayId);
+    if (date !== dateISO && dayId !== dateISO) continue;
+
+    const breakfastCook = Number(colText(cv, board, "Breakfast cooks", "numbers") || 0) || 0;
+    const dinnerCook = Number(colText(cv, board, "Dinner cooks", "numbers") || 0) || 0;
+    const breakfastDetail = colText(cv, board, "Breakfast detail", "long_text");
+    const dinnerDetail = colText(cv, board, "Dinner detail", "long_text");
+    const weekdayRaw = colText(cv, board, "Weekday dinner?", "checkbox").toLowerCase();
+    const isWeekday =
+      weekdayRaw === "v" ||
+      weekdayRaw === "true" ||
+      weekdayRaw === "checked" ||
+      weekdayRaw === "yes" ||
+      (weekdayRaw === "" ? null : false);
+
+    return {
+      breakfastCook,
+      dinnerCook,
+      breakfastDetail,
+      dinnerDetail,
+      isWeekday,
+      name: item.name,
+    };
+  }
+  return {
+    breakfastCook: 0,
+    dinnerCook: 0,
+    breakfastDetail: "",
+    dinnerDetail: "",
+    isWeekday: null,
+    name: "",
+  };
+}
+
+function formatCampsiteSnapshot(dateISO, activity, meals) {
+  const lines = ["Campsite bookings (monday.com):"];
+  if (activity.arrivals.length) {
+    lines.push(`Checking in (${activity.arrivals.length}):`);
+    for (const b of activity.arrivals) lines.push(`- ${b.line}`);
+  } else {
+    lines.push("Checking in: none");
+  }
+  if (activity.departures.length) {
+    lines.push(`Checking out (${activity.departures.length}):`);
+    for (const b of activity.departures) lines.push(`- ${b.line}`);
+  } else {
+    lines.push("Checking out: none");
+  }
+  lines.push(
+    `On site tonight: ${activity.staying.length} pitch${activity.staying.length === 1 ? "" : "es"}`
+  );
+  if (activity.staying.length) {
+    for (const b of activity.staying) lines.push(`- ${b.line}`);
+  }
+
+  lines.push("", "Meals (monday.com):");
+  if (!meals) {
+    lines.push("- (meals board not available)");
+  } else {
+    lines.push(`Breakfast cooks: ${meals.breakfastCook}`);
+    if (meals.breakfastDetail) {
+      for (const line of meals.breakfastDetail.split("\n").filter(Boolean)) {
+        lines.push(`  - ${line}`);
+      }
+    }
+    if (meals.isWeekday === false) {
+      lines.push("Dinner: weekend — no communal dinner");
+    } else {
+      lines.push(`Dinner cooks: ${meals.dinnerCook}`);
+      if (meals.dinnerDetail) {
+        for (const line of meals.dinnerDetail.split("\n").filter(Boolean)) {
+          lines.push(`  - ${line}`);
+        }
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
 async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
   const { start, end, label } = resolveScheduleRangeForToday(scheduleRange || "two_weeks");
 
@@ -1597,6 +1791,40 @@ async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
       day = addDaysISO(day, 1);
     }
     if (!anyChores) lines.push("- (none on rota in this period)");
+
+    lines.push("", "Campsite check-ins / meals:");
+    day = start;
+    let anyCampsite = false;
+    while (day <= end) {
+      const activity = await fetchCampsiteActivityForDay(day);
+      const meals = await fetchCampsiteMealsForDay(day);
+      const hasActivity =
+        activity.arrivals.length ||
+        activity.departures.length ||
+        activity.staying.length ||
+        (meals && (meals.breakfastCook || meals.dinnerCook));
+      if (hasActivity) {
+        anyCampsite = true;
+        lines.push(`${day}:`);
+        if (activity.arrivals.length) {
+          lines.push(`  check-in: ${activity.arrivals.map((b) => b.line).join("; ")}`);
+        }
+        if (activity.departures.length) {
+          lines.push(`  check-out: ${activity.departures.map((b) => b.line).join("; ")}`);
+        }
+        if (activity.staying.length) {
+          lines.push(`  on site: ${activity.staying.length}`);
+        }
+        if (meals) {
+          lines.push(
+            `  meals: breakfast ${meals.breakfastCook}` +
+              (meals.isWeekday === false ? ", dinner (weekend off)" : `, dinner ${meals.dinnerCook}`)
+          );
+        }
+      }
+      day = addDaysISO(day, 1);
+    }
+    if (!anyCampsite) lines.push("- (no campsite bookings/meals in this period)");
   }
   return lines.join("\n");
 }
@@ -1604,6 +1832,8 @@ async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
 async function buildDataSnapshot(dateISO) {
   const chores = await fetchRotaForDay(dateISO);
   const events = await fetchEventsForDate(dateISO);
+  const activity = await fetchCampsiteActivityForDay(dateISO);
+  const meals = await fetchCampsiteMealsForDay(dateISO);
   const dayName = new Intl.DateTimeFormat("en-GB", {
     timeZone: RECAP_TZ,
     weekday: "long",
@@ -1626,6 +1856,7 @@ async function buildDataSnapshot(dateISO) {
   } else {
     lines.push("- (none)");
   }
+  lines.push("", formatCampsiteSnapshot(dateISO, activity, meals));
   return lines.join("\n");
 }
 
@@ -1639,6 +1870,14 @@ async function buildDailyRecap(dateISO) {
   const events = await fetchEventsForDate(dateISO);
   const yesterday = yesterdayISO();
   const yesterdayHighlights = await buildYesterdayHighlights(yesterday);
+  let activity = { arrivals: [], departures: [], staying: [] };
+  let meals = null;
+  try {
+    activity = await fetchCampsiteActivityForDay(dateISO);
+    meals = await fetchCampsiteMealsForDay(dateISO);
+  } catch (err) {
+    log("Campsite monday fetch for recap failed:", err.message);
+  }
   const dayName = new Intl.DateTimeFormat("en-GB", {
     timeZone: RECAP_TZ,
     weekday: "long",
@@ -1662,6 +1901,50 @@ async function buildDailyRecap(dateISO) {
   } else {
     lines.push("• (nothing scheduled)");
   }
+
+  lines.push("", "<b>Campsite today</b>");
+  if (activity.arrivals.length) {
+    lines.push(`<i>Checking in (${activity.arrivals.length})</i>`);
+    for (const b of activity.arrivals) {
+      lines.push(`• ${escapeHtml(b.line)}`);
+    }
+  } else {
+    lines.push("• No check-ins today");
+  }
+  if (activity.departures.length) {
+    lines.push(`<i>Checking out (${activity.departures.length})</i>`);
+    for (const b of activity.departures) {
+      lines.push(`• ${escapeHtml(b.line)}`);
+    }
+  } else {
+    lines.push("• No check-outs today");
+  }
+  lines.push(
+    `• On site tonight: ${escapeHtml(String(activity.staying.length))} pitch${
+      activity.staying.length === 1 ? "" : "es"
+    }`
+  );
+
+  if (meals) {
+    lines.push("", "<b>Meals today</b>");
+    lines.push(`• Breakfast: ${escapeHtml(String(meals.breakfastCook))} to cook`);
+    if (meals.breakfastDetail) {
+      for (const line of meals.breakfastDetail.split("\n").filter(Boolean).slice(0, 6)) {
+        lines.push(`  ${escapeHtml(line)}`);
+      }
+    }
+    if (meals.isWeekday === false) {
+      lines.push("• Dinner: (weekend — no communal dinner)");
+    } else {
+      lines.push(`• Dinner: ${escapeHtml(String(meals.dinnerCook))} to cook`);
+      if (meals.dinnerDetail) {
+        for (const line of meals.dinnerDetail.split("\n").filter(Boolean).slice(0, 6)) {
+          lines.push(`  ${escapeHtml(line)}`);
+        }
+      }
+    }
+  }
+
   if (yesterdayHighlights.length) {
     lines.push("", "<b>Yesterday's highlights</b>");
     for (const highlight of yesterdayHighlights) {

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Vila Campsite Booking
  * Description: Multi-plot campsite inventory with WooCommerce checkout, Airbnb-style booking UI, and operations dashboard.
- * Version: 1.4.1
+ * Version: 1.4.4
  * Author: Vila Akoya
  * Text Domain: vila-campsite-booking
  * Requires at least: 6.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_CB_VERSION', '1.4.1' );
+define( 'VILA_CB_VERSION', '1.4.4' );
 define( 'VILA_CB_FILE', __FILE__ );
 define( 'VILA_CB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VILA_CB_URL', plugin_dir_url( __FILE__ ) );
@@ -47,6 +47,8 @@ require_once VILA_CB_DIR . 'includes/class-booking-service.php';
 require_once VILA_CB_DIR . 'includes/class-meal-plan-service.php';
 require_once VILA_CB_DIR . 'includes/class-meal-booking.php';
 require_once VILA_CB_DIR . 'includes/class-woocommerce-integration.php';
+require_once VILA_CB_DIR . 'includes/class-ops-snapshot.php';
+require_once VILA_CB_DIR . 'includes/class-monday-sync.php';
 require_once VILA_CB_DIR . 'includes/class-rest-controller.php';
 require_once VILA_CB_DIR . 'includes/class-admin.php';
 require_once VILA_CB_DIR . 'includes/class-admin-guest-registrations.php';
@@ -89,6 +91,7 @@ function vila_cb_bootstrap() {
 	Vila_CB\Pricing_Settings::init();
 	Vila_CB\Meal_Booking::init();
 	Vila_CB\WooCommerce_Integration::init();
+	Vila_CB\Monday_Sync::init();
 	Vila_CB\Rest_Controller::init();
 	Vila_CB\Admin::init();
 	Vila_CB\Admin_Guest_Registrations::init();

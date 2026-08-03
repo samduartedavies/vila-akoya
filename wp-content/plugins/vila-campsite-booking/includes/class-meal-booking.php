@@ -727,6 +727,32 @@ class Meal_Booking {
 		if ( $merged_any ) {
 			$order->update_meta_data( '_vila_meal_purchase_merged', 'yes' );
 			$order->save();
+
+			$meal_dates = array();
+			foreach ( $order->get_items() as $item ) {
+				if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_meta' ) ) ) {
+					continue;
+				}
+				$raw = $item->get_meta( self::META_PURCHASE, true );
+				$p   = is_string( $raw ) ? json_decode( $raw, true ) : ( is_array( $raw ) ? $raw : null );
+				if ( ! is_array( $p ) ) {
+					continue;
+				}
+				foreach ( array( 'breakfast_dates', 'dinner_dates' ) as $key ) {
+					if ( empty( $p[ $key ] ) || ! is_array( $p[ $key ] ) ) {
+						continue;
+					}
+					foreach ( self::sanitize_ymd_list( $p[ $key ] ) as $ymd ) {
+						$meal_dates[] = $ymd;
+					}
+				}
+			}
+			/**
+			 * Fires after standalone meal purchases are paid / merged.
+			 *
+			 * @param string[] $meal_dates Y-m-d dates affected.
+			 */
+			do_action( 'vila_cb_meals_changed', array_values( array_unique( $meal_dates ) ) );
 		}
 	}
 

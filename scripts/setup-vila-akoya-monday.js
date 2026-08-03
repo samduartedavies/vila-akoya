@@ -293,6 +293,93 @@ async function createItem(boardId, groupId, itemName) {
   return data.create_item;
 }
 
+async function listBoardViews(boardId) {
+  const query = `
+    query ($boardIds: [ID!]) {
+      boards(ids: $boardIds) {
+        views {
+          id
+          name
+          type
+        }
+      }
+    }
+  `;
+  const data = await monday(query, { boardIds: [String(boardId)] });
+  return data.boards?.[0]?.views || [];
+}
+
+/**
+ * Best-effort calendar view setup. Monday's API may not expose every native view type;
+ * when creation fails we log manual steps (Views → Calendar → pick the date column).
+ */
+async function ensureCalendarView(boardId, boardDetails, calendarConfig) {
+  if (!calendarConfig?.dateColumn) return;
+
+  const views = await listBoardViews(boardId);
+  const existing = views.find(
+    (v) =>
+      String(v.name || "").toLowerCase() === String(calendarConfig.name || "Calendar").toLowerCase()
+  );
+  if (existing) {
+    console.log(`  Reusing view: ${existing.name} (${existing.type})`);
+    return existing;
+  }
+
+  const dateCol = (boardDetails.columns || []).find(
+    (c) => c.title === calendarConfig.dateColumn && !c.archived
+  );
+  if (!dateCol) {
+    console.warn(`  Could not create calendar view: missing column "${calendarConfig.dateColumn}"`);
+    return null;
+  }
+
+  const settings = {
+    date_column_id: dateCol.id,
+  };
+  if (calendarConfig.endDateColumn) {
+    const endCol = (boardDetails.columns || []).find(
+      (c) => c.title === calendarConfig.endDateColumn && !c.archived
+    );
+    if (endCol) {
+      settings.end_date_column_id = endCol.id;
+    }
+  }
+
+  try {
+    const data = await monday(
+      `
+        mutation ($boardId: ID!, $name: String!, $settings: JSON) {
+          create_view(board_id: $boardId, type: TABLE, name: $name, settings: $settings) {
+            id
+            name
+            type
+          }
+        }
+      `,
+      {
+        boardId: String(boardId),
+        name: calendarConfig.name || "Calendar",
+        settings,
+      }
+    );
+    const view = data.create_view;
+    console.log(`  Created view: ${view.name} (${view.type})`);
+    console.log(
+      `  Tip: open the board → Views → add "Calendar" if needed, using "${calendarConfig.dateColumn}"` +
+        (calendarConfig.endDateColumn ? ` → "${calendarConfig.endDateColumn}"` : "")
+    );
+    return view;
+  } catch (err) {
+    console.warn(
+      `  Could not auto-create calendar view for board ${boardId}: ${err.message}\n` +
+        `  Manual: open board → Views → Calendar → date column "${calendarConfig.dateColumn}"` +
+        (calendarConfig.endDateColumn ? `, end "${calendarConfig.endDateColumn}"` : "")
+    );
+    return null;
+  }
+}
+
 async function listFolders() {
   const query = `
     query ListFolders($workspaceIds: [ID!]) {
@@ -512,6 +599,38 @@ const boardConfigs = [
     ],
   },
   {
+    name: "35 — Campsite Bookings",
+    purpose:
+      "Daily campsite check-ins and check-outs — one Monday item per day, same pattern as Campsite Meals.",
+    calendarView: { name: "Calendar", dateColumn: "Date" },
+    groups: ["Stay days"],
+    columns: [
+      ["Day ID", "text"],
+      ["Date", "date"],
+      ["Checking in", "long_text"],
+      ["Checking out", "long_text"],
+      ["Staying", "long_text"],
+    ],
+    samples: [],
+  },
+  {
+    name: "36 — Campsite Meals",
+    purpose:
+      "Daily kitchen headcounts for campsite breakfast and weekday dinner, synced from bookings.",
+    calendarView: { name: "Calendar", dateColumn: "Date" },
+    groups: ["Meal days"],
+    columns: [
+      ["Day ID", "text"],
+      ["Date", "date"],
+      ["Breakfast cooks", "numbers"],
+      ["Dinner cooks", "numbers"],
+      ["Breakfast detail", "long_text"],
+      ["Dinner detail", "long_text"],
+      ["Weekday dinner?", "checkbox"],
+    ],
+    samples: [],
+  },
+  {
     name: "40 — Village Projects",
     purpose:
       "Bigger build, creative, social, garden and community projects that need planning and shared visibility.",
@@ -721,6 +840,10 @@ async function setupBoard(boardConfig) {
     boardDetails = await getBoardDetails(board.id);
   }
 
+  if (boardConfig.calendarView) {
+    await ensureCalendarView(board.id, boardDetails, boardConfig.calendarView);
+  }
+
   if (INCLUDE_SAMPLE_ITEMS && board.wasCreated && boardConfig.samples?.length) {
     const firstGroup = createdGroups[0];
 
@@ -791,8 +914,10 @@ async function setup() {
   console.log("2. Add real stewards as paid Monday users.");
   console.log("3. Use Doer name for non-seat villagers/helpers.");
   console.log("4. Add board views: By Area, By Steward, Urgent, Guest Issues.");
-  console.log("5. Register members (with Telegram handles) on '70 — Community Members'.");
-  console.log("6. Start the Telegram bridge: see scripts/vila-akoya-telegram-bot.js");
+  console.log("5. For '35 — Campsite Bookings' and '36 — Campsite Meals', add Calendar views if not present.");
+  console.log("6. Register members (with Telegram handles) on '70 — Community Members'.");
+  console.log("7. Set VILA_OPS_API_TOKEN in wp-config and sync: npm run monday:sync-campsite");
+  console.log("8. Start the Telegram bridge: see scripts/vila-akoya-telegram-bot.js");
 }
 
 setup().catch((err) => {

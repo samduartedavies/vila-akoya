@@ -456,6 +456,14 @@ class Booking_Service {
 
 			$wpdb->query( 'COMMIT' );
 
+			/**
+			 * Fires after a campsite booking is confirmed and inventory assigned.
+			 *
+			 * @param int $booking_id Booking ID.
+			 * @param int $order_id   WooCommerce order ID.
+			 */
+			do_action( 'vila_cb_booking_confirmed', $booking_id, $order_id );
+
 			return array(
 				'success'    => true,
 				'booking_id' => $booking_id,
@@ -483,7 +491,15 @@ class Booking_Service {
 			return;
 		}
 		foreach ( $this->bookings->get_by_order( $order_id ) as $row ) {
-			$this->bookings->delete_with_nights( (int) $row['id'] );
+			$booking_id = (int) $row['id'];
+			/**
+			 * Fires before a booking is deleted and inventory released.
+			 *
+			 * @param int $booking_id Booking ID.
+			 * @param int $order_id   WooCommerce order ID.
+			 */
+			do_action( 'vila_cb_booking_released', $booking_id, $order_id );
+			$this->bookings->delete_with_nights( $booking_id );
 		}
 	}
 
@@ -788,6 +804,23 @@ class Booking_Service {
 				$booking_id
 			);
 			$order->add_order_note( $note, false, true );
+		}
+
+		/**
+		 * Fires after an admin booking edit is saved.
+		 *
+		 * @param int $booking_id Booking ID.
+		 */
+		do_action( 'vila_cb_booking_updated', $booking_id );
+
+		$row_after = $this->bookings->get( $booking_id );
+		if ( $row_after ) {
+			$meal_touch = array_merge(
+				Dates::nights_in_range( (string) $row_after['check_in'], (string) $row_after['check_out'] ),
+				Meal_Plan_Service::meal_dates_for_booking( $row_after )['breakfast'],
+				Meal_Plan_Service::meal_dates_for_booking( $row_after )['dinner']
+			);
+			do_action( 'vila_cb_meals_changed', array_values( array_unique( $meal_touch ) ) );
 		}
 
 		return array( 'success' => true );

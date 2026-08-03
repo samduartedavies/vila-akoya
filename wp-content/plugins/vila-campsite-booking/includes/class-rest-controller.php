@@ -97,6 +97,84 @@ class Rest_Controller {
 				'permission_callback' => '__return_true',
 			)
 		);
+
+		$ops_permission = array( Ops_Snapshot::class, 'verify_ops_token' );
+
+		register_rest_route(
+			'vila-campsite-booking/v1',
+			'/ops/day',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'ops_day' ),
+				'permission_callback' => $ops_permission,
+				'args'                => array(
+					'date' => array(
+						'required'          => false,
+						'validate_callback' => array( __CLASS__, 'validate_ymd_optional' ),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'vila-campsite-booking/v1',
+			'/ops/bookings',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'ops_bookings' ),
+				'permission_callback' => $ops_permission,
+				'args'                => array(
+					'from' => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+					'to'   => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'vila-campsite-booking/v1',
+			'/ops/activity',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'ops_activity' ),
+				'permission_callback' => $ops_permission,
+				'args'                => array(
+					'from' => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+					'to'   => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'vila-campsite-booking/v1',
+			'/ops/meals',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'ops_meals' ),
+				'permission_callback' => $ops_permission,
+				'args'                => array(
+					'from' => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+					'to'   => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -320,6 +398,57 @@ class Rest_Controller {
 			return new \WP_Error( 'invalid_nonce', __( 'Security check failed. Please reload the page and try again.', 'vila-campsite-booking' ), array( 'status' => 403 ) );
 		}
 		return true;
+	}
+
+	/**
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function ops_day( $request ) {
+		$date = (string) $request->get_param( 'date' );
+		if ( '' === $date ) {
+			$date = wp_date( 'Y-m-d' );
+		}
+		return rest_ensure_response( Ops_Snapshot::get_day( $date ) );
+	}
+
+	/**
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function ops_bookings( $request ) {
+		return rest_ensure_response(
+			Ops_Snapshot::get_bookings_range(
+				(string) $request->get_param( 'from' ),
+				(string) $request->get_param( 'to' )
+			)
+		);
+	}
+
+	/**
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function ops_activity( $request ) {
+		return rest_ensure_response(
+			Ops_Snapshot::get_activity_range(
+				(string) $request->get_param( 'from' ),
+				(string) $request->get_param( 'to' )
+			)
+		);
+	}
+
+	/**
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function ops_meals( $request ) {
+		return rest_ensure_response(
+			Ops_Snapshot::get_meals_range(
+				(string) $request->get_param( 'from' ),
+				(string) $request->get_param( 'to' )
+			)
+		);
 	}
 
 	/**
