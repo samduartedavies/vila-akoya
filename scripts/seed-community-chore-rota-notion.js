@@ -1,163 +1,105 @@
 /**
- * Seed the community chore rota into Notion "Recurring Duties".
+ * Seed Jobs + Recurring Duties (duties nested under job roles via relation).
  *
- * Run: npm run notion:seed-rota
+ * Prefer: npm run notion:restructure-jobs  (clears old duties + seeds examples)
+ * This script only upserts the example set without archiving everything.
+ *
+ *   node scripts/seed-community-chore-rota-notion.js
  */
 
 "use strict";
 
 const notion = require("./lib/notion");
 
-const DAY_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const WEEKLY_ROTA = [
+const EXAMPLE_JOBS = [
   {
-    chore: "Breakfast",
-    area: "Community / events",
-    days: {
-      Mon: "Dylan",
-      Tue: "Therese",
-      Wed: "Moon",
-      Thu: "Maaike",
-      Fri: "Chanel",
-      Sat: "Ana",
-      Sun: "Raquel",
-    },
+    name: "Cleaner",
+    description: "Keeps toilets, kitchen fridge, and guest showers in shape.",
+    duties: [
+      { name: "Clean toilets", frequency: "Daily" },
+      { name: "Clean fridge", frequency: "Monthly" },
+      { name: "Clean guest shower block", frequency: "Daily" },
+    ],
   },
   {
-    chore: "Toilets",
-    area: "Compost & toilets",
-    days: {
-      Mon: "Chanel",
-      Tue: "Dylan",
-      Wed: "Moon",
-      Thu: "Therese",
-      Fri: "Maaike",
-      Sat: null,
-      Sun: "Ana",
-    },
+    name: "Breakfast cook",
+    description: "Prepares community breakfast.",
+    duties: [{ name: "Prepare breakfast", frequency: "Daily" }],
   },
   {
-    chore: "Bathroom / washing up",
-    area: "Buildings / structures",
-    days: {
-      Mon: "Sammy",
-      Tue: "Therese",
-      Wed: "Dylan",
-      Thu: "Moon",
-      Fri: "Sam",
-      Sat: "Maaike",
-      Sun: null,
-    },
+    name: "Kitchen",
+    description: "Kitchen tidiness and washing up.",
+    duties: [
+      { name: "Clean up the kitchen", frequency: "Daily" },
+      { name: "Bathroom / washing up", frequency: "Daily" },
+    ],
   },
   {
-    chore: "Water trees / plants",
-    area: "Garden",
-    days: {
-      Mon: "Therese",
-      Tue: "Sammy",
-      Wed: "Tamar",
-      Thu: "Dylan",
-      Fri: "Moon",
-      Sat: null,
-      Sun: "Maaike",
-    },
-  },
-  {
-    chore: "Clean up the kitchen",
-    area: "Buildings / structures",
-    days: {
-      Mon: "Therese",
-      Tue: "Chanel",
-      Wed: "Sammy",
-      Thu: "Tamar",
-      Fri: "Dylan",
-      Sat: "Moon",
-      Sun: "Therese",
-    },
-  },
-  {
-    chore: "Fish river",
-    area: "Land / roads / drainage",
-    days: { Mon: "Luis", Tue: null, Wed: null, Thu: null, Fri: null, Sat: null, Sun: null },
-  },
-  {
-    chore: "Trash (to container)",
-    area: "Campsite / guest",
-    days: { Mon: null, Tue: null, Wed: null, Thu: null, Fri: null, Sat: null, Sun: null },
+    name: "Garden / land",
+    description: "Plants, trees, outdoor tidy.",
+    duties: [
+      { name: "Water trees / plants", frequency: "Weekly" },
+      { name: "Trash (to container)", frequency: "Weekly" },
+    ],
   },
 ];
 
-const ADHOC_TODOS = [
-  "Clear out shelves in the kitchen",
-  "Organising fridges",
-  "Clean up bird poop on balcony",
-  "Find what smells bad beside the breakfast fridge",
-];
-
-async function seedRota() {
-  console.log("\n=== Community chore rota → Recurring Duties ===");
+async function ensureDutyLinked(jobId, dutyName, frequency) {
   const { pages } = await notion.queryDatabase(notion.DB.RECURRING);
-  const byName = new Map(pages.map((p) => [notion.pageTitle(p), p]));
-
-  for (const row of WEEKLY_ROTA) {
-    const props = {
-      Stage: "Community chore rota",
+  const existing = pages.find(
+    (p) =>
+      notion.pageTitle(p) === dutyName &&
+      (p.properties?.Job?.relation || []).some((r) => r.id === jobId)
+  );
+  if (existing) {
+    console.log(`    Reusing duty: ${dutyName}`);
+    return existing;
+  }
+  const created = await notion.createPage({
+    databaseName: notion.DB.RECURRING,
+    title: dutyName,
+    properties: {
+      Frequency: frequency,
       Status: "Active",
-      Frequency: "Weekly",
-      Area: row.area,
-      Notes: "Weekly community chore rota (one row per chore, days in columns).",
-    };
-    for (const day of DAY_KEYS) {
-      props[day] = row.days[day] || "";
-    }
-
-    const existing = byName.get(row.chore);
-    if (existing) {
-      await notion.updatePageProps(notion.DB.RECURRING, existing.id, props);
-      console.log(`  Updated: ${row.chore}`);
-    } else {
-      await notion.createPage({
-        databaseName: notion.DB.RECURRING,
-        title: row.chore,
-        properties: props,
-      });
-      console.log(`  Created: ${row.chore}`);
-    }
-  }
-}
-
-async function seedAdHocTodos() {
-  console.log("\n=== Whiteboard to-dos → Tasks ===");
-  const { pages } = await notion.queryDatabase(notion.DB.TASKS);
-  const names = new Set(pages.map((p) => notion.pageTitle(p)));
-
-  for (const task of ADHOC_TODOS) {
-    if (names.has(task)) {
-      console.log(`  Reusing: ${task}`);
-      continue;
-    }
-    await notion.createPage({
-      databaseName: notion.DB.TASKS,
-      title: task,
-      properties: {
-        Stage: "Needs review",
-        Status: "Open",
-        Area: "Buildings / structures",
-        Notes: "From community whiteboard TO DO list.",
-        Source: "Manual",
-      },
-    });
-    console.log(`  Created: ${task}`);
-  }
+      Notes: "Seeded from notion:seed-rota",
+    },
+  });
+  await notion.updatePage(created.id, {
+    properties: { Job: { relation: [{ id: jobId }] } },
+  });
+  console.log(`    Duty → ${dutyName} (${frequency})`);
+  return created;
 }
 
 async function main() {
   notion.assertKey();
-  console.log("Seeding Vila Akoya community chore rota on Notion...");
-  await seedRota();
-  await seedAdHocTodos();
-  console.log("\nDONE.");
+  console.log("Seeding Jobs + Recurring Duties…\n");
+
+  const { pages: jobs } = await notion.queryDatabase(notion.DB.JOBS);
+  const byName = new Map(jobs.map((p) => [notion.pageTitle(p), p]));
+
+  for (const job of EXAMPLE_JOBS) {
+    let page = byName.get(job.name);
+    if (!page) {
+      page = await notion.createPage({
+        databaseName: notion.DB.JOBS,
+        title: job.name,
+        properties: {
+          Status: "Active",
+          Description: job.description,
+        },
+      });
+      console.log(`  Job → ${job.name}`);
+    } else {
+      console.log(`  Job exists → ${job.name}`);
+    }
+    const jobId = page.id;
+    for (const d of job.duties) {
+      await ensureDutyLinked(jobId, d.name, d.frequency);
+    }
+  }
+
+  console.log("\nDONE. Set Assignee on each Job to a community member name.");
 }
 
 main().catch((err) => {

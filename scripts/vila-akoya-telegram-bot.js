@@ -7,16 +7,17 @@
  *
  * ── What it does ──────────────────────────────────────────────────────────
  * Telegram -> Notion
- *   - Listens to all messages in the Jobs group (+ DMs).
- *   - Voice notes in the group are transcribed; documentation dumps become structured Notion pages.
- *   - Tagged @bot, reply-to-bot, or private DM: text, photos, and voice notes.
- *   - Every group message is classified by AI → Notion actions (events, tasks, completions, cancellations) or questions.
- *   - Tagged @bot or reply-to-bot: always get a response.
- *   - Daily recap (~08:00 Europe/Lisbon): today's chores + events + campsite
- *     check-ins/outs + meal headcounts (all from Notion) + yesterday's chat highlights.
+ *   - In groups: VAVA only acts when @tagged, replied-to, or addressed by name in voice
+ *     ("Vava", or at the start: "robot", "bot", "vila akoya bot", "personal assistant").
+ *     All group messages + voice transcriptions are still buffered for context.
+ *   - In private DMs: always on, no tag needed.
+ *   - Voice notes are transcribed; documentation dumps become structured Notion pages.
+ *   - AI classification routes to Notion actions: tasks, events (internal/external),
+ *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs.
+ *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (events,
+ *     campsite, meals, highlights); personal duties + tasks go by DM to registered members.
  *   - /ask, /task, /register, /mytasks, /done, /help as before.
- *   - Schedule questions ("anyone checking in today?", "how many for dinner?")
- *     are answered from Notion Campsite Bookings / Campsite Meals databases.
+ *   - Schedule and partnership/discount questions answered from Notion.
  *
  * Requires (for smart features): OPENAI_API_KEY, and a docs index built
  * with `node scripts/index-vila-akoya-docs.js`.
@@ -32,7 +33,7 @@
  *
  * ── Optional env ──────────────────────────────────────────────────────────
  *   TASK_GROUP_CHAT_ID      group for intake (default: TELEGRAM_CHAT_ID)
- *   AMBIENT_CAPTURE         "false" to disable passive task/event capture
+ *   AMBIENT_CAPTURE         "true" to enable passive task/event capture (OFF by default)
  *   AMBIENT_MIN_CONFIDENCE  0–1 threshold for task capture (default 0.7)
  *   LOG_DOC_GAPS            "true" to log documentation gaps on failed /ask
  *   DAILY_RECAP             "false" to disable morning recap
@@ -52,7 +53,6 @@ const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
 const {
   CHAT_ACTIVITY_KIND,
-  MAINTENANCE_GROUP_BY_AREA,
   buildWeekCalendarContext,
   resolveScheduleRange,
 } = require("./lib/community-actions");
@@ -64,10 +64,17 @@ const {
   describeRecurrence,
   normalizeRecurrenceField,
 } = require("./lib/event-recurrence");
+const { expandRecurringEvents } = require("./expand-notion-recurring-events");
+const {
+  nextDueAfterCompletion,
+  isDutyDueOn,
+  appendCompletionLog,
+  nameMatchesPerson,
+} = require("./lib/duty-schedule");
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8991030236:AAEbLuvsa5HRn2rMwCDu8468kAKERo9DhxY";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-5438367592";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1003979087550";
 
 const TASK_GROUP_CHAT_ID =
   process.env.TASK_GROUP_CHAT_ID || TELEGRAM_CHAT_ID;
@@ -79,17 +86,20 @@ const TELEGRAM_FILE_API = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN
 // ── Notion database names (env overrides, defaulting to notion.DB.*) ──────────
 const TASKS_DB_NAME = process.env.TASKS_DB_NAME || notion.DB.TASKS;
 const MEMBERS_DB_NAME = process.env.MEMBERS_DB_NAME || notion.DB.MEMBERS;
-const EVENTS_DB_NAME = process.env.EVENTS_DB_NAME || notion.DB.EVENTS;
+const INTERNAL_EVENTS_DB_NAME = process.env.INTERNAL_EVENTS_DB_NAME || notion.DB.INTERNAL_EVENTS;
+const EXTERNAL_EVENTS_DB_NAME = process.env.EXTERNAL_EVENTS_DB_NAME || notion.DB.EXTERNAL_EVENTS;
+const EVENTS_DB_NAME = EXTERNAL_EVENTS_DB_NAME; // legacy alias
 const RECURRING_DB_NAME = process.env.RECURRING_DB_NAME || notion.DB.RECURRING;
-const GUEST_DB_NAME = process.env.GUEST_DB_NAME || notion.DB.GUEST_ISSUES;
-const MAINTENANCE_DB_NAME = process.env.MAINTENANCE_DB_NAME || notion.DB.MAINTENANCE;
-const DECISIONS_DB_NAME = process.env.DECISIONS_DB_NAME || notion.DB.DECISIONS;
+const REMINDERS_DB_NAME = process.env.REMINDERS_DB_NAME || notion.DB.REMINDERS;
+const PARTNERSHIPS_DB_NAME = process.env.PARTNERSHIPS_DB_NAME || notion.DB.PARTNERSHIPS;
+const JOBS_DB_NAME = process.env.JOBS_DB_NAME || notion.DB.JOBS;
+const PROJECTS_DB_NAME = process.env.PROJECTS_DB_NAME || notion.DB.PROJECTS;
 const DOCS_DB_NAME = process.env.DOCS_DB_NAME || notion.DB.DOCS;
 const CAMPSITE_BOOKINGS_DB_NAME =
   process.env.CAMPSITE_BOOKINGS_DB || notion.DB.BOOKINGS;
 const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
 
-const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE !== "false";
+const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE === "true";
 const AMBIENT_MIN_CONFIDENCE = Number(process.env.AMBIENT_MIN_CONFIDENCE || 0.7);
 const AMBIENT_MIN_TEXT_LEN = Number(process.env.AMBIENT_MIN_TEXT_LEN || 4);
 const EVENT_MIN_CONFIDENCE = Number(process.env.EVENT_MIN_CONFIDENCE || 0.5);
@@ -129,6 +139,8 @@ const RECAP_IMPORTANT_KINDS = new Set([
 
 let botMe = null;
 const recentMessages = new Map();
+/** In-flight voice transcriptions keyed by `${chatId}:${messageId}`. */
+const pendingVoiceTranscriptions = new Map();
 
 // ── Small utilities ───────────────────────────────────────────────────────
 function sleep(ms) {
@@ -317,6 +329,7 @@ function bufferTranscribedText(message, text) {
     text,
     from: message.from,
     ts: Date.now(),
+    isVoice: true,
   });
   while (buf.length > 20) buf.shift();
   recentMessages.set(chatId, buf);
@@ -342,6 +355,61 @@ function stripBotMention(text, bot) {
   return text.replace(new RegExp(`@${bot.username}\\b`, "gi"), "").trim();
 }
 
+const VOICE_LEADING_FILLER = /^(?:(?:hey|hi|hello|ok|okay|um|uh)[,.\s]*)*/i;
+
+/** "Vava" anywhere — includes common voice-transcription variants. */
+const VAVA_WAKE_ANYWHERE = /\b(?:vava|vah[\s-]?vah|va[\s-]?va)\b/i;
+
+/** Wake phrases at the start of a voice transcription (after optional hey/hi). */
+const VOICE_WAKE_AT_START = [
+  /^vila akoya bot\b/i,
+  /^personal assist(?:ant|ance)\b/i,
+  /^robot\b/i,
+  /^bot\b/i,
+];
+
+function stripVavaWakeWords(text) {
+  return String(text)
+    .replace(/\b(?:vava|vah[\s-]?vah|va[\s-]?va)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseVoiceAddressing(text) {
+  if (!text) return { addressed: false, content: "" };
+  const rest = String(text).trim();
+
+  if (VAVA_WAKE_ANYWHERE.test(rest)) {
+    return { addressed: true, content: stripVavaWakeWords(rest) };
+  }
+
+  const afterFiller = rest.replace(VOICE_LEADING_FILLER, "").trim();
+  for (const pattern of VOICE_WAKE_AT_START) {
+    const match = afterFiller.match(pattern);
+    if (match) {
+      const prefixLen = rest.length - afterFiller.length + match[0].length;
+      const content = rest.slice(prefixLen).replace(/^[,.\s]+/, "").trim();
+      return { addressed: true, content };
+    }
+  }
+
+  return { addressed: false, content: rest };
+}
+
+/** Spoken wake words in a voice transcription count as addressing the bot in groups. */
+function textAddressesBot(text) {
+  return parseVoiceAddressing(text).addressed;
+}
+
+function stripBotAddressing(text, bot) {
+  if (!text) return "";
+  let cleaned = parseVoiceAddressing(text).content;
+  if (bot?.username) {
+    cleaned = cleaned.replace(new RegExp(`@${bot.username}\\b`, "gi"), "");
+  }
+  return cleaned.replace(/\s+/g, " ").trim();
+}
+
 function isReplyToBot(message, bot) {
   const reply = message.reply_to_message;
   if (!reply || !bot) return false;
@@ -356,22 +424,79 @@ function isAddressedToBot(message, bot) {
   return false;
 }
 
-function addressedText(message, bot) {
-  const raw = (message.text || message.caption || "").trim();
-  const stripped = stripBotMention(raw, bot);
-  if (stripped) return stripped;
+async function waitForPendingVoiceTranscriptions(chatId) {
+  const prefix = `${chatId}:`;
+  const pending = [...pendingVoiceTranscriptions.entries()]
+    .filter(([key]) => key.startsWith(prefix))
+    .map(([, promise]) => promise);
+  await Promise.allSettled(pending);
+}
 
+function recentBufferedVoice(message) {
+  const chatId = message.chat?.id;
+  const userId = message.from?.id;
+  if (!chatId) return null;
+  const cutoff = Date.now() - ADDRESS_WINDOW_MS;
+  const buf = recentMessages.get(chatId) || [];
+  return (
+    buf
+      .filter(
+        (m) =>
+          m.isVoice &&
+          m.messageId !== message.message_id &&
+          m.ts >= cutoff &&
+          (!userId || m.from?.id === userId)
+      )
+      .slice(-1)[0] || null
+  );
+}
+
+function shouldAttachRecentVoice(stripped, lastVoice) {
+  if (!lastVoice) return false;
+  if (!stripped) return true;
+  if (Date.now() - lastVoice.ts <= 30000) return true;
+  const lower = stripped.toLowerCase();
+  return /\b(voice|audio|note|listen|hear|above|this|that|vava|vah[\s-]?vah|va[\s-]?va|personal assist)/i.test(
+    lower
+  );
+}
+
+async function resolveAddressedText(message, bot) {
+  const chatId = message.chat?.id;
+  if (!chatId) return "";
+
+  await waitForPendingVoiceTranscriptions(chatId);
+
+  const raw = (message.text || message.caption || "").trim();
+  const stripped = stripBotAddressing(raw, bot);
+  const userId = message.from?.id;
   const reply = message.reply_to_message;
+  const cutoff = Date.now() - ADDRESS_WINDOW_MS;
+  const buf = recentMessages.get(chatId) || [];
+  const recent = buf.filter((m) => m.messageId !== message.message_id && m.ts >= cutoff);
+
   if (reply) {
-    return (reply.text || reply.caption || "").trim();
+    const bufferedReply = recent.find((m) => m.messageId === reply.message_id);
+    if (bufferedReply?.text) {
+      return stripped ? `${stripped}\n\n${bufferedReply.text}` : bufferedReply.text;
+    }
+    const replyText = (reply.text || reply.caption || "").trim();
+    if (replyText) return stripped ? `${stripped}\n\n${replyText}` : replyText;
+    if (getVoiceFileId(reply)) {
+      const voiceText = await transcribeMessageVoice(reply, { interactive: false });
+      if (voiceText) return stripped ? `${stripped}\n\n${voiceText}` : voiceText;
+    }
   }
 
-  const buf = recentMessages.get(message.chat.id) || [];
-  const cutoff = Date.now() - ADDRESS_WINDOW_MS;
-  const prev = buf
-    .filter((m) => m.messageId !== message.message_id && m.ts >= cutoff)
+  const lastVoice = recentBufferedVoice(message);
+  if (lastVoice && (!stripped || shouldAttachRecentVoice(stripped, lastVoice))) {
+    return stripped ? `${stripped}\n\n${lastVoice.text}` : lastVoice.text;
+  }
+
+  const prev = recent
+    .filter((m) => !userId || m.from?.id === userId)
     .slice(-1)[0];
-  return prev?.text || "";
+  return stripped || prev?.text || "";
 }
 
 function ambientDedupeKey(chatId, type, title) {
@@ -530,9 +655,8 @@ function loadState() {
     if (!s.chatActivity) s.chatActivity = [];
     if (!s.chatLog) s.chatLog = [];
     if (!s.items) s.items = {};
-    // Migrate from the old monday version once. Its item cache keys are numeric
-    // monday IDs (incompatible with Notion page UUIDs), so drop them and force a
-    // silent Notion re-seed to avoid announcing every existing page as "new".
+    if (!s.pendingClarify) s.pendingClarify = {};
+    if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
     if (s.seededNotion === undefined) {
       if (s.seededMonday !== undefined) s.items = {};
       s.seededNotion = false;
@@ -543,10 +667,12 @@ function loadState() {
       telegramOffset: 0,
       seededNotion: false,
       lastRecapDate: null,
+      lastPersonalRecapDate: null,
       ambientKeys: {},
       chatActivity: [],
       chatLog: [],
       items: {},
+      pendingClarify: {},
     };
   }
 }
@@ -586,6 +712,7 @@ function pageSnapshot(page) {
   const status = notion.pagePropText(page, "Status");
   const doer =
     notion.pagePropText(page, "Doer name") ||
+    notion.pagePropText(page, "Assignee") ||
     notion.pagePropText(page, "Helpers / doers") ||
     "";
   return { stage, status, doer, done: pageIsDone(page) };
@@ -619,6 +746,20 @@ async function telegram(method, payload, { clientTimeoutMs } = {}) {
   return json.result;
 }
 
+/** When replying inside a forum topic, Telegram needs message_thread_id. */
+let replyThreadExtra = {};
+
+function withReplyThread(message, fn) {
+  const prev = replyThreadExtra;
+  replyThreadExtra =
+    message?.is_topic_message && message.message_thread_id
+      ? { message_thread_id: message.message_thread_id }
+      : {};
+  return Promise.resolve(fn()).finally(() => {
+    replyThreadExtra = prev;
+  });
+}
+
 async function sendMessage(chatId, text, extra = {}) {
   if (!chatId) return;
   try {
@@ -627,6 +768,7 @@ async function sendMessage(chatId, text, extra = {}) {
       text,
       parse_mode: "HTML",
       disable_web_page_preview: true,
+      ...replyThreadExtra,
       ...extra,
     });
   } catch (err) {
@@ -674,6 +816,29 @@ async function transcribeMessageVoice(message, { interactive = false } = {}) {
   if (!voiceFileId) return null;
 
   const chatId = message.chat.id;
+  const pendingKey = `${chatId}:${message.message_id}`;
+  const buffered = (recentMessages.get(chatId) || []).find(
+    (m) => m.messageId === message.message_id && m.isVoice && m.text
+  );
+  if (buffered?.text) return buffered.text;
+  if (pendingVoiceTranscriptions.has(pendingKey)) {
+    return pendingVoiceTranscriptions.get(pendingKey);
+  }
+
+  const work = transcribeMessageVoiceInner(message, { interactive });
+  pendingVoiceTranscriptions.set(pendingKey, work);
+  try {
+    return await work;
+  } finally {
+    pendingVoiceTranscriptions.delete(pendingKey);
+  }
+}
+
+async function transcribeMessageVoiceInner(message, { interactive = false } = {}) {
+  const voiceFileId = getVoiceFileId(message);
+  if (!voiceFileId) return null;
+
+  const chatId = message.chat.id;
 
   if (!openaiLib.isEnabled()) {
     if (interactive) {
@@ -698,9 +863,9 @@ async function transcribeMessageVoice(message, { interactive = false } = {}) {
       return "";
     }
     log(`Voice transcribed for ${senderHandle(message.from)}: ${text.slice(0, 120)}`);
+    bufferTranscribedText(message, text);
     if (isTaskGroupMessage(message)) {
       recordGroupMessage(message, text);
-      bufferTranscribedText(message, text);
     }
     return text;
   } catch (err) {
@@ -747,6 +912,16 @@ async function createDocumentation({ rawText, from, chatId, sourceText }) {
     children,
   });
 
+  const indexText = [structured.title, structured.summary, structured.markdown]
+    .filter(Boolean)
+    .join("\n\n");
+  await indexDocumentationInSearch({
+    id: page.id,
+    name: structured.title,
+    url: page.url,
+    text: indexText,
+  });
+
   return { doc: { url: page.url, id: page.id }, structured };
 }
 
@@ -754,36 +929,24 @@ async function createDocumentation({ rawText, from, chatId, sourceText }) {
 async function createInboxTask({ text, from, chatId, photoFileId, classification }) {
   const cleanText = String(text || "").trim() || "(no text)";
 
-  // If the classifier ran, use its title and route to the review stage.
-  const stage = classification ? "Needs review" : "New brain dumps";
   const rawName = classification?.title || cleanText;
   const name = rawName.length > 200 ? rawName.slice(0, 197) + "..." : rawName;
 
-  const suggested = classification?.suggested_board
-    ? `Suggested board: ${classification.suggested_board}\n`
-    : "";
   const summary = classification?.summary ? `Summary: ${classification.summary}\n` : "";
   const notes = telegramNote({
     from,
     chatId,
-    extra: `${suggested}${summary}`.trim(),
+    extra: summary.trim(),
     sourceText: cleanText,
   });
 
   const properties = {
-    Stage: stage,
-    Source: "Telegram",
-    "Telegram user": senderHandle(from),
-    "Telegram chat ID": String(chatId),
+    Status: "Not started",
+    "Created by": senderDisplayName(from),
     Notes: notes,
   };
-  if (classification) {
-    if (classification.area) properties.Area = classification.area;
-    if (classification.priority) properties.Priority = classification.priority;
-    if (classification.safety_critical) properties["Safety critical?"] = true;
-    if (classification.needs_materials) properties["Needs materials?"] = true;
-    if (classification.needs_money) properties["Needs money?"] = true;
-  }
+  if (classification?.type) properties.Type = classification.type;
+  if (classification?.priority) properties.Priority = classification.priority;
   if (photoFileId) properties.Notes = `${notes}\n\n[Photo attached in Telegram]`;
 
   const page = await notion.createPage({
@@ -792,7 +955,12 @@ async function createInboxTask({ text, from, chatId, photoFileId, classification
     properties,
   });
 
-  markPageSeen(page.id, { stage, status: "", doer: "", done: notion.isDoneStage(stage) });
+  markPageSeen(page.id, {
+    stage: "",
+    status: "Not started",
+    doer: "",
+    done: false,
+  });
   return { itemId: page.id, url: page.url };
 }
 
@@ -831,55 +999,99 @@ async function createDbPage({
   return { itemId: page.id, url: page.url, databaseName, boardName: databaseName };
 }
 
+async function findProjectByTitle(title) {
+  const q = String(title || "").trim();
+  if (!q) return null;
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(PROJECTS_DB_NAME));
+  } catch {
+    return null;
+  }
+  const exact = pages.find(
+    (p) => notion.pageTitle(p).toLowerCase() === q.toLowerCase()
+  );
+  if (exact) return exact;
+  const soft = pages.find((p) => titleMatches(q, notion.pageTitle(p)));
+  return soft || null;
+}
+
+async function linkTaskToProject(taskPageId, projectTitle) {
+  if (!taskPageId || !projectTitle) return null;
+  const project = await findProjectByTitle(projectTitle);
+  if (!project) return null;
+  const tasksDb = await notion.resolveDatabase(TASKS_DB_NAME);
+  if (!tasksDb.properties?.Project) return null;
+  await notion.updatePage(taskPageId, {
+    properties: {
+      Project: { relation: [{ id: project.id }] },
+    },
+  });
+  return { id: project.id, name: notion.pageTitle(project), url: project.url };
+}
+
 async function createTaskFromClassification({ classified, text, from, chatId, photoFileId }) {
   const task = classified.task;
-  const isGuest = classified.action === "guest_issue";
-  const databaseName = isGuest
-    ? GUEST_DB_NAME
-    : task?.route_maintenance
-      ? MAINTENANCE_DB_NAME
-      : TASKS_DB_NAME;
-  const stage = isGuest
-    ? "New guest issues"
-    : task?.route_maintenance
-      ? MAINTENANCE_GROUP_BY_AREA[task.area] || "Water"
-      : "Needs review";
-
-  const properties = {};
-  if (task?.area && !task?.route_maintenance) properties.Area = task.area;
+  const properties = {
+    Status: "Not started",
+    "Created by": senderDisplayName(from),
+  };
+  if (task?.type) properties.Type = task.type;
   if (task?.priority) properties.Priority = task.priority;
-  if (task?.safety_critical) properties["Safety critical?"] = true;
+  if (task?.assignee) properties.Assignee = task.assignee;
   let sourceText = text;
   if (photoFileId) sourceText = `${text || ""}\n\n[Photo attached in Telegram]`.trim();
 
-  return createDbPage({
-    databaseName,
-    stage,
+  const created = await createDbPage({
+    databaseName: TASKS_DB_NAME,
     itemName: task?.title || text,
     properties,
     from,
     chatId,
     sourceText,
   });
+
+  let project = null;
+  if (task?.project) {
+    try {
+      project = await linkTaskToProject(created.itemId, task.project);
+    } catch (err) {
+      log("linkTaskToProject error:", err.message);
+    }
+  }
+
+  return { ...created, project };
 }
 
 async function createDecision({ decision, from, chatId, sourceText }) {
-  const properties = {};
-  if (decision.category) properties.Category = decision.category;
-  properties["Proposed by"] = senderDisplayName(from);
-  if (decision.summary) properties.Notes = decision.summary;
+  // Decisions DB removed per meeting notes — log as a management task for discussion.
+  const bits = [];
+  if (decision.category) bits.push(`Category: ${decision.category}`);
+  if (decision.summary) bits.push(decision.summary);
+  bits.push("[decision / proposal]");
   return createDbPage({
-    databaseName: DECISIONS_DB_NAME,
-    stage: "Proposed",
+    databaseName: TASKS_DB_NAME,
     itemName: decision.title,
-    properties,
+    properties: {
+      Type: "Management",
+      Status: "Not started",
+      Notes: bits.join("\n"),
+      "Created by": senderDisplayName(from),
+    },
     from,
     chatId,
     sourceText,
   });
 }
 
-async function createEvent({ title, date, eventType, recurrence, from, chatId, sourceText }) {
+function isInternalEvent({ eventType, scope }) {
+  if (scope === "internal") return true;
+  if (scope === "external") return false;
+  const internalTypes = ["Work party", "Workshop", "Shared meal"];
+  return internalTypes.includes(eventType);
+}
+
+async function createEvent({ title, date, eventType, recurrence, scope, from, chatId, sourceText }) {
   const recurrenceInfo = normalizeRecurrenceField(recurrence || "");
   const stage = recurrenceInfo.rule ? EVENT_RECURRING_GROUP : EVENT_CAPTURE_GROUP;
 
@@ -901,6 +1113,10 @@ async function createEvent({ title, date, eventType, recurrence, from, chatId, s
     sourceText: sourceText || title,
   });
 
+  const databaseName = isInternalEvent({ eventType, scope })
+    ? INTERNAL_EVENTS_DB_NAME
+    : EXTERNAL_EVENTS_DB_NAME;
+
   const properties = {
     Stage: stage,
     "Announce on Telegram?": true,
@@ -911,11 +1127,33 @@ async function createEvent({ title, date, eventType, recurrence, from, chatId, s
   if (eventType) properties["Event type"] = eventType;
   if (recurrenceInfo.canonical) properties.Recurrence = recurrenceInfo.canonical;
 
+  const { eventBodyBlocks } = require("./lib/event-hub");
+  const pageTitle = String(title || "Event").slice(0, 200);
   const page = await notion.createPage({
-    databaseName: EVENTS_DB_NAME,
-    title: String(title || "Event").slice(0, 200),
+    databaseName,
+    title: pageTitle,
     properties,
+    children: eventBodyBlocks({
+      title: pageTitle,
+      isSeries: Boolean(recurrenceInfo.rule),
+      recurrenceLabel: recurrenceInfo.label || null,
+    }),
   });
+
+  // Materialise calendar dates for recurring series (Notion calendar needs one page per date).
+  if (recurrenceInfo.rule) {
+    try {
+      const totals = await expandRecurringEvents({
+        databases: [databaseName],
+        log: (msg) => log(msg),
+      });
+      log(
+        `Recurring expand (${databaseName}): ${totals.created} created, ${totals.updated} updated`
+      );
+    } catch (err) {
+      log("Recurring expand failed:", err.message);
+    }
+  }
 
   markPageSeen(page.id, {
     stage,
@@ -927,28 +1165,307 @@ async function createEvent({ title, date, eventType, recurrence, from, chatId, s
     itemId: page.id,
     url: page.url,
     date: eventDate,
+    databaseName,
     recurrence: recurrenceInfo.canonical || null,
     recurrenceLabel: recurrenceInfo.label || null,
   };
 }
 
-async function fetchRotaForDay(dateISO) {
-  const dayKey = dayKeyFromISO(dateISO);
-  let pages;
+function looksLikeMyDayQuestion(text) {
+  const t = String(text || "").toLowerCase();
+  return (
+    /what should i do/.test(t) ||
+    /what do i (need to |have to )?do/.test(t) ||
+    /what('?s| is) (on )?my (list|plate|agenda)/.test(t) ||
+    /my (tasks?|duties|chores|jobs) (for )?today/.test(t) ||
+    /\bmy day\b/.test(t) ||
+    /o que (eu )?tenho (de |que )?fazer/.test(t) ||
+    /minhas tarefas/.test(t)
+  );
+}
+
+function looksLikeCompleteTask(text) {
+  const t = String(text || "").toLowerCase();
+  return (
+    /\bmark\b.*\b(done|complete|completed|finished)\b/.test(t) ||
+    /\b(please|can you|could you)\b.*\bmark\b/.test(t) ||
+    /\b(?:i'?ve|i have)\s+done\b/.test(t) ||
+    /\b(?:it|that)('?s| is)\s+done\b/.test(t) ||
+    (/\b(?:done|finished|completed|fixed)\b/.test(t) &&
+      /\b(wifi|wi-?fi|task|job|tap|toilet|shower|leak|light|valve)\b/.test(t))
+  );
+}
+
+function extractCompleteTaskTarget(text) {
+  if (!text) return null;
+  const patterns = [
+    /\bmark(?:\s+it)?\s+(?:the\s+)?(.+?)\s+(?:as\s+|to\s+)?(?:done|complete|completed|finished)\b/i,
+    /\b(?:please\s+)?(?:mark|log)\s+(?:the\s+)?(.+?)\s+(?:as\s+)?(?:done|complete)\b/i,
+    /\b(?:changing|change|fixing|fix)\s+(?:the\s+)?(.+?)\s+(?:is\s+)?(?:done|finished|completed|fixed)\b/i,
+    /\b(?:the\s+)?(.+?)\s+is\s+(?:now\s+)?(?:done|finished|completed|fixed)\b/i,
+  ];
+  for (const pattern of patterns) {
+    const match = String(text).match(pattern);
+    if (!match?.[1]) continue;
+    const title = match[1].trim();
+    if (title.length > 2 && !/^(it|that|this)$/i.test(title)) {
+      return title.replace(/\s+/g, " ");
+    }
+  }
+  return null;
+}
+
+function findCompleteTaskTargetInRecent(chatId, excludeText) {
+  const buf = recentMessages.get(chatId) || [];
+  for (const entry of buf.slice(-10).reverse()) {
+    if (!entry.text || entry.text === excludeText) continue;
+    const title = extractCompleteTaskTarget(entry.text);
+    if (title) return title;
+    if (/\bwi-?fi\b/i.test(entry.text)) {
+      const wifi = entry.text.match(/\b(?:changing|change|fix(?:ing)?)\s+(?:the\s+)?wi-?fi\b/i);
+      if (wifi) return "wifi";
+      return "wifi";
+    }
+  }
+  return null;
+}
+
+function inferCompletionIntent(text, chatId) {
+  if (!looksLikeCompleteTask(text)) return null;
+  let title = extractCompleteTaskTarget(text);
+  if (!title) title = findCompleteTaskTargetInRecent(chatId, text);
+  if (!title) return null;
+  return {
+    action: "complete_task",
+    actionable: true,
+    confidence: 0.88,
+    is_question: false,
+    is_task: false,
+    is_event: false,
+    is_complete: true,
+    is_cancel_event: false,
+    target: { title },
+  };
+}
+
+function mergeCompletionIntent(classified, text, chatId) {
+  const completion = inferCompletionIntent(text, chatId);
+  if (!completion) return classified;
+  if (classified?.is_complete && classified?.target?.title) return classified;
+  if (!classified || classified.action === "chat" || !classified.is_complete) {
+    log(`Completion intent: mark done → "${completion.target.title}"`);
+    return { ...(classified || {}), ...completion };
+  }
+  return classified;
+}
+
+async function resolvePersonIdentity(from) {
+  const handle = senderHandle(from);
+  const { page: member } = await findMemberByTelegram(handle);
+  const displayName = member
+    ? notion.pagePropText(member, "Display name") || notion.pageTitle(member)
+    : senderDisplayName(from);
+  return { handle, displayName, member };
+}
+
+/**
+ * Personal briefing: job duties due today + open tasks assigned to you.
+ */
+async function buildMyDayBriefing(from, dateISO = todayISO()) {
+  const { handle, displayName, member } = await resolvePersonIdentity(from);
+  const registered = Boolean(member);
+
+  const duties = [];
+  const tasks = [];
+
+  let jobs = [];
+  let dutyPages = [];
   try {
-    ({ pages } = await notion.queryDatabase(RECURRING_DB_NAME, {
-      filter: { property: "Stage", select: { equals: "Community chore rota" } },
-    }));
+    ({ pages: jobs } = await notion.queryDatabase(JOBS_DB_NAME));
+    ({ pages: dutyPages } = await notion.queryDatabase(RECURRING_DB_NAME));
+  } catch (err) {
+    log("buildMyDayBriefing jobs/duties:", err.message);
+  }
+
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
+  for (const duty of dutyPages) {
+    const jobRel = duty.properties?.Job?.relation || [];
+    const job = jobRel[0] ? jobById.get(jobRel[0].id) : null;
+    const assignee =
+      (job && notion.pagePropText(job, "Assignee")) ||
+      notion.pagePropText(duty, "Assignee") ||
+      "";
+    if (!nameMatchesPerson(assignee, displayName, handle)) continue;
+
+    const due = isDutyDueOn(dateISO, {
+      frequency: notion.pagePropText(duty, "Frequency"),
+      lastCompleted: notion.pageDateISO(duty, "Last completed"),
+      nextDue: notion.pageDateISO(duty, "Next due date"),
+      status: notion.pagePropText(duty, "Status"),
+    });
+    if (!due) continue;
+
+    duties.push({
+      id: duty.id,
+      name: notion.pageTitle(duty),
+      job: job ? notion.pageTitle(job) : "",
+      frequency: notion.pagePropText(duty, "Frequency") || "Daily",
+      nextDue: notion.pageDateISO(duty, "Next due date") || dateISO,
+    });
+  }
+
+  let taskPages = [];
+  try {
+    ({ pages: taskPages } = await notion.queryDatabase(TASKS_DB_NAME));
+  } catch (err) {
+    log("buildMyDayBriefing tasks:", err.message);
+  }
+  for (const page of taskPages) {
+    if (pageIsDone(page)) continue;
+    const assignee = notion.pagePropText(page, "Assignee");
+    if (!nameMatchesPerson(assignee, displayName, handle)) continue;
+    tasks.push({
+      id: page.id,
+      name: notion.pageTitle(page),
+      status: notion.pagePropText(page, "Status") || "Not started",
+      priority: notion.pagePropText(page, "Priority") || "",
+      type: notion.pagePropText(page, "Type") || "",
+    });
+  }
+
+  return { displayName, handle, registered, dateISO, duties, tasks };
+}
+
+function formatMyDayBriefing(brief) {
+  const lines = [
+    `<b>Your day — ${escapeHtml(brief.dateISO)}</b>`,
+    `For <b>${escapeHtml(brief.displayName)}</b>`,
+  ];
+  if (!brief.registered) {
+    lines.push(
+      `<i>Tip: /register Your Name so I match Jobs Assignee + Tasks Assignee reliably.</i>`
+    );
+  }
+
+  lines.push("", "<b>Duties due</b> (from your Jobs)");
+  if (brief.duties.length) {
+    for (const d of brief.duties) {
+      const job = d.job ? ` · ${escapeHtml(d.job)}` : "";
+      lines.push(
+        `• ${escapeHtml(d.name)}${job} <i>(${escapeHtml(d.frequency)})</i>` +
+          `\n   done: <code>/done ${d.id}</code>`
+      );
+    }
+  } else {
+    lines.push("• None due today (or no job assigned to you yet)");
+  }
+
+  lines.push("", "<b>Open tasks</b> assigned to you");
+  if (brief.tasks.length) {
+    for (const t of brief.tasks) {
+      const meta = [t.status, t.priority, t.type].filter(Boolean).join(" · ");
+      lines.push(
+        `• ${escapeHtml(t.name)}${meta ? ` <i>[${escapeHtml(meta)}]</i>` : ""}` +
+          `\n   done: <code>/done ${t.id}</code>`
+      );
+    }
+  } else {
+    lines.push("• None");
+  }
+
+  return lines.join("\n");
+}
+
+async function sendMyDayBriefing(from, replyChatId, dateISO = todayISO()) {
+  const brief = await buildMyDayBriefing(from, dateISO);
+  const privateChatId = from?.id;
+  if (!privateChatId) return brief;
+
+  await sendMessage(privateChatId, formatMyDayBriefing(brief));
+
+  const inGroup =
+    replyChatId &&
+    String(replyChatId) !== String(privateChatId) &&
+    Number(replyChatId) < 0;
+  if (inGroup) {
+    await sendMessage(
+      replyChatId,
+      "📬 Sent your personal to-do list by DM — check your chat with @vila_akoya_bot."
+    );
+  }
+  return brief;
+}
+
+async function fetchRotaForDay(dateISO) {
+  // Jobs (roles) + their Recurring Duties. Assignee lives on the Job (text name).
+  let jobs;
+  let duties;
+  try {
+    ({ pages: jobs } = await notion.queryDatabase(JOBS_DB_NAME));
+    ({ pages: duties } = await notion.queryDatabase(RECURRING_DB_NAME));
   } catch (err) {
     log("Rota fetch failed:", err.message);
     return [];
   }
 
+  const dayKey = dayKeyFromISO(dateISO); // Mon…Sun
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
+
   const chores = [];
-  for (const page of pages) {
-    const assignee = notion.pagePropText(page, dayKey).trim();
-    if (assignee) chores.push({ chore: notion.pageTitle(page), assignee });
+  for (const duty of duties) {
+    if (notion.pagePropText(duty, "Status") === "Paused") continue;
+    if (notion.isDoneStage(notion.pagePropText(duty, "Status"))) continue;
+
+    const freq = (notion.pagePropText(duty, "Frequency") || "").toLowerCase();
+    // Daily always; weekly/monthly/seasonal still listed (who's responsible today = job assignee)
+    if (freq === "weekly" && dayKey === "Sun") {
+      // still show weekly duties every day for "who's on this job" — filter lightly:
+      // show daily always; weekly/monthly show every day as reminder who owns the job
+    }
+
+    const jobRel = duty.properties?.Job?.relation || [];
+    const job = jobRel[0] ? jobById.get(jobRel[0].id) : null;
+    if (job && notion.pagePropText(job, "Status") === "Archived") continue;
+
+    const assignee =
+      (job && notion.pagePropText(job, "Assignee")) ||
+      notion.pagePropText(duty, "Assignee") ||
+      "(unassigned)";
+    const jobName = job ? notion.pageTitle(job) : "";
+    const chore = jobName
+      ? `${notion.pageTitle(duty)} [${jobName}]`
+      : notion.pageTitle(duty);
+
+    // Prefer showing daily duties for “today”; still include others labelled by frequency
+    if (freq && freq !== "daily" && freq !== "weekly" && freq !== "monthly" && freq !== "seasonal") {
+      // unknown — include
+    }
+    if (freq === "daily" || !freq) {
+      chores.push({ chore, assignee, frequency: freq || "daily" });
+    } else {
+      chores.push({
+        chore: `${chore} (${freq})`,
+        assignee,
+        frequency: freq,
+      });
+    }
   }
+
+  // Also list jobs with assignee even if no duties (role ownership)
+  for (const job of jobs) {
+    if (notion.pagePropText(job, "Status") === "Archived") continue;
+    const assignee = notion.pagePropText(job, "Assignee");
+    if (!assignee) continue;
+    const hasDuty = chores.some((c) => c.chore.includes(`[${notion.pageTitle(job)}]`));
+    if (!hasDuty) {
+      chores.push({
+        chore: `Job: ${notion.pageTitle(job)}`,
+        assignee,
+        frequency: "role",
+      });
+    }
+  }
+
   return chores;
 }
 
@@ -991,16 +1508,18 @@ function collectEventOccurrences(itemDate, recurrenceText, startISO, endISO) {
 }
 
 async function fetchEventsForDate(dateISO) {
-  let pages;
-  try {
-    ({ pages } = await notion.queryDatabase(EVENTS_DB_NAME));
-  } catch (err) {
-    log("Events fetch failed:", err.message);
-    return [];
+  const allPages = [];
+  for (const dbName of [INTERNAL_EVENTS_DB_NAME, EXTERNAL_EVENTS_DB_NAME]) {
+    try {
+      const { pages } = await notion.queryDatabase(dbName);
+      allPages.push(...pages);
+    } catch (err) {
+      log(`Events fetch failed (${dbName}):`, err.message);
+    }
   }
 
   const events = [];
-  for (const page of pages) {
+  for (const page of allPages) {
     if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
     const itemDate = notion.pageDateISO(page, "Date");
     const recurrenceText = recurrenceTextFromPage(page);
@@ -1016,16 +1535,18 @@ async function fetchEventsForDate(dateISO) {
 }
 
 async function fetchEventsBetween(startISO, endISO) {
-  let pages;
-  try {
-    ({ pages } = await notion.queryDatabase(EVENTS_DB_NAME));
-  } catch (err) {
-    log("Events fetch failed:", err.message);
-    return [];
+  const allPages = [];
+  for (const dbName of [INTERNAL_EVENTS_DB_NAME, EXTERNAL_EVENTS_DB_NAME]) {
+    try {
+      const { pages } = await notion.queryDatabase(dbName);
+      allPages.push(...pages);
+    } catch (err) {
+      log(`Events fetch failed (${dbName}):`, err.message);
+    }
   }
 
   const events = [];
-  for (const page of pages) {
+  for (const page of allPages) {
     if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
     const itemDate = notion.pageDateISO(page, "Date");
     const recurrenceText = recurrenceTextFromPage(page);
@@ -1289,7 +1810,6 @@ async function answerFromNotionData(question) {
 }
 
 async function buildDailyRecap(dateISO) {
-  const chores = await fetchRotaForDay(dateISO);
   const events = await fetchEventsForDate(dateISO);
   const yesterday = yesterdayISO();
   const yesterdayHighlights = await buildYesterdayHighlights(yesterday);
@@ -1309,13 +1829,7 @@ async function buildDailyRecap(dateISO) {
   }).format(new Date(dateISO + "T12:00:00"));
 
   const lines = [`Good morning! Here's ${dayName}:`, ""];
-  lines.push("<b>Chores today</b>");
-  if (chores.length) {
-    for (const c of chores) lines.push(`• ${escapeHtml(c.chore)} — ${escapeHtml(c.assignee)}`);
-  } else {
-    lines.push("• (nothing on the rota)");
-  }
-  lines.push("", "<b>Events today</b>");
+  lines.push("<b>Events today</b>");
   if (events.length) {
     for (const e of events) {
       const recur = e.recurrence ? ` — ${escapeHtml(e.recurrence)}` : "";
@@ -1402,6 +1916,7 @@ async function maybeSendDailyRecap() {
     state.lastRecapDate = today;
     saveState();
     log(`Daily recap sent for ${today}`);
+    await maybeSendPersonalMorningBriefings(today);
   } catch (err) {
     log("Daily recap error:", err.message);
   }
@@ -1420,17 +1935,16 @@ async function createDocGapTask({ question, from, chatId }) {
     databaseName: TASKS_DB_NAME,
     title: name,
     properties: {
-      Stage: "Documentation gap",
-      Source: "Telegram",
-      "Telegram user": senderHandle(from),
-      "Telegram chat ID": String(chatId),
+      Status: "Not started",
+      Type: "Villager",
+      "Created by": senderDisplayName(from),
       Notes: notes,
     },
   });
 
   markPageSeen(page.id, {
-    stage: "Documentation gap",
-    status: "",
+    stage: "",
+    status: "Not started",
     doer: "",
     done: false,
   });
@@ -1448,7 +1962,30 @@ function getDocsIndex() {
   return docsIndexCache.index;
 }
 
+function setDocsIndex(index) {
+  docsIndex.saveIndex(index);
+  docsIndexCache = { index, mtime: docsIndex.fileMtime() };
+}
+
+async function indexDocumentationInSearch({ id, name, url, text }) {
+  if (!openaiLib.isEnabled() || !text?.trim()) return;
+  try {
+    const texts = docsIndex.chunkText(text.trim());
+    if (!texts.length) return;
+    const vectors = await openaiLib.embed(texts);
+    const pieces = texts.map((t, i) => ({ text: t, embedding: vectors[i] }));
+    const current = getDocsIndex();
+    const updated = docsIndex.upsertDocChunks(current, { id, name, url, pieces });
+    updated.model = openaiLib.EMBED_MODEL;
+    setDocsIndex(updated);
+    log(`Docs index updated: ${name} (${pieces.length} chunk(s), ${updated.chunks.length} total)`);
+  } catch (err) {
+    log("indexDocumentationInSearch error:", err.message);
+  }
+}
+
 const ASK_MIN_SCORE = Number(process.env.ASK_MIN_SCORE || 0.28);
+const ASK_MIN_KEYWORD_SCORE = Number(process.env.ASK_MIN_KEYWORD_SCORE || 0.34);
 
 async function answerQuestion(question) {
   if (!openaiLib.isEnabled()) {
@@ -1460,10 +1997,21 @@ async function answerQuestion(question) {
   }
 
   const queryEmbedding = await openaiLib.embedOne(question);
-  const hits = docsIndex.search(index, queryEmbedding, 4);
-  const top = hits[0];
+  let hits = docsIndex.search(index, queryEmbedding, 4);
+  let top = hits[0];
+  let usedKeyword = false;
 
   if (!top || top.score < ASK_MIN_SCORE) {
+    const kwHits = docsIndex.keywordSearch(index, question, 4);
+    if (kwHits[0]?.score >= ASK_MIN_KEYWORD_SCORE) {
+      hits = kwHits;
+      top = kwHits[0];
+      usedKeyword = true;
+    }
+  }
+
+  const minScore = usedKeyword ? ASK_MIN_KEYWORD_SCORE : ASK_MIN_SCORE;
+  if (!top || top.score < minScore) {
     return { available: true, indexed: true, answered: false };
   }
 
@@ -1490,12 +2038,13 @@ async function resolveDbNameById(databaseId) {
   const candidates = [
     ...new Set([
       ...WATCH_DB_NAMES,
-      EVENTS_DB_NAME,
-      DECISIONS_DB_NAME,
-      MAINTENANCE_DB_NAME,
-      GUEST_DB_NAME,
+      INTERNAL_EVENTS_DB_NAME,
+      EXTERNAL_EVENTS_DB_NAME,
+      REMINDERS_DB_NAME,
+      PARTNERSHIPS_DB_NAME,
       TASKS_DB_NAME,
       RECURRING_DB_NAME,
+      JOBS_DB_NAME,
     ]),
   ];
   for (const name of candidates) {
@@ -1511,8 +2060,8 @@ async function resolveDbNameById(databaseId) {
 
 /** Stage label that marks a page complete for a given database. */
 function doneStageFor(dbName) {
-  if (dbName === EVENTS_DB_NAME) return "Done / past";
-  if (dbName === RECURRING_DB_NAME) return "Done / logged";
+  if (dbName === INTERNAL_EVENTS_DB_NAME || dbName === EXTERNAL_EVENTS_DB_NAME) return "Done / past";
+  if (dbName === RECURRING_DB_NAME) return "Done";
   return "Done";
 }
 
@@ -1533,6 +2082,62 @@ async function findMemberByTelegram(handle) {
   return { page: null };
 }
 
+async function fetchMembersForMorningDm() {
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(MEMBERS_DB_NAME));
+  } catch (err) {
+    log("Members fetch for morning DM failed:", err.message);
+    return [];
+  }
+
+  return pages
+    .map((page) => {
+      const stage = notion.pagePropText(page, "Stage");
+      const status = notion.pagePropText(page, "Member status");
+      if (stage === "Left / inactive" || status === "Inactive") return null;
+      const userId = notion.pagePropText(page, "Telegram user ID").trim();
+      if (!userId || !/^\d+$/.test(userId)) return null;
+      const username = notion.pagePropText(page, "Telegram username");
+      const displayName =
+        notion.pagePropText(page, "Display name") || notion.pageTitle(page);
+      return { userId, username, displayName };
+    })
+    .filter(Boolean);
+}
+
+function memberAsTelegramUser(member) {
+  return {
+    id: Number(member.userId),
+    username: String(member.username || "").replace(/^@/, "") || undefined,
+    first_name: member.displayName,
+  };
+}
+
+async function maybeSendPersonalMorningBriefings(dateISO) {
+  if (!DAILY_RECAP) return;
+  if (state.lastPersonalRecapDate === dateISO) return;
+  if (currentHHMM() < RECAP_TIME) return;
+
+  const members = await fetchMembersForMorningDm();
+  let sent = 0;
+  for (const member of members) {
+    try {
+      const from = memberAsTelegramUser(member);
+      const brief = await buildMyDayBriefing(from, dateISO);
+      if (!brief.duties.length && !brief.tasks.length) continue;
+      await sendMessage(member.userId, formatMyDayBriefing(brief));
+      sent += 1;
+    } catch (err) {
+      log(`Personal morning briefing failed for ${member.displayName}:`, err.message);
+    }
+  }
+
+  state.lastPersonalRecapDate = dateISO;
+  saveState();
+  if (sent) log(`Personal morning briefings sent: ${sent}`);
+}
+
 async function registerMember({ displayName, from, chatId }) {
   const handle = senderHandle(from);
   const { page } = await findMemberByTelegram(handle);
@@ -1540,6 +2145,7 @@ async function registerMember({ displayName, from, chatId }) {
   const properties = {
     "Display name": displayName,
     "Telegram username": handle,
+    "Telegram user ID": String(from.id),
     "Telegram chat ID": String(chatId),
     "Active?": true,
   };
@@ -1559,40 +2165,22 @@ async function registerMember({ displayName, from, chatId }) {
 
 // ── Telegram -> Notion: list my open tasks ───────────────────────────────────
 async function listMyTasks(from) {
-  const handle = senderHandle(from);
-  const { page: member } = await findMemberByTelegram(handle);
-  const displayName = member
-    ? notion.pagePropText(member, "Display name") || notion.pageTitle(member)
-    : senderDisplayName(from);
-
-  const matches = [];
-  for (const dbName of WATCH_DB_NAMES) {
-    let pages;
-    try {
-      ({ pages } = await notion.queryDatabase(dbName));
-    } catch {
-      continue;
-    }
-    for (const page of pages) {
-      if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
-      const doer =
-        notion.pagePropText(page, "Doer name") +
-        " " +
-        notion.pagePropText(page, "Helpers / doers");
-      const matchesName =
-        displayName && doer.toLowerCase().includes(displayName.toLowerCase());
-      const matchesHandle = doer.toLowerCase().includes(handle.toLowerCase());
-      if (matchesName || matchesHandle) {
-        matches.push({
-          id: page.id,
-          name: notion.pageTitle(page),
-          board: dbName,
-          status: notion.pagePropText(page, "Status"),
-        });
-      }
-    }
-  }
-  return { displayName, matches };
+  const brief = await buildMyDayBriefing(from, todayISO());
+  const matches = [
+    ...brief.duties.map((d) => ({
+      id: d.id,
+      name: `${d.name}${d.job ? ` [${d.job}]` : ""}`,
+      board: "Recurring Duties",
+      status: `due · ${d.frequency}`,
+    })),
+    ...brief.tasks.map((t) => ({
+      id: t.id,
+      name: t.name,
+      board: "Tasks",
+      status: t.status,
+    })),
+  ];
+  return { displayName: brief.displayName, matches, brief };
 }
 
 // ── Telegram -> Notion: mark done ─────────────────────────────────────────────
@@ -1609,10 +2197,46 @@ async function markItemDone(pageId) {
   if (!dbName) return { ok: false };
 
   const name = notion.pageTitle(page);
+
+  // Recurring duties: done for this cycle → log day + schedule next due (stay Active)
+  if (dbName === RECURRING_DB_NAME) {
+    const completed = todayISO();
+    const frequency = notion.pagePropText(page, "Frequency") || "Daily";
+    const nextDue = nextDueAfterCompletion(frequency, completed);
+    const logText = appendCompletionLog(
+      notion.pagePropText(page, "Completion log"),
+      completed,
+      "marked done via VAVA"
+    );
+    await notion.updatePageProps(RECURRING_DB_NAME, pageId, {
+      Status: "Active",
+      "Last completed": completed,
+      "Next due date": nextDue,
+      "Completion log": logText,
+    });
+    state.items[pageId] = {
+      stage: "",
+      status: "Active",
+      doer: "",
+      done: false, // still an active duty; just not due until nextDue
+    };
+    saveState();
+    return {
+      ok: true,
+      name,
+      boardName: dbName,
+      nextDue,
+      frequency,
+      dutyCompleted: true,
+    };
+  }
+
   const db = await notion.resolveDatabase(dbName);
   const map = {};
   if (notion.prop(db, "Stage")) map.Stage = doneStageFor(dbName);
-  if (notion.prop(db, "Status")) map.Status = "Done";
+  if (notion.prop(db, "Status")) {
+    map.Status = dbName === TASKS_DB_NAME ? "Done" : "Done";
+  }
 
   if (Object.keys(map).length) {
     await notion.updatePageProps(dbName, pageId, map);
@@ -1664,7 +2288,13 @@ async function findItemsByTarget({ dbNames, target }) {
       continue;
     }
     for (const page of pages) {
-      if (pageIsDone(page)) continue;
+      if (dbName === RECURRING_DB_NAME) {
+        const last = notion.pageDateISO(page, "Last completed");
+        if (last && last === todayISO()) continue; // already logged done today
+        if (notion.pagePropText(page, "Status") === "Paused") continue;
+      } else if (pageIsDone(page)) {
+        continue;
+      }
       const name = notion.pageTitle(page);
       if (titleMatches(title, name)) {
         matches.push({ id: page.id, name, boardName: dbName });
@@ -1679,7 +2309,7 @@ async function completeTaskFromChat({ target, text, from, chatId }) {
   if (wasRecentlyCaptured(key)) return { ok: true, duplicate: true };
 
   const matches = await findItemsByTarget({
-    dbNames: WATCH_DB_NAMES,
+    dbNames: [...new Set([...WATCH_DB_NAMES, TASKS_DB_NAME, RECURRING_DB_NAME])],
     target,
   });
   if (!matches.length) return { ok: false, reason: "not_found" };
@@ -1696,7 +2326,14 @@ async function completeTaskFromChat({ target, text, from, chatId }) {
     title: result.name,
     text,
   });
-  return { ok: true, name: result.name, boardName: matches[0].boardName };
+  return {
+    ok: true,
+    name: result.name,
+    boardName: matches[0].boardName,
+    nextDue: result.nextDue,
+    dutyCompleted: result.dutyCompleted,
+    frequency: result.frequency,
+  };
 }
 
 async function cancelEventFromChat({ target, text, from, chatId }) {
@@ -1704,7 +2341,7 @@ async function cancelEventFromChat({ target, text, from, chatId }) {
   if (wasRecentlyCaptured(key)) return { ok: true, duplicate: true };
 
   const matches = await findItemsByTarget({
-    dbNames: [EVENTS_DB_NAME],
+    dbNames: [INTERNAL_EVENTS_DB_NAME, EXTERNAL_EVENTS_DB_NAME],
     target,
   });
   if (!matches.length) return { ok: false, reason: "not_found" };
@@ -1724,28 +2361,169 @@ async function cancelEventFromChat({ target, text, from, chatId }) {
   return { ok: true, name: result.name };
 }
 
+// ── RSVP to an event ──────────────────────────────────────────────────────────
+async function rsvpEvent({ title, displayName, from, chatId }) {
+  const dbNames = [INTERNAL_EVENTS_DB_NAME, EXTERNAL_EVENTS_DB_NAME];
+  for (const dbName of dbNames) {
+    let pages;
+    try {
+      ({ pages } = await notion.queryDatabase(dbName));
+    } catch { continue; }
+    for (const page of pages) {
+      if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+      if (!titleMatches(title, notion.pageTitle(page))) continue;
+      const existing = notion.pagePropText(page, "Guest list");
+      if (existing.toLowerCase().includes(displayName.toLowerCase())) {
+        return { ok: true, already: true, name: notion.pageTitle(page) };
+      }
+      const updated = existing ? `${existing}\n${displayName}` : displayName;
+      await notion.updatePageProps(dbName, page.id, { "Guest list": updated });
+      return { ok: true, already: false, name: notion.pageTitle(page) };
+    }
+  }
+  return { ok: false };
+}
+
+// ── Create a reminder ────────────────────────────────────────────────────────
+async function createReminder({ title, dueDate, notes, from, chatId }) {
+  const props = {
+    "Created by": senderDisplayName(from),
+    "Telegram user": senderHandle(from),
+    Source: "Telegram",
+  };
+  if (dueDate) props["Due date"] = dueDate;
+  if (notes) props.Notes = notes;
+
+  const page = await notion.createPage({
+    databaseName: REMINDERS_DB_NAME,
+    title: String(title || "Reminder").slice(0, 200),
+    properties: props,
+  });
+  markPageSeen(page.id, { stage: "", status: "", doer: "", done: false });
+  return { itemId: page.id, url: page.url };
+}
+
+// ── Add note to existing task/project ─────────────────────────────────────────
+async function addNoteToPage({ targetTitle, noteText, from, chatId }) {
+  const dbNames = [TASKS_DB_NAME];
+  try { await notion.resolveDatabase("Projects"); dbNames.push("Projects"); } catch {}
+
+  for (const dbName of dbNames) {
+    let pages;
+    try {
+      ({ pages } = await notion.queryDatabase(dbName));
+    } catch { continue; }
+    for (const page of pages) {
+      if (!titleMatches(targetTitle, notion.pageTitle(page))) continue;
+      const existing = notion.pagePropText(page, "Notes");
+      const stamp = `\n\n[${senderDisplayName(from)}, ${todayISO()}]: ${noteText}`;
+      const updated = existing ? `${existing}${stamp}` : stamp.trim();
+      await notion.updatePageProps(dbName, page.id, { Notes: updated });
+      return { ok: true, name: notion.pageTitle(page), dbName };
+    }
+  }
+  return { ok: false };
+}
+
+// ── Partnerships DB light query ───────────────────────────────────────────────
+async function answerFromPartnerships(question) {
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(PARTNERSHIPS_DB_NAME));
+  } catch { return null; }
+  if (!pages.length) return null;
+  const lines = pages.map((p) => {
+    const name = notion.pageTitle(p);
+    const notes = notion.pagePropText(p, "Notes");
+    const discount = notion.pagePropText(p, "Discount");
+    return `- ${name}${discount ? ` (${discount})` : ""}${notes ? `: ${notes}` : ""}`;
+  });
+  const snapshot = `Partnerships:\n${lines.join("\n")}`;
+  return openaiLib.answerFromData(question, snapshot);
+}
+
+// ── Pending clarification for incomplete tasks ─────────────────────────────────
+const CLARIFY_TIMEOUT_MS = 10 * 60 * 1000;
+
+async function handlePendingClarification(message) {
+  const chatId = message.chat.id;
+  const fromId = message.from?.id;
+  const key = `${chatId}:${fromId}`;
+  const pending = state.pendingClarify?.[key];
+  if (!pending) return false;
+  if (Date.now() - pending.ts > CLARIFY_TIMEOUT_MS) {
+    delete state.pendingClarify[key];
+    saveState();
+    return false;
+  }
+
+  const text = (message.text || "").trim().toLowerCase();
+  if (!text) return false;
+
+  const partial = pending.partial;
+  if (pending.kind === "task_type_priority") {
+    const isVillager = /villager|village/i.test(text);
+    const isMgmt = /management|professional|arranging/i.test(text);
+    if (isVillager) partial.type = "Villager";
+    else if (isMgmt) partial.type = "Management";
+    if (/\blow\b/i.test(text)) partial.priority = "Low";
+    else if (/\baverage\b|\bmedium\b|\bnormal\b/i.test(text)) partial.priority = "Average";
+    else if (/\bhigh\b|\burgent\b/i.test(text)) partial.priority = "High";
+  }
+
+  try {
+    const result = await createTaskFromClassification({
+      classified: {
+        action: "create_task",
+        task: partial,
+      },
+      text: partial.sourceText || partial.title,
+      from: message.from,
+      chatId,
+    });
+    let reply = `📋 Logged: <b>${escapeHtml(partial.title)}</b>`;
+    if (partial.type) reply += ` (${escapeHtml(partial.type)})`;
+    if (result.url) reply += ` — <a href="${result.url}">Notion</a>`;
+    await sendMessage(chatId, reply);
+  } catch (err) {
+    log("handlePendingClarification error:", err.message);
+    await sendMessage(chatId, "Sorry, I could not save that task.");
+  }
+
+  delete state.pendingClarify[key];
+  saveState();
+  return true;
+}
+
 // ── Telegram command + message handling ───────────────────────────────────────
 const HELP_TEXT = [
-  "<b>Vila Akoya bot</b>",
+  "<b>Vila Akoya bot (VAVA)</b>",
   "",
-  "Tag me (@bot), reply to me, or DM me for questions, schedule info, tasks and events.",
-  "Voice notes in the group are picked up automatically — explain how something works to create a structured doc.",
-  "In the group I also watch text chat and log events, tasks, docs, completions and cancellations in Notion — I'll confirm when I act.",
+  "<b>Group</b>: tag me (@bot), reply to me, or say <b>Vava</b> (or start a voice note with <b>robot</b>, <b>bot</b>, <b>vila akoya bot</b>, or <b>personal assistant</b>).",
+  "<b>DMs</b>: always on, no tag needed.",
+  "",
+  "I can log tasks (villager work or management jobs), events, reminders, RSVP to events, add notes to projects, answer questions from docs and schedule, and more.",
+  "Voice notes are transcribed — explain how something works to create a structured doc.",
+  "",
+  "<b>Task types</b>",
+  "• <i>Villager</i> — village work anyone can pitch in on",
+  "• <i>Management</i> — needs a professional or arranging",
   "",
   "<b>Commands</b>",
   "/task &lt;text&gt; — add a task",
   "/ask &lt;question&gt; — search our documentation",
-  "/register &lt;your name&gt; — link your Telegram to the members board",
-  "/mytasks — show your open tasks",
-  "/done &lt;item id&gt; — mark a task as done",
+  "/register &lt;your name&gt; — link your Telegram to Members (needed for “what should I do today”)",
+  "/mytasks — duties due today + open tasks assigned to you",
+  "/done &lt;item id&gt; — mark a task done, or log a duty done (schedules next due)",
   "/whoami — show your Telegram details",
   "/help — this message",
 ].join("\n");
 
-async function classifyUserMessage(text, chatId) {
+async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
   if (!text || !openaiLib.isEnabled()) return null;
   try {
-    const buf = (recentMessages.get(chatId) || []).slice(-6);
+    const contextCount = interactive ? 10 : 6;
+    const buf = (recentMessages.get(chatId) || []).slice(-contextCount);
     const contextLines = buf
       .map((m) => m.text)
       .filter((t) => t && t !== text);
@@ -1760,7 +2538,7 @@ async function classifyUserMessage(text, chatId) {
         `task=${classified.is_task} question=${classified.is_question} ` +
         `schedule_range=${classified.schedule_range || "-"} conf=${classified.confidence}`
     );
-    return classified;
+    return mergeCompletionIntent(classified, cleanText, chatId);
   } catch (err) {
     log("classifyGroupMessage error:", err.message);
     return null;
@@ -1769,6 +2547,19 @@ async function classifyUserMessage(text, chatId) {
 
 async function handleClassifiedQuestion({ text, questionKind, from, chatId, interactive, scheduleRange }) {
   const logDocGaps = interactive && LOG_DOC_GAPS;
+
+  if (questionKind === "my_day" || looksLikeMyDayQuestion(text)) {
+    try {
+      await sendMyDayBriefing(from, chatId, todayISO());
+      return true;
+    } catch (err) {
+      log("my day briefing error:", err.message);
+      if (interactive) {
+        await sendMessage(chatId, "Sorry, I could not build your day list right now.");
+      }
+      return interactive;
+    }
+  }
 
   if (questionKind === "schedule") {
     const rangeOpts = { scheduleRange: scheduleRange || "two_weeks" };
@@ -1800,11 +2591,34 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
 
   if (questionKind === "documentation") {
     const docResult = await handleAsk({ question: text, from, chatId, logGap: logDocGaps });
-    return docResult.answered;
+    if (docResult.answered) return true;
+    if (/partner|discount|affiliate/i.test(text)) {
+      try {
+        const pResult = await answerFromPartnerships(text);
+        if (pResult?.answered && pResult.answer) {
+          await sendMessage(chatId, escapeHtml(pResult.answer));
+          return true;
+        }
+      } catch (err) {
+        log("answerFromPartnerships error:", err.message);
+      }
+    }
+    return false;
   }
 
   const docResult = await handleAsk({ question: text, from, chatId, logGap: logDocGaps });
   if (docResult.answered) return true;
+  if (/partner|discount|affiliate/i.test(text)) {
+    try {
+      const pResult = await answerFromPartnerships(text);
+      if (pResult?.answered && pResult.answer) {
+        await sendMessage(chatId, escapeHtml(pResult.answer));
+        return true;
+      }
+    } catch (err) {
+      log("answerFromPartnerships error:", err.message);
+    }
+  }
   const dataResult = await answerFromNotionData(text);
   if (dataResult.answered && dataResult.answer) {
     await sendMessage(chatId, escapeHtml(dataResult.answer));
@@ -1853,7 +2667,7 @@ async function captureAmbientTask({ classified, text, from, chatId, photoFileId 
   const key = ambientDedupeKey(chatId, "task", `${classified.action}:${title}`);
   if (wasRecentlyCaptured(key)) return true;
   try {
-    const { url, boardName } = await createTaskFromClassification({
+    const { url, boardName, project } = await createTaskFromClassification({
       classified,
       text,
       from,
@@ -1872,7 +2686,8 @@ async function captureAmbientTask({ classified, text, from, chatId, photoFileId 
     });
     const icon = classified.action === "guest_issue" ? "🏕️" : "📋";
     let reply = `${icon} Logged: <b>${escapeHtml(title)}</b>`;
-    if (boardName) reply += ` (${escapeHtml(boardName)})`;
+    if (project?.name) reply += ` → project <b>${escapeHtml(project.name)}</b>`;
+    else if (boardName) reply += ` (${escapeHtml(boardName)})`;
     if (url) reply += ` — <a href="${url}">Notion</a>`;
     await sendMessage(chatId, reply);
     log(`Task captured (${classified.action}): ${title}`);
@@ -1903,6 +2718,12 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     task: { title: text },
   };
   const conf = c.confidence || 0;
+
+  // Cheap path: personal agenda without waiting on classifier nuance
+  if (interactive && text && looksLikeMyDayQuestion(text)) {
+    await sendMyDayBriefing(from, chatId, todayISO());
+    return;
+  }
 
   if (!interactive && !c.actionable && conf < 0.4 && !photoFileId) {
     log(`Skip (chit-chat): ${text.slice(0, 80)}`);
@@ -1968,7 +2789,12 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
       const result = await completeTaskFromChat({ target: c.target, text, from, chatId });
       if (result.ok && !result.duplicate) {
         let reply = `✅ Marked done: <b>${escapeHtml(result.name)}</b>`;
-        if (result.boardName) reply += ` (${escapeHtml(result.boardName)})`;
+        if (result.dutyCompleted && result.nextDue) {
+          reply += `\nNext due <b>${escapeHtml(result.nextDue)}</b>`;
+          if (result.frequency) reply += ` (${escapeHtml(result.frequency)})`;
+        } else if (result.boardName) {
+          reply += ` (${escapeHtml(result.boardName)})`;
+        }
         await sendMessage(chatId, reply);
       } else if (result.reason === "ambiguous" && interactive) {
         const names = result.matches.map((m) => m.name).join(", ");
@@ -2015,13 +2841,78 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
         });
         markCaptured(key);
         recordChatActivity({ kind: "decision_logged", from, chatId, title: c.decision.title, text });
-        let reply = `🗳️ Logged for discussion: <b>${escapeHtml(c.decision.title)}</b>`;
+        let reply = `🗳️ Logged as a management task for discussion: <b>${escapeHtml(c.decision.title)}</b>`;
         if (url) reply += ` — <a href="${url}">Notion</a>`;
         await sendMessage(chatId, reply);
       } catch (err) {
         log("createDecision error:", err.message);
         if (interactive) await sendMessage(chatId, "Sorry, I could not log that proposal.");
       }
+    }
+    return;
+  }
+
+  // RSVP
+  if (c.is_rsvp && c.rsvp?.title && conf >= AMBIENT_MIN_CONFIDENCE) {
+    try {
+      const displayName = senderDisplayName(from);
+      const result = await rsvpEvent({ title: c.rsvp.title, displayName, from, chatId });
+      if (result.ok) {
+        await sendMessage(
+          chatId,
+          result.already
+            ? `You're already on the guest list for <b>${escapeHtml(result.name)}</b>!`
+            : `✅ Added you to the guest list for <b>${escapeHtml(result.name)}</b>.`
+        );
+      } else if (interactive) {
+        await sendMessage(chatId, `I couldn't find an upcoming event matching "${escapeHtml(c.rsvp.title)}".`);
+      }
+    } catch (err) {
+      log("rsvpEvent error:", err.message);
+      if (interactive) await sendMessage(chatId, "Sorry, I could not add you to that event.");
+    }
+    return;
+  }
+
+  // Reminders
+  if (c.is_reminder && c.reminder?.title && conf >= AMBIENT_MIN_CONFIDENCE) {
+    try {
+      const { url } = await createReminder({
+        title: c.reminder.title,
+        dueDate: c.reminder.due_date,
+        notes: c.reminder.notes || text,
+        from,
+        chatId,
+      });
+      let reply = `⏰ Reminder set: <b>${escapeHtml(c.reminder.title)}</b>`;
+      if (c.reminder.due_date) reply += ` (due ${escapeHtml(c.reminder.due_date)})`;
+      if (url) reply += ` — <a href="${url}">Notion</a>`;
+      await sendMessage(chatId, reply);
+      recordChatActivity({ kind: "reminder_logged", from, chatId, title: c.reminder.title, text });
+    } catch (err) {
+      log("createReminder error:", err.message);
+      if (interactive) await sendMessage(chatId, "Sorry, I could not create that reminder.");
+    }
+    return;
+  }
+
+  // Add note to project/task
+  if (c.is_add_note && c.note?.target_title && conf >= AMBIENT_MIN_CONFIDENCE) {
+    try {
+      const result = await addNoteToPage({
+        targetTitle: c.note.target_title,
+        noteText: c.note.text || text,
+        from,
+        chatId,
+      });
+      if (result.ok) {
+        await sendMessage(chatId, `📝 Added note to <b>${escapeHtml(result.name)}</b>.`);
+      } else if (interactive) {
+        await sendMessage(chatId, `I couldn't find a task or project matching "${escapeHtml(c.note.target_title)}".`);
+      }
+    } catch (err) {
+      log("addNoteToPage error:", err.message);
+      if (interactive) await sendMessage(chatId, "Sorry, I could not add that note.");
     }
     return;
   }
@@ -2038,6 +2929,21 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     (c.action === "guest_issue" && c.task && conf >= AMBIENT_MIN_CONFIDENCE) ||
     photoFileId
   ) {
+    if (interactive && c.task && (!c.task.type || !c.task.priority)) {
+      const key = `${chatId}:${from.id}`;
+      state.pendingClarify[key] = {
+        kind: "task_type_priority",
+        partial: { ...c.task, sourceText: text },
+        fromId: from.id,
+        ts: Date.now(),
+      };
+      saveState();
+      await sendMessage(
+        chatId,
+        `Got it — <b>${escapeHtml(c.task.title)}</b>.\nIs this a <i>villager</i> task or <i>management</i> (needs a professional/arranging)? And priority — low / average / high?`
+      );
+      return;
+    }
     const ok = await captureAmbientTask({ classified: c, text, from, chatId, photoFileId });
     if (!ok && interactive) {
       await sendMessage(chatId, "Sorry, I could not save that task.");
@@ -2064,12 +2970,20 @@ async function routeAddressedMessage(message) {
       ? message.photo[message.photo.length - 1].file_id
       : null;
 
-  let text = stripBotMention((message.text || message.caption || "").trim(), botMe);
+  let text = stripBotAddressing((message.text || message.caption || "").trim(), botMe);
 
   if (!text) {
-    const voiceText = await transcribeMessageVoice(message, { interactive: true });
-    if (voiceText !== null) text = voiceText;
-    else text = addressedText(message, botMe);
+    if (getVoiceFileId(message)) {
+      const voiceText = await transcribeMessageVoice(message, { interactive: true });
+      if (voiceText) text = stripBotAddressing(voiceText, botMe);
+    }
+    if (!text) text = stripBotAddressing(await resolveAddressedText(message, botMe), botMe);
+  } else {
+    await waitForPendingVoiceTranscriptions(chatId);
+    const lastVoice = recentBufferedVoice(message);
+    if (lastVoice && shouldAttachRecentVoice(text, lastVoice)) {
+      text = `${text}\n\n${lastVoice.text}`;
+    }
   }
 
   if (!text && !photoFileId) {
@@ -2077,11 +2991,26 @@ async function routeAddressedMessage(message) {
     return;
   }
 
-  const classified = text ? await classifyUserMessage(text, chatId) : null;
+  // Personal agenda — no classifier needed (saves tokens)
+  if (text && looksLikeMyDayQuestion(text)) {
+    try {
+      await sendMyDayBriefing(from, chatId, todayISO());
+    } catch (err) {
+      log("my day briefing error:", err.message);
+      await sendMessage(chatId, "Sorry, I could not build your day list right now.");
+    }
+    return;
+  }
+
+  const classified = text ? await classifyUserMessage(text, chatId, { interactive: true }) : null;
   await routeByAiClassification({ classified, text, from, chatId, photoFileId, interactive: true });
 }
 
 async function handleMessage(message) {
+  return withReplyThread(message, () => handleMessageInner(message));
+}
+
+async function handleMessageInner(message) {
   const chatId = message.chat.id;
   const from = message.from;
   const text = (message.text || message.caption || "").trim();
@@ -2093,13 +3022,27 @@ async function handleMessage(message) {
   const voiceFileId = getVoiceFileId(message);
 
   log(
-    `Message from ${senderHandle(from)} in chat ${chatId}: ` +
-      `${text || (voiceFileId ? "(voice)" : photoFileId ? "(photo)" : "(empty)")}`
+    `Message from ${senderHandle(from)} in chat ${chatId}` +
+      (message.message_thread_id ? ` topic ${message.message_thread_id}` : "") +
+      `: ${text || (voiceFileId ? "(voice)" : photoFileId ? "(photo)" : "(empty)")}`
   );
   bufferMessage(message);
   recordGroupMessage(message);
 
   if (!shouldHandleIntake(message)) {
+    if (
+      (message.chat?.type === "group" || message.chat?.type === "supergroup") &&
+      isAddressedToBot(message, botMe)
+    ) {
+      log(
+        `Ignoring @mention — chat ${chatId} is not TASK_GROUP_CHAT_ID (${TASK_GROUP_CHAT_ID}). ` +
+          `Restart with TELEGRAM_CHAT_ID="${chatId}"`
+      );
+    }
+    return;
+  }
+
+  if (text && !text.startsWith("/") && await handlePendingClarification(message)) {
     return;
   }
 
@@ -2146,27 +3089,7 @@ async function handleMessage(message) {
 
   if (isCommand && cmd === "/mytasks") {
     try {
-      const { displayName, matches } = await listMyTasks(from);
-      if (!matches.length) {
-        await sendMessage(
-          chatId,
-          `No open tasks found for <b>${escapeHtml(displayName)}</b>.\n` +
-            `Tip: use /register &lt;your name&gt; so I know who you are, and make sure the "Doer name" matches.`
-        );
-        return;
-      }
-      const lines = matches
-        .slice(0, 25)
-        .map(
-          (m) =>
-            `• <b>${escapeHtml(m.name)}</b> — ${escapeHtml(m.board)}` +
-            (m.status ? ` [${escapeHtml(m.status)}]` : "") +
-            `\n   done: <code>/done ${m.id}</code>`
-        );
-      await sendMessage(
-        chatId,
-        `Open tasks for <b>${escapeHtml(displayName)}</b>:\n\n${lines.join("\n")}`
-      );
+      await sendMyDayBriefing(from, chatId, todayISO());
     } catch (err) {
       log("mytasks error:", err.message);
       await sendMessage(chatId, "Sorry, I could not fetch your tasks right now.");
@@ -2199,12 +3122,21 @@ async function handleMessage(message) {
     }
     try {
       const result = await markItemDone(id);
-      await sendMessage(
-        chatId,
-        result.ok
-          ? `Marked <b>${escapeHtml(result.name)}</b> as done. ✅`
-          : `Could not find item ${escapeHtml(id)}.`
-      );
+      if (!result.ok) {
+        await sendMessage(chatId, `Could not find item ${escapeHtml(id)}.`);
+      } else if (result.dutyCompleted) {
+        await sendMessage(
+          chatId,
+          `✅ Duty logged done: <b>${escapeHtml(result.name)}</b>\n` +
+            `Next due <b>${escapeHtml(result.nextDue)}</b>` +
+            (result.frequency ? ` (${escapeHtml(result.frequency)})` : "")
+        );
+      } else {
+        await sendMessage(
+          chatId,
+          `Marked <b>${escapeHtml(result.name)}</b> as done. ✅`
+        );
+      }
     } catch (err) {
       log("done error:", err.message);
       await sendMessage(chatId, "Sorry, I could not update that task.");
@@ -2241,7 +3173,17 @@ async function handleMessage(message) {
     return;
   }
 
-  if (isAddressedToBot(message, botMe)) {
+  let voiceText = null;
+  if (voiceFileId) {
+    voiceText = await transcribeMessageVoice(message, {
+      interactive: isAddressedToBot(message, botMe),
+    });
+  }
+
+  const addressedToBot =
+    isAddressedToBot(message, botMe) || (voiceText && textAddressesBot(voiceText));
+
+  if (addressedToBot) {
     await routeAddressedMessage(message);
     return;
   }
@@ -2325,6 +3267,7 @@ async function captureAmbientEvent({ classified, text, from, chatId }) {
       date,
       eventType,
       recurrence,
+      scope: classified.event.scope || null,
       from,
       chatId,
       sourceText: text,
@@ -2370,7 +3313,9 @@ async function handleAmbientMessage(message) {
       : null;
 
   if (!text && voiceFileId) {
-    text = (await transcribeMessageVoice(message, { interactive: false })) || "";
+    const buf = recentMessages.get(chatId) || [];
+    const entry = buf.find((m) => m.messageId === message.message_id && m.isVoice);
+    text = entry?.text || (await transcribeMessageVoice(message, { interactive: false })) || "";
     if (!text) return;
   }
 
@@ -2496,14 +3441,15 @@ async function main() {
   log(
     `Task intake: group ${TASK_GROUP_CHAT_ID}${ALLOW_DM_INTAKE ? " + private DMs" : ""}`
   );
-  log(`Ambient capture: ${AMBIENT_CAPTURE ? "ON" : "OFF"} (AI-only routing, task≥${AMBIENT_MIN_CONFIDENCE}, event≥${EVENT_MIN_CONFIDENCE})`);
+  log(`Group mode: tag-to-activate (ambient capture ${AMBIENT_CAPTURE ? "ON" : "OFF"}); DMs always on`);
+  log(`Events: Internal → ${INTERNAL_EVENTS_DB_NAME}, External → ${EXTERNAL_EVENTS_DB_NAME}`);
   log(`Daily recap: ${DAILY_RECAP ? `ON at ${RECAP_TIME} ${RECAP_TZ}` : "OFF"}`);
   log(`Notion announcements → chat ${TELEGRAM_CHAT_ID || "(off)"}`);
 
   if (openaiLib.isEnabled()) {
     const idx = getDocsIndex();
     log(
-      `OpenAI enabled: smart intake ON, /ask ON (${idx.chunks.length} doc chunks indexed).`
+      `OpenAI enabled: ${openaiLib.CHAT_MODEL}, smart intake ON, /ask ON (${idx.chunks.length} doc chunks indexed).`
     );
     if (!idx.chunks.length) {
       log("  Tip: run `node scripts/index-vila-akoya-docs.js` to index Notion docs.");

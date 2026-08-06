@@ -107,6 +107,53 @@ function search(index, queryEmbedding, k = 4) {
   return scored.slice(0, k);
 }
 
+/**
+ * Keyword fallback when embeddings miss (e.g. wipe vs rag). One best chunk per doc.
+ */
+function keywordSearch(index, question, k = 4) {
+  const terms = [
+    ...new Set(
+      String(question || "")
+        .toLowerCase()
+        .match(/\b[a-z]{4,}\b/g) || []
+    ),
+  ];
+  if (!terms.length) return [];
+
+  const byDoc = new Map();
+  for (const chunk of index.chunks || []) {
+    const hay = `${chunk.docName}\n${chunk.text}`.toLowerCase();
+    let matches = 0;
+    for (const term of terms) {
+      if (hay.includes(term)) matches += 1;
+    }
+    if (matches === 0) continue;
+    const score = matches / terms.length;
+    const prev = byDoc.get(chunk.docId);
+    if (!prev || score > prev.score) {
+      byDoc.set(chunk.docId, { ...chunk, score });
+    }
+  }
+  return [...byDoc.values()].sort((a, b) => b.score - a.score).slice(0, k);
+}
+
+/** Replace all chunks for a doc id with freshly embedded pieces. */
+function upsertDocChunks(index, { id, name, url, pieces }) {
+  const without = (index.chunks || []).filter((chunk) => chunk.docId !== id);
+  const newChunks = (pieces || []).map((piece, i) => ({
+    id: `${id}-${i}`,
+    docId: id,
+    docName: name,
+    url: url || null,
+    text: piece.text,
+    embedding: piece.embedding,
+  }));
+  return {
+    model: index.model || null,
+    chunks: [...without, ...newChunks],
+  };
+}
+
 module.exports = {
   DEFAULT_INDEX_FILE,
   chunkText,
@@ -115,4 +162,6 @@ module.exports = {
   fileMtime,
   cosine,
   search,
+  keywordSearch,
+  upsertDocChunks,
 };

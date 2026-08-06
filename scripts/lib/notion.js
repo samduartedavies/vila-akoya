@@ -24,25 +24,27 @@ const CATALOG_FILE =
 /** Canonical database titles used across bot / sync / seeds. */
 const DB = {
   TASKS: "Tasks",
+  JOBS: "Jobs",
   RECURRING: "Recurring Duties",
-  MAINTENANCE: "Maintenance",
-  GUEST_ISSUES: "Guest Issues",
   BOOKINGS: "Campsite Bookings",
   MEALS: "Campsite Meals",
   PROJECTS: "Projects",
   DOCS: "Documentation",
-  STEWARDS: "Stewards",
   MEMBERS: "Members",
-  EVENTS: "Events",
-  DECISIONS: "Decisions",
+  INTERNAL_EVENTS: "Internal Events",
+  EXTERNAL_EVENTS: "External Events",
+  /** @deprecated use EXTERNAL_EVENTS */
+  EVENTS: "External Events",
+  REMINDERS: "Reminders",
+  PARTNERSHIPS: "Partnerships",
 };
 
 const WATCH_DB_NAMES = [
   DB.TASKS,
-  DB.MAINTENANCE,
-  DB.GUEST_ISSUES,
   DB.PROJECTS,
-  DB.EVENTS,
+  DB.INTERNAL_EVENTS,
+  DB.EXTERNAL_EVENTS,
+  DB.REMINDERS,
 ];
 
 const DONE_STAGES = new Set([
@@ -175,6 +177,11 @@ async function primeDatabase(name, id) {
   };
   dbCache.set(name, entry);
   return entry;
+}
+
+function clearDatabaseCache(name) {
+  if (name) dbCache.delete(name);
+  else dbCache.clear();
 }
 
 function prop(db, title) {
@@ -655,6 +662,101 @@ async function ensureCalendarView(databaseId, { name = "Calendar", dateProperty 
   return { id: created.id, url: created.url, wasCreated: true };
 }
 
+/**
+ * Ensure a board view grouped by a select/status property.
+ * Idempotent by view name + type.
+ */
+async function ensureBoardView(
+  databaseId,
+  { name, groupProperty, filter = null } = {}
+) {
+  if (!name || !groupProperty) {
+    throw new Error("ensureBoardView requires name and groupProperty");
+  }
+
+  const db = await notionViews("GET", `/databases/${databaseId}`);
+  const dataSourceId = db.data_sources?.[0]?.id;
+  if (!dataSourceId) {
+    throw new Error(`No data_sources on database ${databaseId}`);
+  }
+
+  const existing = await notionViews(
+    "GET",
+    `/views?database_id=${encodeURIComponent(databaseId)}`
+  );
+  for (const stub of existing.results || []) {
+    const view = await notionViews("GET", `/views/${stub.id}`);
+    if (view.name === name && view.type === "board") {
+      return { id: view.id, url: view.url, wasCreated: false };
+    }
+  }
+
+  const ds = await notionViews("GET", `/data_sources/${dataSourceId}`);
+  const prop = ds.properties?.[groupProperty];
+  if (!prop?.id) {
+    throw new Error(`Property "${groupProperty}" not found on data source`);
+  }
+
+  const body = {
+    database_id: databaseId,
+    data_source_id: dataSourceId,
+    name,
+    type: "board",
+    configuration: {
+      type: "board",
+      group_by: {
+        type: prop.type === "status" ? "status" : "select",
+        property_id: prop.id,
+        ...(prop.type === "status" ? { group_by: "option" } : {}),
+        sort: { type: "manual" },
+        hide_empty_groups: false,
+      },
+    },
+  };
+  if (filter) body.filter = filter;
+
+  const created = await notionViews("POST", "/views", body);
+  return { id: created.id, url: created.url, wasCreated: true };
+}
+
+/**
+ * Ensure a table view, optionally filtered (e.g. Type = Villager).
+ * Idempotent by view name + type.
+ */
+async function ensureTableView(databaseId, { name, filter = null, sorts = null } = {}) {
+  if (!name) throw new Error("ensureTableView requires name");
+
+  const db = await notionViews("GET", `/databases/${databaseId}`);
+  const dataSourceId = db.data_sources?.[0]?.id;
+  if (!dataSourceId) {
+    throw new Error(`No data_sources on database ${databaseId}`);
+  }
+
+  const existing = await notionViews(
+    "GET",
+    `/views?database_id=${encodeURIComponent(databaseId)}`
+  );
+  for (const stub of existing.results || []) {
+    const view = await notionViews("GET", `/views/${stub.id}`);
+    if (view.name === name && view.type === "table") {
+      return { id: view.id, url: view.url, wasCreated: false };
+    }
+  }
+
+  const body = {
+    database_id: databaseId,
+    data_source_id: dataSourceId,
+    name,
+    type: "table",
+    configuration: { type: "table" },
+  };
+  if (filter) body.filter = filter;
+  if (sorts) body.sorts = sorts;
+
+  const created = await notionViews("POST", "/views", body);
+  return { id: created.id, url: created.url, wasCreated: true };
+}
+
 module.exports = {
   DB,
   WATCH_DB_NAMES,
@@ -667,6 +769,7 @@ module.exports = {
   saveCatalog,
   resolveDatabase,
   primeDatabase,
+  clearDatabaseCache,
   prop,
   titlePropName,
   richText,
@@ -695,5 +798,7 @@ module.exports = {
   createChildPage,
   createDatabase,
   ensureCalendarView,
+  ensureBoardView,
+  ensureTableView,
   searchByTitle,
 };

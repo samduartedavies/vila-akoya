@@ -16,7 +16,9 @@
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "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";
 const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
+// gpt-4.1-nano: fastest/cheapest OpenAI chat model — good for JSON classification + short answers.
+// Override with OPENAI_CHAT_MODEL if you need more accuracy (e.g. gpt-4o-mini).
+const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4.1-nano";
 const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small";
 const TRANSCRIBE_MODEL =
   process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe";
@@ -90,16 +92,18 @@ const AREAS = [
   "Other",
 ];
 
-const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+const PRIORITIES = ["Low", "Average", "High"];
 
 const SUGGESTED_DATABASES = [
   "Tasks",
-  "Recurring Duties",
-  "Maintenance",
-  "Guest Issues",
+  "Jobs",
+  "Internal Events",
+  "External Events",
+  "Reminders",
   "Projects",
-  "Events",
-  "Decisions",
+  "Partnerships",
+  "Members",
+  "Documentation",
 ];
 
 /**
@@ -135,7 +139,7 @@ async function classifyTask(text) {
       title: String(result.title || "").slice(0, 80) || null,
       summary: String(result.summary || ""),
       area: AREAS.includes(result.area) ? result.area : "Other",
-      priority: PRIORITIES.includes(result.priority) ? result.priority : "Medium",
+      priority: PRIORITIES.includes(result.priority) ? result.priority : "Average",
       suggested_board: SUGGESTED_DATABASES.includes(result.suggested_board)
         ? result.suggested_board
         : "Tasks",
@@ -273,7 +277,7 @@ async function classifyIntent(text, todayISO) {
       intent,
       title: String(result.title || "").slice(0, 80),
       area: AREAS.includes(result.area) ? result.area : "Other",
-      priority: PRIORITIES.includes(result.priority) ? result.priority : "Medium",
+      priority: PRIORITIES.includes(result.priority) ? result.priority : "Average",
       date: String(result.date || "").slice(0, 10),
       event_type: EVENT_TYPES.includes(result.event_type) ? result.event_type : "Other",
       summary: String(result.summary || ""),

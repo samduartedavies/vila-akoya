@@ -26,6 +26,7 @@ const ACTIONS = [
   "chat",
   "question_doc",
   "question_schedule",
+  "question_my_day",
   "create_task",
   "guest_issue",
   "create_event",
@@ -33,6 +34,9 @@ const ACTIONS = [
   "cancel_event",
   "create_decision",
   "create_documentation",
+  "rsvp_event",
+  "create_reminder",
+  "add_note",
   "offer_help",
   "help_wanted",
   "availability",
@@ -47,6 +51,9 @@ const DECISION_CATEGORIES = [
   "Process",
   "Other",
 ];
+
+const TASK_TYPES = ["Villager", "Management"];
+const TASK_PRIORITIES = ["Low", "Average", "High"];
 
 const MAINTENANCE_GROUP_BY_AREA = {
   Water: "Water",
@@ -70,6 +77,9 @@ const CHAT_ACTIVITY_KIND = {
   create_documentation: "doc_logged",
   complete_task: "task_completed",
   cancel_event: "event_cancelled",
+  rsvp_event: "rsvp",
+  create_reminder: "reminder_logged",
+  add_note: "note_added",
   offer_help: "offer_help",
   help_wanted: "help_wanted",
   availability: "availability",
@@ -78,12 +88,13 @@ const CHAT_ACTIVITY_KIND = {
 
 const NOTION_DATABASES = [
   "Tasks",
-  "Recurring Duties",
-  "Maintenance",
-  "Guest Issues",
+  "Jobs",
+  "Internal Events",
+  "External Events",
+  "Reminders",
   "Projects",
-  "Events",
-  "Decisions",
+  "Partnerships",
+  "Members",
   "Documentation",
 ];
 
@@ -189,6 +200,9 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "Interpret MEANING and intent — never rely on specific keywords or perfect spelling.",
     "Use recent conversation context when the latest message is short or refers to something above.",
     "",
+    "In groups the bot only acts when @tagged or replied-to. Ambient messages are still classified",
+    "but the bot gates execution. In private DMs the bot always responds.",
+    "",
     "Set actionable=false ONLY for pure chit-chat (thanks, lol, emoji, banter with no community info).",
     "",
     "═══ CRITICAL: lookup vs propose ═══",
@@ -214,19 +228,27 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  EN: "what SIM does the wifi use?", "how does the water system work?", "what does the red valve do?"',
     '  PT: "que cartão SIM usa o wifi?", "como funciona o sistema de água?"',
     "Any @bot question about how something works, what something uses, or village/campsite procedures → question_doc + doc_lookup=true.",
+    "If question mentions discount/partner/affiliate → question_doc (will also check Partnerships DB).",
     "",
     "Pick ONE primary action:",
     "",
     "── Questions (answer only, do NOT create Notion items) ──",
     "- question_doc: how systems work, procedures, what equipment uses (water, wifi, compost, electric, etc.)",
+    "    Also handles partnership/discount questions.",
+    "- question_my_day: speaker asks what THEY personally should do today / their tasks & duties",
+    '    EN: "what should I do today?", "what\'s on my list?", "my chores today", "what do I need to do?"',
+    '    PT: "o que tenho de fazer hoje?", "quais são as minhas tarefas?"',
+    "    Use this when the speaker refers to themselves (I/me/my), NOT the whole village schedule.",
     "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, or meal headcounts already in Notion",
     "    Set schedule_lookup=true and schedule_range: today | this_week | next_week | two_weeks",
     "    Pick the range that matches what the speaker asked (use WEEK CALENDAR above).",
     "    Guest arrival/departure and breakfast/dinner cook counts → question_schedule (NOT guest_issue).",
+    "    Whole-group “what’s happening / who’s on rota” → question_schedule (not question_my_day).",
     "",
     "── Notion actions (create or update databases) ──",
     `- create_event: new gathering, trip, meal, delivery, or open invite with a timeframe.`,
     `    event.event_type: ${eventTypes.join(", ")}.`,
+    `    event.scope: "internal" for on-site workshops/gatherings/community meals, "external" for markets/trips/outings.`,
     `    event.recurrence: null for one-offs, OR a rule string when it repeats:`,
     `      weekly:Sun | weekly:Sat,Sun | monthly:1st-Sat | monthly:3rd-Sun | monthly:last-Fri | daily`,
     `    Recurring examples:`,
@@ -235,14 +257,31 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     `      EN: "community lunch 3rd Sunday" → monthly:3rd-Sun`,
     `      PT: "almoço no terceiro domingo do mês" → monthly:3rd-Sun`,
     `    For recurring events set event.recurrence and set event.date to the next occurrence from today.`,
-    "- create_task: repair, broken, leak, smell, blocked, not working, cleanup job, safety issue",
-    "- guest_issue: camper/visitor/guest-facing (shower, pitch, booking, facilities)",
+    "- create_task: repair, broken, leak, smell, blocked, not working, cleanup job, safety issue, or any village work.",
+    `    task.type: Villager (village work anyone can do) | Management (needs a professional or arranging).`,
+    "    All tasks go to the Tasks database (no separate maintenance/guest DBs).",
+    '    If the task belongs to a project, set task.project to the project name (e.g. "swimming pool", "shaded seating").',
+    '    Examples: "add a task to the pool project — buy tiles", "for the seating project we need to order wood".',
+    "- guest_issue: camper/visitor/guest-facing (shower, pitch, booking, facilities) — also goes to Tasks with area noted",
     "- complete_task: reports a job is DONE or fixed — populate target.title",
+    '    EN: "mark the wifi task done", "changing the Wi-Fi is done", "you can mark that as done",',
+    '         "I\'ve done that — please mark it complete", "the leak is fixed"',
+    '    PT: "marca a tarefa do wifi como feita", "já está feito"',
+    "    Use recent context when speaker says \"mark it as done\" after naming the job above.",
     "- cancel_event: gathering called off — populate target.title",
     "- create_decision: governance item needing discussion or vote",
     "- create_documentation: speaker wants to WRITE or RECORD knowledge for others — how a system works,",
     "    a procedure, troubleshooting guide, guest process, or steward notes (often a voice brain dump).",
     "    NOT a one-off repair job (create_task) and NOT a question (question_doc).",
+    "- rsvp_event: speaker says they are coming to an event, RSVP, or \"I'm in\" for a known event.",
+    '    Examples: "I\'m coming to the BBQ", "count me in for yoga", "eu vou ao almoço"',
+    "    Populate rsvp.title with the event name to match.",
+    "- create_reminder: speaker wants to be reminded about something in X days/weeks/months, or set a deadline reminder.",
+    '    Examples: "remind me in 2 weeks to check the pump", "lembra-me em 3 dias"',
+    "    Populate reminder.title, reminder.due_date (ISO), reminder.notes.",
+    '- add_note: speaker wants to append info to an existing task or project page.',
+    '    Examples: "add to the swimming pool project: tiles arrived", "note on compost task: needs new bin"',
+    "    Populate note.target_title and note.text.",
     "",
     "create_documentation examples:",
     '  EN: "document how the compost toilet works", "write up the wifi router setup",',
@@ -254,9 +293,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "",
     "- chat: casual only when nothing else applies",
     "",
-    `task.area: ${areas.join(", ")}`,
-    `task.priority: ${priorities.join(", ")} (Urgent for safety/power/water emergencies)`,
-    `decision.category: ${DECISION_CATEGORIES.join(", ")}`,
+    `task.type: ${TASK_TYPES.join(", ")}`,
+    `task.priority: ${TASK_PRIORITIES.join(", ")}`,
     `Notion databases: ${NOTION_DATABASES.join(", ")}`,
     "",
     "Return JSON:",
@@ -264,20 +302,23 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "schedule_lookup": bool,',
     '  "schedule_range": "today" | "this_week" | "next_week" | "two_weeks",',
     '  "doc_lookup": bool,',
-    '  "task": { "title", "area", "priority", "safety_critical", "route_maintenance" } | null,',
-    '  "event": { "title", "date", "event_type", "recurrence" } | null,',
+    '  "task": { "title", "type", "priority", "assignee", "project" } | null,',
+    '  "event": { "title", "date", "event_type", "scope", "recurrence" } | null,',
     '  "target": { "title", "item_id" } | null,',
     '  "decision": { "title", "category", "summary" } | null,',
     '  "documentation": { "title", "area", "summary" } | null,',
-    '  "community": { "title", "summary", "date" } | null }',
+    '  "community": { "title", "summary", "date" } | null,',
+    '  "rsvp": { "title" } | null,',
+    '  "reminder": { "title", "due_date", "notes" } | null,',
+    '  "note": { "target_title", "text" } | null }',
     "",
-    "route_maintenance=true when task is infrastructure not admin.",
     "For create_event always provide event.title; provide event.date for one-offs.",
     "For repeating events always provide event.recurrence (canonical form above) and event.date = next occurrence.",
     "Dates for \"next week\" must fall in the Next week range from WEEK CALENDAR.",
     "For question_schedule set schedule_lookup=true; never populate event for lookups.",
     "For question_doc set doc_lookup=true.",
-  ].join("\n");
+    "task.type: Villager = village work anyone can pitch in; Management = needs a professional or arranging.",
+    "Tasks store: title, type, priority (Low/Average/High), assignee, created by, status, notes, optional project link.",  ].join("\n");
 }
 
 function parseClassification(result, { areas, eventTypes, priorities }) {
@@ -292,27 +333,40 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     documentation: "create_documentation",
     write_documentation: "create_documentation",
     document: "create_documentation",
+    rsvp: "rsvp_event",
+    reminder: "create_reminder",
+    note: "add_note",
   };
   let action = ACTIONS.includes(legacyMap[rawAction] || rawAction)
     ? legacyMap[rawAction] || rawAction
     : "chat";
   const confidence = Number(result.confidence) || 0;
 
-  if (result.schedule_lookup === true) {
-    action = "question_schedule";
-  }
   if (result.doc_lookup === true) {
     action = "question_doc";
+  }
+  if (result.schedule_lookup === true && action !== "question_my_day") {
+    action = "question_schedule";
+  }
+  // Prefer personal agenda when action is my_day (don't let schedule_lookup steal it)
+  if (rawAction === "question_my_day" || result.my_day === true) {
+    action = "question_my_day";
   }
 
   const task =
     result.task && ["create_task", "guest_issue"].includes(action)
       ? {
           title: String(result.task.title || "").slice(0, 80),
-          area: areas.includes(result.task.area) ? result.task.area : "Other",
-          priority: priorities.includes(result.task.priority) ? result.task.priority : "Medium",
-          safety_critical: Boolean(result.task.safety_critical),
-          route_maintenance: Boolean(result.task.route_maintenance),
+          type: TASK_TYPES.includes(result.task.type) ? result.task.type : null,
+          priority: TASK_PRIORITIES.includes(result.task.priority)
+            ? result.task.priority
+            : null,
+          assignee: result.task.assignee
+            ? String(result.task.assignee).slice(0, 80)
+            : null,
+          project: result.task.project
+            ? String(result.task.project).slice(0, 120)
+            : null,
         }
       : null;
 
@@ -332,6 +386,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
         : eventRaw.event_type === "Delivery / order" || rawAction === "delivery"
           ? "Delivery / order"
           : "Other",
+      scope: eventRaw.scope === "internal" ? "internal" : "external",
       recurrence: recurrenceInfo.canonical || null,
       recurrence_label: recurrenceInfo.label || null,
     };
@@ -377,9 +432,34 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
         }
       : null;
 
+  const rsvp =
+    result.rsvp && action === "rsvp_event"
+      ? { title: String(result.rsvp.title || "").slice(0, 80) }
+      : null;
+
+  const reminder =
+    result.reminder && action === "create_reminder"
+      ? {
+          title: String(result.reminder.title || "").slice(0, 80),
+          due_date: result.reminder.due_date ? String(result.reminder.due_date).slice(0, 10) : null,
+          notes: String(result.reminder.notes || ""),
+        }
+      : null;
+
+  const note =
+    result.note && action === "add_note"
+      ? {
+          target_title: String(result.note.target_title || "").slice(0, 80),
+          text: String(result.note.text || ""),
+        }
+      : null;
+
   const scheduleDays = Number(result.schedule_days);
   const scheduleRange = normalizeScheduleRange(result);
-  const isQuestion = action === "question_doc" || action === "question_schedule";
+  const isQuestion =
+    action === "question_doc" ||
+    action === "question_schedule" ||
+    action === "question_my_day";
 
   return {
     actionable: result.actionable !== false && action !== "chat",
@@ -391,8 +471,17 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_complete: action === "complete_task" && Boolean(target?.title || target?.item_id),
     is_cancel_event: action === "cancel_event" && Boolean(target?.title || target?.item_id),
     is_documentation: action === "create_documentation",
+    is_rsvp: action === "rsvp_event" && Boolean(rsvp?.title),
+    is_reminder: action === "create_reminder" && Boolean(reminder?.title),
+    is_add_note: action === "add_note" && Boolean(note?.target_title),
     question_kind:
-      action === "question_doc" ? "documentation" : action === "question_schedule" ? "schedule" : null,
+      action === "question_doc"
+        ? "documentation"
+        : action === "question_schedule"
+          ? "schedule"
+          : action === "question_my_day"
+            ? "my_day"
+            : null,
     schedule_range: scheduleRange,
     schedule_days: scheduleDays > 0 && scheduleDays <= 30 ? Math.round(scheduleDays) : null,
     task,
@@ -401,12 +490,17 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     decision,
     documentation,
     community,
+    rsvp,
+    reminder,
+    note,
   };
 }
 
 module.exports = {
   ACTIONS,
   DECISION_CATEGORIES,
+  TASK_TYPES,
+  TASK_PRIORITIES,
   MAINTENANCE_GROUP_BY_AREA,
   CHAT_ACTIVITY_KIND,
   EVENT_TYPES,
