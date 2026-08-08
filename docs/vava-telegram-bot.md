@@ -3,7 +3,7 @@
 ## Group / topic description (≤255 chars)
 
 ```
-VAVA (@vila_akoya_bot) — village helper. Tag it or say “Vava” in a voice note to log tasks & events, ask how things work, or write docs. /register · /mytasks · /help
+VAVA (@vila_akoya_bot) — village helper. Tag it or say “Vava” in a voice note to log tasks & events, ask how things work, or write docs. /register · /questionnaire · /mytasks · /help
 ```
 
 ## Pinned message (paste into the topic)
@@ -35,6 +35,11 @@ ASK
 @vila_akoya_bot what’s happening next week?
 @vila_akoya_bot what should I do today?  (after /register Your Name)
 /ask <question> · /mytasks
+
+COMMUNITY PROFILE
+/register Your Name — join Members + short questionnaire (skills, areas, bio)
+/questionnaire — update your Community profile anytime
+Skillsets & help areas: reply with numbers (e.g. 1 3 5) or other: your skill
 
 DOCS (voice dumps welcome)
 Vava, document how the compost toilet works

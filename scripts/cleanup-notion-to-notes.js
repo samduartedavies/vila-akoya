@@ -160,7 +160,7 @@ function briefBlocks() {
       type: "bulleted_list_item",
       bulleted_list_item: {
         rich_text: notion.richText(
-          "Members — who’s here + volunteers; Telegram handles, skills, profiles, bios. VAVA can send a questionnaire."
+          "Members — who’s here + volunteers; Telegram handles, skills, profiles, bios. /register or /questionnaire with VAVA."
         ),
       },
     },

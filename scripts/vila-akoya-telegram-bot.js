@@ -16,7 +16,9 @@
  *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs.
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (events,
  *     campsite, meals, highlights); personal duties + tasks go by DM to registered members.
- *   - /ask, /task, /register, /mytasks, /done, /help as before.
+ *   - /ask, /task, /register, /questionnaire, /mytasks, /done, /help as before.
+ *   - After /register, a short questionnaire fills Skills / bio on the Members
+ *     (Community) board; /questionnaire updates it later.
  *   - Schedule and partnership/discount questions answered from Notion.
  *
  * Requires (for smart features): OPENAI_API_KEY, and a docs index built
@@ -656,6 +658,7 @@ function loadState() {
     if (!s.chatLog) s.chatLog = [];
     if (!s.items) s.items = {};
     if (!s.pendingClarify) s.pendingClarify = {};
+    if (!s.pendingQuestionnaire) s.pendingQuestionnaire = {};
     if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
     if (s.seededNotion === undefined) {
       if (s.seededMonday !== undefined) s.items = {};
@@ -673,6 +676,7 @@ function loadState() {
       chatLog: [],
       items: {},
       pendingClarify: {},
+      pendingQuestionnaire: {},
     };
   }
 }
@@ -761,7 +765,7 @@ function withReplyThread(message, fn) {
 }
 
 async function sendMessage(chatId, text, extra = {}) {
-  if (!chatId) return;
+  if (!chatId) return false;
   try {
     await telegram("sendMessage", {
       chat_id: chatId,
@@ -771,8 +775,10 @@ async function sendMessage(chatId, text, extra = {}) {
       ...replyThreadExtra,
       ...extra,
     });
+    return true;
   } catch (err) {
     log("sendMessage error:", err.message);
+    return false;
   }
 }
 
@@ -1261,7 +1267,7 @@ function mergeCompletionIntent(classified, text, chatId) {
 
 async function resolvePersonIdentity(from) {
   const handle = senderHandle(from);
-  const { page: member } = await findMemberByTelegram(handle);
+  const { page: member } = await findMemberByTelegram(handle, from?.id);
   const displayName = member
     ? notion.pagePropText(member, "Display name") || notion.pageTitle(member)
     : senderDisplayName(from);
@@ -2066,7 +2072,7 @@ function doneStageFor(dbName) {
 }
 
 // ── Telegram -> Notion: register a member ────────────────────────────────────
-async function findMemberByTelegram(handle) {
+async function findMemberByTelegram(handle, userId) {
   let pages;
   try {
     ({ pages } = await notion.queryDatabase(MEMBERS_DB_NAME));
@@ -2075,11 +2081,17 @@ async function findMemberByTelegram(handle) {
     return { page: null };
   }
   const lower = String(handle || "").toLowerCase();
+  const uid = userId != null ? String(userId) : "";
+  let byHandle = null;
   for (const page of pages) {
+    if (uid) {
+      const storedId = notion.pagePropText(page, "Telegram user ID").trim();
+      if (storedId && storedId === uid) return { page };
+    }
     const uname = notion.pagePropText(page, "Telegram username").toLowerCase();
-    if (uname && uname === lower) return { page };
+    if (uname && uname === lower) byHandle = page;
   }
-  return { page: null };
+  return { page: byHandle };
 }
 
 async function fetchMembersForMorningDm() {
@@ -2140,7 +2152,7 @@ async function maybeSendPersonalMorningBriefings(dateISO) {
 
 async function registerMember({ displayName, from, chatId }) {
   const handle = senderHandle(from);
-  const { page } = await findMemberByTelegram(handle);
+  const { page } = await findMemberByTelegram(handle, from?.id);
 
   const properties = {
     "Display name": displayName,
@@ -2148,19 +2160,24 @@ async function registerMember({ displayName, from, chatId }) {
     "Telegram user ID": String(from.id),
     "Telegram chat ID": String(chatId),
     "Active?": true,
+    "Member status": "Active",
   };
 
   if (page) {
     await notion.updatePageProps(MEMBERS_DB_NAME, page.id, properties);
-    return { updated: true };
+    return { updated: true, pageId: page.id };
   }
 
-  await notion.createPage({
+  const created = await notion.createPage({
     databaseName: MEMBERS_DB_NAME,
     title: displayName,
-    properties: { Stage: "Onboarding", ...properties },
+    properties: {
+      Stage: "Onboarding",
+      "Joined date": todayISO(),
+      ...properties,
+    },
   });
-  return { updated: false };
+  return { updated: false, pageId: created.id };
 }
 
 // ── Telegram -> Notion: list my open tasks ───────────────────────────────────
@@ -2442,6 +2459,445 @@ async function answerFromPartnerships(question) {
   return openaiLib.answerFromData(question, snapshot);
 }
 
+// ── Member questionnaire (Community board) ───────────────────────────────────
+const QUESTIONNAIRE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
+const ROLE_OPTIONS = ["Resident", "Volunteer", "Helper", "Guest", "Steward"];
+
+const STAGE_OPTIONS = [
+  "Residents",
+  "Long-term volunteers",
+  "Short-term helpers / guests",
+  "Onboarding",
+];
+
+const SKILLSET_OPTIONS = [
+  "Building / carpentry",
+  "Garden / land",
+  "Cooking / food",
+  "Solar / electrical",
+  "Plumbing / water",
+  "Vehicles / mechanics",
+  "Languages / translation",
+  "Kids / education",
+  "Events / hosting",
+  "Admin / money",
+  "Art / music",
+  "Healing / bodywork",
+];
+
+const AREA_OPTIONS = [
+  "Water",
+  "Compost & toilets",
+  "Solar / electric",
+  "Buildings / structures",
+  "Tools / workshop",
+  "Land / roads / drainage",
+  "Campsite / guest",
+  "Garden",
+  "Community / events",
+  "Safety & emergency",
+  "Admin / money",
+  "Other",
+];
+
+function multiSelectOpts(names) {
+  const colors = [
+    "gray",
+    "brown",
+    "orange",
+    "yellow",
+    "green",
+    "blue",
+    "purple",
+    "pink",
+    "red",
+  ];
+  return names.map((name, i) => ({
+    name,
+    color: colors[i % colors.length],
+  }));
+}
+
+async function ensureMembersQuestionnaireSchema() {
+  try {
+    const db = await notion.resolveDatabase(MEMBERS_DB_NAME);
+    const existing = db.properties || {};
+    const toAdd = {};
+    if (!existing.Skills) toAdd.Skills = { rich_text: {} };
+    if (!existing.Bio) toAdd.Bio = { rich_text: {} };
+    if (!existing.Profile) toAdd.Profile = { rich_text: {} };
+    if (!existing["Questionnaire done?"]) {
+      toAdd["Questionnaire done?"] = { checkbox: {} };
+    }
+    if (!existing.Skillsets) {
+      toAdd.Skillsets = {
+        multi_select: { options: multiSelectOpts(SKILLSET_OPTIONS) },
+      };
+    }
+    if (!existing["Help areas"]) {
+      toAdd["Help areas"] = {
+        multi_select: { options: multiSelectOpts(AREA_OPTIONS) },
+      };
+    }
+    if (!Object.keys(toAdd).length) {
+      log("Members questionnaire schema: OK");
+      return;
+    }
+    await notion.notion("PATCH", `/databases/${db.id}`, { properties: toAdd });
+    await notion.primeDatabase(MEMBERS_DB_NAME, db.id);
+    log(`Members questionnaire schema: added ${Object.keys(toAdd).join(", ")}`);
+  } catch (err) {
+    log("Members questionnaire schema ensure failed:", err.message);
+  }
+}
+
+function formatChoiceList(options) {
+  return options.map((opt, i) => `${i + 1}. ${escapeHtml(opt)}`).join("\n");
+}
+
+function parseSingleChoice(text, options) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  if (/^(skip|none|-)$/i.test(raw)) return { skip: true };
+  const asNum = Number(raw);
+  if (Number.isInteger(asNum) && asNum >= 1 && asNum <= options.length) {
+    return { value: options[asNum - 1] };
+  }
+  const lower = raw.toLowerCase();
+  const exact = options.find((o) => o.toLowerCase() === lower);
+  if (exact) return { value: exact };
+  const partial = options.filter((o) => o.toLowerCase().includes(lower));
+  if (partial.length === 1) return { value: partial[0] };
+  return null;
+}
+
+function parseMultiChoice(text, options) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  if (/^(skip|none|-)$/i.test(raw)) return { values: [], other: "", skip: true };
+
+  const otherMatch = raw.match(/\bother\s*[:=]\s*(.+)$/i);
+  const other = otherMatch ? otherMatch[1].trim() : "";
+  let main = otherMatch ? raw.slice(0, otherMatch.index).trim() : raw;
+  main = main.replace(/[,;]/g, " ").replace(/\s+/g, " ").trim();
+
+  const values = [];
+  const seen = new Set();
+  const add = (name) => {
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    values.push(name);
+  };
+
+  if (/^all$/i.test(main)) {
+    options.forEach(add);
+  } else if (main) {
+    for (const token of main.split(" ")) {
+      if (!token || /^other$/i.test(token)) continue;
+      const asNum = Number(token);
+      if (Number.isInteger(asNum) && asNum >= 1 && asNum <= options.length) {
+        add(options[asNum - 1]);
+        continue;
+      }
+      const lower = token.toLowerCase();
+      const exact = options.find((o) => o.toLowerCase() === lower);
+      if (exact) {
+        add(exact);
+        continue;
+      }
+      const partial = options.filter(
+        (o) =>
+          o.toLowerCase().includes(lower) ||
+          lower.includes(o.toLowerCase().split(/[\/&]/)[0].trim())
+      );
+      if (partial.length === 1) add(partial[0]);
+    }
+  }
+
+  if (!values.length && !other) return null;
+  return { values, other };
+}
+
+function questionnairePrompt(stepId) {
+  if (stepId === "role") {
+    return (
+      `<b>Community questionnaire</b> (1/6)\n` +
+      `What’s your <b>role</b> here?\n` +
+      formatChoiceList(ROLE_OPTIONS) +
+      `\n\nReply with a number (or <i>skip</i>).`
+    );
+  }
+  if (stepId === "stage") {
+    return (
+      `<b>Community questionnaire</b> (2/6)\n` +
+      `How are you here?\n` +
+      formatChoiceList(STAGE_OPTIONS) +
+      `\n\nReply with a number (or <i>skip</i>).`
+    );
+  }
+  if (stepId === "skills") {
+    return (
+      `<b>Community questionnaire</b> (3/6)\n` +
+      `What <b>skillsets</b> can you share? Pick several.\n` +
+      formatChoiceList(SKILLSET_OPTIONS) +
+      `\n\nReply with numbers, e.g. <code>1 3 5</code>\n` +
+      `Add something missing with <code>other: welding</code>\n` +
+      `Or <i>skip</i>.`
+    );
+  }
+  if (stepId === "areas") {
+    return (
+      `<b>Community questionnaire</b> (4/6)\n` +
+      `Which <b>areas</b> can you help with? Pick several.\n` +
+      formatChoiceList(AREA_OPTIONS) +
+      `\n\nReply with numbers, e.g. <code>2 7 9</code>, or <i>skip</i>.`
+    );
+  }
+  if (stepId === "bio") {
+    return (
+      `<b>Community questionnaire</b> (5/6)\n` +
+      `Write a short <b>bio</b> for the Community board — who you are, what you care about.\n` +
+      `Or <i>skip</i>.`
+    );
+  }
+  if (stepId === "contact") {
+    return (
+      `<b>Community questionnaire</b> (6/6)\n` +
+      `Phone or other contact (optional — only visible on the Members board).\n` +
+      `Or <i>skip</i> / <i>done</i>.`
+    );
+  }
+  return "Unknown questionnaire step.";
+}
+
+const QUESTIONNAIRE_STEP_ORDER = [
+  "role",
+  "stage",
+  "skills",
+  "areas",
+  "bio",
+  "contact",
+];
+
+function questionnaireStateKey(chatId, fromId) {
+  return `${chatId}:${fromId}`;
+}
+
+function clearQuestionnaire(key) {
+  if (state.pendingQuestionnaire?.[key]) {
+    delete state.pendingQuestionnaire[key];
+    saveState();
+  }
+}
+
+async function startQuestionnaire({ from, chatId, pageId, displayName }) {
+  if (!pageId) {
+    const handle = senderHandle(from);
+    const { page } = await findMemberByTelegram(handle, from?.id);
+    if (!page) {
+      await sendMessage(
+        chatId,
+        "Register first with /register Your Full Name, then I’ll send the questionnaire."
+      );
+      return false;
+    }
+    pageId = page.id;
+    displayName =
+      displayName ||
+      notion.pagePropText(page, "Display name") ||
+      notion.pageTitle(page);
+  }
+
+  const name = displayName || senderDisplayName(from);
+  const session = {
+    pageId,
+    displayName: name,
+    step: "role",
+    answers: {},
+    fromId: from.id,
+    ts: Date.now(),
+  };
+  const intro =
+    `Great — a few quick questions so your profile shows on the <b>Community</b> board.\n` +
+    `You can say <i>cancel</i> anytime, or run /questionnaire later to update.\n\n` +
+    questionnairePrompt("role");
+
+  // Prefer DM so the group isn’t filled with Q&A.
+  if (String(chatId) !== String(from.id)) {
+    const dmOk = await sendMessage(from.id, intro);
+    if (dmOk) {
+      state.pendingQuestionnaire[questionnaireStateKey(from.id, from.id)] = session;
+      saveState();
+      await sendMessage(
+        chatId,
+        `I sent you a DM with the Community questionnaire. ` +
+          `(If you don’t see it, open a chat with the bot and run /questionnaire.)`
+      );
+      return true;
+    }
+  }
+
+  state.pendingQuestionnaire[questionnaireStateKey(chatId, from.id)] = session;
+  saveState();
+  await sendMessage(chatId, intro);
+  return true;
+}
+
+function buildMemberProfileSummary(answers, displayName) {
+  const lines = [];
+  if (displayName) lines.push(displayName);
+  if (answers.role) lines.push(`Role: ${answers.role}`);
+  if (answers.stage) lines.push(`Here as: ${answers.stage}`);
+  const skills = [...(answers.skillsets || [])];
+  if (answers.skillsOther) skills.push(answers.skillsOther);
+  if (skills.length) lines.push(`Skills: ${skills.join(", ")}`);
+  if (answers.areas?.length) lines.push(`Helps with: ${answers.areas.join(", ")}`);
+  if (answers.bio) lines.push(answers.bio);
+  return lines.join("\n");
+}
+
+async function saveQuestionnaireAnswers({ pageId, displayName, answers }) {
+  const skillsets = answers.skillsets || [];
+  const skillsOther = answers.skillsOther || "";
+  const skillsText = [...skillsets, skillsOther].filter(Boolean).join(", ");
+  const areas = answers.areas || [];
+  const profile = buildMemberProfileSummary(answers, displayName);
+
+  const properties = {
+    "Questionnaire done?": true,
+    Profile: profile,
+  };
+  if (answers.role) properties["Role / focus"] = answers.role;
+  if (answers.stage) properties.Stage = answers.stage;
+  if (skillsets.length) properties.Skillsets = skillsets;
+  if (skillsText) properties.Skills = skillsText;
+  if (areas.length) {
+    properties["Help areas"] = areas;
+    properties["Areas of help"] = areas[0];
+  }
+  if (answers.bio) properties.Bio = answers.bio;
+  if (answers.contact) properties["Phone / contact"] = answers.contact;
+
+  await notion.updatePageProps(MEMBERS_DB_NAME, pageId, properties);
+}
+
+async function handlePendingQuestionnaire(message) {
+  const chatId = message.chat.id;
+  const fromId = message.from?.id;
+  const key = questionnaireStateKey(chatId, fromId);
+  const pending = state.pendingQuestionnaire?.[key];
+  if (!pending) return false;
+  if (Date.now() - pending.ts > QUESTIONNAIRE_TIMEOUT_MS) {
+    clearQuestionnaire(key);
+    return false;
+  }
+
+  const text = (message.text || "").trim();
+  if (!text) return false;
+  if (text.startsWith("/")) return false;
+
+  if (/^(cancel|stop|abort)$/i.test(text)) {
+    clearQuestionnaire(key);
+    await sendMessage(
+      chatId,
+      "Questionnaire cancelled. Run /questionnaire whenever you’re ready."
+    );
+    return true;
+  }
+
+  pending.ts = Date.now();
+  const step = pending.step;
+  const answers = pending.answers || {};
+
+  if (step === "role") {
+    const parsed = parseSingleChoice(text, ROLE_OPTIONS);
+    if (!parsed) {
+      await sendMessage(
+        chatId,
+        `Please reply with a number 1–${ROLE_OPTIONS.length}, or <i>skip</i>.`
+      );
+      return true;
+    }
+    if (!parsed.skip) answers.role = parsed.value;
+  } else if (step === "stage") {
+    const parsed = parseSingleChoice(text, STAGE_OPTIONS);
+    if (!parsed) {
+      await sendMessage(
+        chatId,
+        `Please reply with a number 1–${STAGE_OPTIONS.length}, or <i>skip</i>.`
+      );
+      return true;
+    }
+    if (!parsed.skip) answers.stage = parsed.value;
+  } else if (step === "skills") {
+    const parsed = parseMultiChoice(text, SKILLSET_OPTIONS);
+    if (!parsed) {
+      await sendMessage(
+        chatId,
+        "Please reply with numbers like <code>1 3 5</code>, and/or <code>other: your skill</code>, or <i>skip</i>."
+      );
+      return true;
+    }
+    if (!parsed.skip) {
+      answers.skillsets = parsed.values;
+      if (parsed.other) answers.skillsOther = parsed.other;
+    }
+  } else if (step === "areas") {
+    const parsed = parseMultiChoice(text, AREA_OPTIONS);
+    if (!parsed) {
+      await sendMessage(
+        chatId,
+        "Please reply with numbers like <code>2 7 9</code>, or <i>skip</i>."
+      );
+      return true;
+    }
+    if (!parsed.skip) answers.areas = parsed.values;
+  } else if (step === "bio") {
+    if (!/^(skip|none|-)$/i.test(text)) answers.bio = text;
+  } else if (step === "contact") {
+    if (!/^(skip|none|-|done)$/i.test(text)) answers.contact = text;
+  } else {
+    clearQuestionnaire(key);
+    return false;
+  }
+
+  pending.answers = answers;
+  const idx = QUESTIONNAIRE_STEP_ORDER.indexOf(step);
+  const next = QUESTIONNAIRE_STEP_ORDER[idx + 1];
+
+  if (next) {
+    pending.step = next;
+    saveState();
+    await sendMessage(chatId, questionnairePrompt(next));
+    return true;
+  }
+
+  try {
+    await saveQuestionnaireAnswers({
+      pageId: pending.pageId,
+      displayName: pending.displayName,
+      answers,
+    });
+    clearQuestionnaire(key);
+    await sendMessage(
+      chatId,
+      `✅ Saved to the <b>Community</b> Members board` +
+        (pending.displayName
+          ? ` for <b>${escapeHtml(pending.displayName)}</b>`
+          : "") +
+        `.\nRun /questionnaire anytime to update.`
+    );
+  } catch (err) {
+    log("saveQuestionnaireAnswers error:", err.message);
+    await sendMessage(
+      chatId,
+      "Sorry, I couldn’t save your questionnaire right now. Try /questionnaire again in a bit."
+    );
+  }
+  return true;
+}
+
 // ── Pending clarification for incomplete tasks ─────────────────────────────────
 const CLARIFY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -2512,7 +2968,8 @@ const HELP_TEXT = [
   "<b>Commands</b>",
   "/task &lt;text&gt; — add a task",
   "/ask &lt;question&gt; — search our documentation",
-  "/register &lt;your name&gt; — link your Telegram to Members (needed for “what should I do today”)",
+  "/register &lt;your name&gt; — link Telegram to Members + start Community questionnaire",
+  "/questionnaire — fill or update your Community profile (skills, bio, areas)",
   "/mytasks — duties due today + open tasks assigned to you",
   "/done &lt;item id&gt; — mark a task done, or log a duty done (schedules next due)",
   "/whoami — show your Telegram details",
@@ -3042,7 +3499,11 @@ async function handleMessageInner(message) {
     return;
   }
 
-  if (text && !text.startsWith("/") && await handlePendingClarification(message)) {
+  if (text && !text.startsWith("/") && (await handlePendingQuestionnaire(message))) {
+    return;
+  }
+
+  if (text && !text.startsWith("/") && (await handlePendingClarification(message))) {
     return;
   }
 
@@ -3073,17 +3534,54 @@ async function handleMessageInner(message) {
       return;
     }
     try {
-      const { updated } = await registerMember({ displayName: args, from, chatId });
+      const { updated, pageId } = await registerMember({
+        displayName: args,
+        from,
+        chatId,
+      });
       await sendMessage(
         chatId,
         updated
           ? `Updated your member profile as <b>${escapeHtml(args)}</b>.`
-          : `Registered you as <b>${escapeHtml(args)}</b> on the members board.`
+          : `Registered you as <b>${escapeHtml(args)}</b> on the Community Members board.`
       );
+      await startQuestionnaire({
+        from,
+        chatId,
+        pageId,
+        displayName: args,
+      });
     } catch (err) {
       log("register error:", err.message);
       await sendMessage(chatId, "Sorry, I could not register you right now.");
     }
+    return;
+  }
+
+  if (isCommand && cmd === "/questionnaire") {
+    try {
+      await startQuestionnaire({ from, chatId });
+    } catch (err) {
+      log("questionnaire error:", err.message);
+      await sendMessage(
+        chatId,
+        "Sorry, I could not start the questionnaire right now."
+      );
+    }
+    return;
+  }
+
+  if (isCommand && cmd === "/cancel") {
+    const qKey = questionnaireStateKey(chatId, from.id);
+    if (state.pendingQuestionnaire?.[qKey]) {
+      clearQuestionnaire(qKey);
+      await sendMessage(
+        chatId,
+        "Questionnaire cancelled. Run /questionnaire whenever you’re ready."
+      );
+      return;
+    }
+    await sendMessage(chatId, "Nothing to cancel.");
     return;
   }
 
@@ -3445,6 +3943,8 @@ async function main() {
   log(`Events: Internal → ${INTERNAL_EVENTS_DB_NAME}, External → ${EXTERNAL_EVENTS_DB_NAME}`);
   log(`Daily recap: ${DAILY_RECAP ? `ON at ${RECAP_TIME} ${RECAP_TZ}` : "OFF"}`);
   log(`Notion announcements → chat ${TELEGRAM_CHAT_ID || "(off)"}`);
+
+  await ensureMembersQuestionnaireSchema();
 
   if (openaiLib.isEnabled()) {
     const idx = getDocsIndex();

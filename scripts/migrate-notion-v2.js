@@ -236,7 +236,7 @@ async function writeBrief(parentId, catalog) {
         type: "bulleted_list_item",
         bulleted_list_item: {
           rich_text: notion.richText(
-            "Members — Telegram, skills, profile/bio. Ask VAVA for the questionnaire when you join."
+            "Members — Telegram, skills, profile/bio. /register starts the questionnaire; /questionnaire updates it."
           ),
         },
       },
@@ -470,11 +470,41 @@ async function main() {
 
   console.log("\n=== Members enrichment ===");
   if (catalog.databases.Members) {
+    const skillOpts = [
+      "Building / carpentry",
+      "Garden / land",
+      "Cooking / food",
+      "Solar / electrical",
+      "Plumbing / water",
+      "Vehicles / mechanics",
+      "Languages / translation",
+      "Kids / education",
+      "Events / hosting",
+      "Admin / money",
+      "Art / music",
+      "Healing / bodywork",
+    ];
+    const areaOpts = [
+      "Water",
+      "Compost & toilets",
+      "Solar / electric",
+      "Buildings / structures",
+      "Tools / workshop",
+      "Land / roads / drainage",
+      "Campsite / guest",
+      "Garden",
+      "Community / events",
+      "Safety & emergency",
+      "Admin / money",
+      "Other",
+    ];
     const added = await addProperties(catalog.databases.Members, {
       Skills: rich(),
       Bio: rich(),
       Profile: rich(),
       "Questionnaire done?": check(),
+      Skillsets: { multi_select: { options: selectOpts(skillOpts) } },
+      "Help areas": { multi_select: { options: selectOpts(areaOpts) } },
       "Telegram username": rich(),
       "Display name": rich(),
       "Active?": check(),
