@@ -116,6 +116,76 @@
       display: inline-block;
     }
 
+    .vila-language-switcher {
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.18rem;
+      border: 1px solid rgb(154 64 33 / 0.16);
+      border-radius: 999px;
+      background: rgb(255 255 255 / 0.42);
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.65);
+    }
+
+    .vila-language-switcher--desktop {
+      display: none;
+    }
+
+    .vila-language-switcher--mobile {
+      display: inline-flex;
+      margin-top: 0.75rem;
+      margin-bottom: 0.5rem;
+      width: fit-content;
+    }
+
+    .vila-language-switcher__link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2.25rem;
+      padding: 0.38rem 0.65rem;
+      border-radius: 999px;
+      color: #8f3a1d;
+      font-family: var(--vila-font-body);
+      font-size: 0.72rem;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0.08em;
+      text-decoration: none;
+      transition:
+        background-color 220ms var(--vila-motion-ease),
+        color 220ms var(--vila-motion-ease),
+        transform 220ms var(--vila-motion-ease),
+        box-shadow 220ms var(--vila-motion-ease);
+    }
+
+    .vila-language-switcher__link:hover,
+    .vila-language-switcher__link:focus-visible {
+      color: #6f2d17;
+      background: rgb(154 64 33 / 0.1);
+      transform: translateY(-1px);
+    }
+
+    .vila-language-switcher__link:focus-visible {
+      outline: 2px solid rgb(154 64 33 / 0.32);
+      outline-offset: 2px;
+    }
+
+    .vila-language-switcher__link.is-active {
+      color: #fcf9ef;
+      background: #9a4021;
+      box-shadow: 0 8px 18px rgb(154 64 33 / 0.18);
+    }
+
+    @media (min-width: 1020px) {
+      .vila-language-switcher--desktop {
+        display: inline-flex;
+      }
+
+      .vila-language-switcher--mobile {
+        display: none;
+      }
+    }
+
     #site-mobile-nav {
       overflow: hidden;
       max-height: 0;
@@ -2849,11 +2919,11 @@ main.overflow-x-hidden,
 }
 
 /* CTA only — exclude [data-nav] so "Join us" matches the other header links. */
-.vila-site-nav a[href*="/booking/"]:not([data-nav]) {
+.vila-site-nav a[href*="/booking/"]:not([data-nav]):not(.vila-language-switcher__link) {
   box-shadow: 0 12px 28px rgb(var(--vila-rgb-primary) / 0.18);
 }
 
-.vila-site-nav a[href*="/booking/"]:not([data-nav]):hover {
+.vila-site-nav a[href*="/booking/"]:not([data-nav]):not(.vila-language-switcher__link):hover {
   box-shadow: 0 16px 34px rgb(var(--vila-rgb-primary) / 0.22);
   transform: translateY(-1px) scale(0.97);
 }

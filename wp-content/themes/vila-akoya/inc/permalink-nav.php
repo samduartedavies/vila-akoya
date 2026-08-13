@@ -232,6 +232,43 @@ function vila_akoya_filter_content_absolutize_links( $content ) {
 add_filter( 'the_content', 'vila_akoya_filter_content_absolutize_links', 12 );
 
 /**
+ * Render the TranslatePress language switcher using theme markup.
+ *
+ * @param string $variant desktop|mobile
+ */
+function vila_akoya_render_language_switcher( $variant = 'desktop' ) {
+	if ( ! function_exists( 'trp_custom_language_switcher' ) ) {
+		return;
+	}
+
+	$languages = trp_custom_language_switcher();
+	if ( ! is_array( $languages ) || count( $languages ) < 2 ) {
+		return;
+	}
+
+	$current_language = isset( $GLOBALS['TRP_LANGUAGE'] ) ? (string) $GLOBALS['TRP_LANGUAGE'] : '';
+	$variant          = 'mobile' === $variant ? 'mobile' : 'desktop';
+	?>
+<div class="vila-language-switcher vila-language-switcher--<?php echo esc_attr( $variant ); ?>" data-no-translation aria-label="<?php esc_attr_e( 'Choose language', 'vila-akoya' ); ?>">
+	<?php foreach ( $languages as $language ) : ?>
+		<?php
+		if ( empty( $language['current_page_url'] ) || empty( $language['language_code'] ) ) {
+			continue;
+		}
+		$language_code = (string) $language['language_code'];
+		$slug          = ! empty( $language['short_language_name'] ) ? (string) $language['short_language_name'] : substr( $language_code, 0, 2 );
+		$label         = strtoupper( $slug );
+		$is_current    = ! empty( $language['current_language'] ) || ( $current_language && $current_language === $language_code );
+		?>
+		<a class="vila-language-switcher__link<?php echo $is_current ? ' is-active' : ''; ?>" href="<?php echo esc_url( $language['current_page_url'] ); ?>" lang="<?php echo esc_attr( str_replace( '_', '-', $language_code ) ); ?>"<?php echo $is_current ? ' aria-current="true"' : ''; ?>>
+			<span class="vila-language-switcher__label"><?php echo esc_html( $label ); ?></span>
+		</a>
+	<?php endforeach; ?>
+</div>
+	<?php
+}
+
+/**
  * Header markup with home_url() for every nav link (avoids 404 when permalinks or paths differ).
  */
 function vila_akoya_shortcode_header_nav() {
@@ -276,6 +313,7 @@ function vila_akoya_shortcode_header_nav() {
 <span class="material-symbols-outlined site-nav-icon site-nav-icon--menu text-3xl" aria-hidden="true">menu</span>
 <span class="material-symbols-outlined site-nav-icon site-nav-icon--close text-3xl" aria-hidden="true">close</span>
 </button>
+<?php vila_akoya_render_language_switcher( 'desktop' ); ?>
 <a class="hidden min-[1020px]:inline-block bg-[#9a4021] text-white px-6 py-3 rounded-full font-medium hover:bg-[#ba5737] scale-95 active:scale-90 transition-all duration-300 text-center" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
 </div>
 </div>
@@ -284,6 +322,7 @@ function vila_akoya_shortcode_header_nav() {
 <div id="site-nav-mobile-links" class="flex flex-col space-y-0.5 font-body text-base tracking-wide py-1">
 <?php vila_akoya_render_header_nav_links( 'header', 'mobile', $current_nav, $h ); ?>
 </div>
+<?php vila_akoya_render_language_switcher( 'mobile' ); ?>
 <a class="mt-10 mb-4 block w-full text-center bg-[#9a4021] text-white px-6 py-3 rounded-full font-medium hover:bg-[#ba5737] transition-all duration-300" href="<?php echo $h( 'booking' ); ?>">Book your stay</a>
 </div>
 </div>

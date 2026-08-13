@@ -32,6 +32,49 @@ wp plugin install secure-custom-fields --activate
 wp plugin install autodescription --activate
 wp plugin install ultimate-addons-for-gutenberg --activate
 wp plugin install mwb-bookings-for-woocommerce --activate
+wp plugin install translatepress-multilingual --activate
+echo "==> Configuring TranslatePress (English → Portuguese)…"
+cat > /tmp/vila-configure-translatepress.php <<PHP
+<?php
+\$settings = get_option("trp_settings", array());
+if (!is_array(\$settings)) {
+	\$settings = array();
+}
+
+\$languages = array("en_US", "pt_PT");
+\$url_slugs = isset(\$settings["url-slugs"]) && is_array(\$settings["url-slugs"]) ? \$settings["url-slugs"] : array();
+\$url_slugs = array_intersect_key(\$url_slugs, array_flip(\$languages));
+\$url_slugs["en_US"] = "en";
+\$url_slugs["pt_PT"] = "pt";
+
+\$settings["default-language"] = "en_US";
+\$settings["translation-languages"] = \$languages;
+\$settings["publish-languages"] = \$languages;
+\$settings["add-subdirectory-to-default-language"] = "no";
+\$settings["url-slugs"] = \$url_slugs;
+
+update_option("trp_settings", \$settings);
+
+// Direct WP-CLI option updates skip the admin settings-save path that creates tables.
+if (class_exists("TRP_Gettext_Table_Creation")) {
+	\$gettext_tables = new TRP_Gettext_Table_Creation(\$settings);
+	\$gettext_tables->check_gettext_original_table();
+	\$gettext_tables->check_gettext_original_meta_table();
+	foreach (\$languages as \$language) {
+		\$gettext_tables->check_gettext_table(\$language);
+	}
+}
+
+if (class_exists("TRP_Translate_Press")) {
+	\$trp = TRP_Translate_Press::get_trp_instance();
+	\$query = \$trp->get_component("query");
+	if (\$query && method_exists(\$query, "check_table")) {
+		\$query->check_table("en_US", "pt_PT");
+	}
+}
+PHP
+wp eval-file /tmp/vila-configure-translatepress.php
+rm -f /tmp/vila-configure-translatepress.php
 echo "==> Activating Vila Campsite Booking (from .wp-env.json bind mount)…"
 wp plugin activate vila-campsite-booking
 echo "==> Active plugins:"

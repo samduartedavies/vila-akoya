@@ -20,7 +20,7 @@
     "monday:sync-campsite:local": "VILA_OPS_API_BASE=http://localhost:8888 VILA_OPS_API_TOKEN=vila-local-ops-dev-token node scripts/sync-campsite-monday.js",
     "monday:seed-rota": "node scripts/seed-community-chore-rota.js",
     "monday:seed-markets": "node scripts/seed-odemira-markets.js",
-    "telegram:bot": "node scripts/vila-akoya-telegram-bot.js",
+    "telegram:bot": "bash scripts/run-telegram-bot.sh",
     "whatsapp:import": "node scripts/import-whatsapp-to-telegram.js",
     "telegram:chats": "node scripts/telegram-list-chats.js",
     "docs:index": "node scripts/index-vila-akoya-docs.js",

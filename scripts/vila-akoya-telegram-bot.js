@@ -17,8 +17,9 @@
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (events,
  *     campsite, meals, highlights); personal duties + tasks go by DM to registered members.
  *   - /ask, /task, /register, /questionnaire, /mytasks, /done, /help as before.
- *   - After /register, a short questionnaire fills Skills / bio on the Members
- *     (Community) board; /questionnaire updates it later.
+ *   - After /register, a short questionnaire (DM only) fills Skills / bio on
+ *     the Members (Community) board; /questionnaire updates it later. Answers
+ *     like "1" are accepted even days later; /start resumes a pending form.
  *   - Schedule and partnership/discount questions answered from Notion.
  *
  * Requires (for smart features): OPENAI_API_KEY, and a docs index built
@@ -31,7 +32,7 @@
  * ── Setup ─────────────────────────────────────────────────────────────────
  * 1. Run setup-vila-akoya-notion.js first so the databases exist.
  * 2. Create a bot with @BotFather, add to your community group.
- * 3. Run: npm run telegram:bot
+ * 3. Run: npm run telegram:bot  (stops any previous local copy, then starts one)
  *
  * ── Optional env ──────────────────────────────────────────────────────────
  *   TASK_GROUP_CHAT_ID      group for intake (default: TELEGRAM_CHAT_ID)
@@ -50,6 +51,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 const notion = require("./lib/notion");
 const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
@@ -123,6 +125,12 @@ const ANNOUNCE_NEW_ITEMS = process.env.ANNOUNCE_NEW_ITEMS !== "false";
 const STATE_FILE =
   process.env.STATE_FILE ||
   path.join(__dirname, ".vila-akoya-telegram-state.json");
+const LOCK_FILE = process.env.LOCK_FILE || `${STATE_FILE}.lock`;
+
+/** True after a successful getUpdates. Duplicate instances must not send recaps. */
+let telegramPollActive = false;
+let pollConflictStreak = 0;
+let lockFd = null;
 
 // Group titles / status labels that count as "completed".
 const DONE_KEYWORDS = ["done", "logged", "decided", "past", "completed"];
@@ -659,6 +667,7 @@ function loadState() {
     if (!s.items) s.items = {};
     if (!s.pendingClarify) s.pendingClarify = {};
     if (!s.pendingQuestionnaire) s.pendingQuestionnaire = {};
+    else s.pendingQuestionnaire = normalizePendingQuestionnaires(s.pendingQuestionnaire);
     if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
     if (s.seededNotion === undefined) {
       if (s.seededMonday !== undefined) s.items = {};
@@ -688,6 +697,132 @@ function saveState() {
     fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
   } catch (err) {
     log("Could not persist state:", err.message);
+  }
+}
+
+function pidIsRunning(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function releaseInstanceLock() {
+  try {
+    if (lockFd != null) fs.closeSync(lockFd);
+  } catch {
+    // already closed
+  }
+  lockFd = null;
+  try {
+    fs.unlinkSync(LOCK_FILE);
+  } catch {
+    // already gone
+  }
+}
+
+function listBotPids() {
+  try {
+    const out = execSync("pgrep -f vila-akoya-telegram-bot\\.js", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return out
+      .split(/\s+/)
+      .map((s) => parseInt(s, 10))
+      .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid);
+  } catch {
+    return [];
+  }
+}
+
+function stopPid(pid, signal) {
+  try {
+    process.kill(pid, signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function stopOtherBotProcesses() {
+  const pids = new Set(listBotPids());
+  let lockPid = 0;
+  try {
+    lockPid = parseInt(fs.readFileSync(LOCK_FILE, "utf8"), 10) || 0;
+  } catch {
+    lockPid = 0;
+  }
+  if (lockPid && lockPid !== process.pid && pidIsRunning(lockPid)) pids.add(lockPid);
+  if (!pids.size) return;
+
+  for (const pid of pids) {
+    log(`Stopping previous bot instance (pid ${pid})`);
+    stopPid(pid, "SIGTERM");
+  }
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (![...pids].some((pid) => pidIsRunning(pid))) break;
+    sleepSync(250);
+  }
+  for (const pid of pids) {
+    if (!pidIsRunning(pid)) continue;
+    log(`Force-stopping previous bot instance (pid ${pid})`);
+    stopPid(pid, "SIGKILL");
+  }
+  try {
+    fs.unlinkSync(LOCK_FILE);
+  } catch {
+    // already gone
+  }
+}
+
+function acquireInstanceLock() {
+  stopOtherBotProcesses();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      lockFd = fs.openSync(LOCK_FILE, "wx");
+      fs.writeSync(lockFd, String(process.pid));
+      process.on("exit", releaseInstanceLock);
+      for (const sig of ["SIGINT", "SIGTERM"]) {
+        process.on(sig, () => {
+          releaseInstanceLock();
+          process.exit(0);
+        });
+      }
+      return;
+    } catch (err) {
+      if (err.code !== "EEXIST") throw err;
+      log("Removing leftover bot lock after stopping the previous instance");
+      try {
+        fs.unlinkSync(LOCK_FILE);
+      } catch {
+        // raced with the process we just stopped
+      }
+    }
+  }
+  throw new Error(`Could not acquire bot lock at ${LOCK_FILE}`);
+}
+
+function isGetUpdatesConflict(err) {
+  const msg = String(err?.message || "");
+  return msg.includes('"error_code":409') || msg.includes("terminated by other getUpdates");
+}
+
+function refreshRecapDatesFromDisk() {
+  try {
+    const disk = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    if (disk.lastRecapDate) state.lastRecapDate = disk.lastRecapDate;
+    if (disk.lastPersonalRecapDate) state.lastPersonalRecapDate = disk.lastPersonalRecapDate;
+  } catch {
+    // state file missing or unreadable
   }
 }
 
@@ -766,15 +901,19 @@ function withReplyThread(message, fn) {
 
 async function sendMessage(chatId, text, extra = {}) {
   if (!chatId) return false;
+  const isPrivate = Number(chatId) > 0;
+  const payload = {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...(isPrivate ? {} : replyThreadExtra),
+    ...extra,
+  };
+  // Forum thread ids are invalid in private chats and make DMs fail silently.
+  if (isPrivate) delete payload.message_thread_id;
   try {
-    await telegram("sendMessage", {
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-      ...replyThreadExtra,
-      ...extra,
-    });
+    await telegram("sendMessage", payload);
     return true;
   } catch (err) {
     log("sendMessage error:", err.message);
@@ -1912,18 +2051,24 @@ async function buildDailyRecap(dateISO) {
 
 async function maybeSendDailyRecap() {
   if (!DAILY_RECAP || !TELEGRAM_CHAT_ID) return;
+  if (!telegramPollActive) return;
+  refreshRecapDatesFromDisk();
   const today = todayISO();
   if (state.lastRecapDate === today) return;
   if (currentHHMM() < RECAP_TIME) return;
 
+  // Claim the slot before sending so a second process sharing this file skips.
+  const previous = state.lastRecapDate;
+  state.lastRecapDate = today;
+  saveState();
   try {
     const recap = await buildDailyRecap(today);
     await sendMessage(TELEGRAM_CHAT_ID, recap);
-    state.lastRecapDate = today;
-    saveState();
     log(`Daily recap sent for ${today}`);
     await maybeSendPersonalMorningBriefings(today);
   } catch (err) {
+    state.lastRecapDate = previous;
+    saveState();
     log("Daily recap error:", err.message);
   }
 }
@@ -2128,6 +2273,8 @@ function memberAsTelegramUser(member) {
 
 async function maybeSendPersonalMorningBriefings(dateISO) {
   if (!DAILY_RECAP) return;
+  if (!telegramPollActive) return;
+  refreshRecapDatesFromDisk();
   if (state.lastPersonalRecapDate === dateISO) return;
   if (currentHHMM() < RECAP_TIME) return;
 
@@ -2459,17 +2606,9 @@ async function answerFromPartnerships(question) {
   return openaiLib.answerFromData(question, snapshot);
 }
 
-// ── Member questionnaire (Community board) ───────────────────────────────────
-const QUESTIONNAIRE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+// ── Member questionnaire (Community board, DM-only, no expiry) ───────────────
 
-const ROLE_OPTIONS = ["Resident", "Volunteer", "Helper", "Guest", "Steward"];
-
-const STAGE_OPTIONS = [
-  "Residents",
-  "Long-term volunteers",
-  "Short-term helpers / guests",
-  "Onboarding",
-];
+const ROLE_OPTIONS = ["Villager", "Volunteer", "Worker", "Guest", "Manager"];
 
 const SKILLSET_OPTIONS = [
   "Building / carpentry",
@@ -2540,6 +2679,26 @@ async function ensureMembersQuestionnaireSchema() {
         multi_select: { options: multiSelectOpts(AREA_OPTIONS) },
       };
     }
+    const roleProp = existing["Role / focus"];
+    if (roleProp?.select) {
+      const existingOpts = roleProp.select.options || [];
+      const have = new Set(existingOpts.map((o) => o.name));
+      const extras = ROLE_OPTIONS.filter((n) => !have.has(n));
+      if (extras.length) {
+        toAdd["Role / focus"] = {
+          select: {
+            options: [
+              ...existingOpts.map((o) => ({
+                id: o.id,
+                name: o.name,
+                color: o.color,
+              })),
+              ...multiSelectOpts(extras),
+            ],
+          },
+        };
+      }
+    }
     if (!Object.keys(toAdd).length) {
       log("Members questionnaire schema: OK");
       return;
@@ -2556,13 +2715,24 @@ function formatChoiceList(options) {
   return options.map((opt, i) => `${i + 1}. ${escapeHtml(opt)}`).join("\n");
 }
 
+function parseChoiceNumber(token, optionsLength) {
+  const m = String(token || "").trim().match(/^(\d+)\s*[.):\-–]?\s*$/);
+  if (!m) return null;
+  const asNum = Number(m[1]);
+  if (!Number.isInteger(asNum) || asNum < 1 || asNum > optionsLength) return null;
+  return asNum;
+}
+
 function parseSingleChoice(text, options) {
   const raw = String(text || "").trim();
   if (!raw) return null;
   if (/^(skip|none|-)$/i.test(raw)) return { skip: true };
-  const asNum = Number(raw);
-  if (Number.isInteger(asNum) && asNum >= 1 && asNum <= options.length) {
-    return { value: options[asNum - 1] };
+  const numbered = raw.match(/^(\d+)\s*[.):\-–]?\s*(.*)$/);
+  if (numbered) {
+    const asNum = Number(numbered[1]);
+    if (Number.isInteger(asNum) && asNum >= 1 && asNum <= options.length) {
+      return { value: options[asNum - 1] };
+    }
   }
   const lower = raw.toLowerCase();
   const exact = options.find((o) => o.toLowerCase() === lower);
@@ -2595,8 +2765,8 @@ function parseMultiChoice(text, options) {
   } else if (main) {
     for (const token of main.split(" ")) {
       if (!token || /^other$/i.test(token)) continue;
-      const asNum = Number(token);
-      if (Number.isInteger(asNum) && asNum >= 1 && asNum <= options.length) {
+      const asNum = parseChoiceNumber(token, options.length);
+      if (asNum) {
         add(options[asNum - 1]);
         continue;
       }
@@ -2620,25 +2790,20 @@ function parseMultiChoice(text, options) {
 }
 
 function questionnairePrompt(stepId) {
+  const total = QUESTIONNAIRE_STEP_ORDER.length;
+  const n = QUESTIONNAIRE_STEP_ORDER.indexOf(stepId) + 1;
+  const progress = n > 0 ? `${n}/${total}` : "";
   if (stepId === "role") {
     return (
-      `<b>Community questionnaire</b> (1/6)\n` +
+      `<b>Community questionnaire</b> (${progress})\n` +
       `What’s your <b>role</b> here?\n` +
       formatChoiceList(ROLE_OPTIONS) +
       `\n\nReply with a number (or <i>skip</i>).`
     );
   }
-  if (stepId === "stage") {
-    return (
-      `<b>Community questionnaire</b> (2/6)\n` +
-      `How are you here?\n` +
-      formatChoiceList(STAGE_OPTIONS) +
-      `\n\nReply with a number (or <i>skip</i>).`
-    );
-  }
   if (stepId === "skills") {
     return (
-      `<b>Community questionnaire</b> (3/6)\n` +
+      `<b>Community questionnaire</b> (${progress})\n` +
       `What <b>skillsets</b> can you share? Pick several.\n` +
       formatChoiceList(SKILLSET_OPTIONS) +
       `\n\nReply with numbers, e.g. <code>1 3 5</code>\n` +
@@ -2648,7 +2813,7 @@ function questionnairePrompt(stepId) {
   }
   if (stepId === "areas") {
     return (
-      `<b>Community questionnaire</b> (4/6)\n` +
+      `<b>Community questionnaire</b> (${progress})\n` +
       `Which <b>areas</b> can you help with? Pick several.\n` +
       formatChoiceList(AREA_OPTIONS) +
       `\n\nReply with numbers, e.g. <code>2 7 9</code>, or <i>skip</i>.`
@@ -2656,14 +2821,14 @@ function questionnairePrompt(stepId) {
   }
   if (stepId === "bio") {
     return (
-      `<b>Community questionnaire</b> (5/6)\n` +
+      `<b>Community questionnaire</b> (${progress})\n` +
       `Write a short <b>bio</b> for the Community board — who you are, what you care about.\n` +
       `Or <i>skip</i>.`
     );
   }
   if (stepId === "contact") {
     return (
-      `<b>Community questionnaire</b> (6/6)\n` +
+      `<b>Community questionnaire</b> (${progress})\n` +
       `Phone or other contact (optional — only visible on the Members board).\n` +
       `Or <i>skip</i> / <i>done</i>.`
     );
@@ -2673,15 +2838,59 @@ function questionnairePrompt(stepId) {
 
 const QUESTIONNAIRE_STEP_ORDER = [
   "role",
-  "stage",
   "skills",
   "areas",
   "bio",
   "contact",
 ];
 
-function questionnaireStateKey(chatId, fromId) {
-  return `${chatId}:${fromId}`;
+function normalizePendingQuestionnaires(bag) {
+  const next = {};
+  for (const [key, pending] of Object.entries(bag || {})) {
+    if (!pending) continue;
+    const uid = String(pending.fromId || String(key).split(":").pop());
+    if (!uid) continue;
+    if (pending.step === "stage") pending.step = "skills";
+    const prev = next[uid];
+    if (!prev || (pending.ts || 0) >= (prev.ts || 0)) next[uid] = pending;
+  }
+  return next;
+}
+
+function botUsername() {
+  return botMe?.username || "vila_akoya_bot";
+}
+
+function questionnaireUserKey(fromId) {
+  return String(fromId);
+}
+
+function findQuestionnaire(fromId) {
+  const uid = questionnaireUserKey(fromId);
+  const bag = state.pendingQuestionnaire || {};
+  let found = null;
+  if (bag[uid]) found = { key: uid, pending: bag[uid] };
+  else {
+    for (const [key, pending] of Object.entries(bag)) {
+      if (String(pending?.fromId) === uid || key === `${uid}:${uid}` || key.endsWith(`:${uid}`)) {
+        found = { key, pending };
+        break;
+      }
+    }
+  }
+  if (found?.pending?.step === "stage") found.pending.step = "skills";
+  return found || { key: uid, pending: null };
+}
+
+function looksLikeQuestionnaireReply(text, pending) {
+  const step = pending?.step;
+  const raw = String(text || "").trim();
+  if (!raw) return false;
+  if (/^(skip|none|-|done|all|cancel|stop|abort)$/i.test(raw)) return true;
+  if (step === "role" || step === "skills" || step === "areas") {
+    return /^\d/.test(raw);
+  }
+  return false;
 }
 
 function clearQuestionnaire(key) {
@@ -2698,7 +2907,7 @@ async function startQuestionnaire({ from, chatId, pageId, displayName }) {
     if (!page) {
       await sendMessage(
         chatId,
-        "Register first with /register Your Full Name, then I’ll send the questionnaire."
+        "Register first with /register Your Full Name, then I’ll send the questionnaire by DM."
       );
       return false;
     }
@@ -2710,6 +2919,7 @@ async function startQuestionnaire({ from, chatId, pageId, displayName }) {
   }
 
   const name = displayName || senderDisplayName(from);
+  const uid = questionnaireUserKey(from.id);
   const session = {
     pageId,
     displayName: name,
@@ -2720,27 +2930,35 @@ async function startQuestionnaire({ from, chatId, pageId, displayName }) {
   };
   const intro =
     `Great — a few quick questions so your profile shows on the <b>Community</b> board.\n` +
-    `You can say <i>cancel</i> anytime, or run /questionnaire later to update.\n\n` +
+    `Reply here with a number (or <i>skip</i>). You can take your time — even a week later is fine.\n` +
+    `Say <i>cancel</i> anytime, or run /questionnaire later to update.\n\n` +
     questionnairePrompt("role");
 
-  // Prefer DM so the group isn’t filled with Q&A.
-  if (String(chatId) !== String(from.id)) {
-    const dmOk = await sendMessage(from.id, intro);
-    if (dmOk) {
-      state.pendingQuestionnaire[questionnaireStateKey(from.id, from.id)] = session;
-      saveState();
+  // Always persist against the user id so a later DM still matches.
+  state.pendingQuestionnaire[uid] = session;
+  saveState();
+
+  const inGroup = String(chatId) !== String(from.id);
+  const dmOk = await sendMessage(from.id, intro);
+
+  if (dmOk) {
+    if (inGroup) {
       await sendMessage(
         chatId,
-        `I sent you a DM with the Community questionnaire. ` +
-          `(If you don’t see it, open a chat with the bot and run /questionnaire.)`
+        `I sent you a DM with the Community questionnaire — answer there (just a number is enough).\n` +
+          `If you don’t see it, open @${botUsername()} and tap <b>Start</b>.`
       );
-      return true;
     }
+    return true;
   }
 
-  state.pendingQuestionnaire[questionnaireStateKey(chatId, from.id)] = session;
-  saveState();
-  await sendMessage(chatId, intro);
+  if (inGroup) {
+    await sendMessage(
+      chatId,
+      `I couldn’t message you privately yet (Telegram only allows DMs after you start the bot).\n` +
+        `Open @${botUsername()}, tap <b>Start</b>, and I’ll send the questions there.`
+    );
+  }
   return true;
 }
 
@@ -2748,7 +2966,6 @@ function buildMemberProfileSummary(answers, displayName) {
   const lines = [];
   if (displayName) lines.push(displayName);
   if (answers.role) lines.push(`Role: ${answers.role}`);
-  if (answers.stage) lines.push(`Here as: ${answers.stage}`);
   const skills = [...(answers.skillsets || [])];
   if (answers.skillsOther) skills.push(answers.skillsOther);
   if (skills.length) lines.push(`Skills: ${skills.join(", ")}`);
@@ -2769,7 +2986,6 @@ async function saveQuestionnaireAnswers({ pageId, displayName, answers }) {
     Profile: profile,
   };
   if (answers.role) properties["Role / focus"] = answers.role;
-  if (answers.stage) properties.Stage = answers.stage;
   if (skillsets.length) properties.Skillsets = skillsets;
   if (skillsText) properties.Skills = skillsText;
   if (areas.length) {
@@ -2785,24 +3001,48 @@ async function saveQuestionnaireAnswers({ pageId, displayName, answers }) {
 async function handlePendingQuestionnaire(message) {
   const chatId = message.chat.id;
   const fromId = message.from?.id;
-  const key = questionnaireStateKey(chatId, fromId);
-  const pending = state.pendingQuestionnaire?.[key];
+  if (!fromId) return false;
+
+  const found = findQuestionnaire(fromId);
+  const pending = found.pending;
   if (!pending) return false;
-  if (Date.now() - pending.ts > QUESTIONNAIRE_TIMEOUT_MS) {
-    clearQuestionnaire(key);
+
+  const uid = questionnaireUserKey(fromId);
+  if (found.key !== uid) {
+    state.pendingQuestionnaire[uid] = pending;
+    delete state.pendingQuestionnaire[found.key];
+    saveState();
+  }
+
+  const isPrivate = message.chat?.type === "private";
+  const text = (message.text || message.caption || "").trim();
+  if (!text || text.startsWith("/")) return false;
+
+  if (!isPrivate) {
+    if (isAddressedToBot(message, botMe) && looksLikeQuestionnaireReply(text, pending)) {
+      await sendMessage(
+        chatId,
+        "Please answer in our private chat — I’ll send the current question there."
+      );
+      await sendMessage(fromId, questionnairePrompt(pending.step));
+      return true;
+    }
     return false;
   }
 
-  const text = (message.text || "").trim();
-  if (!text) return false;
-  if (text.startsWith("/")) return false;
-
   if (/^(cancel|stop|abort)$/i.test(text)) {
-    clearQuestionnaire(key);
+    clearQuestionnaire(uid);
     await sendMessage(
       chatId,
       "Questionnaire cancelled. Run /questionnaire whenever you’re ready."
     );
+    return true;
+  }
+
+  if (pending.step === "stage") {
+    pending.step = "skills";
+    saveState();
+    await sendMessage(chatId, questionnairePrompt("skills"));
     return true;
   }
 
@@ -2820,16 +3060,7 @@ async function handlePendingQuestionnaire(message) {
       return true;
     }
     if (!parsed.skip) answers.role = parsed.value;
-  } else if (step === "stage") {
-    const parsed = parseSingleChoice(text, STAGE_OPTIONS);
-    if (!parsed) {
-      await sendMessage(
-        chatId,
-        `Please reply with a number 1–${STAGE_OPTIONS.length}, or <i>skip</i>.`
-      );
-      return true;
-    }
-    if (!parsed.skip) answers.stage = parsed.value;
+    log(`Questionnaire role from ${fromId}: ${answers.role || "skip"}`);
   } else if (step === "skills") {
     const parsed = parseMultiChoice(text, SKILLSET_OPTIONS);
     if (!parsed) {
@@ -2858,7 +3089,7 @@ async function handlePendingQuestionnaire(message) {
   } else if (step === "contact") {
     if (!/^(skip|none|-|done)$/i.test(text)) answers.contact = text;
   } else {
-    clearQuestionnaire(key);
+    clearQuestionnaire(uid);
     return false;
   }
 
@@ -2879,7 +3110,7 @@ async function handlePendingQuestionnaire(message) {
       displayName: pending.displayName,
       answers,
     });
-    clearQuestionnaire(key);
+    clearQuestionnaire(uid);
     await sendMessage(
       chatId,
       `✅ Saved to the <b>Community</b> Members board` +
@@ -2968,8 +3199,8 @@ const HELP_TEXT = [
   "<b>Commands</b>",
   "/task &lt;text&gt; — add a task",
   "/ask &lt;question&gt; — search our documentation",
-  "/register &lt;your name&gt; — link Telegram to Members + start Community questionnaire",
-  "/questionnaire — fill or update your Community profile (skills, bio, areas)",
+  "/register &lt;your name&gt; — link Telegram to Members; questionnaire arrives by DM",
+  "/questionnaire — fill or update your Community profile (sent privately)",
   "/mytasks — duties due today + open tasks assigned to you",
   "/done &lt;item id&gt; — mark a task done, or log a duty done (schedules next due)",
   "/whoami — show your Telegram details",
@@ -2992,7 +3223,7 @@ async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
     const classified = await openaiLib.classifyGroupMessage(payload, todayISO());
     log(
       `AI classify: action=${classified.action} event=${classified.is_event} ` +
-        `task=${classified.is_task} question=${classified.is_question} ` +
+        `task=${classified.is_task} tasks=${classified.tasks?.length || 0} question=${classified.is_question} ` +
         `schedule_range=${classified.schedule_range || "-"} conf=${classified.confidence}`
     );
     return mergeCompletionIntent(classified, cleanText, chatId);
@@ -3119,40 +3350,66 @@ async function captureAmbientDocumentation({ text, from, chatId, interactive }) 
 }
 
 async function captureAmbientTask({ classified, text, from, chatId, photoFileId }) {
-  const task = classified?.task;
-  const title = task?.title || text || "(photo)";
-  const key = ambientDedupeKey(chatId, "task", `${classified.action}:${title}`);
-  if (wasRecentlyCaptured(key)) return true;
-  try {
-    const { url, boardName, project } = await createTaskFromClassification({
-      classified,
-      text,
-      from,
-      chatId,
-      photoFileId,
-    });
-    markCaptured(key);
-    const activityKind =
-      classified.action === "guest_issue" ? "guest_logged" : "task_logged";
-    recordChatActivity({
-      kind: activityKind,
-      from,
-      chatId,
-      title,
-      text,
-    });
-    const icon = classified.action === "guest_issue" ? "🏕️" : "📋";
-    let reply = `${icon} Logged: <b>${escapeHtml(title)}</b>`;
-    if (project?.name) reply += ` → project <b>${escapeHtml(project.name)}</b>`;
-    else if (boardName) reply += ` (${escapeHtml(boardName)})`;
-    if (url) reply += ` — <a href="${url}">Notion</a>`;
-    await sendMessage(chatId, reply);
-    log(`Task captured (${classified.action}): ${title}`);
-    return true;
-  } catch (err) {
-    log("createTaskFromClassification error:", err.message);
-    return false;
+  const tasks =
+    Array.isArray(classified?.tasks) && classified.tasks.length
+      ? classified.tasks
+      : classified?.task
+        ? [classified.task]
+        : [{ title: text || "(photo)" }];
+
+  const created = [];
+  const activityKind =
+    classified.action === "guest_issue" ? "guest_logged" : "task_logged";
+  const icon = classified.action === "guest_issue" ? "🏕️" : "📋";
+
+  for (const task of tasks) {
+    const title = task?.title || text || "(photo)";
+    const key = ambientDedupeKey(chatId, "task", `${classified.action}:${title}`);
+    if (wasRecentlyCaptured(key)) continue;
+    try {
+      const { url, boardName, project } = await createTaskFromClassification({
+        classified: { ...classified, task },
+        text,
+        from,
+        chatId,
+        photoFileId: created.length === 0 ? photoFileId : null,
+      });
+      markCaptured(key);
+      recordChatActivity({
+        kind: activityKind,
+        from,
+        chatId,
+        title,
+        text,
+      });
+      created.push({ title, url, boardName, project, assignee: task?.assignee || null });
+      log(`Task captured (${classified.action}): ${title}`);
+    } catch (err) {
+      log("createTaskFromClassification error:", err.message);
+    }
   }
+
+  if (!created.length) return false;
+
+  if (created.length === 1) {
+    const one = created[0];
+    let reply = `${icon} Logged: <b>${escapeHtml(one.title)}</b>`;
+    if (one.assignee) reply += ` → ${escapeHtml(one.assignee)}`;
+    if (one.project?.name) reply += ` → project <b>${escapeHtml(one.project.name)}</b>`;
+    else if (one.boardName) reply += ` (${escapeHtml(one.boardName)})`;
+    if (one.url) reply += ` — <a href="${one.url}">Notion</a>`;
+    await sendMessage(chatId, reply);
+  } else {
+    const lines = created.map((one) => {
+      let line = `• <b>${escapeHtml(one.title)}</b>`;
+      if (one.assignee) line += ` → ${escapeHtml(one.assignee)}`;
+      if (one.project?.name) line += ` (${escapeHtml(one.project.name)})`;
+      if (one.url) line += ` — <a href="${one.url}">Notion</a>`;
+      return line;
+    });
+    await sendMessage(chatId, `${icon} Logged ${created.length} tasks:\n${lines.join("\n")}`);
+  }
+  return true;
 }
 
 /** Single AI-driven router for both @bot messages and ambient group messages. */
@@ -3386,7 +3643,15 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     (c.action === "guest_issue" && c.task && conf >= AMBIENT_MIN_CONFIDENCE) ||
     photoFileId
   ) {
-    if (interactive && c.task && (!c.task.type || !c.task.priority)) {
+    const taskList =
+      Array.isArray(c.tasks) && c.tasks.length ? c.tasks : c.task ? [c.task] : [];
+    // Only clarify type/priority for a single incomplete task — batch voice dumps skip this.
+    if (
+      interactive &&
+      taskList.length === 1 &&
+      c.task &&
+      (!c.task.type || !c.task.priority)
+    ) {
       const key = `${chatId}:${from.id}`;
       state.pendingClarify[key] = {
         kind: "task_type_priority",
@@ -3513,6 +3778,18 @@ async function handleMessageInner(message) {
   const args = rest.join(" ").trim();
 
   if (isCommand && (cmd === "/start" || cmd === "/help")) {
+    if (cmd === "/start" && message.chat?.type === "private") {
+      const { pending } = findQuestionnaire(from.id);
+      if (pending) {
+        await sendMessage(
+          chatId,
+          `Welcome — let’s continue your Community questionnaire.\n` +
+            `Reply with a number (or <i>skip</i>).\n\n` +
+            questionnairePrompt(pending.step)
+        );
+        return;
+      }
+    }
     await sendMessage(chatId, HELP_TEXT);
     return;
   }
@@ -3572,9 +3849,9 @@ async function handleMessageInner(message) {
   }
 
   if (isCommand && cmd === "/cancel") {
-    const qKey = questionnaireStateKey(chatId, from.id);
-    if (state.pendingQuestionnaire?.[qKey]) {
-      clearQuestionnaire(qKey);
+    const { key, pending } = findQuestionnaire(from.id);
+    if (pending) {
+      clearQuestionnaire(key);
       await sendMessage(
         chatId,
         "Questionnaire cancelled. Run /questionnaire whenever you’re ready."
@@ -3844,6 +4121,20 @@ async function pollTelegramOnce() {
       { clientTimeoutMs: 45000 }
     );
   } catch (err) {
+    if (isGetUpdatesConflict(err)) {
+      telegramPollActive = false;
+      pollConflictStreak += 1;
+      if (pollConflictStreak === 1 || pollConflictStreak % 20 === 0) {
+        log(
+          "getUpdates conflict: another bot instance is polling this token. " +
+            "This process will not send recaps or Notion announcements until it is the only poller. " +
+            "Stop the other instance to fix duplicate messages."
+        );
+      }
+      await sleep(5000);
+      return;
+    }
+    telegramPollActive = false;
     if (isTransientNetworkError(err)) {
       logTransientError("getUpdates", err, networkState.retryMs);
       await sleep(networkState.retryMs);
@@ -3853,6 +4144,9 @@ async function pollTelegramOnce() {
     }
     return;
   }
+
+  telegramPollActive = true;
+  pollConflictStreak = 0;
 
   for (const update of updates) {
     state.telegramOffset = update.update_id + 1;
@@ -3930,6 +4224,7 @@ async function main() {
   if (!TELEGRAM_BOT_TOKEN) {
     throw new Error("Missing TELEGRAM_BOT_TOKEN env variable.");
   }
+  acquireInstanceLock();
   notion.assertKey();
 
   const me = await telegram("getMe");
@@ -3986,7 +4281,11 @@ async function main() {
     await maybeSendDailyRecap();
 
     const now = Date.now();
-    if (TELEGRAM_CHAT_ID && now - lastNotionPoll >= NOTION_POLL_SECONDS * 1000) {
+    if (
+      TELEGRAM_CHAT_ID &&
+      telegramPollActive &&
+      now - lastNotionPoll >= NOTION_POLL_SECONDS * 1000
+    ) {
       lastNotionPoll = now;
       try {
         await scanBoardsForChanges({ announce: true });

@@ -22,6 +22,7 @@ wp-content/debug.log
 
 # Telegram bot local state + docs index
 scripts/.vila-akoya-telegram-state.json
+scripts/.vila-akoya-telegram-state.json.lock
 scripts/.vila-akoya-notion.json
 scripts/lib/.vila-akoya-docs-index.json
 scripts/.vila-akoya-docs-index.json

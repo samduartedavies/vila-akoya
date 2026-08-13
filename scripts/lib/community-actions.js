@@ -1,6 +1,7 @@
 /**
  * Community message actions and Notion routing for Vila Akoya.
- * The AI picks ONE action per message; the bot executes it on Notion when applicable.
+ * The AI picks ONE primary action per message; the bot executes it on Notion when applicable.
+ * Exception: create_task / guest_issue may return multiple tasks in one message.
  */
 
 "use strict";
@@ -230,7 +231,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "Any @bot question about how something works, what something uses, or village/campsite procedures → question_doc + doc_lookup=true.",
     "If question mentions discount/partner/affiliate → question_doc (will also check Partnerships DB).",
     "",
-    "Pick ONE primary action:",
+    "Pick ONE primary action (except create_task/guest_issue may list several tasks):",
     "",
     "── Questions (answer only, do NOT create Notion items) ──",
     "- question_doc: how systems work, procedures, what equipment uses (water, wifi, compost, electric, etc.)",
@@ -262,7 +263,13 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "    All tasks go to the Tasks database (no separate maintenance/guest DBs).",
     '    If the task belongs to a project, set task.project to the project name (e.g. "swimming pool", "shaded seating").',
     '    Examples: "add a task to the pool project — buy tiles", "for the seating project we need to order wood".',
+    "    MULTIPLE TASKS: if the speaker lists several jobs (often a voice note: “assign X to A, Y to B…”),",
+    "    set action=create_task and return ALL of them in tasks[] — one object per job with its own title/assignee/type/priority/project.",
+    "    Also set task to the first item (compat). Never drop later tasks; do not collapse them into one title.",
+    '    Example: "assign Sammy create solar eclipse event, Moon order tiles, Lore fix tap" →',
+    '      tasks: [{title, assignee:"Sammy"}, {title, assignee:"Moon"}, {title, assignee:"Lore"}]',
     "- guest_issue: camper/visitor/guest-facing (shower, pitch, booking, facilities) — also goes to Tasks with area noted",
+    "    Same multi-task rule: use tasks[] when several guest issues are listed.",
     "- complete_task: reports a job is DONE or fixed — populate target.title",
     '    EN: "mark the wifi task done", "changing the Wi-Fi is done", "you can mark that as done",',
     '         "I\'ve done that — please mark it complete", "the leak is fixed"',
@@ -303,6 +310,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "schedule_range": "today" | "this_week" | "next_week" | "two_weeks",',
     '  "doc_lookup": bool,',
     '  "task": { "title", "type", "priority", "assignee", "project" } | null,',
+    '  "tasks": [ { "title", "type", "priority", "assignee", "project" } ] | null,',
     '  "event": { "title", "date", "event_type", "scope", "recurrence" } | null,',
     '  "target": { "title", "item_id" } | null,',
     '  "decision": { "title", "category", "summary" } | null,',
@@ -318,7 +326,22 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "For question_schedule set schedule_lookup=true; never populate event for lookups.",
     "For question_doc set doc_lookup=true.",
     "task.type: Villager = village work anyone can pitch in; Management = needs a professional or arranging.",
-    "Tasks store: title, type, priority (Low/Average/High), assignee, created by, status, notes, optional project link.",  ].join("\n");
+    "Tasks store: title, type, priority (Low/Average/High), assignee, created by, status, notes, optional project link.",
+    "When logging more than one task, tasks[] is required (every job) and task should equal tasks[0].",
+  ].join("\n");
+}
+
+function normalizeTaskFields(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const title = String(raw.title || "").trim().slice(0, 80);
+  if (!title) return null;
+  return {
+    title,
+    type: TASK_TYPES.includes(raw.type) ? raw.type : null,
+    priority: TASK_PRIORITIES.includes(raw.priority) ? raw.priority : null,
+    assignee: raw.assignee ? String(raw.assignee).slice(0, 80) : null,
+    project: raw.project ? String(raw.project).slice(0, 120) : null,
+  };
 }
 
 function parseClassification(result, { areas, eventTypes, priorities }) {
@@ -353,22 +376,23 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     action = "question_my_day";
   }
 
-  const task =
-    result.task && ["create_task", "guest_issue"].includes(action)
-      ? {
-          title: String(result.task.title || "").slice(0, 80),
-          type: TASK_TYPES.includes(result.task.type) ? result.task.type : null,
-          priority: TASK_PRIORITIES.includes(result.task.priority)
-            ? result.task.priority
-            : null,
-          assignee: result.task.assignee
-            ? String(result.task.assignee).slice(0, 80)
-            : null,
-          project: result.task.project
-            ? String(result.task.project).slice(0, 120)
-            : null,
-        }
-      : null;
+  let tasks = [];
+  if (["create_task", "guest_issue"].includes(action)) {
+    const fromArray = Array.isArray(result.tasks)
+      ? result.tasks.map(normalizeTaskFields).filter(Boolean)
+      : [];
+    const single = normalizeTaskFields(result.task);
+    if (fromArray.length) {
+      tasks = fromArray;
+      // Ensure single task is included if model put it only in `task`
+      if (single && !tasks.some((t) => t.title.toLowerCase() === single.title.toLowerCase())) {
+        tasks.unshift(single);
+      }
+    } else if (single) {
+      tasks = [single];
+    }
+  }
+  const task = tasks[0] || null;
 
   const eventRaw = result.event || (action === "create_event" ? result.proposal : null);
   let event = null;
@@ -485,6 +509,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     schedule_range: scheduleRange,
     schedule_days: scheduleDays > 0 && scheduleDays <= 30 ? Math.round(scheduleDays) : null,
     task,
+    tasks,
     event,
     target,
     decision,
