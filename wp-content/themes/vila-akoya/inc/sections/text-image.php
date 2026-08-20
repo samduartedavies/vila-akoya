@@ -121,7 +121,7 @@ if ( 'home' === $layout ) {
 	$image_wrap    = 'relative z-10 aspect-square rounded-full border-[1.5rem] border-surface-container-high overflow-hidden';
 	$image_class   = 'wp-block-image size-large vila-img-fill';
 } else {
-	$section_class = 'wp-block-group max-w-[1236px] mx-auto box-border px-8 mb-32 md:mb-40';
+	$section_class = 'vila-text-image-plain wp-block-group max-w-[1236px] mx-auto box-border px-8 pt-24 md:pt-32 mb-32 md:mb-40';
 	$inner_open    = '';
 	$inner_close   = '';
 	$image_class   = 'wp-block-image size-large vila-img-fill rounded-xl overflow-hidden editorial-shadow aspect-[4/5] md:aspect-auto md:min-h-[28rem]';

@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.49' );
+define( 'VILA_AKOYA_VERSION', '1.0.62' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
@@ -81,6 +81,21 @@ function vila_akoya_setup() {
 add_action( 'after_setup_theme', 'vila_akoya_setup' );
 
 /**
+ * Cache-busting query string for a theme file (version + mtime).
+ *
+ * @param string $relative_path Path under the theme directory, e.g. '/assets/js/booking-ui.js'.
+ * @return string
+ */
+function vila_akoya_asset_version( $relative_path ) {
+	$ver  = defined( 'VILA_AKOYA_VERSION' ) ? VILA_AKOYA_VERSION : '1.0.0';
+	$path = VILA_AKOYA_DIR . $relative_path;
+	if ( is_readable( $path ) ) {
+		$ver .= '.' . (string) filemtime( $path );
+	}
+	return $ver;
+}
+
+/**
  * Enqueue front-end assets.
  */
 function vila_akoya_enqueue_assets() {
@@ -113,7 +128,7 @@ function vila_akoya_enqueue_assets() {
 		'vila-akoya-theme',
 		VILA_AKOYA_URI . '/assets/css/theme.css',
 		$theme_deps,
-		VILA_AKOYA_VERSION
+		vila_akoya_asset_version( '/assets/css/theme.css' )
 	);
 	wp_enqueue_script(
 		'vila-akoya-site-nav',

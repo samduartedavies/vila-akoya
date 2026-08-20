@@ -247,7 +247,6 @@ function vila_akoya_seed_nav_menus( array $page_ids ) {
 	$header_items = array(
 		array( 'slug' => 'village', 'label' => 'The Village' ),
 		array( 'slug' => 'campsite', 'label' => 'The Campsite' ),
-		array( 'slug' => 'booking', 'label' => 'Join us' ),
 		array( 'slug' => 'campus', 'label' => 'The Campus' ),
 		array( 'type' => 'custom', 'slug' => 'events', 'label' => 'Events' ),
 		array( 'slug' => 'the-kids', 'label' => 'The Kids' ),
@@ -256,6 +255,7 @@ function vila_akoya_seed_nav_menus( array $page_ids ) {
 	);
 
 	$footer_items = $header_items;
+	array_splice( $footer_items, 2, 0, array( array( 'slug' => 'booking', 'label' => 'Join us' ) ) );
 	$footer_items[] = array( 'slug' => 'blog', 'label' => 'Blog' );
 
 	$header_menu_id = vila_akoya_ensure_nav_menu( 'Vila Akoya Header', 'header', $header_items, $page_ids );

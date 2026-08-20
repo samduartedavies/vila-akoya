@@ -12,7 +12,7 @@
  *     All group messages + voice transcriptions are still buffered for context.
  *   - In private DMs: always on, no tag needed.
  *   - Voice notes are transcribed; documentation dumps become structured Notion pages.
- *   - AI classification routes to Notion actions: tasks, events (internal/external),
+ *   - AI classification routes to Notion actions: tasks, recurring duties, events (internal/external),
  *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs.
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (events,
  *     campsite, meals, highlights); personal duties + tasks go by DM to registered members.
@@ -74,6 +74,7 @@ const {
   isDutyDueOn,
   appendCompletionLog,
   nameMatchesPerson,
+  staggeredWeeklyDueDate,
 } = require("./lib/duty-schedule");
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -111,6 +112,8 @@ const LOG_DOC_GAPS = process.env.LOG_DOC_GAPS === "true";
 const DAILY_RECAP = process.env.DAILY_RECAP !== "false";
 const RECAP_TIME = process.env.RECAP_TIME || "08:00";
 const RECAP_TZ = process.env.RECAP_TZ || "Europe/Lisbon";
+const SITE_URL = String(process.env.WP_SITE_URL || "https://vila-akoya.com").replace(/\/$/, "");
+const DINNER_BOOKING_URL = `${SITE_URL}/book-meals/`;
 const EVENT_CAPTURE_GROUP = process.env.EVENT_CAPTURE_GROUP || "Upcoming";
 const EVENT_RECURRING_GROUP = process.env.EVENT_RECURRING_GROUP || "Recurring";
 const ADDRESS_WINDOW_MS = Number(process.env.ADDRESS_WINDOW_MS || 120000);
@@ -139,6 +142,7 @@ const DONE_KEYWORDS = ["done", "logged", "decided", "past", "completed"];
 const RECAP_IMPORTANT_KINDS = new Set([
   "event_logged",
   "task_logged",
+  "duty_logged",
   "guest_logged",
   "task_completed",
   "event_cancelled",
@@ -157,9 +161,22 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const networkState = { retryMs: 3000, lastErrorLog: 0 };
+const networkState = { retryMs: 3000, lastErrorLog: 0, lastPollTimeoutLog: 0 };
+
+function isAbortTimeoutError(err) {
+  const name = String(err?.name || "");
+  const msg = String(err?.message || "").toLowerCase();
+  return (
+    name === "TimeoutError" ||
+    name === "AbortError" ||
+    msg.includes("aborted due to timeout") ||
+    msg.includes("the operation was aborted") ||
+    msg.includes("aborterror")
+  );
+}
 
 function isTransientNetworkError(err) {
+  if (isAbortTimeoutError(err)) return true;
   const msg = String(err?.message || "").toLowerCase();
   const code = String(err?.code || err?.cause?.code || "").toLowerCase();
   return (
@@ -200,6 +217,8 @@ async function fetchWithRetry(url, init, { label = "fetch", attempts = 6 } = {})
       return res;
     } catch (err) {
       if (!isTransientNetworkError(err) || attempt === attempts) throw err;
+      // Long-poll client aborts are normal — don't exponential-backoff them.
+      if (isAbortTimeoutError(err)) throw err;
       networkState.retryMs = Math.min(delay, 120000);
       logTransientError(label, err, networkState.retryMs);
       await sleep(networkState.retryMs);
@@ -312,6 +331,48 @@ function dayKeyFromISO(iso, tz = RECAP_TZ) {
   }).format(new Date(iso + "T12:00:00"));
   const map = { Sun: "Sun", Mon: "Mon", Tue: "Tue", Wed: "Wed", Thu: "Thu", Fri: "Fri", Sat: "Sat" };
   return map[short] || "Mon";
+}
+
+function isWeekdayDinnerDay(dateISO, meals) {
+  if (meals?.isWeekday === false) return false;
+  if (meals?.isWeekday === true) return true;
+  const day = dayKeyFromISO(dateISO);
+  return day !== "Sat" && day !== "Sun";
+}
+
+function dinnerBookingReminderLine() {
+  return `\n\nWant dinner tonight? <a href="${DINNER_BOOKING_URL}">Book it on the website</a>.`;
+}
+
+function looksLikeDinnerBookingRequest(text) {
+  const t = String(text || "").toLowerCase();
+  if (
+    /\b(how many|quantos|numbers?|headcount|who(?:'s| is) cooking)\b/.test(t) &&
+    /\b(dinner|jantar)\b/.test(t)
+  ) {
+    return false;
+  }
+  return (
+    /\b(?:want|like|need|book|sign\s*(?:me\s*)?up|count\s*me\s*in|i'?ll\s*have|can\s*i\s*have|gostaria|quero)\b.*\b(?:dinner|jantar)\b/.test(
+      t
+    ) ||
+    /\b(?:dinner|jantar)\b.*\b(?:tonight|today|this evening|esta noite|hoje|amanh[aã])\b/.test(t) ||
+    /\bbook\s+(?:my\s+)?(?:the\s+)?(?:weekday\s+)?dinner\b/.test(t) ||
+    /\b(?:reservar|marcar)\b.*\b(?:jantar|dinner)\b/.test(t)
+  );
+}
+
+async function replyWithDinnerBookingLink(chatId, dateISO) {
+  let meals = null;
+  try {
+    meals = await fetchCampsiteMealsForDay(dateISO);
+  } catch {
+    // Notion meals row optional — fall back to weekday from date.
+  }
+  const text = isWeekdayDinnerDay(dateISO, meals)
+    ? `Want dinner tonight? <a href="${DINNER_BOOKING_URL}">Book it on the website</a>.`
+    : `There's no communal dinner at weekends. Weekday dinners (Mon–Fri) can be booked at <a href="${DINNER_BOOKING_URL}">book-meals</a>.`;
+  await sendMessage(chatId, text);
 }
 
 function bufferMessage(message) {
@@ -865,7 +926,7 @@ function markPageSeen(pageId, snapshot) {
 }
 
 // ── Telegram client ─────────────────────────────────────────────────────────
-async function telegram(method, payload, { clientTimeoutMs } = {}) {
+async function telegram(method, payload, { clientTimeoutMs, attempts = 4 } = {}) {
   const init = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -876,7 +937,7 @@ async function telegram(method, payload, { clientTimeoutMs } = {}) {
   }
   const res = await fetchWithRetry(`${TELEGRAM_API}/${method}`, init, {
     label: `Telegram ${method}`,
-    attempts: 4,
+    attempts,
   });
   const json = await readJsonResponse(res, `Telegram ${method}`);
   if (!json.ok) {
@@ -1206,6 +1267,158 @@ async function createTaskFromClassification({ classified, text, from, chatId, ph
   }
 
   return { ...created, project };
+}
+
+async function findJobByTitle(title) {
+  const q = String(title || "").trim();
+  if (!q) return null;
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(JOBS_DB_NAME));
+  } catch {
+    return null;
+  }
+  const exact = pages.find((p) => notion.pageTitle(p).toLowerCase() === q.toLowerCase());
+  if (exact) return exact;
+  return pages.find((p) => titleMatches(q, notion.pageTitle(p))) || null;
+}
+
+async function findJobByAssignee(assignee) {
+  const q = String(assignee || "").trim();
+  if (!q) return null;
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(JOBS_DB_NAME));
+  } catch {
+    return null;
+  }
+  return (
+    pages.find((p) => {
+      if (notion.pagePropText(p, "Status") === "Archived") return false;
+      const stored = notion.pagePropText(p, "Assignee");
+      return stored && titleMatches(q, stored);
+    }) || null
+  );
+}
+
+async function findExistingRecurringDuty({ jobId, title }) {
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(RECURRING_DB_NAME));
+  } catch {
+    return null;
+  }
+  const needle = String(title || "").toLowerCase();
+  return (
+    pages.find((p) => {
+      if (notion.pageTitle(p).toLowerCase() !== needle) return false;
+      const rel = p.properties?.Job?.relation || [];
+      if (!jobId) return !rel.length;
+      return rel.some((r) => r.id === jobId);
+    }) || null
+  );
+}
+
+async function findOrCreateJobForDuty({ jobName, assignee, dutyTitle }) {
+  let job = jobName ? await findJobByTitle(jobName) : null;
+  if (!job && assignee) job = await findJobByAssignee(assignee);
+
+  if (!job) {
+    const name = jobName || dutyTitle || "Village duty";
+    job = await notion.createPage({
+      databaseName: JOBS_DB_NAME,
+      title: String(name).slice(0, 200),
+      properties: {
+        Status: "Active",
+        ...(assignee ? { Assignee: assignee } : {}),
+      },
+    });
+    return job;
+  }
+
+  if (assignee) {
+    const current = notion.pagePropText(job, "Assignee");
+    if (!current || !titleMatches(assignee, current)) {
+      await notion.updatePageProps(JOBS_DB_NAME, job.id, { Assignee: assignee });
+    }
+  }
+  return job;
+}
+
+async function createRecurringDutyFromClassification({
+  classified,
+  text,
+  from,
+  chatId,
+  nextDueDate,
+}) {
+  const duty = classified.recurring_duty;
+  const frequency = duty.frequency || "Daily";
+  const dueDate = nextDueDate || todayISO();
+
+  const job = await findOrCreateJobForDuty({
+    jobName: duty.job,
+    assignee: duty.assignee,
+    dutyTitle: duty.title,
+  });
+  const jobId = job.id;
+
+  const existing = await findExistingRecurringDuty({ jobId, title: duty.title });
+  if (existing) {
+    await notion.updatePageProps(RECURRING_DB_NAME, existing.id, {
+      Frequency: frequency,
+      Status: "Active",
+      "Next due date": dueDate,
+    });
+    if (assigneeNeedsJobLink(existing, jobId)) {
+      await notion.updatePage(existing.id, {
+        properties: { Job: { relation: [{ id: jobId }] } },
+      });
+    }
+    markPageSeen(existing.id, { stage: "", status: "Active", doer: "", done: false });
+    return {
+      itemId: existing.id,
+      url: existing.url,
+      databaseName: RECURRING_DB_NAME,
+      boardName: RECURRING_DB_NAME,
+      updated: true,
+      jobName: notion.pageTitle(job),
+      frequency,
+      assignee: duty.assignee || notion.pagePropText(job, "Assignee") || null,
+      nextDue: dueDate,
+    };
+  }
+
+  const created = await createDbPage({
+    databaseName: RECURRING_DB_NAME,
+    itemName: duty.title,
+    properties: {
+      Frequency: frequency,
+      Status: "Active",
+      "Next due date": dueDate,
+    },
+    from,
+    chatId,
+    sourceText: text,
+  });
+
+  await notion.updatePage(created.itemId, {
+    properties: { Job: { relation: [{ id: jobId }] } },
+  });
+
+  return {
+    ...created,
+    updated: false,
+    jobName: notion.pageTitle(job),
+    frequency,
+    assignee: duty.assignee || notion.pagePropText(job, "Assignee") || null,
+    nextDue: dueDate,
+  };
+}
+
+function assigneeNeedsJobLink(dutyPage, jobId) {
+  const rel = dutyPage.properties?.Job?.relation || [];
+  return !rel.some((r) => r.id === jobId);
 }
 
 async function createDecision({ decision, from, chatId, sourceText }) {
@@ -2034,6 +2247,7 @@ async function buildDailyRecap(dateISO) {
     }
   }
   const template = lines.join("\n");
+  let recap;
   try {
     const plain = template.replace(/<[^>]+>/g, "");
     const friendly = await openaiLib.composeRecap(
@@ -2043,9 +2257,9 @@ async function buildDailyRecap(dateISO) {
             "'Yesterday Sam said the shower light is broken.' Keep all facts."
           : "")
     );
-    return friendly.split("\n").map(escapeHtml).join("\n");
+    recap = friendly.split("\n").map(escapeHtml).join("\n");
   } catch {
-    return template;
+    recap = template;
   }
 }
 
@@ -3189,7 +3403,8 @@ const HELP_TEXT = [
   "<b>Group</b>: tag me (@bot), reply to me, or say <b>Vava</b> (or start a voice note with <b>robot</b>, <b>bot</b>, <b>vila akoya bot</b>, or <b>personal assistant</b>).",
   "<b>DMs</b>: always on, no tag needed.",
   "",
-  "I can log tasks (villager work or management jobs), events, reminders, RSVP to events, add notes to projects, answer questions from docs and schedule, and more.",
+  "I can log tasks (villager work or management jobs), <b>recurring duties</b> (daily/weekly/monthly rota), events, reminders, RSVP to events, add notes to projects, answer questions from docs and schedule, and more.",
+  "Send a list of cleaning/rota jobs in one message (or voice note) — daily, weekly, monthly — and I'll add them all to Notion.",
   "Voice notes are transcribed — explain how something works to create a structured doc.",
   "",
   "<b>Task types</b>",
@@ -3202,7 +3417,7 @@ const HELP_TEXT = [
   "/register &lt;your name&gt; — link Telegram to Members; questionnaire arrives by DM",
   "/questionnaire — fill or update your Community profile (sent privately)",
   "/mytasks — duties due today + open tasks assigned to you",
-  "/done &lt;item id&gt; — mark a task done, or log a duty done (schedules next due)",
+  "/done &lt;item id&gt; — mark a duty/task done (duties reschedule: daily +1 day, weekly +7 days, monthly +1 month)",
   "/whoami — show your Telegram details",
   "/help — this message",
 ].join("\n");
@@ -3412,6 +3627,106 @@ async function captureAmbientTask({ classified, text, from, chatId, photoFileId 
   return true;
 }
 
+async function captureAmbientRecurringDuty({ classified, text, from, chatId }) {
+  const duties =
+    Array.isArray(classified?.recurring_duties) && classified.recurring_duties.length
+      ? classified.recurring_duties
+      : classified?.recurring_duty
+        ? [classified.recurring_duty]
+        : [];
+  if (!duties.length) return false;
+
+  const { displayName } = await resolvePersonIdentity(from);
+  const defaultAssignee = displayName || senderDisplayName(from);
+  const sharedJob =
+    duties.find((d) => d.job)?.job ||
+    (/\bcleaner\b/i.test(text || "") ? "Cleaner" : null);
+  const created = [];
+  const today = todayISO();
+  const weeklyDuties = duties.filter((d) =>
+    String(d.frequency || "Daily").toLowerCase().includes("week")
+  );
+  const weeklyTotal = weeklyDuties.length;
+  let weeklyIdx = 0;
+
+  for (const rawDuty of duties) {
+    const duty = {
+      ...rawDuty,
+      assignee: rawDuty.assignee || defaultAssignee,
+      job: rawDuty.job || sharedJob,
+    };
+    if (!duty.title) continue;
+
+    const isWeekly = String(duty.frequency || "Daily").toLowerCase().includes("week");
+    const nextDueDate = isWeekly
+      ? staggeredWeeklyDueDate(today, weeklyIdx, weeklyTotal)
+      : today;
+    if (isWeekly) weeklyIdx += 1;
+
+    const key = ambientDedupeKey(
+      chatId,
+      "duty",
+      `${duty.title}:${duty.frequency || "Daily"}:${duty.assignee || ""}`
+    );
+    if (wasRecentlyCaptured(key)) continue;
+
+    try {
+      const result = await createRecurringDutyFromClassification({
+        classified: { ...classified, recurring_duty: duty },
+        text,
+        from,
+        chatId,
+        nextDueDate,
+      });
+      markCaptured(key);
+      recordChatActivity({
+        kind: "duty_logged",
+        from,
+        chatId,
+        title: duty.title,
+        text,
+      });
+      created.push({ duty, result });
+      log(`Recurring duty captured: ${duty.title} (${result.frequency})`);
+    } catch (err) {
+      log("createRecurringDutyFromClassification error:", err.message);
+    }
+  }
+
+  if (!created.length) return false;
+
+  if (created.length === 1) {
+    const { duty, result } = created[0];
+    const verb = result.updated ? "Updated" : "Set up";
+    let reply = `🔁 ${verb} recurring duty: <b>${escapeHtml(duty.title)}</b>`;
+    reply += ` <i>(${escapeHtml(result.frequency || duty.frequency || "Daily")})</i>`;
+    if (result.assignee) reply += ` → ${escapeHtml(result.assignee)}`;
+    if (result.jobName) reply += `\nJob: <b>${escapeHtml(result.jobName)}</b>`;
+    if (result.url) reply += ` — <a href="${result.url}">Notion</a>`;
+    reply += `\n<i>You'll see it in /mytasks and the morning DM when it's due. Mark done with /done.</i>`;
+    await sendMessage(chatId, reply);
+    return true;
+  }
+
+  const lines = created.map(({ duty, result }) => {
+    let line = `• <b>${escapeHtml(duty.title)}</b> <i>(${escapeHtml(result.frequency || duty.frequency || "Daily")})</i>`;
+    if (result.nextDue && String(duty.frequency || "").toLowerCase().includes("week")) {
+      line += ` — due <b>${escapeHtml(result.nextDue)}</b>`;
+    }
+    if (result.url) line += ` — <a href="${result.url}">Notion</a>`;
+    return line;
+  });
+  const assignee = created[0].result.assignee;
+  const jobName = created[0].result.jobName;
+  let reply = `🔁 Set up ${created.length} recurring duties`;
+  if (assignee) reply += ` for <b>${escapeHtml(assignee)}</b>`;
+  if (jobName) reply += ` (${escapeHtml(jobName)})`;
+  reply += `:\n${lines.join("\n")}`;
+  reply += `\n<i>Daily items show every morning; weekly/monthly appear when due. Mark done with /done — it schedules the next due date.</i>`;
+  await sendMessage(chatId, reply);
+  return true;
+}
+
 /** Single AI-driven router for both @bot messages and ambient group messages. */
 async function routeByAiClassification({ classified, text, from, chatId, photoFileId, interactive }) {
   if (!classified && !photoFileId) {
@@ -3436,6 +3751,16 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   // Cheap path: personal agenda without waiting on classifier nuance
   if (interactive && text && looksLikeMyDayQuestion(text)) {
     await sendMyDayBriefing(from, chatId, todayISO());
+    return;
+  }
+
+  if (
+    interactive &&
+    text &&
+    (looksLikeDinnerBookingRequest(text) ||
+      (c.action === "book_meal" && conf >= EVENT_MIN_CONFIDENCE))
+  ) {
+    await replyWithDinnerBookingLink(chatId, todayISO());
     return;
   }
 
@@ -3634,6 +3959,15 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   // Events & deliveries
   if (c.is_event && c.event && conf >= EVENT_MIN_CONFIDENCE) {
     await captureAmbientEvent({ classified: c, text, from, chatId });
+    return;
+  }
+
+  // Recurring duties (daily/weekly rota — not one-off Tasks)
+  if (c.is_recurring_duty && c.recurring_duty && conf >= AMBIENT_MIN_CONFIDENCE) {
+    const ok = await captureAmbientRecurringDuty({ classified: c, text, from, chatId });
+    if (!ok && interactive) {
+      await sendMessage(chatId, "Sorry, I could not set up that recurring duty.");
+    }
     return;
   }
 
@@ -4111,14 +4445,16 @@ async function handleAmbientMessage(message) {
 async function pollTelegramOnce() {
   let updates;
   try {
+    // Long-poll ~25s; client abort is only a safety net (laptop sleep / hung socket).
+    // On abort we loop immediately — that is normal, not a crash.
     updates = await telegram(
       "getUpdates",
       {
         offset: state.telegramOffset,
-        timeout: 30,
+        timeout: 25,
         allowed_updates: ["message"],
       },
-      { clientTimeoutMs: 45000 }
+      { clientTimeoutMs: 90000, attempts: 1 }
     );
   } catch (err) {
     if (isGetUpdatesConflict(err)) {
@@ -4134,10 +4470,22 @@ async function pollTelegramOnce() {
       await sleep(5000);
       return;
     }
+    // Client abort / idle timeout: keep polling with no backoff and almost no logs.
+    if (isAbortTimeoutError(err)) {
+      telegramPollActive = true;
+      networkState.retryMs = 3000;
+      const now = Date.now();
+      if (now - networkState.lastPollTimeoutLog > 30 * 60 * 1000) {
+        networkState.lastPollTimeoutLog = now;
+        log("getUpdates idle timeout — still running, restarting poll");
+      }
+      return;
+    }
     telegramPollActive = false;
     if (isTransientNetworkError(err)) {
       logTransientError("getUpdates", err, networkState.retryMs);
       await sleep(networkState.retryMs);
+      networkState.retryMs = Math.min(networkState.retryMs * 2, 30000);
     } else {
       log("getUpdates error:", err.message);
       await sleep(3000);
@@ -4147,6 +4495,7 @@ async function pollTelegramOnce() {
 
   telegramPollActive = true;
   pollConflictStreak = 0;
+  networkState.retryMs = 3000;
 
   for (const update of updates) {
     state.telegramOffset = update.update_id + 1;

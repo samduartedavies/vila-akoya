@@ -647,6 +647,152 @@ function vila_akoya_cart_nights_for_line( array $cart_item ) {
 }
 
 /**
+ * Long-stay discount tiers (7-for-6, 30-for-20). Plugin is source of truth when loaded.
+ *
+ * @return array<int, array{ stay: int, pay: int }>
+ */
+function vila_akoya_stay_discount_tiers() {
+	if ( class_exists( '\Vila_CB\Stay_Discount' ) ) {
+		return \Vila_CB\Stay_Discount::tiers();
+	}
+	return array(
+		array(
+			'stay' => 7,
+			'pay'  => 6,
+		),
+		array(
+			'stay' => 30,
+			'pay'  => 20,
+		),
+	);
+}
+
+/**
+ * @param int $stay_nights Calendar nights of the stay.
+ * @return array{stay: int, billable: int, free: int, applied: array{stay: int, pay: int}|null, next: array{stay: int, pay: int}|null, more_nights: int}
+ */
+function vila_akoya_stay_discount_info( $stay_nights ) {
+	if ( class_exists( '\Vila_CB\Stay_Discount' ) ) {
+		return \Vila_CB\Stay_Discount::info( $stay_nights );
+	}
+	$stay     = max( 0, (int) $stay_nights );
+	$applied  = null;
+	foreach ( vila_akoya_stay_discount_tiers() as $tier ) {
+		if ( $stay >= (int) $tier['stay'] ) {
+			$applied = $tier;
+		}
+	}
+	$free     = $applied ? ( (int) $applied['stay'] - (int) $applied['pay'] ) : 0;
+	$next     = null;
+	foreach ( vila_akoya_stay_discount_tiers() as $tier ) {
+		if ( $stay < (int) $tier['stay'] ) {
+			$next = $tier;
+			break;
+		}
+	}
+	return array(
+		'stay'        => $stay,
+		'billable'    => max( 0, $stay - $free ),
+		'free'        => $free,
+		'applied'     => $applied,
+		'next'        => $next,
+		'more_nights' => $next ? max( 0, (int) $next['stay'] - $stay ) : 0,
+	);
+}
+
+/**
+ * Nights charged for pitch, extras, and guest supplements.
+ *
+ * @param int $stay_nights Calendar nights.
+ * @return int
+ */
+function vila_akoya_billable_nights( $stay_nights ) {
+	$info = vila_akoya_stay_discount_info( $stay_nights );
+	return (int) $info['billable'];
+}
+
+/**
+ * @param array<string, mixed> $cart_item Cart line.
+ * @return int
+ */
+function vila_akoya_cart_billable_nights_for_line( array $cart_item ) {
+	return vila_akoya_billable_nights( vila_akoya_cart_nights_for_line( $cart_item ) );
+}
+
+/**
+ * Per-night pitch + extras + guest supplements (meals excluded).
+ *
+ * @param array<string, mixed> $cart_item Cart line.
+ * @return float
+ */
+function vila_akoya_cart_nightly_accommodation_for_line( array $cart_item ) {
+	$pid     = isset( $cart_item['product_id'] ) ? (int) $cart_item['product_id'] : 0;
+	$product = isset( $cart_item['data'] ) && is_object( $cart_item['data'] ) ? $cart_item['data'] : ( $pid ? wc_get_product( $pid ) : null );
+	$regular = ( $product && is_callable( array( $product, 'get_regular_price' ) ) ) ? (float) $product->get_regular_price() : 0.0;
+	$rate    = (float) apply_filters( 'vila_cb_adult_rate_per_night', $regular, $pid );
+	$adults  = vila_akoya_cart_people_for_line( $cart_item );
+	$nightly = $rate * $adults;
+
+	$types   = vila_akoya_cart_vehicle_types( $cart_item );
+	$by_head = (bool) apply_filters( 'vila_akoya_pitch_supplement_multiplies_by_guests', false, $cart_item );
+	$nightly += vila_akoya_vehicle_fee_total_per_night( $types ) * ( $by_head ? $adults : 1 );
+
+	$rates = vila_akoya_get_guest_category_nightly_rates( $pid );
+	$ch    = isset( $cart_item['vila_guest_children'] ) ? (int) $cart_item['vila_guest_children'] : 0;
+	$inf   = isset( $cart_item['vila_guest_infants'] ) ? (int) $cart_item['vila_guest_infants'] : 0;
+	$pet   = isset( $cart_item['vila_guest_pets'] ) ? (int) $cart_item['vila_guest_pets'] : 0;
+	$nightly += $ch * (float) $rates['children'];
+	$nightly += $inf * (float) $rates['infants'];
+	$nightly += $pet * (float) $rates['pets'];
+
+	return (float) $nightly;
+}
+
+/**
+ * @param array{stay: int, billable: int, free: int, applied: array{stay: int, pay: int}|null, next: array{stay: int, pay: int}|null, more_nights: int} $info Discount info.
+ * @return string
+ */
+function vila_akoya_stay_discount_applied_label( array $info ) {
+	if ( empty( $info['applied'] ) || (int) $info['free'] < 1 ) {
+		return '';
+	}
+	$free       = (int) $info['free'];
+	$night_word = ( 1 === $free ) ? __( 'night', 'vila-akoya' ) : __( 'nights', 'vila-akoya' );
+	return sprintf(
+		/* translators: 1: stay nights, 2: payable nights, 3: free nights, 4: "night" or "nights" */
+		__( 'Stay %1$d, pay %2$d — %3$d %4$s free', 'vila-akoya' ),
+		(int) $info['applied']['stay'],
+		(int) $info['applied']['pay'],
+		$free,
+		$night_word
+	);
+}
+
+/**
+ * @param array{stay: int, billable: int, free: int, applied: array{stay: int, pay: int}|null, next: array{stay: int, pay: int}|null, more_nights: int} $info Discount info.
+ * @param float $nightly_rate Per-night accommodation total.
+ * @return string
+ */
+function vila_akoya_stay_discount_upsell_message( array $info, $nightly_rate ) {
+	if ( empty( $info['next'] ) || (int) $info['more_nights'] < 1 ) {
+		return '';
+	}
+	$next       = $info['next'];
+	$more       = (int) $info['more_nights'];
+	$save       = ( (int) $next['stay'] - (int) $next['pay'] ) * max( 0.0, (float) $nightly_rate );
+	$night_word = ( 1 === $more ) ? __( 'night', 'vila-akoya' ) : __( 'nights', 'vila-akoya' );
+	return sprintf(
+		/* translators: 1: extra nights needed, 2: "night" or "nights", 3: formatted discount amount, 4: stay nights of next deal, 5: payable nights of next deal */
+		__( 'Only %1$d more %2$s and you will get a discount of %3$s (stay %4$d, pay %5$d).', 'vila-akoya' ),
+		$more,
+		$night_word,
+		vila_akoya_format_price_plain( $save ),
+		(int) $next['stay'],
+		(int) $next['pay']
+	);
+}
+
+/**
  * Persist vehicle choice and night count on the cart line (MWB booking add-to-cart).
  *
  * @param array<string, mixed> $cart_item_data Cart item data.
@@ -871,23 +1017,32 @@ function vila_akoya_cart_vehicle_fees() {
 		if ( empty( $types ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
 			continue;
 		}
-		$rate    = vila_akoya_vehicle_fee_total_per_night( $types );
-		$nights  = vila_akoya_cart_nights_for_line( $cart_item );
-		$people  = vila_akoya_cart_people_for_line( $cart_item );
-		$by_head = (bool) apply_filters( 'vila_akoya_pitch_supplement_multiplies_by_guests', false, $cart_item );
-		$total   = $rate * $nights * ( $by_head ? $people : 1 );
+		$rate     = vila_akoya_vehicle_fee_total_per_night( $types );
+		$stay     = vila_akoya_cart_nights_for_line( $cart_item );
+		$nights   = vila_akoya_billable_nights( $stay );
+		$people   = vila_akoya_cart_people_for_line( $cart_item );
+		$by_head  = (bool) apply_filters( 'vila_akoya_pitch_supplement_multiplies_by_guests', false, $cart_item );
+		$total    = $rate * $nights * ( $by_head ? $people : 1 );
 		if ( $total <= 0 ) {
 			continue;
 		}
-		WC()->cart->add_fee(
-			sprintf(
+		if ( $nights < $stay ) {
+			$fee_name = sprintf(
+				/* translators: 1: extra labels (comma-separated), 2: billable nights, 3: stay nights */
+				__( 'Extras — %1$s (%2$d of %3$d nights)', 'vila-akoya' ),
+				vila_akoya_vehicle_labels_join( $types ),
+				$nights,
+				$stay
+			);
+		} else {
+			$fee_name = sprintf(
 				/* translators: 1: extra labels (comma-separated), 2: number of nights */
 				__( 'Extras — %1$s (%2$d nights)', 'vila-akoya' ),
 				vila_akoya_vehicle_labels_join( $types ),
 				$nights
-			),
-			$total
-		);
+			);
+		}
+		WC()->cart->add_fee( $fee_name, $total );
 	}
 }
 add_action( 'woocommerce_cart_calculate_fees', 'vila_akoya_cart_vehicle_fees', 20 );
@@ -913,7 +1068,7 @@ function vila_akoya_cart_guest_category_fees() {
 		if ( ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
 			continue;
 		}
-		$nights = vila_akoya_cart_nights_for_line( $cart_item );
+		$nights = vila_akoya_cart_billable_nights_for_line( $cart_item );
 		$pid    = (int) $cart_item['product_id'];
 		$rates  = vila_akoya_get_guest_category_nightly_rates( $pid );
 		$ch     = isset( $cart_item['vila_guest_children'] ) ? (int) $cart_item['vila_guest_children'] : 0;
@@ -1061,6 +1216,7 @@ function vila_akoya_force_pitch_line_adults_only( $cart ) {
 		if ( $nights < 1 ) {
 			continue;
 		}
+		$nights = vila_akoya_billable_nights( $nights );
 
 		$adults = 1;
 		if ( ! empty( $cart_item['vila_cb_guests']['adults'] ) ) {
@@ -1127,9 +1283,44 @@ function vila_akoya_get_item_data_guest_breakdown( $item_data, $cart_item ) {
 		'display' => esc_html( vila_akoya_guest_picker_summary_string( $adults, $ch, $inf, $pet ) ),
 	);
 
+	$stay_info = vila_akoya_stay_discount_info( vila_akoya_cart_nights_for_line( $cart_item ) );
+	$applied   = vila_akoya_stay_discount_applied_label( $stay_info );
+	if ( '' !== $applied ) {
+		$item_data[] = array(
+			'name'    => __( 'Long-stay discount', 'vila-akoya' ),
+			'display' => esc_html( $applied ),
+		);
+	}
+
 	return $item_data;
 }
 add_filter( 'woocommerce_get_item_data', 'vila_akoya_get_item_data_guest_breakdown', 16, 2 );
+
+/**
+ * Upsell banner on cart / checkout for the next stay-length discount.
+ */
+function vila_akoya_render_stay_discount_cart_notice() {
+	if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+		return;
+	}
+	foreach ( WC()->cart->get_cart() as $cart_item ) {
+		if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
+			continue;
+		}
+		$info    = vila_akoya_stay_discount_info( vila_akoya_cart_nights_for_line( $cart_item ) );
+		$nightly = vila_akoya_cart_nightly_accommodation_for_line( $cart_item );
+		$message = vila_akoya_stay_discount_upsell_message( $info, $nightly );
+		if ( '' === $message ) {
+			continue;
+		}
+		echo '<div class="vila-stay-discount-notice" role="status">';
+		echo '<p class="vila-stay-discount-notice__text">' . esc_html( $message ) . '</p>';
+		echo '</div>';
+		return;
+	}
+}
+add_action( 'woocommerce_before_cart', 'vila_akoya_render_stay_discount_cart_notice', 8 );
+add_action( 'woocommerce_before_checkout_form', 'vila_akoya_render_stay_discount_cart_notice', 8 );
 
 
 /**
@@ -1189,6 +1380,11 @@ add_action( 'woocommerce_checkout_create_order_line_item', 'vila_akoya_checkout_
  */
 function vila_akoya_checkout_save_guest_breakdown_meta( $item, $cart_key, $values, $order ) {
 	unset( $cart_key, $order );
+	$stay_info = vila_akoya_stay_discount_info( vila_akoya_cart_nights_for_line( $values ) );
+	$applied   = vila_akoya_stay_discount_applied_label( $stay_info );
+	if ( '' !== $applied ) {
+		$item->add_meta_data( __( 'Long-stay discount', 'vila-akoya' ), $applied, true );
+	}
 	$adults = ! empty( $values['mwb_mbfw_booking_values']['people_number'] ) ? (int) $values['mwb_mbfw_booking_values']['people_number'] : 0;
 	$ch     = isset( $values['vila_guest_children'] ) ? (int) $values['vila_guest_children'] : 0;
 	$inf    = isset( $values['vila_guest_infants'] ) ? (int) $values['vila_guest_infants'] : 0;
@@ -1538,7 +1734,12 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 	$gc = isset( $charges['general_cost']['value'] ) ? (float) $charges['general_cost']['value'] : 0.0;
 	$bc = isset( $charges['base_cost']['value'] ) ? (float) $charges['base_cost']['value'] : 0.0;
 
-	$nights = vila_akoya_nights_from_request();
+	$stay_nights = vila_akoya_nights_from_request();
+	$disc        = vila_akoya_stay_discount_info( $stay_nights );
+	$nights      = max( 0, (int) $disc['billable'] );
+	if ( $nights < 1 ) {
+		$nights = $stay_nights;
+	}
 	$adults = isset( $_POST['mwb_mbfw_people_number'] ) ? (int) wp_unslash( vila_akoya_scalar_request_string( $_POST['mwb_mbfw_people_number'] ) ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 	$adults = max( 1, $adults );
 
@@ -1712,7 +1913,7 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 			continue;
 		}
 		$info = $meal_catalog[ $slug ];
-		$days = vila_akoya_meal_days_for_option( $info, $nights, $weekday_nights );
+		$days = vila_akoya_meal_days_for_option( $info, $stay_nights, $weekday_nights );
 		$line_total = vila_akoya_meal_line_total( $info, $adults, $ch, $inf, $days );
 		if ( $line_total <= 0 || $days < 1 ) {
 			continue;
@@ -1764,7 +1965,7 @@ function vila_akoya_enqueue_booking_ui_script() {
 		'vila-akoya-booking-ui',
 		VILA_AKOYA_URI . '/assets/js/booking-ui.js',
 		array( 'jquery', 'flatpicker_js', 'bookings-for-woocommercepublic' ),
-		VILA_AKOYA_VERSION,
+		function_exists( 'vila_akoya_asset_version' ) ? vila_akoya_asset_version( '/assets/js/booking-ui.js' ) : VILA_AKOYA_VERSION,
 		true
 	);
 	$plot_ids     = function_exists( 'vila_akoya_get_campsite_plot_product_ids' ) ? vila_akoya_get_campsite_plot_product_ids() : array();
@@ -1851,6 +2052,7 @@ function vila_akoya_enqueue_booking_ui_script() {
 				),
 				'vehicleFees'     => $vehicle_fees,
 				'mealFees'        => $meal_fees,
+				'stayDiscounts'   => vila_akoya_stay_discount_tiers(),
 			),
 			'currency'                  => $currency,
 			'billStrings'               => array(
@@ -1872,6 +2074,8 @@ function vila_akoya_enqueue_booking_ui_script() {
 				'nightPlural'       => __( 'nights', 'vila-akoya' ),
 				'daySingular'       => __( 'day', 'vila-akoya' ),
 				'dayPlural'         => __( 'days', 'vila-akoya' ),
+				'discountApplied'   => __( 'Stay %1$d, pay %2$d — %3$d %4$s free', 'vila-akoya' ),
+				'upsell'            => __( 'Only %1$d more %2$s and you will get a discount of %3$s (stay %4$d, pay %5$d).', 'vila-akoya' ),
 			),
 			'strings'                   => array(
 				'stayDates'               => __( 'Your dates', 'vila-akoya' ),

@@ -237,6 +237,10 @@ add_filter( 'the_content', 'vila_akoya_filter_content_absolutize_links', 12 );
  * @param string $variant desktop|mobile
  */
 function vila_akoya_render_language_switcher( $variant = 'desktop' ) {
+	if ( ! apply_filters( 'vila_akoya_show_language_switcher', false ) ) {
+		return;
+	}
+
 	if ( ! function_exists( 'trp_custom_language_switcher' ) ) {
 		return;
 	}

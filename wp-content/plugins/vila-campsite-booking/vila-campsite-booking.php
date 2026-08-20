@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Vila Campsite Booking
  * Description: Multi-plot campsite inventory with WooCommerce checkout, Airbnb-style booking UI, and operations dashboard.
- * Version: 1.4.4
+ * Version: 1.4.5
  * Author: Vila Akoya
  * Text Domain: vila-campsite-booking
  * Requires at least: 6.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_CB_VERSION', '1.4.4' );
+define( 'VILA_CB_VERSION', '1.4.5' );
 define( 'VILA_CB_FILE', __FILE__ );
 define( 'VILA_CB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VILA_CB_URL', plugin_dir_url( __FILE__ ) );
@@ -46,13 +46,14 @@ require_once VILA_CB_DIR . 'includes/class-siba-client.php';
 require_once VILA_CB_DIR . 'includes/class-booking-service.php';
 require_once VILA_CB_DIR . 'includes/class-meal-plan-service.php';
 require_once VILA_CB_DIR . 'includes/class-meal-booking.php';
+require_once VILA_CB_DIR . 'includes/class-pricing-settings.php';
+require_once VILA_CB_DIR . 'includes/class-stay-discount.php';
 require_once VILA_CB_DIR . 'includes/class-woocommerce-integration.php';
 require_once VILA_CB_DIR . 'includes/class-ops-snapshot.php';
 require_once VILA_CB_DIR . 'includes/class-notion-sync.php';
 require_once VILA_CB_DIR . 'includes/class-rest-controller.php';
 require_once VILA_CB_DIR . 'includes/class-admin.php';
 require_once VILA_CB_DIR . 'includes/class-admin-guest-registrations.php';
-require_once VILA_CB_DIR . 'includes/class-pricing-settings.php';
 require_once VILA_CB_DIR . 'includes/class-shortcode.php';
 
 add_action( 'init', array( 'Vila_CB\\Install', 'ensure_public_pages_now' ), 21 );

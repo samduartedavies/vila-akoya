@@ -86,6 +86,8 @@ function vila_akoya_event_meta_keys() {
 		'capacity'            => '_vila_event_capacity',
 		'price'               => '_vila_event_price',
 		'location'            => '_vila_event_location',
+		'kind'                => '_vila_event_kind',
+		'reservation_required' => '_vila_event_reservation_required',
 		'next_occurrence'     => '_vila_event_next_occurrence',
 	);
 }
@@ -156,8 +158,45 @@ function vila_akoya_get_event_data( $post_id ) {
 		'capacity'            => (int) vila_akoya_get_event_meta( $post_id, 'capacity', '0' ),
 		'price'               => (string) vila_akoya_get_event_meta( $post_id, 'price', '' ),
 		'location'            => (string) vila_akoya_get_event_meta( $post_id, 'location', '' ),
+		'kind'                => vila_akoya_normalize_event_kind( vila_akoya_get_event_meta( $post_id, 'kind', 'event' ) ),
+		'reservation_required' => (bool) (int) vila_akoya_get_event_meta( $post_id, 'reservation_required', '1' ),
 		'next_occurrence'     => (string) vila_akoya_get_event_meta( $post_id, 'next_occurrence', '' ),
 	);
+}
+
+/**
+ * Whether visitors should request a place for this event.
+ *
+ * @param int|array<string, mixed> $post_id_or_data Post ID or event data from vila_akoya_get_event_data().
+ * @return bool
+ */
+function vila_akoya_event_requires_reservation( $post_id_or_data ) {
+	if ( is_array( $post_id_or_data ) ) {
+		return ! empty( $post_id_or_data['reservation_required'] );
+	}
+	return (bool) (int) vila_akoya_get_event_meta( (int) $post_id_or_data, 'reservation_required', '1' );
+}
+
+/**
+ * Normalize listing kind to event|workshop.
+ *
+ * @param mixed $kind Raw value.
+ * @return string
+ */
+function vila_akoya_normalize_event_kind( $kind ) {
+	return 'workshop' === $kind ? 'workshop' : 'event';
+}
+
+/**
+ * Human label for event kind.
+ *
+ * @param string $kind event|workshop.
+ * @return string
+ */
+function vila_akoya_event_kind_label( $kind ) {
+	return 'workshop' === vila_akoya_normalize_event_kind( $kind )
+		? __( 'Workshop', 'vila-akoya' )
+		: __( 'Event', 'vila-akoya' );
 }
 
 /**
@@ -187,6 +226,8 @@ function vila_akoya_render_event_meta_box( $post ) {
 	wp_nonce_field( 'vila_akoya_save_event_meta', 'vila_akoya_event_meta_nonce' );
 	$data = vila_akoya_get_event_data( $post->ID );
 	$weekdays = vila_akoya_event_weekday_labels();
+	$date_min = wp_date( 'Y-m-d', strtotime( '-2 years' ) );
+	$date_max = wp_date( 'Y-m-d', strtotime( '+10 years' ) );
 	?>
 	<style>
 		.vila-event-admin { display: grid; gap: 1rem; max-width: 40rem; }
@@ -194,6 +235,9 @@ function vila_akoya_render_event_meta_box( $post ) {
 		.vila-event-admin .vila-event-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 		.vila-event-admin .vila-event-checkboxes { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; }
 		.vila-event-admin .vila-event-checkboxes label { font-weight: 400; }
+		.vila-event-admin .vila-event-check-row { display: flex; align-items: flex-start; gap: 0.55rem; margin: 0; padding: 0.85rem 1rem; border: 1px solid #c3c4c7; border-radius: 0.5rem; background: #f6f7f7; }
+		.vila-event-admin .vila-event-check-row label { display: inline-flex; align-items: center; gap: 0.55rem; margin: 0; font-weight: 600; cursor: pointer; }
+		.vila-event-admin .vila-event-check-row input[type="checkbox"] { width: 1.1rem; height: 1.1rem; margin: 0; flex: 0 0 auto; }
 		.vila-event-admin .description { color: #646970; margin: 0.25rem 0 0; }
 		.vila-event-admin [data-vila-schedule] { display: none; }
 		.vila-event-admin[data-schedule="single"] [data-vila-schedule~="single"],
@@ -203,6 +247,22 @@ function vila_akoya_render_event_meta_box( $post ) {
 		.vila-event-admin[data-schedule="recurring"] .vila-event-row[data-vila-schedule~="recurring"] { display: grid; }
 	</style>
 	<div class="vila-event-admin" data-schedule="<?php echo esc_attr( $data['schedule_type'] ); ?>" id="vila-event-admin">
+		<p>
+			<label for="vila_event_kind"><?php esc_html_e( 'Category', 'vila-akoya' ); ?></label>
+			<select name="vila_event_kind" id="vila_event_kind">
+				<option value="event" <?php selected( $data['kind'], 'event' ); ?>><?php esc_html_e( 'Event', 'vila-akoya' ); ?></option>
+				<option value="workshop" <?php selected( $data['kind'], 'workshop' ); ?>><?php esc_html_e( 'Workshop', 'vila-akoya' ); ?></option>
+			</select>
+		</p>
+
+		<p class="vila-event-check-row">
+			<label for="vila_event_reservation_required">
+				<input type="checkbox" name="vila_event_reservation_required" id="vila_event_reservation_required" value="1" <?php checked( $data['reservation_required'] ); ?> />
+				<?php esc_html_e( 'Reservation required', 'vila-akoya' ); ?>
+			</label>
+			<span class="description"><?php esc_html_e( 'Show “Request a place” on cards and the inquiry form on the event page. Leave unchecked for drop-in events.', 'vila-akoya' ); ?></span>
+		</p>
+
 		<p>
 			<label for="vila_event_schedule_type"><?php esc_html_e( 'Schedule type', 'vila-akoya' ); ?></label>
 			<select name="vila_event_schedule_type" id="vila_event_schedule_type">
@@ -215,11 +275,11 @@ function vila_akoya_render_event_meta_box( $post ) {
 		<div class="vila-event-row" data-vila-schedule="single range recurring">
 			<p>
 				<label for="vila_event_start_date"><?php esc_html_e( 'Start date', 'vila-akoya' ); ?></label>
-				<input type="date" name="vila_event_start_date" id="vila_event_start_date" value="<?php echo esc_attr( $data['start_date'] ); ?>" required />
+				<input type="date" name="vila_event_start_date" id="vila_event_start_date" value="<?php echo esc_attr( $data['start_date'] ); ?>" min="<?php echo esc_attr( $date_min ); ?>" max="<?php echo esc_attr( $date_max ); ?>" required />
 			</p>
 			<p data-vila-schedule="range">
 				<label for="vila_event_end_date"><?php esc_html_e( 'End date', 'vila-akoya' ); ?></label>
-				<input type="date" name="vila_event_end_date" id="vila_event_end_date" value="<?php echo esc_attr( $data['end_date'] ); ?>" />
+				<input type="date" name="vila_event_end_date" id="vila_event_end_date" value="<?php echo esc_attr( $data['end_date'] ); ?>" min="<?php echo esc_attr( $date_min ); ?>" max="<?php echo esc_attr( $date_max ); ?>" />
 			</p>
 		</div>
 
@@ -269,7 +329,7 @@ function vila_akoya_render_event_meta_box( $post ) {
 			</p>
 			<p data-vila-schedule="recurring">
 				<label for="vila_event_recurrence_until"><?php esc_html_e( 'Until (optional)', 'vila-akoya' ); ?></label>
-				<input type="date" name="vila_event_recurrence_until" id="vila_event_recurrence_until" value="<?php echo esc_attr( $data['recurrence_until'] ); ?>" />
+				<input type="date" name="vila_event_recurrence_until" id="vila_event_recurrence_until" value="<?php echo esc_attr( $data['recurrence_until'] ); ?>" min="<?php echo esc_attr( $date_min ); ?>" max="<?php echo esc_attr( $date_max ); ?>" />
 				<span class="description"><?php esc_html_e( 'Leave blank for an open-ended series. Monthly repeats use the same day of the month as the start date.', 'vila-akoya' ); ?></span>
 			</p>
 		</div>
@@ -367,6 +427,9 @@ function vila_akoya_save_event_meta( $post_id ) {
 
 	$keys = vila_akoya_event_meta_keys();
 
+	$kind = isset( $_POST['vila_event_kind'] ) ? sanitize_key( wp_unslash( $_POST['vila_event_kind'] ) ) : 'event';
+	update_post_meta( $post_id, $keys['kind'], vila_akoya_normalize_event_kind( $kind ) );
+
 	$type = isset( $_POST['vila_event_schedule_type'] ) ? sanitize_key( wp_unslash( $_POST['vila_event_schedule_type'] ) ) : 'single';
 	if ( ! in_array( $type, array( 'single', 'range', 'recurring' ), true ) ) {
 		$type = 'single';
@@ -426,6 +489,9 @@ function vila_akoya_save_event_meta( $post_id ) {
 
 	$location = isset( $_POST['vila_event_location'] ) ? sanitize_text_field( wp_unslash( $_POST['vila_event_location'] ) ) : '';
 	update_post_meta( $post_id, $keys['location'], $location );
+
+	$reservation_required = ! empty( $_POST['vila_event_reservation_required'] ) ? '1' : '0';
+	update_post_meta( $post_id, $keys['reservation_required'], $reservation_required );
 
 	$next = vila_akoya_compute_event_next_occurrence( vila_akoya_get_event_data( $post_id ) );
 	update_post_meta( $post_id, $keys['next_occurrence'], $next );
@@ -663,12 +729,213 @@ function vila_akoya_event_archive_order( $query ) {
 	if ( ! $query->is_post_type_archive( 'event' ) ) {
 		return;
 	}
-	$query->set( 'meta_key', '_vila_event_next_occurrence' );
-	$query->set( 'orderby', 'meta_value' );
+	$query->set( 'posts_per_page', -1 );
+	$query->set( 'orderby', 'title' );
 	$query->set( 'order', 'ASC' );
-	$query->set( 'meta_type', 'DATE' );
 }
 add_action( 'pre_get_posts', 'vila_akoya_event_archive_order' );
+
+/**
+ * Published events for the public archive (not limited by the main query).
+ *
+ * @return WP_Post[]
+ */
+function vila_akoya_get_archive_event_posts() {
+	$posts = get_posts(
+		array(
+			'post_type'      => 'event',
+			'post_status'    => 'publish',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'no_found_rows'  => true,
+		)
+	);
+	if ( ! $posts ) {
+		return array();
+	}
+
+	usort(
+		$posts,
+		static function ( $a, $b ) {
+			$da = (string) vila_akoya_get_event_meta( $a->ID, 'next_occurrence', vila_akoya_get_event_meta( $a->ID, 'start_date', '' ) );
+			$db = (string) vila_akoya_get_event_meta( $b->ID, 'next_occurrence', vila_akoya_get_event_meta( $b->ID, 'start_date', '' ) );
+			if ( $da === $db ) {
+				return strcasecmp( $a->post_title, $b->post_title );
+			}
+			if ( '' === $da ) {
+				return 1;
+			}
+			if ( '' === $db ) {
+				return -1;
+			}
+			return strcmp( $da, $db );
+		}
+	);
+
+	return $posts;
+}
+
+/**
+ * Occurrence dates for an event between two Y-m-d bounds (inclusive).
+ *
+ * @param array<string, mixed> $data Event data.
+ * @param string               $from Y-m-d.
+ * @param string               $to   Y-m-d.
+ * @return string[]
+ */
+function vila_akoya_event_dates_in_range( array $data, $from, $to ) {
+	$dates = array();
+	$start = isset( $data['start_date'] ) ? (string) $data['start_date'] : '';
+	if ( '' === $start || $start > $to ) {
+		return $dates;
+	}
+
+	$type = isset( $data['schedule_type'] ) ? (string) $data['schedule_type'] : 'single';
+
+	if ( 'single' === $type ) {
+		if ( $start >= $from && $start <= $to ) {
+			$dates[] = $start;
+		}
+		return $dates;
+	}
+
+	try {
+		$tz = wp_timezone();
+		$series_start = new DateTimeImmutable( $start, $tz );
+	} catch ( Exception $e ) {
+		return $dates;
+	}
+
+	if ( 'range' === $type ) {
+		$end = isset( $data['end_date'] ) && $data['end_date'] ? (string) $data['end_date'] : $start;
+		$loop_from = max( $start, $from );
+		$loop_to   = min( $end, $to );
+		if ( $loop_from > $loop_to ) {
+			return $dates;
+		}
+		try {
+			$d    = new DateTimeImmutable( $loop_from, $tz );
+			$last = new DateTimeImmutable( $loop_to, $tz );
+		} catch ( Exception $e ) {
+			return $dates;
+		}
+		for ( ; $d <= $last; $d = $d->modify( '+1 day' ) ) {
+			$dates[] = $d->format( 'Y-m-d' );
+		}
+		return $dates;
+	}
+
+	$until = isset( $data['recurrence_until'] ) && $data['recurrence_until'] ? (string) $data['recurrence_until'] : $to;
+	$loop_from = max( $start, $from );
+	$loop_to   = min( $until, $to );
+	if ( $loop_from > $loop_to ) {
+		return $dates;
+	}
+
+	try {
+		$d    = new DateTimeImmutable( $loop_from, $tz );
+		$last = new DateTimeImmutable( $loop_to, $tz );
+	} catch ( Exception $e ) {
+		return $dates;
+	}
+
+	$freq     = isset( $data['recurrence_freq'] ) ? (string) $data['recurrence_freq'] : 'weekly';
+	$interval = isset( $data['recurrence_interval'] ) ? max( 1, (int) $data['recurrence_interval'] ) : 1;
+	$byday    = isset( $data['recurrence_byday'] ) && is_array( $data['recurrence_byday'] ) ? $data['recurrence_byday'] : array();
+	$month_day = (int) $series_start->format( 'j' );
+
+	if ( 'monthly' !== $freq && empty( $byday ) ) {
+		$byday = array( vila_akoya_event_php_n_to_byday( (int) $series_start->format( 'N' ) ) );
+	}
+
+	for ( ; $d <= $last; $d = $d->modify( '+1 day' ) ) {
+		if ( 'monthly' === $freq ) {
+			$max = (int) $d->format( 't' );
+			$use = min( $month_day, $max );
+			if ( (int) $d->format( 'j' ) !== $use ) {
+				continue;
+			}
+			$months = ( (int) $d->format( 'Y' ) - (int) $series_start->format( 'Y' ) ) * 12
+				+ ( (int) $d->format( 'n' ) - (int) $series_start->format( 'n' ) );
+			if ( 0 !== ( $months % $interval ) ) {
+				continue;
+			}
+			$dates[] = $d->format( 'Y-m-d' );
+			continue;
+		}
+
+		$code = vila_akoya_event_php_n_to_byday( (int) $d->format( 'N' ) );
+		if ( ! in_array( $code, $byday, true ) ) {
+			continue;
+		}
+		$days_from_start = (int) $series_start->diff( $d )->days;
+		$week_index      = (int) floor( $days_from_start / 7 );
+		if ( 0 !== ( $week_index % $interval ) ) {
+			continue;
+		}
+		$dates[] = $d->format( 'Y-m-d' );
+	}
+
+	return $dates;
+}
+
+/**
+ * Calendar payload for the archive script.
+ *
+ * @param WP_Post[] $posts Events.
+ * @return array<string, mixed>
+ */
+function vila_akoya_events_calendar_payload( array $posts ) {
+	$from = wp_date( 'Y-m-01', strtotime( '-2 months' ) );
+	$to   = wp_date( 'Y-m-t', strtotime( '+16 months' ) );
+	$days = array();
+
+	foreach ( $posts as $post ) {
+		$data  = vila_akoya_get_event_data( $post->ID );
+		$time  = '';
+		if ( empty( $data['all_day'] ) && $data['start_time'] ) {
+			$time = $data['end_time'] ? $data['start_time'] . '–' . $data['end_time'] : $data['start_time'];
+		}
+		$item = array(
+			'id'    => (int) $post->ID,
+			'title' => get_the_title( $post ),
+			'url'   => get_permalink( $post ),
+			'time'  => $time,
+			'kind'  => $data['kind'],
+		);
+		foreach ( vila_akoya_event_dates_in_range( $data, $from, $to ) as $ymd ) {
+			if ( ! isset( $days[ $ymd ] ) ) {
+				$days[ $ymd ] = array();
+			}
+			$days[ $ymd ][] = $item;
+		}
+	}
+
+	foreach ( $days as $ymd => $items ) {
+		$days[ $ymd ] = array_values( $items );
+	}
+
+	$weekdays = array();
+	$start_of_week = (int) get_option( 'start_of_week', 1 );
+	for ( $i = 0; $i < 7; $i++ ) {
+		$n = ( $start_of_week + $i ) % 7;
+		$weekdays[] = wp_date( 'D', strtotime( 'Sunday +' . $n . ' days' ) );
+	}
+
+	$months = array();
+	for ( $m = 1; $m <= 12; $m++ ) {
+		$months[] = wp_date( 'F', strtotime( '2026-' . sprintf( '%02d', $m ) . '-15' ) );
+	}
+
+	return array(
+		'startOfWeek' => $start_of_week,
+		'weekdays'    => $weekdays,
+		'months'      => $months,
+		'days'        => $days,
+		'today'       => wp_date( 'Y-m-d' ),
+	);
+}
 
 /**
  * Archive listing shortcode (used by archive-event template).
@@ -676,43 +943,159 @@ add_action( 'pre_get_posts', 'vila_akoya_event_archive_order' );
  * @return string
  */
 function vila_akoya_shortcode_events_archive() {
+	$posts = vila_akoya_get_archive_event_posts();
+	$view  = isset( $_GET['view'] ) ? sanitize_key( wp_unslash( $_GET['view'] ) ) : 'list'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'calendar' !== $view ) {
+		$view = 'list';
+	}
+	$payload = vila_akoya_events_calendar_payload( $posts );
+
 	ob_start();
 	?>
-	<div class="max-w-[1236px] mx-auto px-8 py-12 md:py-16">
-		<header class="text-center mb-12 md:mb-16">
-			<h1 class="font-headline text-4xl md:text-5xl text-on-surface mb-4"><?php esc_html_e( 'Events & workshops', 'vila-akoya' ); ?></h1>
-			<p class="font-body text-lg text-on-surface-variant max-w-2xl mx-auto"><?php esc_html_e( 'Classes, workshops and gatherings on campus. Request a place and we will get back to you.', 'vila-akoya' ); ?></p>
-		</header>
-		<?php if ( have_posts() ) : ?>
-			<div class="vila-blog-query">
-				<div class="vila-blog-grid">
-					<?php
-					while ( have_posts() ) :
-						the_post();
-						echo vila_akoya_render_event_card( get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					endwhile;
-					?>
-				</div>
+	<div class="vila-events-archive__inner" data-vila-events data-view="<?php echo esc_attr( $view ); ?>">
+		<header class="vila-events-archive__intro">
+			<div class="vila-events-archive__intro-copy">
+				<p class="vila-events-archive__eyebrow"><?php esc_html_e( 'On campus', 'vila-akoya' ); ?></p>
+				<h1 class="vila-events-archive__title"><?php esc_html_e( 'Events & workshops', 'vila-akoya' ); ?></h1>
+				<p class="vila-events-archive__lede"><?php esc_html_e( 'Classes, workshops and gatherings. Request a place and we will get back to you.', 'vila-akoya' ); ?></p>
 			</div>
-			<div class="vila-blog-pagination mt-12 md:mt-16 flex justify-center gap-2">
+			<?php if ( $posts ) : ?>
+				<div class="vila-events-toggle" role="tablist" aria-label="<?php esc_attr_e( 'Events view', 'vila-akoya' ); ?>"><button type="button" class="vila-events-toggle__btn" data-events-view="list" role="tab" aria-selected="<?php echo 'list' === $view ? 'true' : 'false'; ?>"><?php esc_html_e( 'List', 'vila-akoya' ); ?></button><button type="button" class="vila-events-toggle__btn" data-events-view="calendar" role="tab" aria-selected="<?php echo 'calendar' === $view ? 'true' : 'false'; ?>"><?php esc_html_e( 'Calendar', 'vila-akoya' ); ?></button></div>
+			<?php endif; ?>
+		</header>
+		<?php if ( $posts ) : ?>
+			<div class="vila-events-board" data-events-panel="list">
 				<?php
-				the_posts_pagination(
-					array(
-						'mid_size'  => 1,
-						'prev_text' => __( 'Previous', 'vila-akoya' ),
-						'next_text' => __( 'Next', 'vila-akoya' ),
-					)
-				);
+				foreach ( $posts as $event_post ) {
+					echo vila_akoya_render_event_card( $event_post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
 				?>
 			</div>
+			<div class="vila-events-calendar" data-events-panel="calendar">
+				<div class="vila-events-cal__nav">
+					<button type="button" class="vila-events-cal__nav-btn" data-cal-prev aria-label="<?php esc_attr_e( 'Previous month', 'vila-akoya' ); ?>">‹</button>
+					<h2 class="vila-events-cal__label" data-cal-label></h2>
+					<button type="button" class="vila-events-cal__nav-btn" data-cal-next aria-label="<?php esc_attr_e( 'Next month', 'vila-akoya' ); ?>">›</button>
+				</div>
+				<div class="vila-events-cal__grid" data-cal-grid></div>
+			</div>
+			<script type="application/json" id="vila-events-cal-data"><?php echo wp_json_encode( $payload ); ?></script>
 		<?php else : ?>
-			<p class="font-body text-on-surface-variant text-center py-16"><?php esc_html_e( 'No upcoming events yet. Check back soon.', 'vila-akoya' ); ?></p>
+			<p class="vila-events-archive__empty"><?php esc_html_e( 'No upcoming events yet. Check back soon.', 'vila-akoya' ); ?></p>
 		<?php endif; ?>
 	</div>
 	<?php
 	return (string) ob_get_clean();
 }
 add_shortcode( 'vila_events_archive', 'vila_akoya_shortcode_events_archive' );
+
+/**
+ * Compact upcoming-events preview (Campus page).
+ *
+ * @param array<string, string>|string $atts Shortcode atts.
+ * @return string
+ */
+function vila_akoya_shortcode_events_preview( $atts = array() ) {
+	$atts = shortcode_atts(
+		array(
+			'count' => '3',
+		),
+		$atts,
+		'vila_events_preview'
+	);
+	$count = max( 1, min( 6, (int) $atts['count'] ) );
+	$all_posts = vila_akoya_get_archive_event_posts();
+	$posts     = array();
+	foreach ( $all_posts as $event_post ) {
+		$data = vila_akoya_get_event_data( $event_post->ID );
+		if ( 'workshop' !== $data['kind'] ) {
+			continue;
+		}
+		$posts[] = $event_post;
+		if ( count( $posts ) >= $count ) {
+			break;
+		}
+	}
+	if ( empty( $posts ) ) {
+		return '';
+	}
+	$all = get_post_type_archive_link( 'event' );
+	if ( ! $all ) {
+		$all = home_url( '/events/' );
+	}
+
+	ob_start();
+	?>
+	<section class="vila-events-preview" aria-labelledby="vila-events-preview-heading">
+		<div class="vila-events-preview__inner">
+			<header class="vila-events-preview__header">
+				<div>
+					<p class="vila-events-preview__eyebrow"><?php esc_html_e( 'On campus', 'vila-akoya' ); ?></p>
+					<h2 id="vila-events-preview-heading" class="vila-events-preview__title"><?php esc_html_e( 'Workshops', 'vila-akoya' ); ?></h2>
+					<p class="vila-events-preview__lede"><?php esc_html_e( 'Hands-on sessions happening on campus. Request a place, or browse the full programme.', 'vila-akoya' ); ?></p>
+				</div>
+				<a class="vila-events-preview__btn" href="<?php echo esc_url( $all ); ?>"><?php esc_html_e( 'See all events', 'vila-akoya' ); ?></a>
+			</header>
+			<?php if ( $posts ) : ?>
+				<div class="vila-events-preview__board">
+					<?php
+					foreach ( $posts as $event_post ) {
+						echo vila_akoya_render_event_card( $event_post->ID ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					}
+					?>
+				</div>
+			<?php endif; ?>
+			<p class="vila-events-preview__footer">
+				<a class="vila-events-preview__btn vila-events-preview__btn--ghost" href="<?php echo esc_url( $all ); ?>"><?php esc_html_e( 'See all events', 'vila-akoya' ); ?></a>
+			</p>
+		</div>
+	</section>
+	<?php
+	return (string) ob_get_clean();
+}
+add_shortcode( 'vila_events_preview', 'vila_akoya_shortcode_events_preview' );
+
+/**
+ * Insert the events preview on Campus after “Classes in All Schools of Life”.
+ *
+ * @param string $content Page content.
+ * @return string
+ */
+function vila_akoya_inject_campus_events_preview( $content ) {
+	static $injecting = false;
+	if ( $injecting ) {
+		return $content;
+	}
+	if ( is_admin() || ! is_singular( 'page' ) || ! in_the_loop() || ! is_main_query() ) {
+		return $content;
+	}
+	if ( ! is_page( 'campus' ) ) {
+		return $content;
+	}
+	if ( (int) get_the_ID() !== (int) get_queried_object_id() ) {
+		return $content;
+	}
+	if ( false !== strpos( $content, 'vila-events-preview' ) || false !== strpos( $content, '[vila_events_preview]' ) ) {
+		return $content;
+	}
+
+	$injecting = true;
+	$preview   = vila_akoya_shortcode_events_preview();
+	$injecting = false;
+	if ( '' === trim( (string) $preview ) ) {
+		return $content;
+	}
+
+	$updated = preg_replace(
+		'/(<h2[^>]*>\s*Classes in All Schools of Life\s*<\/h2>[\s\S]*?<\/section>)/i',
+		'$1' . $preview,
+		$content,
+		1
+	);
+
+	return is_string( $updated ) && '' !== $updated ? $updated : $content . $preview;
+}
+add_filter( 'the_content', 'vila_akoya_inject_campus_events_preview', 12 );
 
 /**
  * Render one event card HTML.
@@ -726,34 +1109,44 @@ function vila_akoya_render_event_card( $post_id ) {
 	$schedule = vila_akoya_format_event_schedule( $data );
 	$permalink = get_permalink( $post_id );
 	$title     = get_the_title( $post_id );
-	$excerpt   = get_the_excerpt( $post_id );
+	$post      = get_post( $post_id );
+	$excerpt   = '';
+	if ( $post instanceof WP_Post ) {
+		$excerpt = $post->post_excerpt
+			? $post->post_excerpt
+			: wp_trim_words( wp_strip_all_tags( $post->post_content ), 16 );
+	}
 
 	ob_start();
 	?>
-	<article class="vila-blog-card editorial-shadow flex h-full flex-col overflow-hidden rounded-xl bg-surface">
-		<a class="vila-blog-card__image block overflow-hidden rounded-t-xl" href="<?php echo esc_url( $permalink ); ?>" style="aspect-ratio:16/10">
+	<article class="vila-event-card">
+		<a class="vila-event-card__image" href="<?php echo esc_url( $permalink ); ?>">
 			<?php if ( has_post_thumbnail( $post_id ) ) : ?>
-				<?php echo get_the_post_thumbnail( $post_id, 'large', array( 'class' => 'h-full w-full object-cover' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				<?php echo get_the_post_thumbnail( $post_id, 'large', array( 'alt' => $title ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<?php else : ?>
-				<span class="block h-full w-full bg-surface-container-low" style="min-height:12rem" aria-hidden="true"></span>
+				<span class="vila-event-card__placeholder" aria-hidden="true"></span>
 			<?php endif; ?>
+			<span class="vila-event-badge vila-event-badge--<?php echo esc_attr( $data['kind'] ); ?>"><?php echo esc_html( vila_akoya_event_kind_label( $data['kind'] ) ); ?></span>
 		</a>
-		<div class="vila-blog-card__body flex flex-1 flex-col p-6 md:p-8 bg-surface rounded-b-xl">
+		<div class="vila-event-card__body">
 			<?php if ( $schedule ) : ?>
-				<p class="font-label text-xs uppercase tracking-[0.14em] text-on-surface-variant mb-3"><?php echo esc_html( $schedule ); ?></p>
+				<p class="vila-event-card__when"><?php echo esc_html( $schedule ); ?></p>
 			<?php endif; ?>
-			<h3 class="font-headline text-xl md:text-2xl text-on-surface mb-3 leading-snug">
-				<a class="text-on-surface no-underline hover:text-primary transition-colors" href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $title ); ?></a>
+			<h3 class="vila-event-card__title">
+				<a href="<?php echo esc_url( $permalink ); ?>"><?php echo esc_html( $title ); ?></a>
 			</h3>
 			<?php if ( $excerpt ) : ?>
-				<p class="font-body text-sm md:text-base text-on-surface-variant leading-relaxed mb-4"><?php echo esc_html( wp_strip_all_tags( $excerpt ) ); ?></p>
+				<p class="vila-event-card__excerpt"><?php echo esc_html( wp_strip_all_tags( $excerpt ) ); ?></p>
 			<?php endif; ?>
-			<div class="mt-auto flex flex-wrap gap-3 font-label text-xs uppercase tracking-[0.12em] text-on-surface-variant">
+			<div class="vila-event-card__meta">
 				<?php if ( $data['price'] ) : ?>
 					<span><?php echo esc_html( $data['price'] ); ?></span>
 				<?php endif; ?>
 				<?php if ( $data['capacity'] > 0 ) : ?>
 					<span><?php echo esc_html( sprintf( /* translators: %d: seats */ __( '%d places', 'vila-akoya' ), $data['capacity'] ) ); ?></span>
+				<?php endif; ?>
+				<?php if ( $data['reservation_required'] ) : ?>
+					<a class="vila-event-card__cta" href="<?php echo esc_url( $permalink ); ?>#request-a-place"><?php esc_html_e( 'Request a place', 'vila-akoya' ); ?></a>
 				<?php endif; ?>
 			</div>
 		</div>
@@ -786,6 +1179,9 @@ function vila_akoya_shortcode_event_single() {
 				<?php echo get_the_post_thumbnail( $post_id, 'large', array( 'class' => 'w-full object-cover' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			</div>
 		<?php endif; ?>
+		<p class="mb-4">
+			<span class="vila-event-badge vila-event-badge--<?php echo esc_attr( $data['kind'] ); ?>"><?php echo esc_html( vila_akoya_event_kind_label( $data['kind'] ) ); ?></span>
+		</p>
 		<?php if ( $schedule ) : ?>
 			<p class="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant mb-4"><?php echo esc_html( $schedule ); ?></p>
 		<?php endif; ?>
@@ -803,15 +1199,17 @@ function vila_akoya_shortcode_event_single() {
 			<?php endif; ?>
 		</ul>
 
-		<div class="vila-single-post wp-block-post-content mb-14">
+		<div class="vila-single-post wp-block-post-content<?php echo $data['reservation_required'] ? ' mb-14' : ''; ?>">
 			<?php the_content(); ?>
 		</div>
 
+		<?php if ( $data['reservation_required'] ) : ?>
 		<section class="va-campus-form-card max-w-3xl mx-auto bg-surface-container-low rounded-[2rem] p-8 md:p-10 border border-outline-variant/20 shadow-sm" id="request-a-place">
 			<h2 class="font-headline text-2xl md:text-3xl text-on-surface mb-2"><?php esc_html_e( 'Request a place', 'vila-akoya' ); ?></h2>
 			<p class="font-body text-on-surface-variant mb-8"><?php esc_html_e( 'Tell us a little about yourself and how many places you need. We will confirm availability and next steps by email.', 'vila-akoya' ); ?></p>
 			<?php echo vila_akoya_render_event_inquiry_form( $post_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		</section>
+		<?php endif; ?>
 	</div>
 	<?php
 	return (string) ob_get_clean();
@@ -881,6 +1279,7 @@ function vila_akoya_event_admin_columns( $columns ) {
 	foreach ( $columns as $key => $label ) {
 		$new[ $key ] = $label;
 		if ( 'title' === $key ) {
+			$new['vila_kind']     = __( 'Type', 'vila-akoya' );
 			$new['vila_schedule'] = __( 'Schedule', 'vila-akoya' );
 			$new['vila_price']    = __( 'Price', 'vila-akoya' );
 			$new['vila_capacity'] = __( 'Places', 'vila-akoya' );
@@ -899,6 +1298,10 @@ add_filter( 'manage_event_posts_columns', 'vila_akoya_event_admin_columns' );
  */
 function vila_akoya_event_admin_column_content( $column, $post_id ) {
 	$data = vila_akoya_get_event_data( $post_id );
+	if ( 'vila_kind' === $column ) {
+		echo esc_html( vila_akoya_event_kind_label( $data['kind'] ) );
+		return;
+	}
 	if ( 'vila_schedule' === $column ) {
 		echo esc_html( vila_akoya_format_event_schedule( $data ) );
 		return;
@@ -931,3 +1334,22 @@ function vila_akoya_event_body_class( $classes ) {
 	return $classes;
 }
 add_filter( 'body_class', 'vila_akoya_event_body_class' );
+
+/**
+ * Archive list/calendar script.
+ *
+ * @return void
+ */
+function vila_akoya_enqueue_events_archive_assets() {
+	if ( ! is_post_type_archive( 'event' ) ) {
+		return;
+	}
+	wp_enqueue_script(
+		'vila-akoya-events-archive',
+		VILA_AKOYA_URI . '/assets/js/events-archive.js',
+		array(),
+		VILA_AKOYA_VERSION,
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'vila_akoya_enqueue_events_archive_assets' );

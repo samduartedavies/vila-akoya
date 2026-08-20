@@ -292,6 +292,10 @@ function vila_akoya_campus_section_rows() {
 			),
 		),
 		array(
+			'acf_fc_layout' => 'legacy_html',
+			'html'          => '[vila_events_preview]',
+		),
+		array(
 			'acf_fc_layout' => 'text_image',
 			'layout'        => 'plain',
 			'image'         => 'https://vila-akoya.com/images/campus-teacher.jpg',

@@ -81,7 +81,7 @@ endif;
 
 if ( 'campus' === $layout ) :
 	?>
-<section class="wp-block-group vila-dappled-surface py-24 bg-surface-container-low textured-bg mb-0">
+<section class="wp-block-group vila-dappled-surface pt-24 pb-32 md:pb-40 bg-surface-container-low textured-bg mb-16 md:mb-24">
 	<div class="wp-block-group max-w-[1236px] mx-auto box-border px-6 md:px-12">
 		<?php if ( '' !== $heading || '' !== $intro ) : ?>
 			<header class="vila-reveal text-center max-w-3xl mx-auto mb-12 md:mb-16 space-y-4">

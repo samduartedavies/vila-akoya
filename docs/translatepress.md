@@ -16,6 +16,7 @@ That script installs and activates `translatepress-multilingual`, then configure
 - Translation language: Portuguese, Portugal (`pt_PT`)
 - English remains on the root URLs, without `/en/`
 - Portuguese uses `/pt/` URLs
+- Floating bottom language switcher: off
 
 Do not add TranslatePress to `.wp-env.json` and do not commit the plugin files. It is a WordPress.org plugin installed into the wp-env WordPress volume, like WooCommerce and Secure Custom Fields.
 
@@ -35,6 +36,7 @@ Then open Settings -> TranslatePress and confirm:
 - All Languages: English and Portuguese (Portugal)
 - Use subdirectory for default language: off
 - Portuguese URL slug: `pt`
+- Language Switcher -> Floating language selection: disabled
 
 ## Translating content
 

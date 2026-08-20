@@ -73,9 +73,6 @@ class Vila_Akoya_Footer_Nav_Walker extends Walker_Nav_Menu {
 	 */
 	public function start_el( &$output, $item, $depth = 0, $args = null, $id = 0 ) {
 		unset( $depth, $id );
-		if ( in_array( vila_akoya_nav_item_slug( $item ), vila_akoya_hidden_nav_slugs(), true ) ) {
-			return;
-		}
 		$class = 'text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300';
 		$output .= '<a class="' . esc_attr( $class ) . '" href="' . esc_url( $item->url ) . '">' . esc_html( $item->title ) . '</a>';
 	}
@@ -108,12 +105,12 @@ function vila_akoya_nav_item_slug( $item ) {
 }
 
 /**
- * Nav slugs temporarily hidden from header and footer.
+ * Nav slugs hidden from the header (still shown in the footer).
  *
  * @return list<string>
  */
 function vila_akoya_hidden_nav_slugs() {
-	return array( 'events' );
+	return array( 'booking' );
 }
 
 /**
@@ -125,7 +122,6 @@ function vila_akoya_default_nav_items() {
 	return array(
 		array( 'slug' => 'village', 'label' => 'The Village' ),
 		array( 'slug' => 'campsite', 'label' => 'The Campsite' ),
-		array( 'slug' => 'booking', 'label' => 'Join us' ),
 		array( 'slug' => 'campus', 'label' => 'The Campus' ),
 		array( 'slug' => 'events', 'label' => 'Events' ),
 		array( 'slug' => 'the-kids', 'label' => 'The Kids' ),
@@ -140,7 +136,9 @@ function vila_akoya_default_nav_items() {
  * @return list<array{slug:string,label:string}>
  */
 function vila_akoya_default_footer_nav_items() {
-	$items = vila_akoya_default_nav_items();
+	$items   = vila_akoya_default_nav_items();
+	$booking = array( 'slug' => 'booking', 'label' => 'Join us' );
+	array_splice( $items, 2, 0, array( $booking ) );
 	$items[] = array( 'slug' => 'blog', 'label' => 'Blog' );
 	return $items;
 }
@@ -177,9 +175,6 @@ function vila_akoya_render_fallback_header_links( $variant, $current_nav, $h ) {
 function vila_akoya_render_fallback_footer_links( $h ) {
 	$class = 'text-orange-50/80 hover:text-orange-50 text-base font-light font-body hover:translate-y-[-2px] transition-transform duration-300';
 	foreach ( vila_akoya_default_footer_nav_items() as $item ) {
-		if ( in_array( $item['slug'], vila_akoya_hidden_nav_slugs(), true ) ) {
-			continue;
-		}
 		echo '<a class="' . esc_attr( $class ) . '" href="' . esc_url( $h( $item['slug'] ) ) . '">' . esc_html( $item['label'] ) . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 }
@@ -231,3 +226,99 @@ function vila_akoya_render_footer_nav_links( $location, $h ) {
 	}
 	vila_akoya_render_fallback_footer_links( $h );
 }
+
+/**
+ * Make sure the footer menu includes Events (archive URL).
+ *
+ * @return void
+ */
+function vila_akoya_ensure_footer_events_link() {
+	if ( (string) get_option( 'vila_akoya_footer_events_nav', '' ) === '1' ) {
+		return;
+	}
+	$locations = get_theme_mod( 'nav_menu_locations', array() );
+	if ( empty( $locations['footer'] ) ) {
+		return;
+	}
+	$menu_id = (int) $locations['footer'];
+	$items   = wp_get_nav_menu_items( $menu_id );
+	foreach ( (array) $items as $item ) {
+		if ( 'events' === vila_akoya_nav_item_slug( $item ) ) {
+			update_option( 'vila_akoya_footer_events_nav', '1' );
+			return;
+		}
+	}
+
+	$position = is_array( $items ) ? count( $items ) + 1 : 1;
+	wp_update_nav_menu_item(
+		$menu_id,
+		0,
+		array(
+			'menu-item-title'    => __( 'Events', 'vila-akoya' ),
+			'menu-item-type'     => 'custom',
+			'menu-item-url'      => home_url( '/events/' ),
+			'menu-item-status'   => 'publish',
+			'menu-item-position' => $position,
+		)
+	);
+	update_option( 'vila_akoya_footer_events_nav', '1' );
+}
+add_action( 'wp', 'vila_akoya_ensure_footer_events_link', 20 );
+
+/**
+ * Sync header menu: show Events, hide Join us (booking page link).
+ *
+ * @return void
+ */
+function vila_akoya_sync_header_nav_items() {
+	if ( (string) get_option( 'vila_akoya_header_nav_v2', '' ) === '1' ) {
+		return;
+	}
+	$locations = get_theme_mod( 'nav_menu_locations', array() );
+	if ( empty( $locations['header'] ) ) {
+		update_option( 'vila_akoya_header_nav_v2', '1' );
+		return;
+	}
+	$menu_id = (int) $locations['header'];
+	$items   = wp_get_nav_menu_items( $menu_id );
+	if ( ! is_array( $items ) ) {
+		update_option( 'vila_akoya_header_nav_v2', '1' );
+		return;
+	}
+
+	$has_events = false;
+	foreach ( $items as $item ) {
+		$slug = vila_akoya_nav_item_slug( $item );
+		if ( 'booking' === $slug ) {
+			wp_delete_post( (int) $item->ID, true );
+			continue;
+		}
+		if ( 'events' === $slug ) {
+			$has_events = true;
+		}
+	}
+
+	if ( ! $has_events ) {
+		$position = count( $items ) + 1;
+		foreach ( $items as $item ) {
+			if ( 'campus' === vila_akoya_nav_item_slug( $item ) ) {
+				$position = (int) $item->menu_order + 1;
+				break;
+			}
+		}
+		wp_update_nav_menu_item(
+			$menu_id,
+			0,
+			array(
+				'menu-item-title'    => __( 'Events', 'vila-akoya' ),
+				'menu-item-type'     => 'custom',
+				'menu-item-url'      => home_url( '/events/' ),
+				'menu-item-status'   => 'publish',
+				'menu-item-position' => $position,
+			)
+		);
+	}
+
+	update_option( 'vila_akoya_header_nav_v2', '1' );
+}
+add_action( 'wp', 'vila_akoya_sync_header_nav_items', 19 );

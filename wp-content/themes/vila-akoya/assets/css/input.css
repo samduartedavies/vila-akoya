@@ -302,6 +302,187 @@
     @apply bg-primary text-on-primary;
   }
 
+  /* Events archive — pinboard / notice-board listing */
+  .vila-events-archive {
+    background-color: rgb(var(--vila-rgb-background) / 1);
+  }
+
+  .vila-events-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (min-width: 720px) {
+    .vila-events-board {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 2.75rem 2.25rem;
+    }
+  }
+
+  .vila-event-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0.7rem 0.7rem 0.35rem;
+    background: rgb(var(--vila-rgb-surface) / 1);
+    border-radius: 0.45rem 0.45rem 0.7rem 0.7rem;
+    overflow: visible;
+    box-shadow:
+      0 18px 40px rgba(31, 36, 25, 0.1),
+      0 4px 14px rgba(154, 63, 33, 0.06);
+    transition:
+      transform 280ms var(--vila-motion-ease, ease),
+      box-shadow 280ms var(--vila-motion-ease, ease);
+  }
+
+  .vila-event-card:hover,
+  .vila-event-card:focus-within {
+    z-index: 2;
+    box-shadow:
+      0 28px 56px rgba(31, 36, 25, 0.14),
+      0 8px 20px rgba(154, 63, 33, 0.08);
+  }
+
+  .vila-event-card::before {
+    content: "";
+    position: absolute;
+    top: -0.45rem;
+    left: 50%;
+    z-index: 3;
+    width: 3.6rem;
+    height: 1.25rem;
+    margin-left: -1.8rem;
+    background: rgb(var(--vila-rgb-tertiary) / 0.48);
+    border-radius: 2px;
+    box-shadow: 0 4px 8px rgba(31, 36, 25, 0.12);
+    transform: rotate(-8deg);
+    pointer-events: none;
+  }
+
+  .vila-event-card:nth-child(even)::before {
+    background: rgb(var(--vila-rgb-secondary) / 0.4);
+    transform: rotate(7deg);
+  }
+
+  .vila-event-card:nth-child(3n)::before {
+    background: rgb(var(--vila-rgb-primary) / 0.28);
+    transform: rotate(-2deg);
+  }
+
+  .vila-event-card:hover,
+  .vila-event-card:focus-within {
+    z-index: 1;
+  }
+
+  .vila-event-card__image {
+    position: relative;
+    display: block;
+    margin: 0;
+    padding: 0;
+    line-height: 0;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    border-radius: 0.28rem;
+    background: rgb(var(--vila-rgb-surface-container-low) / 1);
+  }
+
+  .vila-event-card__image img,
+  .vila-event-card__placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    object-fit: cover;
+    object-position: center 12%;
+  }
+
+  .vila-event-card__placeholder {
+    min-height: 14rem;
+    background: rgb(var(--vila-rgb-surface-container-low) / 1);
+  }
+
+  .vila-event-card__body {
+    padding: 1.05rem 0.55rem 1rem;
+  }
+
+  .vila-event-card__when {
+    margin: 0 0 0.65rem;
+    font-family: var(--vila-font-body);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgb(var(--vila-rgb-on-surface-variant) / 1);
+  }
+
+  .vila-event-card__title {
+    margin: 0 0 0.7rem;
+    font-family: var(--vila-font-headline);
+    font-size: clamp(1.2rem, 1.8vw, 1.5rem);
+    font-weight: 400;
+    line-height: 1.2;
+    color: rgb(var(--vila-rgb-on-surface) / 1);
+  }
+
+  .vila-event-card__title a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .vila-event-card__title a:hover,
+  .vila-event-card__title a:focus-visible {
+    color: rgb(var(--vila-rgb-primary) / 1);
+  }
+
+  .vila-event-card__excerpt {
+    margin: 0 0 1rem;
+    font-family: var(--vila-font-body);
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: rgb(var(--vila-rgb-on-surface-variant) / 1);
+  }
+
+  .vila-event-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    font-family: var(--vila-font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgb(var(--vila-rgb-on-surface-variant) / 1);
+  }
+
+  .vila-event-card__cta {
+    margin-left: auto;
+    color: rgb(var(--vila-rgb-primary) / 1);
+    text-decoration: none;
+  }
+
+  .vila-event-card__cta:hover,
+  .vila-event-card__cta:focus-visible {
+    color: rgb(var(--vila-rgb-primary-container) / 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vila-event-card,
+    .vila-event-card:nth-child(even),
+    .vila-event-card:nth-child(3n),
+    .vila-event-card:nth-child(4n),
+    .vila-event-card:hover,
+    .vila-event-card:focus-within {
+      transform: none;
+    }
+  }
+
   /* Single post — readable prose */
   .vila-single-post .wp-block-post-content {
     @apply font-body text-lg leading-relaxed text-on-surface;
@@ -1806,6 +1987,25 @@
     @apply mb-0;
   }
 
+  .vila-stay-discount-upsell-row {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin: -0.5rem 0 2rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.75rem;
+    background: rgb(var(--vila-rgb-primary-container) / 0.28);
+    border: 1px solid rgb(var(--vila-rgb-primary) / 0.28);
+    color: rgb(var(--vila-rgb-on-background) / 1);
+    font-family: var(--vila-font-body, "Josefin Sans", system-ui, sans-serif);
+    font-size: 0.9375rem;
+    line-height: 1.45;
+  }
+
+  .vila-stay-discount-upsell-row[hidden] {
+    display: none;
+  }
+
   .vila-booking-notes-wrap {
     @apply mb-8 w-full min-w-0;
   }
@@ -1962,6 +2162,27 @@
 
   .vila-wc-booking .mbfw-total-cost__wrapper {
     @apply mt-3 pt-3 border-t border-outline-variant/20 bg-transparent;
+  }
+
+  .vila-wc-booking .vila-live-bill__discount .mbfw-total-listing-single-page {
+    @apply text-primary font-medium;
+  }
+
+  .vila-stay-discount-notice {
+    display: block;
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.75rem;
+    background: rgb(var(--vila-rgb-primary-container) / 0.28);
+    border: 1px solid rgb(var(--vila-rgb-primary) / 0.28);
+    color: rgb(var(--vila-rgb-on-background) / 1);
+    font-family: var(--vila-font-body, "Josefin Sans", system-ui, sans-serif);
+    font-size: 0.9375rem;
+    line-height: 1.45;
+  }
+
+  .vila-stay-discount-notice__text {
+    margin: 0;
   }
 
   .vila-wc-booking form.cart {
@@ -3753,4 +3974,556 @@ body.va-gallery-lightbox-open {
   .va-gallery-lightbox__nav--next {
     right: 1.25rem;
   }
+}
+
+/* Events archive — unlayered so WP layout / Tailwind layers cannot collapse the grid */
+.vila-events-archive .wp-block-shortcode {
+  max-width: none !important;
+  width: 100%;
+}
+
+main.vila-events-archive {
+  padding-top: 8.25rem !important;
+}
+
+.vila-events-archive__inner {
+  box-sizing: border-box;
+  max-width: 1236px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 5rem;
+}
+
+@media (min-width: 768px) {
+  .vila-events-archive__inner {
+    padding: 2.25rem 2rem 5.5rem;
+  }
+}
+
+.vila-events-archive__intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem 1.5rem;
+  margin-bottom: 4.25rem;
+}
+
+.vila-events-archive__intro-copy {
+  flex: 1 1 16rem;
+}
+
+.vila-events-archive__intro .vila-events-toggle {
+  flex: 0 0 auto;
+  align-self: flex-end;
+}
+
+.vila-events-archive__eyebrow {
+  margin: 0 0 0.7rem;
+  font-family: var(--vila-font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-events-archive__title {
+  margin: 0 0 0.85rem;
+  font-family: var(--vila-font-barrio);
+  font-size: clamp(2.6rem, 7vw, 4.4rem);
+  line-height: 0.95;
+  color: rgb(var(--vila-rgb-primary) / 1);
+  display: inline-block;
+  transform: rotate(-1.4deg);
+  transform-origin: left center;
+}
+
+.vila-events-archive__lede {
+  margin: 0;
+  max-width: 36rem;
+  font-family: var(--vila-font-headline);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  font-style: italic;
+  color: rgb(var(--vila-rgb-tertiary) / 1);
+}
+
+.vila-events-archive__empty {
+  padding: 4rem 0;
+  text-align: center;
+  font-family: var(--vila-font-body);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 1);
+}
+
+.vila-events-toggle {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  padding: 0.28rem;
+  border-radius: 999px;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1);
+  box-shadow: inset 0 0 0 1px rgb(var(--vila-rgb-outline-variant) / 0.35);
+  transform: rotate(1.6deg);
+}
+
+.vila-events-toggle br,
+.vila-events-toggle p {
+  display: none;
+}
+
+.vila-events-toggle__btn {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0.55rem 1.15rem;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(var(--vila-rgb-on-surface-variant) / 1);
+  font-family: var(--vila-font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.vila-events-toggle__btn[aria-selected="true"] {
+  background: rgb(var(--vila-rgb-primary) / 1);
+  color: rgb(var(--vila-rgb-on-primary) / 1);
+}
+
+[data-vila-events][data-view="list"] [data-events-panel="calendar"],
+[data-vila-events][data-view="calendar"] [data-events-panel="list"] {
+  display: none !important;
+}
+
+[data-vila-events][data-view="list"] [data-events-panel="list"] {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.25rem;
+  align-items: start;
+  padding: 0.75rem 0.35rem 1.5rem;
+}
+
+@media (min-width: 720px) {
+  [data-vila-events][data-view="list"] [data-events-panel="list"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3.5rem 3rem;
+    padding: 0.85rem 0.75rem 2rem;
+  }
+}
+
+[data-vila-events][data-view="calendar"] [data-events-panel="calendar"] {
+  display: block !important;
+}
+
+.vila-events-archive .vila-event-card,
+.vila-events-preview .vila-event-card {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 34rem;
+  min-width: 0;
+  flex: none;
+  justify-self: center;
+}
+
+@media (min-width: 720px) {
+  .vila-events-archive .vila-event-card:nth-child(odd) {
+    transform: rotate(-1.85deg);
+    justify-self: end;
+  }
+
+  .vila-events-archive .vila-event-card:nth-child(even) {
+    transform: rotate(1.7deg) translateY(1.85rem);
+    justify-self: start;
+  }
+
+  .vila-events-archive .vila-event-card:nth-child(3n) {
+    transform: rotate(-1.1deg) translateY(0.65rem);
+  }
+
+  .vila-events-archive .vila-event-card:nth-child(4n) {
+    transform: rotate(2deg) translateY(1.15rem);
+    justify-self: start;
+  }
+
+  .vila-events-archive .vila-event-card:hover,
+  .vila-events-archive .vila-event-card:focus-within {
+    transform: rotate(-0.35deg) translateY(-0.35rem);
+  }
+
+  .vila-events-preview .vila-event-card:nth-child(odd) {
+    transform: rotate(-1.5deg);
+  }
+
+  .vila-events-preview .vila-event-card:nth-child(even) {
+    transform: rotate(1.4deg) translateY(1.1rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vila-events-archive .vila-event-card,
+  .vila-events-archive .vila-event-card:nth-child(odd),
+  .vila-events-archive .vila-event-card:nth-child(even),
+  .vila-events-archive .vila-event-card:nth-child(3n),
+  .vila-events-archive .vila-event-card:nth-child(4n),
+  .vila-events-archive .vila-event-card:hover,
+  .vila-events-archive .vila-event-card:focus-within,
+  .vila-events-preview .vila-event-card,
+  .vila-events-preview .vila-event-card:nth-child(odd),
+  .vila-events-preview .vila-event-card:nth-child(even),
+  .vila-events-archive__title,
+  .vila-events-toggle {
+    transform: none;
+  }
+}
+
+.vila-events-calendar {
+  background: rgb(var(--vila-rgb-surface) / 0.72);
+  border: 1px solid rgb(var(--vila-rgb-outline-variant) / 0.28);
+  border-radius: 1.5rem;
+  padding: 1.25rem 1rem 1.5rem;
+  box-shadow: 0 18px 40px rgba(31, 36, 25, 0.08);
+}
+
+.vila-events-cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.vila-events-cal__label {
+  margin: 0;
+  font-family: var(--vila-font-headline);
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 400;
+  color: rgb(var(--vila-rgb-on-surface) / 1);
+}
+
+.vila-events-cal__nav-btn {
+  appearance: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1);
+  color: rgb(var(--vila-rgb-primary) / 1);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vila-events-cal__nav-btn:hover,
+.vila-events-cal__nav-btn:focus-visible {
+  background: rgb(var(--vila-rgb-primary) / 1);
+  color: rgb(var(--vila-rgb-on-primary) / 1);
+}
+
+.vila-events-cal__weekdays,
+.vila-events-cal__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.vila-events-cal__days {
+  align-items: start;
+}
+
+.vila-events-cal__wd {
+  padding: 0.35rem 0.2rem;
+  text-align: center;
+  font-family: var(--vila-font-body);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(var(--vila-rgb-on-surface-variant) / 1);
+}
+
+.vila-events-cal__day {
+  min-height: 7.5rem;
+  min-width: 0;
+  padding: 0.45rem 0.4rem 0.55rem;
+  border-radius: 0.85rem;
+  background: rgb(var(--vila-rgb-surface-container-low) / 0.55);
+  overflow: visible;
+}
+
+.vila-events-cal__day.is-empty {
+  background: transparent;
+  min-height: 0;
+}
+
+.vila-events-cal__day.is-today {
+  box-shadow: inset 0 0 0 2px rgb(var(--vila-rgb-primary) / 0.55);
+}
+
+.vila-events-cal__num {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-family: var(--vila-font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgb(var(--vila-rgb-on-surface) / 1);
+}
+
+.vila-events-cal__events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.vila-events-cal__events li {
+  display: block;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.vila-event-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-family: var(--vila-font-body);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.vila-event-card__image .vila-event-badge {
+  position: absolute;
+  left: 0.7rem;
+  bottom: 0.7rem;
+  z-index: 3;
+}
+
+.vila-event-badge--workshop {
+  background: rgb(var(--vila-rgb-primary) / 1);
+  color: rgb(var(--vila-rgb-on-primary) / 1);
+  border: 1px solid rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-event-badge--event {
+  background: rgb(var(--vila-rgb-surface) / 1);
+  color: rgb(var(--vila-rgb-primary) / 1);
+  border: 1px solid rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-events-cal__event {
+  display: flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.28rem 0.4rem;
+  border-radius: 0.45rem;
+  text-decoration: none;
+  font-family: var(--vila-font-body);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  background: rgb(var(--vila-rgb-surface) / 1);
+  color: rgb(var(--vila-rgb-primary) / 1);
+  border: 1px solid rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-events-cal__event.is-workshop {
+  background: rgb(var(--vila-rgb-primary) / 1);
+  color: rgb(var(--vila-rgb-on-primary) / 1);
+  border-color: rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-events-cal__event.is-event {
+  background: rgb(var(--vila-rgb-surface) / 1);
+  color: rgb(var(--vila-rgb-primary) / 1);
+  border-color: rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-events-cal__event.is-workshop:hover,
+.vila-events-cal__event.is-workshop:focus-visible {
+  background: rgb(var(--vila-rgb-primary-container) / 1);
+  color: rgb(var(--vila-rgb-on-primary-container) / 1);
+  border-color: rgb(var(--vila-rgb-primary-container) / 1);
+}
+
+.vila-events-cal__event.is-event:hover,
+.vila-events-cal__event.is-event:focus-visible {
+  background: rgb(var(--vila-rgb-surface-container-low) / 1);
+  color: rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-events-cal__time {
+  flex: 0 0 auto;
+  opacity: 0.85;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+
+.vila-events-cal__event-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .vila-events-cal__day {
+    min-height: 4.5rem;
+    padding: 0.3rem;
+  }
+
+  .vila-events-cal__event-title {
+    display: none;
+  }
+
+  .vila-events-cal__time {
+    display: none;
+  }
+
+  .vila-events-cal__day.has-events .vila-events-cal__num::after {
+    content: "";
+    display: inline-block;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin-left: 0.25rem;
+    border-radius: 999px;
+    background: rgb(var(--vila-rgb-primary) / 1);
+    vertical-align: middle;
+  }
+}
+
+.vila-events-preview {
+  padding: 4.5rem 1.5rem;
+}
+
+.vila-events-preview__inner {
+  max-width: 1236px;
+  margin: 0 auto;
+}
+
+.vila-events-preview__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem 2rem;
+  margin-bottom: 2.25rem;
+}
+
+.vila-events-preview__eyebrow {
+  margin: 0 0 0.55rem;
+  font-family: var(--vila-font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-events-preview__title {
+  margin: 0 0 0.6rem;
+  font-family: var(--vila-font-headline);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  color: rgb(var(--vila-rgb-on-surface) / 1);
+}
+
+.vila-events-preview__lede {
+  margin: 0;
+  max-width: 36rem;
+  font-family: var(--vila-font-headline);
+  font-size: 1.2rem;
+  font-style: italic;
+  color: rgb(var(--vila-rgb-tertiary) / 1);
+}
+
+.vila-events-preview__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem 1.5rem;
+  border-radius: 0.9rem;
+  background: linear-gradient(to right, rgb(var(--vila-rgb-primary) / 1), rgb(var(--vila-rgb-primary-container) / 1));
+  color: rgb(var(--vila-rgb-on-primary) / 1);
+  font-family: var(--vila-font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 12px 28px rgb(154 63 33 / 0.18);
+}
+
+.vila-events-preview__btn:hover,
+.vila-events-preview__btn:focus-visible {
+  opacity: 0.92;
+}
+
+.vila-events-preview__btn--ghost {
+  background: transparent;
+  color: rgb(var(--vila-rgb-primary) / 1);
+  box-shadow: none;
+  border: 1px solid rgb(var(--vila-rgb-primary) / 0.28);
+}
+
+.vila-events-preview__board {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 2.5rem 2.25rem !important;
+  padding: 0.75rem 0.35rem 1.25rem;
+}
+
+.vila-events-preview__board .vila-event-card {
+  flex: 1 1 16rem;
+  width: calc(50% - 0.9rem);
+  max-width: calc(50% - 0.9rem);
+  min-width: 15rem;
+}
+
+@media (max-width: 719px) {
+  .vila-events-preview__header .vila-events-preview__btn {
+    display: none;
+  }
+
+  .vila-events-preview__board .vila-event-card {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+.vila-events-preview__footer {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0 0;
+}
+
+@media (min-width: 720px) {
+  .vila-events-preview__footer {
+    display: none;
+  }
+}
+
+.vila-events-preview__empty {
+  margin: 0;
+  font-family: var(--vila-font-body);
+  color: rgb(var(--vila-rgb-on-surface-variant) / 1);
+}
+
+/* Plain text+image sections — top breathing room after compact bands/cards */
+.vila-text-image-plain {
+  padding-top: clamp(4rem, 8vw, 6rem);
+}
+
+.vila-dappled-surface + .vila-text-image-plain,
+.vila-events-preview + .vila-text-image-plain {
+  padding-top: clamp(5rem, 10vw, 8rem);
 }

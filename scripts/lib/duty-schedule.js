@@ -58,6 +58,13 @@ function isDutyDueOn(dateISO, { frequency, lastCompleted, nextDue, status }) {
   return gap >= 1; // daily
 }
 
+/** Spread N weekly duties across the week (first due baseISO, then +step days). */
+function staggeredWeeklyDueDate(baseISO, weeklyIndex, weeklyCount) {
+  if (!baseISO || weeklyCount <= 1 || weeklyIndex <= 0) return baseISO;
+  const step = Math.max(1, Math.floor(7 / weeklyCount));
+  return addDaysISO(baseISO, weeklyIndex * step);
+}
+
 function appendCompletionLog(existing, dateISO, note) {
   const line = note ? `${dateISO} — ${note}` : dateISO;
   const prev = String(existing || "").trim();
@@ -99,6 +106,7 @@ module.exports = {
   daysBetween,
   nextDueAfterCompletion,
   isDutyDueOn,
+  staggeredWeeklyDueDate,
   appendCompletionLog,
   nameMatchesPerson,
 };

@@ -51,6 +51,7 @@ if (!is_array(\$settings)) {
 \$settings["translation-languages"] = \$languages;
 \$settings["publish-languages"] = \$languages;
 \$settings["add-subdirectory-to-default-language"] = "no";
+\$settings["trp-ls-floater"] = "no";
 \$settings["url-slugs"] = \$url_slugs;
 
 update_option("trp_settings", \$settings);

@@ -1139,6 +1139,7 @@ class WooCommerce_Integration {
 		if ( $nights < 1 ) {
 			return (float) $product->get_regular_price();
 		}
+		$billable = Stay_Discount::billable_nights( $nights );
 		$pid = (int) $product->get_id();
 		$base = (float) apply_filters( 'vila_cb_adult_rate_per_night', (float) $product->get_regular_price(), $pid );
 		$adults = isset( $guests['adults'] ) ? max( 1, (int) $guests['adults'] ) : 1;
@@ -1146,13 +1147,13 @@ class WooCommerce_Integration {
 		$inf    = isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;
 		$pets   = isset( $guests['pets'] ) ? max( 0, (int) $guests['pets'] ) : 0;
 
-		$line = $adults * $base * $nights;
+		$line = $adults * $base * $billable;
 
 		if ( $include_guest_supplements ) {
 			$rates = Booking_Service::guest_category_rates( $pid );
-			$line += ( $ch * (float) $rates['children'] * $nights )
-				+ ( $inf * (float) $rates['infants'] * $nights )
-				+ ( $pets * (float) $rates['pets'] * $nights );
+			$line += ( $ch * (float) $rates['children'] * $billable )
+				+ ( $inf * (float) $rates['infants'] * $billable )
+				+ ( $pets * (float) $rates['pets'] * $billable );
 		}
 
 		return apply_filters( 'vila_cb_calculated_line_total', (float) $line, $pid, $check_in, $check_out, $guests, $nights, $include_guest_supplements );

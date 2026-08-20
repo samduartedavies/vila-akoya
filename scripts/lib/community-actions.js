@@ -2,6 +2,7 @@
  * Community message actions and Notion routing for Vila Akoya.
  * The AI picks ONE primary action per message; the bot executes it on Notion when applicable.
  * Exception: create_task / guest_issue may return multiple tasks in one message.
+ * create_recurring_duty may return multiple duties in recurring_duties[].
  */
 
 "use strict";
@@ -29,6 +30,7 @@ const ACTIONS = [
   "question_schedule",
   "question_my_day",
   "create_task",
+  "create_recurring_duty",
   "guest_issue",
   "create_event",
   "complete_task",
@@ -42,6 +44,7 @@ const ACTIONS = [
   "help_wanted",
   "availability",
   "announcement",
+  "book_meal",
 ];
 
 const DECISION_CATEGORIES = [
@@ -55,6 +58,7 @@ const DECISION_CATEGORIES = [
 
 const TASK_TYPES = ["Villager", "Management"];
 const TASK_PRIORITIES = ["Low", "Average", "High"];
+const DUTY_FREQUENCIES = ["Daily", "Weekly", "Monthly", "Seasonal"];
 
 const MAINTENANCE_GROUP_BY_AREA = {
   Water: "Water",
@@ -73,6 +77,7 @@ const MAINTENANCE_GROUP_BY_AREA = {
 const CHAT_ACTIVITY_KIND = {
   create_event: "event_logged",
   create_task: "task_logged",
+  create_recurring_duty: "duty_logged",
   guest_issue: "guest_logged",
   create_decision: "decision_logged",
   create_documentation: "doc_logged",
@@ -213,6 +218,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "question_schedule examples (LOOKUP — do NOT create_event):",
     '  EN: "what\'s happening next week?", "whats happenign next week", "any events?", "who cleans toilets today?"',
     '  EN: "anyone checking in today?", "who is leaving tomorrow?", "how many for dinner?", "breakfast numbers?"',
+    '  NOT book_meal: "how many for dinner?" is a lookup (question_schedule), not a booking request.',
     '  PT: "o que há na próxima semana?", "que eventos temos?", "quem está de serviço hoje?"',
     '  PT: "alguém faz check-in hoje?", "quantos jantam hoje?"',
     '  ES: "qué pasa la semana que viene?", "qué eventos hay?"',
@@ -258,9 +264,34 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     `      EN: "community lunch 3rd Sunday" → monthly:3rd-Sun`,
     `      PT: "almoço no terceiro domingo do mês" → monthly:3rd-Sun`,
     `    For recurring events set event.recurrence and set event.date to the next occurrence from today.`,
-    "- create_task: repair, broken, leak, smell, blocked, not working, cleanup job, safety issue, or any village work.",
+    "- create_task: ONE-OFF repair, broken, leak, smell, blocked, not working, or a single cleanup job.",
     `    task.type: Villager (village work anyone can do) | Management (needs a professional or arranging).`,
-    "    All tasks go to the Tasks database (no separate maintenance/guest DBs).",
+    "    All one-off tasks go to the Tasks database (no separate maintenance/guest DBs).",
+    "    NOT create_task when the job REPEATS on a schedule — use create_recurring_duty instead.",
+    "- create_recurring_duty: a duty that REPEATS (daily, weekly, monthly, seasonal) and belongs on the rota.",
+    `    recurring_duty.frequency: ${DUTY_FREQUENCIES.join(" | ")} (default Daily).`,
+    "    recurring_duty.assignee: villager name (e.g. B, Sam, Moon) — who currently holds the job role.",
+    "    recurring_duty.job: job ROLE name (e.g. Cleaner, Kitchen) — all duties link here; assignee lives on the Job.",
+    "    When speaker lists a full rota for a job role, set the SAME job on every duty and the current assignee.",
+    "    Assignee is on the Job (not each duty) — reassigning the job later updates who sees all its duties.",
+    "    Goes to Recurring Duties (not Tasks). The job assignee sees duties in /mytasks + morning DM when due.",
+    '    EN: "clean every day", "B cleans daily", "weekly fridge clean for Moon", "assign cleaning to B every day"',
+    '    PT: "limpar todos os dias", "B limpa diariamente", "tarefa diária de limpeza para B"',
+    "    STRUCTURED ROTA: speakers often send sections like “every day” / “once a week” with bullet lists.",
+    '    EN example: "every day: toilets, kitchen, reception. once a week: shared house, deep clean bathroom.',
+    '      Cleaner job role, B is doing it" →',
+    '      recurring_duties: [{title:"Sanitary and toilet",frequency:"Daily",job:"Cleaner",assignee:"B"},',
+    '        {title:"Kitchen",frequency:"Daily",job:"Cleaner",assignee:"B"},',
+    '        {title:"Shared house",frequency:"Weekly",job:"Cleaner",assignee:"B"}, …]',
+    "    Map section headers: every day/daily/diariamente → Daily; once a week/weekly/semanalmente → Weekly;",
+    "    once a month/monthly/mensalmente → Monthly.",
+    "    MULTIPLE DUTIES: if the speaker lists several rota jobs (daily toilets, weekly fridge, monthly deep clean…),",
+    "    set action=create_recurring_duty and return ALL of them in recurring_duties[] — one object per duty",
+    "    with its own title/frequency/assignee. Use the same job role (e.g. Cleaner) for all items in a roster.",
+    "    Also set recurring_duty to the first item (compat). Never collapse a list into one title.",
+    '    Example: "my cleaning rota: toilets daily, fridge weekly, windows monthly" →',
+    '      recurring_duties: [{title:"Clean toilets",frequency:"Daily"},{title:"Clean fridge",frequency:"Weekly"},…]',
+    "    NOT create_recurring_duty for one-off jobs (create_task) or calendar gatherings (create_event).",
     '    If the task belongs to a project, set task.project to the project name (e.g. "swimming pool", "shaded seating").',
     '    Examples: "add a task to the pool project — buy tiles", "for the seating project we need to order wood".',
     "    MULTIPLE TASKS: if the speaker lists several jobs (often a voice note: “assign X to A, Y to B…”),",
@@ -280,6 +311,11 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "- create_documentation: speaker wants to WRITE or RECORD knowledge for others — how a system works,",
     "    a procedure, troubleshooting guide, guest process, or steward notes (often a voice brain dump).",
     "    NOT a one-off repair job (create_task) and NOT a question (question_doc).",
+    "- book_meal: speaker wants to sign up for communal weekday dinner (campsite meal booking on the website).",
+    '    EN: "I want dinner tonight", "book me in for dinner", "can I have dinner?", "sign me up for dinner"',
+    '    PT: "quero jantar", "quero jantar hoje", "posso jantar?", "marcar jantar"',
+    '    NOT book_meal: headcount questions ("how many for dinner?"), organising a new meal/event (create_event),',
+    '    or reporting a kitchen issue (create_task / guest_issue).',
     "- rsvp_event: speaker says they are coming to an event, RSVP, or \"I'm in\" for a known event.",
     '    Examples: "I\'m coming to the BBQ", "count me in for yoga", "eu vou ao almoço"',
     "    Populate rsvp.title with the event name to match.",
@@ -311,6 +347,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "doc_lookup": bool,',
     '  "task": { "title", "type", "priority", "assignee", "project" } | null,',
     '  "tasks": [ { "title", "type", "priority", "assignee", "project" } ] | null,',
+    '  "recurring_duty": { "title", "frequency", "assignee", "job" } | null,',
+    '  "recurring_duties": [ { "title", "frequency", "assignee", "job" } ] | null,',
     '  "event": { "title", "date", "event_type", "scope", "recurrence" } | null,',
     '  "target": { "title", "item_id" } | null,',
     '  "decision": { "title", "category", "summary" } | null,',
@@ -327,6 +365,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "For question_doc set doc_lookup=true.",
     "task.type: Villager = village work anyone can pitch in; Management = needs a professional or arranging.",
     "Tasks store: title, type, priority (Low/Average/High), assignee, created by, status, notes, optional project link.",
+    "Recurring duties store: title, frequency, assignee, optional job role — shown daily in /mytasks + morning DM.",
+    "When logging more than one recurring duty, recurring_duties[] is required and recurring_duty = recurring_duties[0].",
     "When logging more than one task, tasks[] is required (every job) and task should equal tasks[0].",
   ].join("\n");
 }
@@ -341,6 +381,27 @@ function normalizeTaskFields(raw) {
     priority: TASK_PRIORITIES.includes(raw.priority) ? raw.priority : null,
     assignee: raw.assignee ? String(raw.assignee).slice(0, 80) : null,
     project: raw.project ? String(raw.project).slice(0, 120) : null,
+  };
+}
+
+function normalizeDutyFrequency(raw) {
+  const f = String(raw || "Daily").trim().toLowerCase();
+  if (f === "weekly" || f.includes("week")) return "Weekly";
+  if (f === "monthly" || f.includes("month")) return "Monthly";
+  if (f === "seasonal") return "Seasonal";
+  if (DUTY_FREQUENCIES.includes(raw)) return raw;
+  return "Daily";
+}
+
+function normalizeRecurringDutyFields(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const title = String(raw.title || "").trim().slice(0, 80);
+  if (!title) return null;
+  return {
+    title,
+    frequency: normalizeDutyFrequency(raw.frequency),
+    assignee: raw.assignee ? String(raw.assignee).slice(0, 80) : null,
+    job: raw.job ? String(raw.job).slice(0, 80) : null,
   };
 }
 
@@ -359,6 +420,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     rsvp: "rsvp_event",
     reminder: "create_reminder",
     note: "add_note",
+    book_dinner: "book_meal",
+    recurring_duty: "create_recurring_duty",
+    create_duty: "create_recurring_duty",
   };
   let action = ACTIONS.includes(legacyMap[rawAction] || rawAction)
     ? legacyMap[rawAction] || rawAction
@@ -368,7 +432,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
   if (result.doc_lookup === true) {
     action = "question_doc";
   }
-  if (result.schedule_lookup === true && action !== "question_my_day") {
+  if (result.schedule_lookup === true && action !== "question_my_day" && action !== "book_meal") {
     action = "question_schedule";
   }
   // Prefer personal agenda when action is my_day (don't let schedule_lookup steal it)
@@ -393,6 +457,26 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     }
   }
   const task = tasks[0] || null;
+
+  let recurringDuties = [];
+  if (action === "create_recurring_duty") {
+    const fromArray = Array.isArray(result.recurring_duties)
+      ? result.recurring_duties.map(normalizeRecurringDutyFields).filter(Boolean)
+      : [];
+    const single = normalizeRecurringDutyFields(result.recurring_duty);
+    if (fromArray.length) {
+      recurringDuties = fromArray;
+      if (
+        single &&
+        !recurringDuties.some((d) => d.title.toLowerCase() === single.title.toLowerCase())
+      ) {
+        recurringDuties.unshift(single);
+      }
+    } else if (single) {
+      recurringDuties = [single];
+    }
+  }
+  const recurringDuty = recurringDuties[0] || null;
 
   const eventRaw = result.event || (action === "create_event" ? result.proposal : null);
   let event = null;
@@ -491,6 +575,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     confidence,
     is_question: isQuestion,
     is_task: (action === "create_task" || action === "guest_issue") && Boolean(task?.title),
+    is_recurring_duty:
+      action === "create_recurring_duty" && recurringDuties.length > 0,
     is_event: action === "create_event" && Boolean(event?.title),
     is_complete: action === "complete_task" && Boolean(target?.title || target?.item_id),
     is_cancel_event: action === "cancel_event" && Boolean(target?.title || target?.item_id),
@@ -498,6 +584,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_rsvp: action === "rsvp_event" && Boolean(rsvp?.title),
     is_reminder: action === "create_reminder" && Boolean(reminder?.title),
     is_add_note: action === "add_note" && Boolean(note?.target_title),
+    is_book_meal: action === "book_meal",
     question_kind:
       action === "question_doc"
         ? "documentation"
@@ -510,6 +597,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     schedule_days: scheduleDays > 0 && scheduleDays <= 30 ? Math.round(scheduleDays) : null,
     task,
     tasks,
+    recurring_duty: recurringDuty,
+    recurring_duties: recurringDuties,
     event,
     target,
     decision,
@@ -526,6 +615,7 @@ module.exports = {
   DECISION_CATEGORIES,
   TASK_TYPES,
   TASK_PRIORITIES,
+  DUTY_FREQUENCIES,
   MAINTENANCE_GROUP_BY_AREA,
   CHAT_ACTIVITY_KIND,
   EVENT_TYPES,
