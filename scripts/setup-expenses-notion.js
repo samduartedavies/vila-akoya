@@ -38,6 +38,8 @@ const EXPENSE_CATEGORIES = [
 
 const STATUS_OPTIONS = ["To reimburse", "Reimbursed", "Recorded"];
 
+const ENTITY_OPTIONS = ["Aldeia Alcateia", "Povoado Gentil"];
+
 function selectOpts(names) {
   const colors = [
     "gray",
@@ -111,6 +113,9 @@ const EXPENSE_PROPERTIES = {
   "Telegram username": { rich_text: {} },
   "Telegram user ID": { rich_text: {} },
   Category: selectProp(EXPENSE_CATEGORIES),
+  Entity: selectProp(ENTITY_OPTIONS),
+  Company: { rich_text: {} },
+  NIF: { rich_text: {} },
   Status: selectProp(STATUS_OPTIONS),
   Merchant: { rich_text: {} },
   VAT: { number: { format: "euro" } },
@@ -191,6 +196,24 @@ async function main() {
     );
   } catch (err) {
     console.warn(`  To reimburse view skipped: ${err.message}`);
+  }
+
+  for (const entity of ENTITY_OPTIONS) {
+    try {
+      const view = await notion.ensureTableView(db.id, {
+        name: entity,
+        filter: {
+          property: "Entity",
+          select: { equals: entity },
+        },
+        sorts,
+      });
+      console.log(
+        `  View “${entity}”: ${view.wasCreated ? "created" : "exists"} ${view.url || ""}`
+      );
+    } catch (err) {
+      console.warn(`  View “${entity}” skipped: ${err.message}`);
+    }
   }
 
   notion.saveCatalog(catalog);

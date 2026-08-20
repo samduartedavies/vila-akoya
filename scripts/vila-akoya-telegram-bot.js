@@ -405,6 +405,55 @@ function formatMoney(amount, currency = "EUR") {
   }
 }
 
+/** Accounting streams — separate NIFs for tax / reimbursement. */
+const EXPENSE_ENTITIES = [
+  {
+    id: 1,
+    notionSelect: "Aldeia Alcateia",
+    legalName: "ALDEIA ALCATEIA LDA",
+    nif: "517908794",
+  },
+  {
+    id: 2,
+    notionSelect: "Povoado Gentil",
+    legalName: "POVOADO GENTIL LDA",
+    nif: "519423178",
+  },
+];
+
+const EXPENSE_ENTITY_TIMEOUT_MS = 60 * 60 * 1000;
+
+function expenseEntityPrompt(preview) {
+  const lines = [
+    "Which NIF was on this receipt? Reply <b>1</b> or <b>2</b> (or <i>Alcateia</i> / <i>Povoado</i>):",
+    "",
+    "1. ALDEIA ALCATEIA LDA 517908794",
+    "2. POVOADO GENTIL LDA 519423178",
+  ];
+  if (preview?.title) {
+    let head = `🧾 <b>${escapeHtml(preview.title)}</b>`;
+    if (preview.amount != null) {
+      head += ` · ${escapeHtml(formatMoney(preview.amount, preview.currency))}`;
+    }
+    if (preview.merchant) head += `\n${escapeHtml(preview.merchant)}`;
+    lines.unshift(head, "");
+  }
+  return lines.join("\n");
+}
+
+function parseExpenseEntityChoice(text) {
+  const raw = String(text || "").trim();
+  const t = raw.toLowerCase();
+  if (!t) return null;
+  if (t === "1") return EXPENSE_ENTITIES[0];
+  if (t === "2") return EXPENSE_ENTITIES[1];
+  const alcateia = /\b(alcateia|aldeia)\b/.test(t);
+  const povoado = /\b(povoado|gentil)\b/.test(t);
+  if (alcateia && !povoado) return EXPENSE_ENTITIES[0];
+  if (povoado && !alcateia) return EXPENSE_ENTITIES[1];
+  return null;
+}
+
 async function replyWithDinnerBookingLink(chatId, dateISO) {
   let meals = null;
   try {
@@ -770,6 +819,7 @@ function loadState() {
     if (!s.chatLog) s.chatLog = [];
     if (!s.items) s.items = {};
     if (!s.pendingClarify) s.pendingClarify = {};
+    if (!s.pendingExpenseEntity) s.pendingExpenseEntity = {};
     if (!s.pendingQuestionnaire) s.pendingQuestionnaire = {};
     else s.pendingQuestionnaire = normalizePendingQuestionnaires(s.pendingQuestionnaire);
     if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
@@ -789,6 +839,7 @@ function loadState() {
       chatLog: [],
       items: {},
       pendingClarify: {},
+      pendingExpenseEntity: {},
       pendingQuestionnaire: {},
     };
   }
@@ -1229,6 +1280,7 @@ async function createExpense({
   source,
   upload,
   mediaKind,
+  entity,
 }) {
   const date = extracted?.date || todayISO();
   const merchant = extracted?.merchant || "";
@@ -1270,6 +1322,11 @@ async function createExpense({
     "Receipt text": receiptText,
     Notes: notes,
   };
+  if (entity) {
+    properties.Entity = entity.notionSelect;
+    properties.NIF = entity.nif;
+    properties.Company = entity.legalName;
+  }
 
   const children = [];
   if (receiptText) {
@@ -1310,7 +1367,163 @@ async function createExpense({
     amount: extracted?.amount,
     currency: extracted?.currency || "EUR",
     merchant,
+    entity: entity?.notionSelect || null,
   };
+}
+
+async function finalizeAndLogExpense({
+  extracted,
+  from,
+  chatId,
+  sourceText,
+  source,
+  upload,
+  mediaKind,
+  entity,
+}) {
+  const result = await createExpense({
+    extracted,
+    from,
+    chatId,
+    sourceText,
+    source,
+    upload,
+    mediaKind,
+    entity,
+  });
+  let reply = `🧾 Logged expense: <b>${escapeHtml(result.title)}</b>`;
+  if (result.amount != null) {
+    reply += `\n${escapeHtml(formatMoney(result.amount, result.currency))}`;
+  } else {
+    reply += `\n<i>Amount not read — please check Notion</i>`;
+  }
+  if (result.date) reply += ` · ${escapeHtml(result.date)}`;
+  if (result.merchant) reply += `\n${escapeHtml(result.merchant)}`;
+  if (entity) {
+    reply += `\n<b>${escapeHtml(entity.legalName)}</b> · NIF ${escapeHtml(entity.nif)}`;
+  }
+  reply += `\nSubmitted by <b>${escapeHtml(result.submitter)}</b>`;
+  if (result.url) reply += `\n<a href="${result.url}">Open in Notion</a>`;
+  await sendMessage(chatId, reply);
+  return result;
+}
+
+function pendingExpenseKey(chatId, fromId) {
+  return `${chatId}:${fromId}`;
+}
+
+async function queueExpenseEntityChoice({
+  extracted,
+  from,
+  chatId,
+  sourceText,
+  source,
+  media,
+  upload,
+}) {
+  const key = pendingExpenseKey(chatId, from?.id);
+  const hadPending = Boolean(state.pendingExpenseEntity?.[key]);
+  state.pendingExpenseEntity = state.pendingExpenseEntity || {};
+  state.pendingExpenseEntity[key] = {
+    ts: Date.now(),
+    extracted,
+    sourceText: sourceText || "",
+    source: source || "Text",
+    mediaKind: media?.kind || null,
+    telegramFileId: media?.fileId || null,
+    mediaFilename: media?.filename || null,
+    mediaMime: media?.mime || null,
+    uploadId: upload?.id || null,
+    uploadFilename: upload?.filename || null,
+    fromId: from?.id,
+  };
+  saveState();
+  const preview = {
+    title: extracted?.title || extracted?.merchant || "Receipt",
+    amount: extracted?.amount,
+    currency: extracted?.currency || "EUR",
+    merchant: extracted?.merchant || "",
+  };
+  let msg = expenseEntityPrompt(preview);
+  if (hadPending) {
+    msg =
+      "<i>Previous receipt cancelled — this is the one waiting for 1 or 2.</i>\n\n" +
+      msg;
+  }
+  await sendMessage(chatId, msg);
+}
+
+async function resolvePendingExpenseUpload(pending) {
+  if (pending.uploadId) {
+    return {
+      id: pending.uploadId,
+      filename: pending.uploadFilename || "receipt.jpg",
+    };
+  }
+  if (!pending.telegramFileId) return null;
+  try {
+    const downloaded = await downloadTelegramFile(pending.telegramFileId);
+    const filename =
+      pending.mediaFilename ||
+      downloaded.filename ||
+      (pending.mediaKind === "pdf" ? "receipt.pdf" : "receipt.jpg");
+    const mime =
+      pending.mediaMime ||
+      notion.guessContentType(
+        filename,
+        pending.mediaKind === "pdf" ? "application/pdf" : "image/jpeg"
+      );
+    return await notion.uploadFile(downloaded.buf, filename, mime);
+  } catch (err) {
+    log("resolvePendingExpenseUpload error:", err.message);
+    return null;
+  }
+}
+
+async function handlePendingExpenseEntity(message) {
+  const chatId = message.chat.id;
+  const fromId = message.from?.id;
+  const key = pendingExpenseKey(chatId, fromId);
+  const pending = state.pendingExpenseEntity?.[key];
+  if (!pending) return false;
+  if (Date.now() - pending.ts > EXPENSE_ENTITY_TIMEOUT_MS) {
+    delete state.pendingExpenseEntity[key];
+    saveState();
+    return false;
+  }
+
+  const text = (message.text || message.caption || "").trim();
+  if (!text || text.startsWith("/")) return false;
+
+  const entity = parseExpenseEntityChoice(text);
+  if (!entity) {
+    await sendMessage(
+      chatId,
+      "Reply <b>1</b> or <b>2</b>:\n\n1. ALDEIA ALCATEIA LDA 517908794\n2. POVOADO GENTIL LDA 519423178"
+    );
+    return true;
+  }
+
+  delete state.pendingExpenseEntity[key];
+  saveState();
+
+  try {
+    const upload = await resolvePendingExpenseUpload(pending);
+    await finalizeAndLogExpense({
+      extracted: pending.extracted,
+      from: message.from,
+      chatId,
+      sourceText: pending.sourceText,
+      source: pending.source,
+      upload,
+      mediaKind: pending.mediaKind,
+      entity,
+    });
+  } catch (err) {
+    log("handlePendingExpenseEntity error:", err.message);
+    await sendMessage(chatId, "Sorry, I could not save that receipt.");
+  }
+  return true;
 }
 
 async function sendExpenseSummary(chatId, { from } = {}) {
@@ -1331,6 +1544,7 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     (p) => (notion.pagePropText(p, "Month") || "").startsWith(month)
   );
   const byPerson = new Map();
+  const byEntity = new Map();
   for (const page of thisMonth) {
     const who =
       notion.pagePropText(page, "Submitted by") ||
@@ -1342,6 +1556,15 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     entry.amount += amount;
     entry.count += 1;
     byPerson.set(who, entry);
+
+    const entity =
+      notion.pagePropText(page, "Entity") ||
+      notion.pagePropText(page, "Company") ||
+      "Unassigned";
+    const ent = byEntity.get(entity) || { amount: 0, count: 0 };
+    ent.amount += amount;
+    ent.count += 1;
+    byEntity.set(entity, ent);
   }
 
   const lines = [`<b>Expenses — ${escapeHtml(month)}</b>`];
@@ -1359,6 +1582,23 @@ async function sendExpenseSummary(chatId, { from } = {}) {
       );
     }
     lines.push(`<b>Total</b> ${escapeHtml(formatMoney(total, "EUR"))}`);
+  }
+
+  if (byEntity.size) {
+    lines.push("", "<b>By company</b>");
+    for (const ent of EXPENSE_ENTITIES) {
+      const row = byEntity.get(ent.notionSelect);
+      if (!row) continue;
+      lines.push(
+        `• ${escapeHtml(ent.legalName)} — ${escapeHtml(formatMoney(row.amount, "EUR"))} (${row.count})`
+      );
+    }
+    const other = byEntity.get("Unassigned");
+    if (other?.count) {
+      lines.push(
+        `• <i>Unassigned</i> — ${escapeHtml(formatMoney(other.amount, "EUR"))} (${other.count})`
+      );
+    }
   }
 
   const unpaid = thisMonth.filter(
@@ -1433,14 +1673,9 @@ async function handleReceiptSubmission({
         imageBase64 = buf.toString("base64");
         imageMime = mime.startsWith("image/") ? mime : "image/jpeg";
       }
-      try {
-        upload = await notion.uploadFile(buf, filename, mime);
-      } catch (err) {
-        log("Notion receipt upload failed:", err.message);
-      }
     } catch (err) {
       log("download receipt media error:", err.message);
-      if (force) {
+      if (force || assume) {
         await sendMessage(
           chatId,
           "I couldn't download that file. Try sending the photo again, or paste the receipt text."
@@ -1519,30 +1754,48 @@ async function handleReceiptSubmission({
   }
 
   try {
-    const result = await createExpense({
+    const entityFromText = parseExpenseEntityChoice(text);
+    if (entityFromText) {
+      if (buf && media?.fileId) {
+        try {
+          const filename = media.filename || "receipt.jpg";
+          const mime =
+            media.mime ||
+            notion.guessContentType(
+              filename,
+              media.kind === "pdf" ? "application/pdf" : "image/jpeg"
+            );
+          upload = await notion.uploadFile(buf, filename, mime);
+        } catch (err) {
+          log("Notion receipt upload failed:", err.message);
+        }
+      }
+      await finalizeAndLogExpense({
+        extracted,
+        from,
+        chatId,
+        sourceText: text,
+        source,
+        upload,
+        mediaKind: media?.kind,
+        entity: entityFromText,
+      });
+      return true;
+    }
+
+    await queueExpenseEntityChoice({
       extracted,
       from,
       chatId,
       sourceText: text,
       source,
-      upload,
-      mediaKind: media?.kind,
+      media,
+      upload: null,
     });
-    let reply = `🧾 Logged expense: <b>${escapeHtml(result.title)}</b>`;
-    if (result.amount != null) {
-      reply += `\n${escapeHtml(formatMoney(result.amount, result.currency))}`;
-    } else {
-      reply += `\n<i>Amount not read — please check Notion</i>`;
-    }
-    if (result.date) reply += ` · ${escapeHtml(result.date)}`;
-    if (result.merchant) reply += `\n${escapeHtml(result.merchant)}`;
-    reply += `\nSubmitted by <b>${escapeHtml(result.submitter)}</b>`;
-    if (result.url) reply += `\n<a href="${result.url}">Open in Notion</a>`;
-    await sendMessage(chatId, reply);
     return true;
   } catch (err) {
     log("createExpense error:", err.message);
-    if (force) {
+    if (force || assume) {
       const missing = /not found/i.test(err.message)
         ? " Run <code>npm run notion:setup-expenses</code> first."
         : "";
@@ -3831,7 +4084,7 @@ const HELP_TEXT = [
   "I can log tasks (villager work or management jobs), <b>recurring duties</b> (daily/weekly/monthly rota), events, reminders, RSVP to events, add notes to projects, <b>receipts / expenses</b>, answer questions from docs and schedule, and more.",
   "Send a list of cleaning/rota jobs in one message (or voice note) — daily, weekly, monthly — and I'll add them all to Notion.",
   "Voice notes are transcribed — explain how something works to create a structured doc.",
-  "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). In the group, tag me or use /receipt.",
+  "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado). In the group, tag me or use /receipt.",
   "",
   "<b>Task types</b>",
   "• <i>Villager</i> — village work anyone can pitch in on",
@@ -4603,6 +4856,10 @@ async function handleMessageInner(message) {
   }
 
   if (text && !text.startsWith("/") && (await handlePendingClarification(message))) {
+    return;
+  }
+
+  if (text && !text.startsWith("/") && (await handlePendingExpenseEntity(message))) {
     return;
   }
 

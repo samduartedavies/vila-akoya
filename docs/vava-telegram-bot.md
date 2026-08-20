@@ -31,9 +31,11 @@ EVENTS
 @vila_akoya_bot yoga every Sunday
 
 RECEIPTS (private Expenses board — not shown on the public site)
-In a DM: send a photo or PDF — I'll assume it's a receipt (unless GPT says it isn't)
-In the group: tag the bot, or /receipt, or reply to a photo with /receipt
-/receipts — this month's totals by person
+In a DM: send a photo or PDF — I'll assume it's a receipt, then ask which NIF (reply 1 or 2):
+  1. ALDEIA ALCATEIA LDA 517908794
+  2. POVOADO GENTIL LDA 519423178
+Or add Alcateia / Povoado in the caption. In the group: tag the bot or /receipt
+/receipts — this month's totals by person and company
 
 ASK
 @vila_akoya_bot how does the water system work?
