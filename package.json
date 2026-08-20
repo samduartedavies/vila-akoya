@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "notion:setup": "node scripts/setup-vila-akoya-notion.js",
+    "notion:setup-expenses": "node scripts/setup-expenses-notion.js",
     "notion:migrate-v2": "node scripts/migrate-notion-v2.js",
     "notion:expand-recurring": "node scripts/expand-notion-recurring-events.js",
     "notion:enrich-events": "node scripts/enrich-notion-event-pages.js",

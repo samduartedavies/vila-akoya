@@ -72,6 +72,12 @@ function rich() {
 function num() {
   return { number: { format: "number" } };
 }
+function euro() {
+  return { number: { format: "euro" } };
+}
+function files() {
+  return { files: {} };
+}
 function check() {
   return { checkbox: {} };
 }
@@ -324,6 +330,41 @@ const DATABASES = [
     },
     samples: [],
   },
+  {
+    key: "Expenses",
+    parentSection: "Expenses",
+    purpose:
+      "Receipts from Telegram (photo, PDF, or pasted text). Keep this page private — the bot uses the integration, not a public link. Group by Submitted by and Sum Amount.",
+    properties: {
+      Name: title(),
+      Amount: euro(),
+      Currency: selectProp(["EUR", "GBP", "USD", "Other"]),
+      Date: date(),
+      Month: rich(),
+      "Submitted by": rich(),
+      "Telegram username": rich(),
+      "Telegram user ID": rich(),
+      Category: selectProp([
+        "Food / groceries",
+        "Hardware",
+        "Fuel",
+        "Transport",
+        "Utilities",
+        "Maintenance",
+        "Supplies",
+        "Guest / campsite",
+        "Other",
+      ]),
+      Status: selectProp(["To reimburse", "Reimbursed", "Recorded"]),
+      Merchant: rich(),
+      VAT: euro(),
+      Source: selectProp(["Photo", "PDF", "Text"]),
+      "Receipt text": rich(),
+      Notes: rich(),
+      Receipt: files(),
+    },
+    samples: [],
+  },
 ];
 
 async function ensureSection(parentId, title, catalog) {
@@ -499,7 +540,7 @@ async function setup() {
   }
 
   const sections = {};
-  for (const name of ["Calendars", "Work", "Community", "Documentation hub"]) {
+  for (const name of ["Calendars", "Work", "Community", "Documentation hub", "Expenses"]) {
     sections[name] = await ensureSection(PARENT_PAGE_ID, name, catalog);
   }
 

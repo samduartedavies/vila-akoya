@@ -19,6 +19,8 @@ const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
 // gpt-4.1-nano: fastest/cheapest OpenAI chat model — good for JSON classification + short answers.
 // Override with OPENAI_CHAT_MODEL if you need more accuracy (e.g. gpt-4o-mini).
 const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4.1-nano";
+// Vision-capable model for receipt photos / PDFs.
+const VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4o-mini";
 const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small";
 const TRANSCRIBE_MODEL =
   process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe";
@@ -60,13 +62,17 @@ async function embedOne(text) {
 }
 
 async function chatJSON(system, user) {
+  return chatJSONMessages(system, user, { model: CHAT_MODEL });
+}
+
+async function chatJSONMessages(system, userContent, { model } = {}) {
   const json = await openai("/chat/completions", {
-    model: CHAT_MODEL,
+    model: model || CHAT_MODEL,
     temperature: 0,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: system },
-      { role: "user", content: user },
+      { role: "user", content: userContent },
     ],
   });
   const content = json.choices?.[0]?.message?.content || "{}";
@@ -201,6 +207,7 @@ const {
   buildClassifierPrompt,
   parseClassification,
   EVENT_TYPES,
+  EXPENSE_CATEGORIES,
 } = require("./community-actions");
 
 /**
@@ -397,6 +404,134 @@ async function structureDocumentation(rawText, { proposer, todayISO }) {
   }
 }
 
+const RECEIPT_CATEGORIES = EXPENSE_CATEGORIES || [
+  "Food / groceries",
+  "Hardware",
+  "Fuel",
+  "Transport",
+  "Utilities",
+  "Maintenance",
+  "Supplies",
+  "Guest / campsite",
+  "Other",
+];
+
+/**
+ * Extract structured expense fields from a receipt photo, PDF, and/or pasted text.
+ * Returns null if OpenAI is disabled or the call fails.
+ */
+async function extractReceipt({
+  text,
+  imageBase64,
+  imageMime,
+  pdfBase64,
+  filename,
+  todayISO,
+  submitter,
+} = {}) {
+  if (!isEnabled()) return null;
+
+  const hasImage = Boolean(imageBase64);
+  const hasPdf = Boolean(pdfBase64);
+  const hasText = Boolean(String(text || "").trim());
+  if (!hasImage && !hasPdf && !hasText) return null;
+
+  const system = [
+    "You extract village expense receipts for Vila Akoya (Portugal).",
+    "Input may be a photo of a till receipt / factura / talão, a PDF invoice, and/or pasted text.",
+    "Portuguese, English, and mixed receipts are common. IVA = VAT.",
+    `Today is ${todayISO || "unknown"}.`,
+    submitter ? `Submitted by: ${submitter}.` : "",
+    "",
+    "If this is clearly NOT a receipt, invoice, or expense (e.g. a photo of a leak, a landscape, a meme),",
+    "set is_receipt=false and leave other fields empty.",
+    "",
+    `category must be one of: ${RECEIPT_CATEGORIES.join(", ")}.`,
+    "currency: EUR unless the receipt clearly uses another (GBP, USD). Default EUR for Portugal.",
+    "amount is the TOTAL to pay (gross), as a number. Use a dot decimal (12.40 not 12,40).",
+    "vat is IVA / VAT amount if printed, else null.",
+    "date is YYYY-MM-DD from the receipt; if missing, use today.",
+    "merchant is the shop / supplier name.",
+    "title is a short label, e.g. \"Continente groceries\" (max 80 chars).",
+    "line_items: short list of notable items if readable, else [].",
+    "receipt_text: a faithful transcription of the useful receipt text (merchant, date, totals, IVA).",
+    "",
+    "Return JSON:",
+    '{ "is_receipt": bool, "confidence": 0.0-1.0, "title": string, "merchant": string,',
+    '  "amount": number | null, "currency": "EUR"|"GBP"|"USD"|"Other",',
+    '  "date": "YYYY-MM-DD", "category": string, "vat": number | null,',
+    '  "notes": string, "line_items": string[], "receipt_text": string }',
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const userParts = [];
+  const intro = [
+    hasText ? `Caption / pasted text:\n${String(text).slice(0, 4000)}` : "",
+    hasImage ? "A receipt image is attached. Extract the totals and merchant." : "",
+    hasPdf ? `A PDF (${filename || "receipt.pdf"}) is attached.` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n") || "Extract the receipt.";
+  userParts.push({ type: "text", text: intro });
+
+  if (hasImage) {
+    const mime = imageMime && String(imageMime).startsWith("image/")
+      ? imageMime
+      : "image/jpeg";
+    userParts.push({
+      type: "image_url",
+      image_url: { url: `data:${mime};base64,${imageBase64}` },
+    });
+  }
+  if (hasPdf) {
+    userParts.push({
+      type: "file",
+      file: {
+        filename: filename || "receipt.pdf",
+        file_data: `data:application/pdf;base64,${pdfBase64}`,
+      },
+    });
+  }
+
+  const userContent =
+    hasImage || hasPdf ? userParts : intro;
+
+  try {
+    const result = await chatJSONMessages(system, userContent, {
+      model: hasImage || hasPdf ? VISION_MODEL : CHAT_MODEL,
+    });
+    const amount = Number(result.amount);
+    const vat = Number(result.vat);
+    const currency = String(result.currency || "EUR").toUpperCase();
+    return {
+      is_receipt: result.is_receipt !== false,
+      confidence: Number(result.confidence) || 0,
+      title: String(result.title || result.merchant || "Receipt").slice(0, 80),
+      merchant: String(result.merchant || "").slice(0, 80),
+      amount: Number.isFinite(amount) ? amount : null,
+      currency: ["EUR", "GBP", "USD", "Other"].includes(currency)
+        ? currency
+        : "EUR",
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(result.date || ""))
+        ? String(result.date).slice(0, 10)
+        : todayISO || null,
+      category: RECEIPT_CATEGORIES.includes(result.category)
+        ? result.category
+        : "Other",
+      vat: Number.isFinite(vat) ? vat : null,
+      notes: String(result.notes || "").slice(0, 500),
+      line_items: Array.isArray(result.line_items)
+        ? result.line_items.map((x) => String(x).slice(0, 120)).filter(Boolean).slice(0, 20)
+        : [],
+      receipt_text: String(result.receipt_text || text || "").slice(0, 1900),
+    };
+  } catch (err) {
+    console.error("extractReceipt failed:", err.message);
+    return null;
+  }
+}
+
 async function transcribeAudio(buf, filename) {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set.");
 
@@ -463,10 +598,12 @@ module.exports = {
   composeRecap,
   summarizeImportantChat,
   structureDocumentation,
+  extractReceipt,
   transcribeAudio,
   AREAS,
   EVENT_TYPES,
   EMBED_MODEL,
   CHAT_MODEL,
+  VISION_MODEL,
   TRANSCRIBE_MODEL,
 };

@@ -37,6 +37,7 @@ const DB = {
   EVENTS: "External Events",
   REMINDERS: "Reminders",
   PARTNERSHIPS: "Partnerships",
+  EXPENSES: "Expenses",
 };
 
 const WATCH_DB_NAMES = [
@@ -304,6 +305,10 @@ function buildProps(db, map) {
           typeof value === "object" && "url" in value
             ? value
             : urlValue(value);
+        break;
+      case "files":
+        if (typeof value === "object" && value.files) out[title] = value;
+        else if (Array.isArray(value)) out[title] = { files: value };
         break;
       default:
         break;
@@ -585,8 +590,10 @@ async function createDatabase({ parentPageId, title, properties }) {
   };
 }
 
-/** Views API requires a newer Notion-Version than page/database CRUD. */
+/** Views + file uploads require a newer Notion-Version than page/database CRUD. */
 const VIEWS_VERSION = process.env.NOTION_VIEWS_VERSION || "2026-03-11";
+const FILE_UPLOAD_VERSION =
+  process.env.NOTION_FILE_UPLOAD_VERSION || VIEWS_VERSION;
 
 async function notionViews(method, endpoint, body, attempt = 1) {
   assertKey();
@@ -757,6 +764,139 @@ async function ensureTableView(databaseId, { name, filter = null, sorts = null }
   return { id: created.id, url: created.url, wasCreated: true };
 }
 
+async function notionFiles(method, endpoint, body, attempt = 1) {
+  assertKey();
+  const res = await fetch(`${NOTION_API}${endpoint}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${apiKey()}`,
+      "Notion-Version": FILE_UPLOAD_VERSION,
+      "Content-Type": "application/json",
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(
+      `Notion files non-JSON (HTTP ${res.status}): ${text.replace(/\s+/g, " ").slice(0, 200)}`
+    );
+  }
+  if (res.status === 429 && attempt <= 8) {
+    const retry =
+      Number(res.headers.get("retry-after") || 0) || Math.min(60, attempt * 2);
+    await sleep((retry + 1) * 1000);
+    return notionFiles(method, endpoint, body, attempt + 1);
+  }
+  if (!res.ok) {
+    throw new Error(
+      `Notion files HTTP ${res.status}: ${json?.message || JSON.stringify(json)}`
+    );
+  }
+  if (PACING_MS > 0) await sleep(PACING_MS);
+  return json;
+}
+
+function guessContentType(filename, fallback = "application/octet-stream") {
+  const lower = String(filename || "").toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".heic") || lower.endsWith(".heif")) return "image/heic";
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  return fallback;
+}
+
+/**
+ * Upload a small file (≤20MB) to Notion-managed storage.
+ * Returns { id, filename, contentType } for attaching to pages / blocks.
+ */
+async function uploadFile(buf, filename, contentType) {
+  const name = String(filename || "receipt.jpg").replace(/[^\w.\-]+/g, "_").slice(0, 120);
+  const type = contentType || guessContentType(name, "image/jpeg");
+  const created = await notionFiles("POST", "/file_uploads", {
+    mode: "single_part",
+    filename: name,
+    content_type: type,
+  });
+  const form = new FormData();
+  form.append(
+    "file",
+    new Blob([new Uint8Array(buf)], { type }),
+    name
+  );
+  const res = await fetch(`${NOTION_API}/file_uploads/${created.id}/send`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey()}`,
+      "Notion-Version": FILE_UPLOAD_VERSION,
+    },
+    body: form,
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(
+      `Notion file send non-JSON (HTTP ${res.status}): ${text.replace(/\s+/g, " ").slice(0, 200)}`
+    );
+  }
+  if (!res.ok) {
+    throw new Error(
+      `Notion file send HTTP ${res.status}: ${json?.message || JSON.stringify(json)}`
+    );
+  }
+  if (PACING_MS > 0) await sleep(PACING_MS);
+  return { id: created.id, filename: name, contentType: type };
+}
+
+/**
+ * Attach an uploaded file to a page's files property and as an image/pdf/file block.
+ */
+async function attachFileToPage(
+  pageId,
+  { uploadId, filename, propertyName = "Receipt", kind = "image" } = {}
+) {
+  if (!pageId || !uploadId) return;
+  const fileObj = {
+    type: "file_upload",
+    file_upload: { id: uploadId },
+    name: filename || "receipt",
+  };
+  if (propertyName) {
+    await notionFiles("PATCH", `/pages/${pageId}`, {
+      properties: {
+        [propertyName]: { type: "files", files: [fileObj] },
+      },
+    });
+  }
+  let block;
+  if (kind === "pdf") {
+    block = {
+      object: "block",
+      type: "pdf",
+      pdf: { type: "file_upload", file_upload: { id: uploadId } },
+    };
+  } else if (kind === "image") {
+    block = {
+      object: "block",
+      type: "image",
+      image: { type: "file_upload", file_upload: { id: uploadId } },
+    };
+  } else {
+    block = {
+      object: "block",
+      type: "file",
+      file: { type: "file_upload", file_upload: { id: uploadId } },
+    };
+  }
+  await notionFiles("PATCH", `/blocks/${pageId}/children`, { children: [block] });
+}
+
 module.exports = {
   DB,
   WATCH_DB_NAMES,
@@ -801,4 +941,7 @@ module.exports = {
   ensureBoardView,
   ensureTableView,
   searchByTitle,
+  guessContentType,
+  uploadFile,
+  attachFileToPage,
 };

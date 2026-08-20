@@ -45,6 +45,8 @@ const ACTIONS = [
   "availability",
   "announcement",
   "book_meal",
+  "create_expense",
+  "question_expenses",
 ];
 
 const DECISION_CATEGORIES = [
@@ -59,6 +61,18 @@ const DECISION_CATEGORIES = [
 const TASK_TYPES = ["Villager", "Management"];
 const TASK_PRIORITIES = ["Low", "Average", "High"];
 const DUTY_FREQUENCIES = ["Daily", "Weekly", "Monthly", "Seasonal"];
+const EXPENSE_CATEGORIES = [
+  "Food / groceries",
+  "Hardware",
+  "Fuel",
+  "Transport",
+  "Utilities",
+  "Maintenance",
+  "Supplies",
+  "Guest / campsite",
+  "Other",
+];
+const EXPENSE_CURRENCIES = ["EUR", "GBP", "USD", "Other"];
 
 const MAINTENANCE_GROUP_BY_AREA = {
   Water: "Water",
@@ -102,6 +116,7 @@ const NOTION_DATABASES = [
   "Partnerships",
   "Members",
   "Documentation",
+  "Expenses",
 ];
 
 const SCHEDULE_RANGES = ["today", "this_week", "next_week", "two_weeks"];
@@ -325,6 +340,15 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '- add_note: speaker wants to append info to an existing task or project page.',
     '    Examples: "add to the swimming pool project: tiles arrived", "note on compost task: needs new bin"',
     "    Populate note.target_title and note.text.",
+    "- create_expense: speaker is submitting a RECEIPT or expense for reimbursement / tax records.",
+    "    Photo of a till receipt, factura, talão, invoice, OR pasted receipt text, OR “I spent €X at Y”.",
+    '    EN: "here\'s my receipt", "expense 12.40 Continente", "I spent 8 euros on fuel", "reimburse me for this"',
+    '    PT: "aqui está o recibo", "despesa 12,40", "gastei 8 euros em gasóleo", "reembolso"',
+    "    Populate expense.title, expense.amount, expense.currency (EUR default), expense.date, expense.merchant, expense.category, expense.notes.",
+    "    NOT create_expense for a repair job that happens to mention buying parts (create_task) unless they are clearly submitting the receipt.",
+    "- question_expenses: speaker asks how much THEY or the village spent, who is owed, or to list receipts.",
+    '    EN: "how much did I spend this month?", "who needs reimbursing?", "show receipts"',
+    '    PT: "quanto gastei este mês?", "quem precisa de reembolso?"',
     "",
     "create_documentation examples:",
     '  EN: "document how the compost toilet works", "write up the wifi router setup",',
@@ -356,7 +380,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "community": { "title", "summary", "date" } | null,',
     '  "rsvp": { "title" } | null,',
     '  "reminder": { "title", "due_date", "notes" } | null,',
-    '  "note": { "target_title", "text" } | null }',
+    '  "note": { "target_title", "text" } | null,',
+    '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "notes" } | null }',
     "",
     "For create_event always provide event.title; provide event.date for one-offs.",
     "For repeating events always provide event.recurrence (canonical form above) and event.date = next occurrence.",
@@ -405,6 +430,22 @@ function normalizeRecurringDutyFields(raw) {
   };
 }
 
+function normalizeExpenseFields(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const amountRaw = String(raw.amount ?? "").replace(",", ".");
+  const amount = Number(amountRaw);
+  const currency = String(raw.currency || "EUR").toUpperCase();
+  return {
+    title: String(raw.title || raw.merchant || "").trim().slice(0, 80) || null,
+    amount: Number.isFinite(amount) ? amount : null,
+    currency: EXPENSE_CURRENCIES.includes(currency) ? currency : "EUR",
+    date: raw.date ? String(raw.date).slice(0, 10) : null,
+    merchant: raw.merchant ? String(raw.merchant).slice(0, 80) : null,
+    category: EXPENSE_CATEGORIES.includes(raw.category) ? raw.category : "Other",
+    notes: raw.notes ? String(raw.notes).slice(0, 500) : null,
+  };
+}
+
 function parseClassification(result, { areas, eventTypes, priorities }) {
   const rawAction = result.action;
   const legacyMap = {
@@ -423,6 +464,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     book_dinner: "book_meal",
     recurring_duty: "create_recurring_duty",
     create_duty: "create_recurring_duty",
+    expense: "create_expense",
+    receipt: "create_expense",
+    receipts: "question_expenses",
   };
   let action = ACTIONS.includes(legacyMap[rawAction] || rawAction)
     ? legacyMap[rawAction] || rawAction
@@ -562,12 +606,17 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
         }
       : null;
 
+  const expenseRaw = result.expense || result.receipt;
+  const expense =
+    action === "create_expense" ? normalizeExpenseFields(expenseRaw || {}) : null;
+
   const scheduleDays = Number(result.schedule_days);
   const scheduleRange = normalizeScheduleRange(result);
   const isQuestion =
     action === "question_doc" ||
     action === "question_schedule" ||
-    action === "question_my_day";
+    action === "question_my_day" ||
+    action === "question_expenses";
 
   return {
     actionable: result.actionable !== false && action !== "chat",
@@ -585,6 +634,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_reminder: action === "create_reminder" && Boolean(reminder?.title),
     is_add_note: action === "add_note" && Boolean(note?.target_title),
     is_book_meal: action === "book_meal",
+    is_expense: action === "create_expense",
     question_kind:
       action === "question_doc"
         ? "documentation"
@@ -592,7 +642,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
           ? "schedule"
           : action === "question_my_day"
             ? "my_day"
-            : null,
+            : action === "question_expenses"
+              ? "expenses"
+              : null,
     schedule_range: scheduleRange,
     schedule_days: scheduleDays > 0 && scheduleDays <= 30 ? Math.round(scheduleDays) : null,
     task,
@@ -607,6 +659,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     rsvp,
     reminder,
     note,
+    expense,
   };
 }
 
@@ -622,6 +675,8 @@ module.exports = {
   MONDAY_BOARDS: NOTION_DATABASES,
   NOTION_DATABASES,
   SCHEDULE_RANGES,
+  EXPENSE_CATEGORIES,
+  EXPENSE_CURRENCIES,
   buildWeekCalendarContext,
   resolveScheduleRange,
   buildClassifierPrompt,

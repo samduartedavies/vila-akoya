@@ -10,13 +10,14 @@
  *   - In groups: VAVA only acts when @tagged, replied-to, or addressed by name in voice
  *     ("Vava", or at the start: "robot", "bot", "vila akoya bot", "personal assistant").
  *     All group messages + voice transcriptions are still buffered for context.
- *   - In private DMs: always on, no tag needed.
+ *   - In private DMs: always on, no tag needed. Photos/PDFs in DMs are treated as receipts unless GPT says otherwise.
  *   - Voice notes are transcribed; documentation dumps become structured Notion pages.
+ *   - Receipt photos, PDFs, or pasted till text are analysed and stored on a private Expenses board.
  *   - AI classification routes to Notion actions: tasks, recurring duties, events (internal/external),
- *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs.
+ *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs, expenses.
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (events,
  *     campsite, meals, highlights); personal duties + tasks go by DM to registered members.
- *   - /ask, /task, /register, /questionnaire, /mytasks, /done, /help as before.
+ *   - /ask, /task, /receipt, /receipts, /register, /questionnaire, /mytasks, /done, /help as before.
  *   - After /register, a short questionnaire (DM only) fills Skills / bio on
  *     the Members (Community) board; /questionnaire updates it later. Answers
  *     like "1" are accepted even days later; /start resumes a pending form.
@@ -100,6 +101,7 @@ const PARTNERSHIPS_DB_NAME = process.env.PARTNERSHIPS_DB_NAME || notion.DB.PARTN
 const JOBS_DB_NAME = process.env.JOBS_DB_NAME || notion.DB.JOBS;
 const PROJECTS_DB_NAME = process.env.PROJECTS_DB_NAME || notion.DB.PROJECTS;
 const DOCS_DB_NAME = process.env.DOCS_DB_NAME || notion.DB.DOCS;
+const EXPENSES_DB_NAME = process.env.EXPENSES_DB_NAME || notion.DB.EXPENSES;
 const CAMPSITE_BOOKINGS_DB_NAME =
   process.env.CAMPSITE_BOOKINGS_DB || notion.DB.BOOKINGS;
 const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
@@ -360,6 +362,47 @@ function looksLikeDinnerBookingRequest(text) {
     /\bbook\s+(?:my\s+)?(?:the\s+)?(?:weekday\s+)?dinner\b/.test(t) ||
     /\b(?:reservar|marcar)\b.*\b(?:jantar|dinner)\b/.test(t)
   );
+}
+
+function looksLikeReceiptIntent(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return false;
+  return (
+    /\b(receipt|recibo|factura|fatura|tal[aã]o|invoice|despesa|expense|reimburse|reembolso)\b/.test(
+      t
+    ) ||
+    /\b(i spent|gastei|paguei|this cost|costs? €|euros? on)\b/.test(t) ||
+    /^\/?(receipt|expense|recibo)\b/.test(t)
+  );
+}
+
+function looksLikeExpenseQuestion(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return false;
+  return (
+    /\b(how much (did|have) i spend|my (expenses|receipts)|who (needs|is owed) reimburs|receipts this month|show receipts)\b/.test(
+      t
+    ) ||
+    /\b(quanto (gastei|despesa)|os meus recibos|quem (precisa|tem) (de )?reembolso)\b/.test(t)
+  );
+}
+
+function monthKeyFromISO(iso) {
+  const m = String(iso || "").match(/^(\d{4}-\d{2})/);
+  return m ? m[1] : String(todayISO()).slice(0, 7);
+}
+
+function formatMoney(amount, currency = "EUR") {
+  if (amount == null || !Number.isFinite(Number(amount))) return "—";
+  const code = currency === "Other" ? "EUR" : currency || "EUR";
+  try {
+    return new Intl.NumberFormat("pt-PT", {
+      style: "currency",
+      currency: code,
+    }).format(Number(amount));
+  } catch {
+    return `${Number(amount).toFixed(2)} ${currency || "EUR"}`;
+  }
 }
 
 async function replyWithDinnerBookingLink(chatId, dateISO) {
@@ -1017,6 +1060,39 @@ async function downloadTelegramPhoto(fileId) {
   };
 }
 
+function getMessageMedia(message) {
+  const candidates = [message, message.reply_to_message].filter(Boolean);
+  for (const src of candidates) {
+    if (src.photo?.length) {
+      const p = src.photo[src.photo.length - 1];
+      return {
+        fileId: p.file_id,
+        kind: "image",
+        mime: "image/jpeg",
+        filename: "receipt.jpg",
+        source: "Photo",
+      };
+    }
+    const doc = src.document;
+    if (!doc?.file_id) continue;
+    const mime = String(doc.mime_type || "");
+    const name = doc.file_name || "receipt";
+    const isPdf = mime === "application/pdf" || /\.pdf$/i.test(name);
+    const isImage =
+      mime.startsWith("image/") ||
+      /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(name);
+    if (!isPdf && !isImage) continue;
+    return {
+      fileId: doc.file_id,
+      kind: isPdf ? "pdf" : "image",
+      mime: mime || (isPdf ? "application/pdf" : "image/jpeg"),
+      filename: name,
+      source: isPdf ? "PDF" : "Photo",
+    };
+  }
+  return null;
+}
+
 async function transcribeMessageVoice(message, { interactive = false } = {}) {
   const voiceFileId = getVoiceFileId(message);
   if (!voiceFileId) return null;
@@ -1129,6 +1205,355 @@ async function createDocumentation({ rawText, from, chatId, sourceText }) {
   });
 
   return { doc: { url: page.url, id: page.id }, structured };
+}
+
+async function expenseSubmitterName(from) {
+  try {
+    const { page } = await findMemberByTelegram(senderHandle(from), from?.id);
+    if (page) {
+      const named =
+        notion.pageTitle(page) || notion.pagePropText(page, "Display name");
+      if (named) return named;
+    }
+  } catch {
+    // Members lookup is optional.
+  }
+  return senderDisplayName(from);
+}
+
+async function createExpense({
+  extracted,
+  from,
+  chatId,
+  sourceText,
+  source,
+  upload,
+  mediaKind,
+}) {
+  const date = extracted?.date || todayISO();
+  const merchant = extracted?.merchant || "";
+  const title =
+    (extracted?.title || merchant || "Receipt").slice(0, 80) || "Receipt";
+  const submitter = await expenseSubmitterName(from);
+  const handle = senderHandle(from);
+  const month = monthKeyFromISO(date);
+  const lineItems = (extracted?.line_items || []).filter(Boolean);
+  const receiptText = String(extracted?.receipt_text || sourceText || "").slice(
+    0,
+    1900
+  );
+  const notes = [
+    extracted?.notes || "",
+    lineItems.length ? `Items: ${lineItems.join("; ")}` : "",
+    `Logged from Telegram by ${submitter} (${handle})`,
+    sourceText && sourceText !== receiptText
+      ? `Caption: ${String(sourceText).slice(0, 400)}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 1900);
+
+  const properties = {
+    Amount: extracted?.amount,
+    Currency: extracted?.currency || "EUR",
+    Date: date,
+    Month: month,
+    "Submitted by": submitter,
+    "Telegram username": handle,
+    "Telegram user ID": from?.id != null ? String(from.id) : "",
+    Category: extracted?.category || "Other",
+    Status: "To reimburse",
+    Merchant: merchant,
+    VAT: extracted?.vat,
+    Source: source || "Text",
+    "Receipt text": receiptText,
+    Notes: notes,
+  };
+
+  const children = [];
+  if (receiptText) {
+    children.push({
+      object: "block",
+      type: "paragraph",
+      paragraph: { rich_text: notion.richText(receiptText) },
+    });
+  }
+
+  const page = await notion.createPage({
+    databaseName: EXPENSES_DB_NAME,
+    title,
+    properties,
+    children,
+  });
+
+  if (upload?.id) {
+    try {
+      await notion.attachFileToPage(page.id, {
+        uploadId: upload.id,
+        filename: upload.filename,
+        propertyName: "Receipt",
+        kind: mediaKind === "pdf" ? "pdf" : "image",
+      });
+    } catch (err) {
+      log("attach receipt file error:", err.message);
+    }
+  }
+
+  return {
+    url: page.url,
+    id: page.id,
+    title,
+    submitter,
+    date,
+    month,
+    amount: extracted?.amount,
+    currency: extracted?.currency || "EUR",
+    merchant,
+  };
+}
+
+async function sendExpenseSummary(chatId, { from } = {}) {
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(EXPENSES_DB_NAME));
+  } catch (err) {
+    log("Expenses fetch failed:", err.message);
+    await sendMessage(
+      chatId,
+      "Expenses board is not set up yet. Run <code>npm run notion:setup-expenses</code> first."
+    );
+    return;
+  }
+
+  const month = monthKeyFromISO(todayISO());
+  const thisMonth = pages.filter(
+    (p) => (notion.pagePropText(p, "Month") || "").startsWith(month)
+  );
+  const byPerson = new Map();
+  for (const page of thisMonth) {
+    const who =
+      notion.pagePropText(page, "Submitted by") ||
+      notion.pagePropText(page, "Telegram username") ||
+      "Unknown";
+    const amount = Number(notion.pagePropText(page, "Amount")) || 0;
+    const cur = notion.pagePropText(page, "Currency") || "EUR";
+    const entry = byPerson.get(who) || { amount: 0, count: 0, currency: cur };
+    entry.amount += amount;
+    entry.count += 1;
+    byPerson.set(who, entry);
+  }
+
+  const lines = [`<b>Expenses — ${escapeHtml(month)}</b>`];
+  if (!byPerson.size) {
+    lines.push("No receipts this month yet.");
+  } else {
+    const rows = [...byPerson.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0])
+    );
+    let total = 0;
+    for (const [who, row] of rows) {
+      total += row.amount;
+      lines.push(
+        `• <b>${escapeHtml(who)}</b> — ${escapeHtml(formatMoney(row.amount, row.currency))} (${row.count} receipt${row.count === 1 ? "" : "s"})`
+      );
+    }
+    lines.push(`<b>Total</b> ${escapeHtml(formatMoney(total, "EUR"))}`);
+  }
+
+  const unpaid = thisMonth.filter(
+    (p) => notion.pagePropText(p, "Status") === "To reimburse"
+  );
+  if (unpaid.length) {
+    lines.push(
+      `\n<i>${unpaid.length} still marked To reimburse</i>`
+    );
+  }
+
+  const mine = from
+    ? thisMonth.filter((p) => {
+        const uid = notion.pagePropText(p, "Telegram user ID");
+        return uid && String(uid) === String(from.id);
+      })
+    : [];
+  if (mine.length) {
+    const sum = mine.reduce(
+      (s, p) => s + (Number(notion.pagePropText(p, "Amount")) || 0),
+      0
+    );
+    lines.push(
+      `\nYours this month: <b>${escapeHtml(formatMoney(sum, "EUR"))}</b> (${mine.length})`
+    );
+  }
+
+  await sendMessage(chatId, lines.join("\n"));
+}
+
+async function handleReceiptSubmission({
+  message,
+  text,
+  from,
+  chatId,
+  force = false,
+  assumeReceipt = false,
+  classifiedExpense = null,
+}) {
+  const media = getMessageMedia(message);
+  const isPrivate = message.chat?.type === "private";
+  const assume = assumeReceipt || (isPrivate && Boolean(media));
+  if (!force && !assume && !media && !looksLikeReceiptIntent(text) && !classifiedExpense) {
+    return false;
+  }
+  if (!force && !assume && !media && !String(text || "").trim() && !classifiedExpense) {
+    return false;
+  }
+
+  await telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(
+    () => {}
+  );
+
+  let buf = null;
+  let upload = null;
+  let imageBase64 = null;
+  let imageMime = null;
+  let pdfBase64 = null;
+  let source = media?.source || "Text";
+
+  if (media?.fileId) {
+    try {
+      const downloaded = await downloadTelegramFile(media.fileId);
+      buf = downloaded.buf;
+      const filename = media.filename || downloaded.filename || "receipt.jpg";
+      const mime =
+        media.mime ||
+        notion.guessContentType(filename, media.kind === "pdf" ? "application/pdf" : "image/jpeg");
+      if (media.kind === "pdf") {
+        pdfBase64 = buf.toString("base64");
+      } else {
+        imageBase64 = buf.toString("base64");
+        imageMime = mime.startsWith("image/") ? mime : "image/jpeg";
+      }
+      try {
+        upload = await notion.uploadFile(buf, filename, mime);
+      } catch (err) {
+        log("Notion receipt upload failed:", err.message);
+      }
+    } catch (err) {
+      log("download receipt media error:", err.message);
+      if (force) {
+        await sendMessage(
+          chatId,
+          "I couldn't download that file. Try sending the photo again, or paste the receipt text."
+        );
+        return true;
+      }
+    }
+  }
+
+  let extracted = null;
+  if (openaiLib.isEnabled()) {
+    extracted = await openaiLib.extractReceipt({
+      text: text || classifiedExpense?.notes || "",
+      imageBase64,
+      imageMime,
+      pdfBase64,
+      filename: media?.filename,
+      todayISO: todayISO(),
+      submitter: senderDisplayName(from),
+    });
+  }
+
+  if (!extracted && classifiedExpense) {
+    extracted = {
+      is_receipt: true,
+      confidence: 1,
+      title: classifiedExpense.title || "Receipt",
+      merchant: classifiedExpense.merchant || "",
+      amount: classifiedExpense.amount,
+      currency: classifiedExpense.currency || "EUR",
+      date: classifiedExpense.date || todayISO(),
+      category: classifiedExpense.category || "Other",
+      vat: null,
+      notes: classifiedExpense.notes || "",
+      line_items: [],
+      receipt_text: text || "",
+    };
+  }
+
+  if (!extracted && (force || assume) && (text || media)) {
+    extracted = {
+      is_receipt: true,
+      confidence: 0,
+      title: (text || "Receipt").slice(0, 80),
+      merchant: "",
+      amount: null,
+      currency: "EUR",
+      date: todayISO(),
+      category: "Other",
+      vat: null,
+      notes: "",
+      line_items: [],
+      receipt_text: text || "",
+    };
+  }
+
+  if (!extracted) return false;
+  if (extracted.is_receipt === false) {
+    if (assume || force) {
+      await sendMessage(
+        chatId,
+        "That doesn't look like a receipt to me. Send a till receipt or factura, or use /task or /ask for something else."
+      );
+      return true;
+    }
+    return false;
+  }
+  if (
+    !force &&
+    !assume &&
+    media &&
+    !looksLikeReceiptIntent(text) &&
+    !classifiedExpense
+  ) {
+    if ((extracted.confidence || 0) < 0.55) return false;
+  }
+
+  try {
+    const result = await createExpense({
+      extracted,
+      from,
+      chatId,
+      sourceText: text,
+      source,
+      upload,
+      mediaKind: media?.kind,
+    });
+    let reply = `🧾 Logged expense: <b>${escapeHtml(result.title)}</b>`;
+    if (result.amount != null) {
+      reply += `\n${escapeHtml(formatMoney(result.amount, result.currency))}`;
+    } else {
+      reply += `\n<i>Amount not read — please check Notion</i>`;
+    }
+    if (result.date) reply += ` · ${escapeHtml(result.date)}`;
+    if (result.merchant) reply += `\n${escapeHtml(result.merchant)}`;
+    reply += `\nSubmitted by <b>${escapeHtml(result.submitter)}</b>`;
+    if (result.url) reply += `\n<a href="${result.url}">Open in Notion</a>`;
+    await sendMessage(chatId, reply);
+    return true;
+  } catch (err) {
+    log("createExpense error:", err.message);
+    if (force) {
+      const missing = /not found/i.test(err.message)
+        ? " Run <code>npm run notion:setup-expenses</code> first."
+        : "";
+      await sendMessage(
+        chatId,
+        `Sorry, I could not save that receipt.${missing}`
+      );
+      return true;
+    }
+    return false;
+  }
 }
 
 // ── Telegram -> Notion: create a task ─────────────────────────────────────────
@@ -3403,9 +3828,10 @@ const HELP_TEXT = [
   "<b>Group</b>: tag me (@bot), reply to me, or say <b>Vava</b> (or start a voice note with <b>robot</b>, <b>bot</b>, <b>vila akoya bot</b>, or <b>personal assistant</b>).",
   "<b>DMs</b>: always on, no tag needed.",
   "",
-  "I can log tasks (villager work or management jobs), <b>recurring duties</b> (daily/weekly/monthly rota), events, reminders, RSVP to events, add notes to projects, answer questions from docs and schedule, and more.",
+  "I can log tasks (villager work or management jobs), <b>recurring duties</b> (daily/weekly/monthly rota), events, reminders, RSVP to events, add notes to projects, <b>receipts / expenses</b>, answer questions from docs and schedule, and more.",
   "Send a list of cleaning/rota jobs in one message (or voice note) — daily, weekly, monthly — and I'll add them all to Notion.",
   "Voice notes are transcribed — explain how something works to create a structured doc.",
+  "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). In the group, tag me or use /receipt.",
   "",
   "<b>Task types</b>",
   "• <i>Villager</i> — village work anyone can pitch in on",
@@ -3413,6 +3839,8 @@ const HELP_TEXT = [
   "",
   "<b>Commands</b>",
   "/task &lt;text&gt; — add a task",
+  "/receipt — log a receipt (photo, PDF, or text). Reply to a photo with /receipt works too",
+  "/receipts — this month's totals by person",
   "/ask &lt;question&gt; — search our documentation",
   "/register &lt;your name&gt; — link Telegram to Members; questionnaire arrives by DM",
   "/questionnaire — fill or update your Community profile (sent privately)",
@@ -3450,6 +3878,19 @@ async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
 
 async function handleClassifiedQuestion({ text, questionKind, from, chatId, interactive, scheduleRange }) {
   const logDocGaps = interactive && LOG_DOC_GAPS;
+
+  if (questionKind === "expenses" || looksLikeExpenseQuestion(text)) {
+    try {
+      await sendExpenseSummary(chatId, { from });
+      return true;
+    } catch (err) {
+      log("expense summary error:", err.message);
+      if (interactive) {
+        await sendMessage(chatId, "Sorry, I could not load expenses right now.");
+      }
+      return interactive;
+    }
+  }
 
   if (questionKind === "my_day" || looksLikeMyDayQuestion(text)) {
     try {
@@ -3728,8 +4169,8 @@ async function captureAmbientRecurringDuty({ classified, text, from, chatId }) {
 }
 
 /** Single AI-driven router for both @bot messages and ambient group messages. */
-async function routeByAiClassification({ classified, text, from, chatId, photoFileId, interactive }) {
-  if (!classified && !photoFileId) {
+async function routeByAiClassification({ classified, text, from, chatId, photoFileId, interactive, message }) {
+  if (!classified && !photoFileId && !getMessageMedia(message)) {
     if (interactive) {
       await sendMessage(
         chatId,
@@ -3751,6 +4192,11 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   // Cheap path: personal agenda without waiting on classifier nuance
   if (interactive && text && looksLikeMyDayQuestion(text)) {
     await sendMyDayBriefing(from, chatId, todayISO());
+    return;
+  }
+
+  if (interactive && text && looksLikeExpenseQuestion(text)) {
+    await sendExpenseSummary(chatId, { from });
     return;
   }
 
@@ -3818,6 +4264,25 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     const ok = await captureAmbientDocumentation({ text, from, chatId, interactive });
     if (!ok && interactive) {
       await sendMessage(chatId, "Sorry, I could not create that documentation.");
+    }
+    return;
+  }
+
+  // Receipts / expenses — private Notion table, not announced in the group recap
+  if (c.is_expense || c.action === "create_expense") {
+    const ok = await handleReceiptSubmission({
+      message: message || { from, chat: { id: chatId }, text, caption: text },
+      text,
+      from,
+      chatId,
+      force: interactive,
+      classifiedExpense: c.expense,
+    });
+    if (!ok && interactive) {
+      await sendMessage(
+        chatId,
+        "I couldn't log that as a receipt. Send a photo or /receipt with the amount and shop."
+      );
     }
     return;
   }
@@ -4021,10 +4486,13 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
 async function routeAddressedMessage(message) {
   const chatId = message.chat.id;
   const from = message.from;
+  const media = getMessageMedia(message);
   const photoFileId =
     message.photo && message.photo.length
       ? message.photo[message.photo.length - 1].file_id
-      : null;
+      : media?.kind === "image"
+        ? media.fileId
+        : null;
 
   let text = stripBotAddressing((message.text || message.caption || "").trim(), botMe);
 
@@ -4042,7 +4510,7 @@ async function routeAddressedMessage(message) {
     }
   }
 
-  if (!text && !photoFileId) {
+  if (!text && !photoFileId && !media) {
     await sendMessage(chatId, "What can I help with? Ask me anything, or use /help.");
     return;
   }
@@ -4058,8 +4526,40 @@ async function routeAddressedMessage(message) {
     return;
   }
 
+  if (text && looksLikeExpenseQuestion(text)) {
+    await sendExpenseSummary(chatId, { from });
+    return;
+  }
+
+  const isPrivate = message.chat?.type === "private";
+  const assumeReceipt = isPrivate && Boolean(media);
+  const tryReceipt =
+    assumeReceipt ||
+    looksLikeReceiptIntent(text) ||
+    (media && !text) ||
+    (media && looksLikeReceiptIntent(text));
+  if (tryReceipt) {
+    const logged = await handleReceiptSubmission({
+      message,
+      text,
+      from,
+      chatId,
+      force: looksLikeReceiptIntent(text) || assumeReceipt,
+      assumeReceipt,
+    });
+    if (logged) return;
+  }
+
   const classified = text ? await classifyUserMessage(text, chatId, { interactive: true }) : null;
-  await routeByAiClassification({ classified, text, from, chatId, photoFileId, interactive: true });
+  await routeByAiClassification({
+    classified,
+    text,
+    from,
+    chatId,
+    photoFileId,
+    interactive: true,
+    message,
+  });
 }
 
 async function handleMessage(message) {
@@ -4277,6 +4777,35 @@ async function handleMessageInner(message) {
     return;
   }
 
+  if (isCommand && (cmd === "/receipt" || cmd === "/expense" || cmd === "/recibo")) {
+    const caption = args || stripBotAddressing((message.caption || "").trim(), botMe);
+    const logged = await handleReceiptSubmission({
+      message,
+      text: caption,
+      from,
+      chatId,
+      force: true,
+      assumeReceipt: message.chat?.type === "private" && Boolean(getMessageMedia(message)),
+    });
+    if (!logged) {
+      await sendMessage(
+        chatId,
+        "Send a receipt photo, PDF, or the till text with /receipt — or reply to a photo with /receipt."
+      );
+    }
+    return;
+  }
+
+  if (isCommand && (cmd === "/receipts" || cmd === "/expenses")) {
+    try {
+      await sendExpenseSummary(chatId, { from });
+    } catch (err) {
+      log("receipts command error:", err.message);
+      await sendMessage(chatId, "Sorry, I could not load expenses right now.");
+    }
+    return;
+  }
+
   if (isCommand) {
     await sendMessage(chatId, "Unknown command. Try /help.");
     return;
@@ -4439,6 +4968,7 @@ async function handleAmbientMessage(message) {
     chatId,
     photoFileId,
     interactive: false,
+    message,
   });
 }
 

@@ -30,6 +30,11 @@ EVENTS
 @vila_akoya_bot BBQ Saturday
 @vila_akoya_bot yoga every Sunday
 
+RECEIPTS (private Expenses board — not shown on the public site)
+In a DM: send a photo or PDF — I'll assume it's a receipt (unless GPT says it isn't)
+In the group: tag the bot, or /receipt, or reply to a photo with /receipt
+/receipts — this month's totals by person
+
 ASK
 @vila_akoya_bot how does the water system work?
 @vila_akoya_bot what’s happening next week?
