@@ -513,6 +513,9 @@ function vila_akoya_booking_legacy_page_html() {
 	if ( function_exists( 'vila_akoya_seed_replace_wc_placeholders' ) ) {
 		$html = vila_akoya_seed_replace_wc_placeholders( $html );
 	}
+	if ( function_exists( 'vila_akoya_seed_replace_stays_placeholders' ) ) {
+		$html = vila_akoya_seed_replace_stays_placeholders( $html );
+	}
 
 	// Prefer local media URLs when attachments exist.
 	$html = preg_replace_callback(
@@ -533,10 +536,10 @@ function vila_akoya_booking_legacy_page_html() {
 		$html
 	);
 
-	/*
-	 * Strip Gutenberg block comments so WordPress does not re-parse this as
-	 * core columns (is-layout-flex) and collapse the desktop two-column booking layout.
-	 */
+	if ( function_exists( 'vila_akoya_sanitize_booking_page_html' ) ) {
+		return vila_akoya_sanitize_booking_page_html( $html );
+	}
+
 	$html = preg_replace( '/<!--\s*\/?wp:[^>]*-->\s*/', '', (string) $html );
 
 	return is_string( $html ) ? $html : '';

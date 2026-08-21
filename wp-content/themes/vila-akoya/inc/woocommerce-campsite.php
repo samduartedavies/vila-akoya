@@ -625,7 +625,7 @@ function vila_akoya_campsite_add_to_cart_redirect_checkout( $url, $product = nul
 		}
 		return wc_get_checkout_url();
 	}
-	if ( ! vila_akoya_is_campsite_product_id( $pid ) ) {
+	if ( ! vila_akoya_is_campsite_product_id( $pid ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) ) ) {
 		return $passthrough;
 	}
 	if ( wc_get_page_id( 'checkout' ) <= 0 ) {
@@ -660,7 +660,7 @@ function vila_akoya_suppress_campsite_add_to_cart_notice( $message, $products, $
 		if ( ! $pid ) {
 			continue;
 		}
-		if ( vila_akoya_is_campsite_product_id( $pid ) ) {
+		if ( vila_akoya_is_campsite_product_id( $pid ) || ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) ) ) {
 			return '';
 		}
 	}
@@ -759,7 +759,7 @@ add_action( 'template_redirect', 'vila_akoya_redirect_empty_checkout_to_booking'
  */
 function vila_akoya_campsite_option_cart_redirect_after_add( $value ) {
 	$pid = vila_akoya_add_to_cart_request_product_id();
-	if ( $pid && vila_akoya_is_campsite_product_id( $pid ) ) {
+	if ( $pid && ( vila_akoya_is_campsite_product_id( $pid ) || ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) ) ) ) {
 		return 'yes';
 	}
 	if ( null === $value ) {

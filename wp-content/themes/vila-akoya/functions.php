@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_AKOYA_VERSION', '1.0.62' );
+define( 'VILA_AKOYA_VERSION', '1.0.64' );
 define( 'VILA_AKOYA_DIR', get_template_directory() );
 define( 'VILA_AKOYA_URI', get_template_directory_uri() );
 
@@ -16,6 +16,7 @@ require_once VILA_AKOYA_DIR . '/inc/redirects.php';
 require_once VILA_AKOYA_DIR . '/inc/woocommerce-campsite.php';
 require_once VILA_AKOYA_DIR . '/inc/campsite-booking-email.php';
 require_once VILA_AKOYA_DIR . '/inc/booking-extras.php';
+require_once VILA_AKOYA_DIR . '/inc/stays.php';
 require_once VILA_AKOYA_DIR . '/inc/campsite-plots-admin.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-setup.php';
 require_once VILA_AKOYA_DIR . '/inc/cf7-email-copy-admin.php';
@@ -120,6 +121,8 @@ function vila_akoya_enqueue_assets() {
 			|| is_checkout()
 			|| is_account_page()
 			|| is_page( 'booking' )
+			|| is_singular( 'stay' )
+			|| is_post_type_archive( 'stay' )
 		)
 	) {
 		$theme_deps[] = 'woocommerce-general';

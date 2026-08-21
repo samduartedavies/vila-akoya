@@ -4527,3 +4527,367 @@ main.vila-events-archive {
 .vila-events-preview + .vila-text-image-plain {
   padding-top: clamp(5rem, 10vw, 8rem);
 }
+
+/* ── Village stays (browse + single) ─────────────────────────────────────── */
+.vila-stays-browse__lede {
+  @apply font-body text-sm text-on-surface-variant leading-relaxed mb-5;
+}
+
+.vila-stays-browse__empty {
+  @apply font-body text-sm text-on-surface-variant leading-relaxed m-0;
+}
+
+.vila-stays-browse__grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.vila-stays-browse__grid--wide {
+  gap: 1.75rem;
+}
+
+@media (min-width: 720px) {
+  .vila-stays-browse__grid--wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .vila-stays-browse__grid--wide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.vila-stay-card {
+  @apply bg-surface-container-low border border-outline-variant/20 rounded-2xl overflow-hidden flex flex-col;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vila-stay-card:hover,
+.vila-stay-card:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgb(51 46 30 / 0.08);
+}
+
+.vila-stay-card__media {
+  @apply relative block overflow-hidden no-underline;
+  aspect-ratio: 16 / 10;
+}
+
+.vila-stay-card__media img,
+.vila-stay-card__placeholder {
+  @apply w-full h-full object-cover block;
+}
+
+.vila-stay-card__placeholder {
+  @apply bg-surface-container-high;
+}
+
+.vila-stay-card__badge {
+  @apply absolute top-3 left-3 inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-label uppercase tracking-[0.12em] text-primary shadow-sm;
+}
+
+.vila-stay-card__body {
+  @apply p-4 md:p-5 flex flex-col gap-2 flex-1;
+}
+
+.vila-stay-card__meta {
+  @apply m-0 flex flex-wrap gap-x-3 gap-y-1 text-xs font-label uppercase tracking-[0.12em] text-on-surface-variant;
+}
+
+.vila-stay-card__title {
+  @apply font-headline text-xl text-on-surface m-0 leading-snug;
+}
+
+.vila-stay-card__title a {
+  @apply no-underline text-inherit;
+}
+
+.vila-stay-card__title a:hover,
+.vila-stay-card__title a:focus-visible {
+  @apply text-primary;
+}
+
+.vila-stay-card__excerpt {
+  @apply font-body text-sm text-on-surface-variant leading-relaxed m-0;
+}
+
+.vila-stay-card__footer {
+  @apply mt-auto flex items-center justify-between gap-3 pt-1;
+}
+
+.vila-stay-card__price {
+  @apply font-body text-sm text-on-surface;
+}
+
+.vila-stay-card__cta {
+  @apply inline-flex items-center justify-center mt-1 rounded-xl bg-primary text-on-primary px-4 py-2.5 text-sm font-medium no-underline transition-colors;
+}
+
+.vila-stay-card__cta:hover,
+.vila-stay-card__cta:focus-visible {
+  @apply bg-primary-container text-on-primary;
+}
+
+.vila-stay-stars {
+  @apply inline-flex items-center gap-1 text-sm text-primary;
+}
+
+.vila-stay-stars--empty {
+  @apply text-xs text-on-surface-variant;
+}
+
+.vila-stay-stars__off {
+  opacity: 0.28;
+}
+
+.vila-stay-stars__num {
+  @apply ml-1 font-body text-on-surface;
+}
+
+body.vila-page-booking .vila-stay-card--booking .vila-stay-card__cta {
+  @apply w-full;
+}
+
+body.vila-page-booking .va-booking-reserve-card .vila-stays-inquiry {
+  @apply mt-2;
+}
+
+.vila-stays-archive,
+.vila-stay-single {
+  @apply max-w-screen-xl mx-auto px-6 pb-20;
+}
+
+.vila-stays-archive__intro {
+  @apply mb-12 max-w-2xl;
+}
+
+.vila-stays-archive__eyebrow,
+.vila-stay-single__crumb {
+  @apply font-label text-xs uppercase tracking-[0.2em] text-primary mb-4;
+}
+
+.vila-stay-single__crumb a {
+  @apply no-underline text-primary hover:text-primary-container;
+}
+
+.vila-stays-archive__title {
+  @apply font-headline text-4xl md:text-6xl text-on-background leading-[1.1] mb-4;
+}
+
+.vila-stays-archive__lede {
+  @apply font-body text-lg text-on-surface-variant leading-relaxed m-0;
+}
+
+.vila-stays-archive__alt {
+  @apply mt-4 mb-0;
+}
+
+.vila-stays-archive__alt a {
+  @apply font-body text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary;
+}
+
+.vila-stay-gallery {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 2.5rem;
+  border-radius: 1.25rem;
+  overflow: hidden;
+}
+
+.vila-stay-gallery[data-count="1"] {
+  grid-template-columns: 1fr;
+}
+
+.vila-stay-gallery[data-count="1"] .vila-stay-gallery__item {
+  aspect-ratio: 16 / 9;
+}
+
+@media (min-width: 768px) {
+  .vila-stay-gallery[data-count]:not([data-count="1"]) {
+    grid-template-columns: 1.4fr 1fr;
+    grid-auto-rows: 11rem;
+  }
+
+  .vila-stay-gallery__item--hero {
+    grid-row: span 2;
+    min-height: 22rem;
+  }
+}
+
+.vila-stay-gallery__item {
+  @apply relative block overflow-hidden bg-surface-container-high;
+}
+
+.vila-stay-gallery__item img {
+  @apply w-full h-full object-cover block;
+  aspect-ratio: 16 / 10;
+}
+
+@media (min-width: 768px) {
+  .vila-stay-gallery__item img {
+    aspect-ratio: auto;
+    height: 100%;
+  }
+}
+
+.vila-stay-layout {
+  display: grid;
+  gap: 2.5rem;
+}
+
+@media (min-width: 1024px) {
+  .vila-stay-layout {
+    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.85fr);
+    align-items: start;
+    gap: 3.5rem;
+  }
+
+  .vila-stay-book {
+    position: sticky;
+    top: 6.5rem;
+  }
+}
+
+.vila-stay-single__kicker {
+  @apply flex flex-wrap items-center gap-3 mb-4 text-sm text-on-surface-variant;
+}
+
+.vila-stay-single__kicker .vila-stay-card__badge {
+  @apply static;
+}
+
+.vila-stay-single__title {
+  @apply font-headline text-4xl md:text-5xl text-on-surface leading-[1.15] mb-4;
+}
+
+.vila-stay-single__rating {
+  @apply flex flex-wrap items-center gap-3 mb-8;
+}
+
+.vila-stay-single__reviews-jump {
+  @apply text-sm text-primary underline decoration-primary/40 underline-offset-4;
+}
+
+.vila-stay-amenities {
+  @apply flex flex-wrap gap-2 list-none pl-0 mb-8;
+}
+
+.vila-stay-amenities li {
+  @apply rounded-full border border-outline-variant/30 bg-surface-container-low px-3 py-1.5 text-sm font-body text-on-surface;
+}
+
+.vila-stay-single__body {
+  @apply font-body text-on-surface-variant leading-relaxed mb-12;
+}
+
+.vila-stay-single__body p {
+  @apply mb-4;
+}
+
+.vila-stay-book__card {
+  @apply bg-white border border-outline-variant/15 rounded-[2rem] p-6 md:p-8 editorial-shadow;
+}
+
+.vila-stay-book__price {
+  @apply mb-5;
+}
+
+.vila-stay-book__price strong {
+  @apply font-headline text-2xl text-on-surface;
+}
+
+body.vila-page-stay .vila-wc-booking--stay .woocommerce-breadcrumb,
+body.vila-page-stay .vila-wc-booking--stay .woocommerce-product-gallery,
+body.vila-page-stay .vila-wc-booking--stay .product_title,
+body.vila-page-stay .vila-wc-booking--stay p.price,
+body.vila-page-stay .vila-wc-booking--stay .woocommerce-tabs,
+body.vila-page-stay .vila-wc-booking--stay .related.products,
+body.vila-page-stay .vila-wc-booking--stay .woocommerce-product-rating,
+body.vila-page-stay .vila-wc-booking--stay .product_meta {
+  display: none !important;
+}
+
+.vila-stay-reviews__title,
+.vila-stay-reviews__form-title {
+  @apply font-headline text-2xl text-on-surface mb-4;
+}
+
+.vila-stay-reviews__list {
+  @apply list-none pl-0 space-y-6 mb-10;
+}
+
+.vila-stay-review {
+  @apply border-b border-outline-variant/20 pb-6;
+}
+
+.vila-stay-review__head {
+  @apply flex flex-wrap items-center gap-3 mb-2;
+}
+
+.vila-stay-review__author {
+  @apply font-body text-on-surface;
+}
+
+.vila-stay-review__date {
+  @apply text-xs text-on-surface-variant;
+}
+
+.vila-stay-review__body {
+  @apply font-body text-on-surface-variant leading-relaxed;
+}
+
+.vila-stay-reviews__empty {
+  @apply font-body text-on-surface-variant mb-8;
+}
+
+.vila-stay-review-form__note {
+  @apply text-sm text-on-surface-variant mb-4;
+}
+
+.vila-stay-review-form label {
+  @apply block font-label text-xs uppercase tracking-[0.12em] text-on-surface-variant mb-2;
+}
+
+.vila-stay-review-form input[type="text"],
+.vila-stay-review-form input[type="email"],
+.vila-stay-review-form textarea {
+  @apply w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3 font-body text-on-surface mb-4;
+}
+
+.vila-stay-review-form__stars {
+  @apply border-0 p-0 m-0 mb-4;
+}
+
+.vila-stay-review-form__stars legend {
+  @apply font-label text-xs uppercase tracking-[0.12em] text-on-surface-variant mb-2;
+}
+
+.vila-stay-rating-input {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 0.15rem;
+}
+
+.vila-stay-rating-input input {
+  @apply sr-only;
+}
+
+.vila-stay-rating-input label {
+  @apply m-0 cursor-pointer text-2xl text-outline-variant;
+  color: rgb(var(--vila-rgb-on-surface-variant) / 0.35);
+}
+
+.vila-stay-rating-input input:checked ~ label,
+.vila-stay-rating-input label:hover,
+.vila-stay-rating-input label:hover ~ label {
+  color: rgb(var(--vila-rgb-primary) / 1);
+}
+
+.vila-stay-review-form__submit {
+  @apply inline-flex rounded-xl bg-primary text-on-primary px-5 py-3 font-medium border-0 cursor-pointer;
+}
+
+.logged-in .comment-form-comment {
+  margin-top: 0.5rem;
+}

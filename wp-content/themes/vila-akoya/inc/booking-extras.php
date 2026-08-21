@@ -587,6 +587,9 @@ function vila_akoya_mbfw_guest_picker_template( $file, $path ) {
 	if ( $pid && vila_akoya_is_campsite_product_id( $pid ) ) {
 		return VILA_AKOYA_DIR . '/inc/templates/campsite-guest-picker.php';
 	}
+	if ( $pid && function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) ) {
+		return VILA_AKOYA_DIR . '/inc/templates/stay-guest-picker.php';
+	}
 	// Never return null: MWB uses `require_once apply_filters( … )` → plugin_basename() → wp_normalize_path().
 	return is_string( $file ) ? $file : '';
 }
@@ -729,6 +732,11 @@ function vila_akoya_cart_nightly_accommodation_for_line( array $cart_item ) {
 	$pid     = isset( $cart_item['product_id'] ) ? (int) $cart_item['product_id'] : 0;
 	$product = isset( $cart_item['data'] ) && is_object( $cart_item['data'] ) ? $cart_item['data'] : ( $pid ? wc_get_product( $pid ) : null );
 	$regular = ( $product && is_callable( array( $product, 'get_regular_price' ) ) ) ? (float) $product->get_regular_price() : 0.0;
+
+	if ( $pid && function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) ) {
+		return (float) $regular;
+	}
+
 	$rate    = (float) apply_filters( 'vila_cb_adult_rate_per_night', $regular, $pid );
 	$adults  = vila_akoya_cart_people_for_line( $cart_item );
 	$nightly = $rate * $adults;
@@ -836,7 +844,7 @@ add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_vehicle_cart_item_
  */
 function vila_akoya_add_meal_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
 	unset( $variation_id );
-	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) {
 		return $cart_item_data;
 	}
 	if ( ! isset( $_POST['_mwb_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( vila_akoya_scalar_request_string( $_POST['_mwb_nonce'] ) ) ), 'mwb_booking_frontend' ) ) {
@@ -859,7 +867,7 @@ add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_meal_cart_item_dat
  */
 function vila_akoya_add_guest_breakdown_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
 	unset( $variation_id );
-	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) {
 		return $cart_item_data;
 	}
 	if ( ! isset( $_POST['_mwb_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( vila_akoya_scalar_request_string( $_POST['_mwb_nonce'] ) ) ), 'mwb_booking_frontend' ) ) {
@@ -901,7 +909,7 @@ function vila_akoya_sanitize_booking_notes( $raw ) {
  */
 function vila_akoya_add_booking_notes_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
 	unset( $variation_id );
-	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) {
 		return $cart_item_data;
 	}
 	if ( ! isset( $_POST['_mwb_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( vila_akoya_scalar_request_string( $_POST['_mwb_nonce'] ) ) ), 'mwb_booking_frontend' ) ) {
@@ -928,7 +936,7 @@ add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_booking_notes_cart
  */
 function vila_akoya_validate_guest_breakdown_add_to_cart( $passed, $product_id, $quantity ) {
 	unset( $quantity );
-	if ( ! $passed || ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+	if ( ! $passed || ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) ) {
 		return $passed;
 	}
 	if ( ! function_exists( 'wps_booking_get_meta_data' ) ) {
@@ -1106,7 +1114,12 @@ function vila_akoya_roll_meals_into_pitch_line_price( $cart ) {
 		return;
 	}
 	foreach ( $cart->get_cart() as $cart_item ) {
-		if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
+		if ( empty( $cart_item['product_id'] ) ) {
+			continue;
+		}
+		$pid = (int) $cart_item['product_id'];
+		$ok  = vila_akoya_is_campsite_product_id( $pid ) || ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) );
+		if ( ! $ok ) {
 			continue;
 		}
 		if ( empty( $cart_item['data'] ) || ! is_object( $cart_item['data'] ) ) {
@@ -1236,6 +1249,45 @@ function vila_akoya_force_pitch_line_adults_only( $cart ) {
 add_action( 'woocommerce_before_calculate_totals', 'vila_akoya_force_pitch_line_adults_only', 1000000 );
 
 /**
+ * Village stay line: flat nightly rate × billable nights (not per guest).
+ *
+ * @param WC_Cart $cart Cart.
+ */
+function vila_akoya_force_stay_line_price( $cart ) {
+	if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+		return;
+	}
+	if ( ! is_object( $cart ) || ! is_callable( array( $cart, 'get_cart' ) ) ) {
+		return;
+	}
+	if ( ! function_exists( 'vila_akoya_is_stay_product_id' ) ) {
+		return;
+	}
+	foreach ( $cart->get_cart() as $cart_item ) {
+		if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_stay_product_id( (int) $cart_item['product_id'] ) ) {
+			continue;
+		}
+		if ( empty( $cart_item['data'] ) || ! is_object( $cart_item['data'] ) ) {
+			continue;
+		}
+		$product = $cart_item['data'];
+		$nights  = vila_akoya_cart_billable_nights_for_line( $cart_item );
+		if ( $nights < 1 ) {
+			continue;
+		}
+		$rate = (float) $product->get_regular_price();
+		if ( $rate <= 0 ) {
+			$rate = (float) $product->get_price( 'edit' );
+		}
+		if ( $rate <= 0 ) {
+			continue;
+		}
+		$product->set_price( $rate * $nights );
+	}
+}
+add_action( 'woocommerce_before_calculate_totals', 'vila_akoya_force_stay_line_price', 1000000 );
+
+/**
  * Cart / checkout line item meta display.
  *
  * @param array<string, mixed> $item_data Item data.
@@ -1270,7 +1322,7 @@ add_filter( 'woocommerce_get_item_data', 'vila_akoya_get_item_data_vehicle', 15,
  * @return array<string, mixed>
  */
 function vila_akoya_get_item_data_guest_breakdown( $item_data, $cart_item ) {
-	if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
+	if ( empty( $cart_item['product_id'] ) || ( ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $cart_item['product_id'] ) ) ) ) {
 		return $item_data;
 	}
 	$adults = ! empty( $cart_item['mwb_mbfw_booking_values']['people_number'] ) ? (int) $cart_item['mwb_mbfw_booking_values']['people_number'] : 1;
@@ -1304,7 +1356,12 @@ function vila_akoya_render_stay_discount_cart_notice() {
 		return;
 	}
 	foreach ( WC()->cart->get_cart() as $cart_item ) {
-		if ( empty( $cart_item['product_id'] ) || ! vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) ) {
+		if ( empty( $cart_item['product_id'] ) ) {
+			continue;
+		}
+		$pid = (int) $cart_item['product_id'];
+		$ok  = vila_akoya_is_campsite_product_id( $pid ) || ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) );
+		if ( ! $ok ) {
 			continue;
 		}
 		$info    = vila_akoya_stay_discount_info( vila_akoya_cart_nights_for_line( $cart_item ) );
@@ -1432,7 +1489,7 @@ function vila_akoya_checkout_save_booking_notes_meta( $item, $cart_key, $values,
 	if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_product_id' ) ) ) {
 		return;
 	}
-	if ( ! vila_akoya_is_campsite_product_id( (int) $item->get_product_id() ) ) {
+	if ( ! vila_akoya_is_campsite_product_id( (int) $item->get_product_id() ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $item->get_product_id() ) ) ) {
 		return;
 	}
 	$merged = is_array( $values ) ? $values : array();
@@ -1568,9 +1625,13 @@ function vila_akoya_render_plot_dropdown( $product_id ) {
  * @param int $product_id Product ID.
  */
 function vila_akoya_render_booking_notes_field( $product_id ) {
-	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+	$is_stay = function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id );
+	if ( ! $is_stay && ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
 		return;
 	}
+	$placeholder = $is_stay
+		? __( 'Anything we should know for your stay?', 'vila-akoya' )
+		: __( 'Anything we should know? You can mention a preferred plot number or special requests.', 'vila-akoya' );
 	?>
 	<div class="vila-booking-notes-wrap vila-airbnb-booking mb-8">
 		<label for="vila-cb-booking-notes" class="vila-airbnb-booking__legend mb-2 block">
@@ -1583,7 +1644,7 @@ function vila_akoya_render_booking_notes_field( $product_id ) {
 			class="vila-booking-notes"
 			rows="3"
 			maxlength="2000"
-			placeholder="<?php echo esc_attr__( 'Anything we should know? You can mention a preferred plot number or special requests.', 'vila-akoya' ); ?>"
+			placeholder="<?php echo esc_attr( $placeholder ); ?>"
 		></textarea>
 	</div>
 	<?php
@@ -1657,7 +1718,7 @@ add_action( 'mwb_booking_after_add_to_cart_form', 'vila_akoya_render_vehicle_sel
  * @param int $product_id Product ID.
  */
 function vila_akoya_render_meal_selector( $product_id ) {
-	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) {
 		return;
 	}
 	$options = vila_akoya_get_meal_options();
@@ -1950,15 +2011,24 @@ function vila_akoya_enqueue_booking_ui_script() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		return;
 	}
+	$stay_mode = is_singular( 'stay' );
+	$stay_pid  = 0;
+	if ( $stay_mode && function_exists( 'vila_akoya_get_stay_data' ) ) {
+		$stay_data = vila_akoya_get_stay_data( (int) get_queried_object_id() );
+		$stay_pid  = isset( $stay_data['product_id'] ) ? (int) $stay_data['product_id'] : 0;
+	}
+
 	$pid = function_exists( 'vila_akoya_get_campsite_primary_product_id' ) ? (int) vila_akoya_get_campsite_primary_product_id() : (int) get_option( 'vila_akoya_campsite_product_id' );
 	if ( ! $pid && function_exists( 'wc_get_product_id_by_sku' ) ) {
 		$pid = (int) wc_get_product_id_by_sku( VILA_AKOYA_CAMPSITE_SKU );
 	}
-	if ( ! $pid ) {
-		return;
+	if ( $stay_mode && $stay_pid > 0 ) {
+		$pid = $stay_pid;
 	}
-	$load = is_page( 'booking' ) || ( function_exists( 'is_product' ) && is_product() && vila_akoya_is_campsite_product_id( get_queried_object_id() ) );
-	if ( ! $load ) {
+	$load = is_page( 'booking' )
+		|| ( function_exists( 'is_product' ) && is_product() && vila_akoya_is_campsite_product_id( get_queried_object_id() ) )
+		|| ( $stay_mode && $stay_pid > 0 );
+	if ( ! $load || ! $pid ) {
 		return;
 	}
 	wp_enqueue_script(
@@ -1972,12 +2042,16 @@ function vila_akoya_enqueue_booking_ui_script() {
 	$plot_unavail = array();
 	$vila_cb      = class_exists( '\Vila_CB\WooCommerce_Integration' );
 	// Shared pool: calendar greys out a night only when all pitches are full (Vila REST). Used whenever the plugin is active, including legacy plot radios.
-	$use_vila_pool_calendar = $vila_cb;
-	$plot_ids_js            = ( ! vila_akoya_should_show_campsite_plot_selector() || count( $plot_ids ) < 2 )
+	$use_vila_pool_calendar = $stay_mode ? false : $vila_cb;
+	$plot_ids_js            = $stay_mode
 		? array( (int) $pid )
-		: array_map( 'intval', $plot_ids );
+		: ( ( ! vila_akoya_should_show_campsite_plot_selector() || count( $plot_ids ) < 2 )
+			? array( (int) $pid )
+			: array_map( 'intval', $plot_ids ) );
 
-	if ( ! empty( $plot_ids ) && function_exists( 'vila_akoya_get_plot_unavailable_ymd_for_product' ) ) {
+	if ( $stay_mode && function_exists( 'vila_akoya_get_plot_unavailable_ymd_for_product' ) ) {
+		$plot_unavail[ (string) (int) $pid ] = vila_akoya_get_plot_unavailable_ymd_for_product( (int) $pid );
+	} elseif ( ! empty( $plot_ids ) && function_exists( 'vila_akoya_get_plot_unavailable_ymd_for_product' ) ) {
 		if ( $vila_cb ) {
 			$plot_unavail[ (string) (int) $pid ] = vila_akoya_get_plot_unavailable_ymd_for_product( (int) $pid );
 		} else {
@@ -2002,15 +2076,28 @@ function vila_akoya_enqueue_booking_ui_script() {
 	$per_person  = function_exists( 'wps_booking_get_meta_data' )
 		? ( 'yes' === wps_booking_get_meta_data( $pid, 'mwb_mbfw_is_booking_unit_cost_per_people', true ) )
 		: true;
+	if ( $stay_mode ) {
+		$per_person = false;
+		$adult_rate = $regular_price;
+	}
 	$guest_rates = vila_akoya_get_guest_category_nightly_rates( $pid );
+	if ( $stay_mode ) {
+		$guest_rates = array(
+			'children' => 0.0,
+			'infants'  => 0.0,
+			'pets'     => 0.0,
+		);
+	}
 	$by_head     = (bool) apply_filters( 'vila_akoya_pitch_supplement_multiplies_by_guests', false, array() );
 
 	$vehicle_fees = array();
-	foreach ( vila_akoya_get_vehicle_types() as $slug => $info ) {
-		$vehicle_fees[ (string) $slug ] = array(
-			'label' => (string) $info['label'],
-			'fee'   => (float) $info['fee'],
-		);
+	if ( ! $stay_mode ) {
+		foreach ( vila_akoya_get_vehicle_types() as $slug => $info ) {
+			$vehicle_fees[ (string) $slug ] = array(
+				'label' => (string) $info['label'],
+				'fee'   => (float) $info['fee'],
+			);
+		}
 	}
 
 	$meal_fees = array();
@@ -2036,6 +2123,7 @@ function vila_akoya_enqueue_booking_ui_script() {
 		'vila-akoya-booking-ui',
 		'vilaAkoyaBooking',
 		array(
+			'stayMode'                   => (bool) $stay_mode,
 			'defaultPlotProductId'      => (int) $pid,
 			'plotProductIds'             => $plot_ids_js,
 			'plotUnavailableYmd'         => $plot_unavail,
@@ -2043,6 +2131,7 @@ function vila_akoya_enqueue_booking_ui_script() {
 			'vilaCbAvailabilityRestUrl'  => $use_vila_pool_calendar ? esc_url_raw( rest_url( 'vila-campsite-booking/v1/availability' ) ) : '',
 			'pricing'                   => array(
 				'adultPerNight'   => (float) $adult_rate,
+				'stayPerNight'    => (float) $regular_price,
 				'perPerson'       => (bool) $per_person,
 				'vehicleByGuests' => (bool) $by_head,
 				'guestRates'      => array(
@@ -2058,15 +2147,22 @@ function vila_akoya_enqueue_booking_ui_script() {
 			'billStrings'               => array(
 				'plotRatePerPerson' => __( 'Plot rate — %1$d adults × %2$s/adult/night × %3$d %4$s', 'vila-akoya' ),
 				'plotRateFlat'      => __( 'Plot rate — %1$s/night × %2$d %3$s', 'vila-akoya' ),
+				'stayRateFlat'      => __( 'Stay — %1$s/night × %2$d %3$s', 'vila-akoya' ),
 				'children'          => __( 'Children — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
 				'infants'           => __( 'Babies — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
 				'pets'              => __( 'Pets — %1$d × %2$s/night × %3$d %4$s', 'vila-akoya' ),
 				'vehicleFlat'       => __( '%1$s — %2$s/night × %3$d %4$s', 'vila-akoya' ),
 				'vehicleByGuests'   => __( '%1$s — %2$s/night × %3$d guests × %4$d %5$s', 'vila-akoya' ),
 				'mealLine'          => __( '%1$s — (%2$s) × %3$d %4$s', 'vila-akoya' ),
-				'mealBundleBreakfast' => __( 'Campsite stay with breakfast included', 'vila-akoya' ),
-				'mealBundleDinner'    => __( 'Campsite stay with weekday dinner included', 'vila-akoya' ),
-				'mealBundleBoth'      => __( 'Campsite stay with breakfast & weekday dinner included', 'vila-akoya' ),
+				'mealBundleBreakfast' => $stay_mode
+					? __( 'Stay with breakfast included', 'vila-akoya' )
+					: __( 'Campsite stay with breakfast included', 'vila-akoya' ),
+				'mealBundleDinner'    => $stay_mode
+					? __( 'Stay with weekday dinner included', 'vila-akoya' )
+					: __( 'Campsite stay with weekday dinner included', 'vila-akoya' ),
+				'mealBundleBoth'      => $stay_mode
+					? __( 'Stay with breakfast & weekday dinner included', 'vila-akoya' )
+					: __( 'Campsite stay with breakfast & weekday dinner included', 'vila-akoya' ),
 				'mealAdults'        => __( '%1$d adults × %2$s', 'vila-akoya' ),
 				'mealKids'          => __( '%1$d kids × %2$s', 'vila-akoya' ),
 				'total'             => __( 'Total', 'vila-akoya' ),
@@ -2079,11 +2175,15 @@ function vila_akoya_enqueue_booking_ui_script() {
 			),
 			'strings'                   => array(
 				'stayDates'               => __( 'Your dates', 'vila-akoya' ),
-				'rangeUnavailable'        => __( 'No pitch is free for this full stay on those dates. Choose different check-in and check-out — some nights can look available when each pitch is booked on different nights.', 'vila-akoya' ),
+				'rangeUnavailable'        => $stay_mode
+					? __( 'This stay is not available for those dates. Please choose different check-in and check-out.', 'vila-akoya' )
+					: __( 'No pitch is free for this full stay on those dates. Choose different check-in and check-out — some nights can look available when each pitch is booked on different nights.', 'vila-akoya' ),
 				'placeholder'             => __( 'Check-in — Check-out', 'vila-akoya' ),
 				'guestCountAffectsRate'   => __( 'The amount above reflects adults at the per-guest nightly rate. Extra categories add supplements at checkout.', 'vila-akoya' ),
 				'finalising'              => __( 'Finalising your booking…', 'vila-akoya' ),
-				'finalisingSub'           => __( 'Securing your pitch and preparing checkout. This only takes a few seconds.', 'vila-akoya' ),
+				'finalisingSub'           => $stay_mode
+					? __( 'Securing this stay and preparing checkout. This only takes a few seconds.', 'vila-akoya' )
+					: __( 'Securing your pitch and preparing checkout. This only takes a few seconds.', 'vila-akoya' ),
 			),
 			'guestStrings'              => array(
 				'oneGuest' => __( '1 guest', 'vila-akoya' ),

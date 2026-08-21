@@ -230,12 +230,68 @@ function vila_akoya_seed_replace_wc_placeholders( $html ) {
 		$campsite = '';
 	}
 	$html = str_replace( '{{wc:campsite_booking}}', $campsite, $html );
+	if ( function_exists( 'vila_akoya_seed_replace_stays_placeholders' ) ) {
+		$html = vila_akoya_seed_replace_stays_placeholders( $html );
+	}
 
 	if ( strpos( $html, '{{wc:' ) !== false ) {
 		$html = preg_replace( '/\{\{wc:[a-z0-9_]+\}\}/', '', $html );
 	}
 
 	return $html;
+}
+
+/**
+ * Strip Gutenberg markers and HTML comments from booking page HTML.
+ *
+ * Raw comments left after wp: markers are removed get split by wpautop and show as visible "<!--" text.
+ *
+ * @param string $html HTML.
+ * @return string
+ */
+function vila_akoya_sanitize_booking_page_html( $html ) {
+	$html = is_string( $html ) ? $html : '';
+	if ( '' === $html ) {
+		return '';
+	}
+
+	$html = preg_replace( '/<!--\s*\/?wp:[^>]*-->\s*/', '', $html );
+	$html = preg_replace( '/<!--[\s\S]*?-->/', '', $html );
+
+	return is_string( $html ) ? $html : '';
+}
+
+/**
+ * Build booking page post content from the theme HTML seed.
+ *
+ * @return string
+ */
+function vila_akoya_build_booking_page_html() {
+	$path = VILA_AKOYA_DIR . '/inc/page-content/booking-blocks.html';
+	if ( ! is_readable( $path ) ) {
+		return '';
+	}
+
+	$html = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	$cf7  = function_exists( 'vila_akoya_get_cf7_form_ids' ) ? vila_akoya_get_cf7_form_ids() : array();
+
+	if ( function_exists( 'vila_akoya_seed_replace_cf7_placeholders' ) ) {
+		$html = vila_akoya_seed_replace_cf7_placeholders( $html, $cf7 );
+	}
+	if ( function_exists( 'vila_akoya_seed_replace_wc_placeholders' ) ) {
+		$html = vila_akoya_seed_replace_wc_placeholders( $html );
+	}
+	if ( function_exists( 'vila_akoya_seed_replace_stays_placeholders' ) ) {
+		$html = vila_akoya_seed_replace_stays_placeholders( $html );
+	}
+	if ( function_exists( 'vila_akoya_seed_localize_image_urls' ) ) {
+		$html = vila_akoya_seed_localize_image_urls( $html );
+	}
+	if ( function_exists( 'vila_akoya_absolutize_brochure_hrefs' ) ) {
+		$html = vila_akoya_absolutize_brochure_hrefs( $html );
+	}
+
+	return vila_akoya_sanitize_booking_page_html( $html );
 }
 
 /**

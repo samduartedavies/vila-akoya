@@ -31,6 +31,9 @@ function vila_akoya_order_has_campsite_booking( $order ) {
 		if ( function_exists( 'vila_akoya_is_campsite_product_id' ) && vila_akoya_is_campsite_product_id( $pid ) ) {
 			return true;
 		}
+		if ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( $pid ) ) {
+			return true;
+		}
 	}
 	return false;
 }

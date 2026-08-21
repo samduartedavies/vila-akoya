@@ -14,6 +14,11 @@ function vila_akoya_invalidate_campsite_plot_availability_caches() {
 	foreach ( vila_akoya_get_campsite_plot_product_ids() as $pid ) {
 		delete_transient( 'vila_plot_unavail_' . (int) $pid );
 	}
+	if ( function_exists( 'vila_akoya_get_stay_product_ids' ) ) {
+		foreach ( vila_akoya_get_stay_product_ids() as $pid ) {
+			delete_transient( 'vila_plot_unavail_' . (int) $pid );
+		}
+	}
 }
 add_action( 'woocommerce_order_status_changed', 'vila_akoya_invalidate_campsite_plot_availability_caches', 30 );
 add_action( 'woocommerce_new_order', 'vila_akoya_invalidate_campsite_plot_availability_caches', 30 );

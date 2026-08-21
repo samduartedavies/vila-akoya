@@ -18,6 +18,15 @@
     if (typeof vilaAkoyaBooking === 'undefined') {
       return;
     }
+    if (vilaAkoyaBooking.stayMode && vilaAkoyaBooking.plotUnavailableYmd) {
+      var sid = String(vilaAkoyaBooking.defaultPlotProductId || '');
+      var stayDates = vilaAkoyaBooking.plotUnavailableYmd[sid] || [];
+      window.vilaMwbUnavailableList = stayDates;
+      if (typeof mwb_mbfw_public_obj !== 'undefined') {
+        mwb_mbfw_public_obj.single_unavailable_dates = stayDates;
+      }
+      return;
+    }
     if (vilaAkoyaBooking.useSharedCampsiteInventory && Array.isArray(window.vilaMwbUnavailableList)) {
       if (typeof mwb_mbfw_public_obj !== 'undefined') {
         mwb_mbfw_public_obj.single_unavailable_dates = window.vilaMwbUnavailableList;
@@ -476,13 +485,19 @@
     var total = 0;
     var nightlyAccom = 0;
 
-    var unit = P.adultPerNight;
-    var pitchNightly = P.perPerson ? unit * adults : unit;
+    var stayMode = !!(d && d.stayMode);
+    var unit = stayMode && P.stayPerNight ? P.stayPerNight : P.adultPerNight;
+    var pitchNightly = stayMode ? unit : P.perPerson ? unit * adults : unit;
     nightlyAccom += pitchNightly;
     var pitchValue = pitchNightly * nights;
-    var pitchTitle = P.perPerson
-      ? vilaSprintf(S.plotRatePerPerson, adults, vilaFormatPricePlain(unit), nights, nightWord)
-      : vilaSprintf(S.plotRateFlat, vilaFormatPricePlain(unit), nights, nightWord);
+    var pitchTitle;
+    if (stayMode) {
+      pitchTitle = vilaSprintf(S.stayRateFlat || S.plotRateFlat, vilaFormatPricePlain(unit), nights, nightWord);
+    } else {
+      pitchTitle = P.perPerson
+        ? vilaSprintf(S.plotRatePerPerson, adults, vilaFormatPricePlain(unit), nights, nightWord)
+        : vilaSprintf(S.plotRateFlat, vilaFormatPricePlain(unit), nights, nightWord);
+    }
 
     var weekdayNights = getWeekdayNights();
     var mealSlugs = [];
@@ -520,21 +535,23 @@
       }
     }
 
-    $('input[name="vila_vehicle_types[]"]:checked').each(function () {
-      var slug = this.value;
-      var info = P.vehicleFees[slug];
-      if (!info || info.fee <= 0) {
-        return;
-      }
-      var vehicleNightly = info.fee * (P.vehicleByGuests ? adults : 1);
-      nightlyAccom += vehicleNightly;
-      var lineValue = vehicleNightly * nights;
-      total += lineValue;
-      var title = P.vehicleByGuests
-        ? vilaSprintf(S.vehicleByGuests, info.label, vilaFormatPricePlain(info.fee), adults, nights, nightWord)
-        : vilaSprintf(S.vehicleFlat, info.label, vilaFormatPricePlain(info.fee), nights, nightWord);
-      rows.push(liveBillRow(title, lineValue));
-    });
+    if (!stayMode) {
+      $('input[name="vila_vehicle_types[]"]:checked').each(function () {
+        var slug = this.value;
+        var info = P.vehicleFees[slug];
+        if (!info || info.fee <= 0) {
+          return;
+        }
+        var vehicleNightly = info.fee * (P.vehicleByGuests ? adults : 1);
+        nightlyAccom += vehicleNightly;
+        var lineValue = vehicleNightly * nights;
+        total += lineValue;
+        var title = P.vehicleByGuests
+          ? vilaSprintf(S.vehicleByGuests, info.label, vilaFormatPricePlain(info.fee), adults, nights, nightWord)
+          : vilaSprintf(S.vehicleFlat, info.label, vilaFormatPricePlain(info.fee), nights, nightWord);
+        rows.push(liveBillRow(title, lineValue));
+      });
+    }
 
     if (children > 0 && P.guestRates.children > 0) {
       nightlyAccom += children * P.guestRates.children;
@@ -725,14 +742,46 @@
     $('.vila-airbnb-booking--dates').addClass('vila-date-input-error');
   }
 
+  function stayRangeHasUnavailableNight(stay) {
+    var list = window.vilaMwbUnavailableList || [];
+    if (!stay || !stay.check_in || !stay.check_out || !list.length) {
+      return false;
+    }
+    var cur = new Date(stay.check_in + 'T00:00:00');
+    var end = new Date(stay.check_out + 'T00:00:00');
+    if (isNaN(cur.getTime()) || isNaN(end.getTime()) || end <= cur) {
+      return false;
+    }
+    while (cur < end) {
+      var y = ymdFromDate(cur);
+      if (list.indexOf(y) !== -1) {
+        return true;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return false;
+  }
+
   function runStayRangeAvailabilityCheck() {
-    var base = getRestUrlForRangeCheck();
-    if (!base) {
+    var stay = getStayYmdFromMwbInputs();
+    if (!stay) {
       clearAvailabilityWarning();
       return;
     }
-    var stay = getStayYmdFromMwbInputs();
-    if (!stay) {
+    if (typeof vilaAkoyaBooking !== 'undefined' && vilaAkoyaBooking.stayMode) {
+      if (stayRangeHasUnavailableNight(stay)) {
+        var stayMsg =
+          vilaAkoyaBooking.strings && vilaAkoyaBooking.strings.rangeUnavailable
+            ? vilaAkoyaBooking.strings.rangeUnavailable
+            : 'This stay is not available for those dates.';
+        showAvailabilityWarning(stayMsg);
+      } else {
+        clearAvailabilityWarning();
+      }
+      return;
+    }
+    var base = getRestUrlForRangeCheck();
+    if (!base) {
       clearAvailabilityWarning();
       return;
     }
@@ -925,6 +974,12 @@
     initRangePicker();
 
     var booking = window.vilaAkoyaBooking;
+    if (booking && booking.stayMode && booking.plotUnavailableYmd) {
+      var sid = String(booking.defaultPlotProductId || '');
+      window.vilaMwbUnavailableList = booking.plotUnavailableYmd[sid] || [];
+      redrawRangePickerIfAny();
+      return;
+    }
     if (
       booking &&
       booking.useSharedCampsiteInventory &&
@@ -1392,7 +1447,18 @@
       return;
     }
 
+    function accommodationModeFromHash() {
+      var hash = String(window.location.hash || '').toLowerCase();
+      if (/^#accommodation$/.test(hash) || /^#village$/.test(hash)) {
+        return 'accommodation';
+      }
+      return '';
+    }
+
     function activate(mode) {
+      if (mode === 'village') {
+        mode = 'accommodation';
+      }
       $card.find('[data-va-booking-tab]').each(function () {
         var sel = $(this).attr('data-va-booking-tab') === mode;
         $(this).toggleClass('is-active', sel);
@@ -1415,24 +1481,18 @@
       activate(mode);
       if (window.history && typeof window.history.replaceState === 'function') {
         var path = window.location.pathname + window.location.search;
-        var hash = mode === 'village' ? '#village' : '';
+        var hash = mode === 'accommodation' ? '#accommodation' : '';
         window.history.replaceState(null, '', path + hash);
       }
     });
 
     $(window).on('hashchange.vilaBookingReserveTabs', function () {
-      if (/^#village$/i.test(String(window.location.hash || ''))) {
-        activate('village');
-      } else {
-        activate('campsite');
-      }
+      var mode = accommodationModeFromHash();
+      activate(mode || 'campsite');
     });
 
-    if (/^#village$/i.test(String(window.location.hash || ''))) {
-      activate('village');
-    } else {
-      activate('campsite');
-    }
+    var initialMode = accommodationModeFromHash();
+    activate(initialMode || 'campsite');
   }
 
   $(function () {

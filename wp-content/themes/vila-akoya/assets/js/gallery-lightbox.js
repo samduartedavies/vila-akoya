@@ -1,5 +1,5 @@
 (() => {
-  const GALLERY_SELECTOR = ".va-campsite-gallery";
+  const GALLERY_SELECTOR = ".va-campsite-gallery, .vila-stay-gallery";
   const ITEM_SELECTOR = ".va-campsite-gallery__item, .va-campsite-gallery a[href]";
 
   let lightbox;
