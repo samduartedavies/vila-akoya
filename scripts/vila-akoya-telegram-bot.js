@@ -1056,6 +1056,10 @@ function withReplyThread(message, fn) {
 
 async function sendMessage(chatId, text, extra = {}) {
   if (!chatId) return false;
+  if (text == null || String(text).trim() === "") {
+    log("sendMessage error: empty text");
+    return false;
+  }
   const isPrivate = Number(chatId) > 0;
   const payload = {
     chat_id: chatId,
@@ -2939,6 +2943,7 @@ async function buildDailyRecap(dateISO) {
   } catch {
     recap = template;
   }
+  return recap && String(recap).trim() ? recap : template;
 }
 
 async function maybeSendDailyRecap() {
@@ -2955,7 +2960,11 @@ async function maybeSendDailyRecap() {
   saveState();
   try {
     const recap = await buildDailyRecap(today);
-    await sendMessage(TELEGRAM_CHAT_ID, recap);
+    if (!recap || !String(recap).trim()) {
+      throw new Error("Daily recap text was empty");
+    }
+    const sent = await sendMessage(TELEGRAM_CHAT_ID, recap);
+    if (!sent) throw new Error("Daily recap send failed");
     log(`Daily recap sent for ${today}`);
     await maybeSendPersonalMorningBriefings(today);
   } catch (err) {
@@ -5436,7 +5445,36 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Bot crashed:", err);
-  process.exit(1);
-});
+async function sendDailyRecapOnce() {
+  if (!TELEGRAM_BOT_TOKEN) {
+    throw new Error("Missing TELEGRAM_BOT_TOKEN env variable.");
+  }
+  if (!TELEGRAM_CHAT_ID) {
+    throw new Error("Missing TELEGRAM_CHAT_ID");
+  }
+  notion.assertKey();
+  const today = todayISO();
+  log(`Building daily recap for ${today}...`);
+  const recap = await buildDailyRecap(today);
+  if (!recap || !String(recap).trim()) {
+    throw new Error("Daily recap text was empty");
+  }
+  log(`Recap ready (${recap.length} chars), sending to ${TELEGRAM_CHAT_ID}`);
+  const sent = await sendMessage(TELEGRAM_CHAT_ID, recap);
+  if (!sent) throw new Error("Daily recap send failed");
+  log(`Daily recap sent for ${today}`);
+}
+
+if (process.argv.includes("--send-recap")) {
+  sendDailyRecapOnce()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Daily recap send failed:", err);
+      process.exit(1);
+    });
+} else {
+  main().catch((err) => {
+    console.error("Bot crashed:", err);
+    process.exit(1);
+  });
+}
