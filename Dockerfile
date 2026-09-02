@@ -11,5 +11,8 @@ ENV STATE_FILE=/data/.vila-akoya-telegram-state.json
 ENV LOCK_FILE=/data/.vila-akoya-telegram-state.json.lock
 ENV DOCS_INDEX_FILE=/data/.vila-akoya-docs-index.json
 ENV NOTION_CATALOG_FILE=/data/.vila-akoya-notion.json
+ENV PORT=8080
+
+EXPOSE 8080
 
 CMD ["node", "scripts/vila-akoya-telegram-bot.js"]

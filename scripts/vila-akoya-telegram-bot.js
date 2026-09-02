@@ -3794,6 +3794,25 @@ function looksLikeQuestionnaireReply(text, pending) {
   return false;
 }
 
+/** True when the user is chatting, not answering a numbered questionnaire step. */
+function looksLikeGeneralConversation(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return false;
+  if (looksLikeQuestionnaireReply(text, { step: "role" })) return false;
+  if (/\?$/.test(raw)) return true;
+  if (
+    /^(what|why|how|who|when|where|are you|you awake|hello|hi|hey|help|thanks|thank you)\b/i.test(
+      raw
+    )
+  ) {
+    return true;
+  }
+  if (/^(i don'?t understand|reply to what|what do you mean|never mind|huh|wait|sorry)\b/i.test(raw)) {
+    return true;
+  }
+  return false;
+}
+
 function clearQuestionnaire(key) {
   if (state.pendingQuestionnaire?.[key]) {
     delete state.pendingQuestionnaire[key];
@@ -3940,6 +3959,11 @@ async function handlePendingQuestionnaire(message) {
     return true;
   }
 
+  // Let normal chat / questions through — questionnaire stays pending until skip or /cancel.
+  if (looksLikeGeneralConversation(text) && !looksLikeQuestionnaireReply(text, pending)) {
+    return false;
+  }
+
   if (pending.step === "stage") {
     pending.step = "skills";
     saveState();
@@ -3954,9 +3978,10 @@ async function handlePendingQuestionnaire(message) {
   if (step === "role") {
     const parsed = parseSingleChoice(text, ROLE_OPTIONS);
     if (!parsed) {
+      if (!looksLikeQuestionnaireReply(text, pending)) return false;
       await sendMessage(
         chatId,
-        `Please reply with a number 1–${ROLE_OPTIONS.length}, or <i>skip</i>.`
+        `Please reply with a number 1–${ROLE_OPTIONS.length}, or <i>skip</i>. Say <i>cancel</i> to exit.`
       );
       return true;
     }
@@ -3965,9 +3990,10 @@ async function handlePendingQuestionnaire(message) {
   } else if (step === "skills") {
     const parsed = parseMultiChoice(text, SKILLSET_OPTIONS);
     if (!parsed) {
+      if (!looksLikeQuestionnaireReply(text, pending)) return false;
       await sendMessage(
         chatId,
-        "Please reply with numbers like <code>1 3 5</code>, and/or <code>other: your skill</code>, or <i>skip</i>."
+        "Please reply with numbers like <code>1 3 5</code>, and/or <code>other: your skill</code>, or <i>skip</i>. Say <i>cancel</i> to exit."
       );
       return true;
     }
@@ -3978,16 +4004,19 @@ async function handlePendingQuestionnaire(message) {
   } else if (step === "areas") {
     const parsed = parseMultiChoice(text, AREA_OPTIONS);
     if (!parsed) {
+      if (!looksLikeQuestionnaireReply(text, pending)) return false;
       await sendMessage(
         chatId,
-        "Please reply with numbers like <code>2 7 9</code>, or <i>skip</i>."
+        "Please reply with numbers like <code>2 7 9</code>, or <i>skip</i>. Say <i>cancel</i> to exit."
       );
       return true;
     }
     if (!parsed.skip) answers.areas = parsed.values;
   } else if (step === "bio") {
+    if (looksLikeGeneralConversation(text)) return false;
     if (!/^(skip|none|-)$/i.test(text)) answers.bio = text;
   } else if (step === "contact") {
+    if (looksLikeGeneralConversation(text)) return false;
     if (!/^(skip|none|-|done)$/i.test(text)) answers.contact = text;
   } else {
     clearQuestionnaire(uid);
@@ -5364,11 +5393,25 @@ async function scanBoardsForChanges({ announce }) {
   saveState();
 }
 
+// ── Fly.io keepalive (no-op locally unless PORT is set) ─────────────────────
+function startHealthServer() {
+  const port = Number(process.env.PORT || 0);
+  if (!port) return;
+  const http = require("http");
+  http
+    .createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("ok\n");
+    })
+    .listen(port, () => log(`Health check listening on :${port}`));
+}
+
 // ── Main loop ─────────────────────────────────────────────────────────────
 async function main() {
   if (!TELEGRAM_BOT_TOKEN) {
     throw new Error("Missing TELEGRAM_BOT_TOKEN env variable.");
   }
+  startHealthServer();
   acquireInstanceLock();
   notion.assertKey();
 
