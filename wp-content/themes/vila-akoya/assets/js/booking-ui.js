@@ -359,34 +359,69 @@
     );
   }
 
-  function vilaStayDiscountInfo(stayNights) {
-    var pricing = (vilaBookingData() && vilaBookingData().pricing) || {};
-    var tiers = (pricing.stayDiscounts || []).slice();
-    tiers.sort(function (a, b) {
-      return (a.stay || 0) - (b.stay || 0);
-    });
-    var applied = null;
-    var i;
-    for (i = 0; i < tiers.length; i++) {
-      if (stayNights >= tiers[i].stay) {
-        applied = tiers[i];
-      }
+  function billableWeekly(stayNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    return stay - Math.floor(stay / 7);
+  }
+
+  function billableMonthly(stayNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    var blocks = Math.floor(stay / 30);
+    var remainder = stay % 30;
+    return blocks * 20 + remainder;
+  }
+
+  function billableNightsForStay(stayNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    if (stay < 1) {
+      return 0;
     }
-    var free = applied ? applied.stay - applied.pay : 0;
+    return Math.min(billableWeekly(stay), billableMonthly(stay));
+  }
+
+  function upsellTargetStay(stayNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    if (stay < 7) {
+      return 7;
+    }
+    if (stay < 30) {
+      return 30;
+    }
+    return (Math.floor(stay / 30) + 1) * 30;
+  }
+
+  function vilaStayDiscountInfo(stayNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    var billable = billableNightsForStay(stay);
+    var free = Math.max(0, stay - billable);
+    var applied =
+      free > 0
+        ? {
+            stay: stay,
+            pay: billable,
+          }
+        : null;
+    var target = upsellTargetStay(stay);
+    var targetBillable = billableNightsForStay(target);
+    var targetFree = Math.max(0, target - targetBillable);
+    var saveNights = Math.max(0, targetFree - free);
     var next = null;
-    for (i = 0; i < tiers.length; i++) {
-      if (stayNights < tiers[i].stay) {
-        next = tiers[i];
-        break;
-      }
+    var moreNights = 0;
+    if (saveNights > 0 && target > stay) {
+      next = {
+        stay: target,
+        pay: targetBillable,
+        saveNights: saveNights,
+      };
+      moreNights = target - stay;
     }
     return {
-      stay: stayNights,
-      billable: Math.max(0, stayNights - free),
+      stay: stay,
+      billable: billable,
       free: free,
       applied: applied,
       next: next,
-      moreNights: next ? Math.max(0, next.stay - stayNights) : 0,
+      moreNights: moreNights,
     };
   }
 
@@ -397,7 +432,8 @@
     S = S || {};
     var upsellFmt =
       S.upsell || 'Only %1$d more %2$s and you will get a discount of %3$s (stay %4$d, pay %5$d).';
-    var save = (disc.next.stay - disc.next.pay) * nightlyAccom;
+    var saveNights = disc.next.saveNights || Math.max(0, disc.next.stay - disc.next.pay);
+    var save = saveNights * nightlyAccom;
     var moreWord = disc.moreNights === 1 ? S.nightSingular || 'night' : S.nightPlural || 'nights';
     return vilaSprintf(
       upsellFmt,
@@ -572,13 +608,13 @@
       rows.push(liveBillRow(vilaSprintf(S.pets, pets, vilaFormatPricePlain(P.guestRates.pets), nights, nightWord), petVal));
     }
 
-    if (disc.applied && disc.free > 0 && nightlyAccom > 0) {
+    if (disc.free > 0 && nightlyAccom > 0) {
       var discountFmt = S.discountApplied || 'Stay %1$d, pay %2$d — %3$d %4$s free';
       var discountValue = nightlyAccom * disc.free;
       var freeWord = disc.free === 1 ? S.nightSingular : S.nightPlural;
       rows.push(
         liveBillRow(
-          vilaSprintf(discountFmt, disc.applied.stay, disc.applied.pay, disc.free, freeWord),
+          vilaSprintf(discountFmt, disc.stay, disc.billable, disc.free, freeWord),
           -discountValue,
           'vila-live-bill__discount'
         )
@@ -863,8 +899,14 @@
       if (!$who.closest('.vila-booking-dates-who').length) {
         var $row = $('<div class="vila-booking-dates-who"></div>');
         $datesWrap.before($row);
-        $row.append($who);
-        $row.append($datesWrap);
+        var stayMode = typeof vilaAkoyaBooking !== 'undefined' && vilaAkoyaBooking.stayMode;
+        if (stayMode) {
+          $row.append($datesWrap);
+          $row.append($who);
+        } else {
+          $row.append($who);
+          $row.append($datesWrap);
+        }
       }
       ensureStayDiscountUpsellRow();
 
@@ -1052,8 +1094,16 @@
     return new Date(year, month, day);
   }
 
-  function guestSummaryString(a, c, i, p) {
-    var people = a + c + i;
+  function occupancyTotal(s, $root) {
+    var mode = $root && $root.attr ? ($root.attr('data-vila-occupancy') || '') : '';
+    if (mode === 'beds') {
+      return s.adults + s.children;
+    }
+    return s.adults + s.children + s.infants;
+  }
+
+  function guestSummaryString(a, c, i, p, beds) {
+    var people = beds ? a + c : a + c + i;
     var parts = [];
     var gs = typeof vilaAkoyaBooking !== 'undefined' && vilaAkoyaBooking.guestStrings ? vilaAkoyaBooking.guestStrings : null;
     if (people === 1) {
@@ -1061,6 +1111,14 @@
     } else {
       var tpl = gs && gs.nGuests ? gs.nGuests : '%d guests';
       parts.push(tpl.replace('%d', String(people)));
+    }
+    if (beds && i > 0) {
+      if (i === 1) {
+        parts.push(gs && gs.oneBaby ? gs.oneBaby : '1 baby');
+      } else {
+        var babyTpl = gs && gs.nBabies ? gs.nBabies : '%d babies';
+        parts.push(babyTpl.replace('%d', String(i)));
+      }
     }
     if (p > 0) {
       if (p === 1) {
@@ -1095,19 +1153,27 @@
     if (isNaN(maxPet)) {
       maxPet = 5;
     }
+    var maxInf = parseInt($root.attr('data-vila-max-infants'), 10);
+    if (isNaN(maxInf)) {
+      maxInf = 5;
+    }
+    var beds = ($root.attr('data-vila-occupancy') || '') === 'beds';
     s.adults = Math.max(minA, s.adults);
     s.children = Math.max(0, s.children);
-    s.infants = Math.max(0, s.infants);
+    s.infants = Math.max(0, Math.min(maxInf, s.infants));
     s.pets = Math.max(0, Math.min(maxPet, s.pets));
-    if (s.adults + s.children + s.infants > maxP) {
-      var over = s.adults + s.children + s.infants - maxP;
+    var occ = occupancyTotal(s, $root);
+    if (occ > maxP) {
+      var over = occ - maxP;
       while (over > 0 && s.children > 0) {
         s.children--;
         over--;
       }
-      while (over > 0 && s.infants > 0) {
-        s.infants--;
-        over--;
+      if (!beds) {
+        while (over > 0 && s.infants > 0) {
+          s.infants--;
+          over--;
+        }
       }
       while (over > 0 && s.adults > minA) {
         s.adults--;
@@ -1115,10 +1181,11 @@
       }
     }
     $root.find('#mwb_mbfw_people_number').val(String(s.adults)).trigger('change');
-    $root.find('#vila_guest_children').val(String(s.children));
-    $root.find('#vila_guest_infants').val(String(s.infants));
-    $root.find('#vila_guest_pets').val(String(s.pets));
-    $root.find('.vila-guest-picker__summary').text(guestSummaryString(s.adults, s.children, s.infants, s.pets));
+    $root.find('#vila_guest_children, [name="stay-children"]').val(String(s.children));
+    $root.find('#vila_guest_infants, [name="stay-infants"]').val(String(s.infants));
+    $root.find('#vila_guest_pets, [name="stay-pets"]').val(String(s.pets));
+    $root.find('[name="stay-adults"]').val(String(s.adults));
+    $root.find('.vila-guest-picker__summary').text(guestSummaryString(s.adults, s.children, s.infants, s.pets, beds));
     $root.find('[data-vila-value-for]').each(function () {
       var slug = $(this).attr('data-vila-value-for');
       if (slug && s[slug] !== undefined) {
@@ -1131,7 +1198,12 @@
   }
 
   function updateGuestStepperUi($root, s, minA, maxP, maxPet) {
-    var totalPeople = s.adults + s.children + s.infants;
+    var beds = ($root.attr('data-vila-occupancy') || '') === 'beds';
+    var occ = occupancyTotal(s, $root);
+    var maxInf = parseInt($root.attr('data-vila-max-infants'), 10);
+    if (isNaN(maxInf)) {
+      maxInf = 5;
+    }
     $root.find('.vila-guest-picker__btn').each(function () {
       var $btn = $(this);
       var slug = $btn.attr('data-vila-slug');
@@ -1146,17 +1218,27 @@
         if (delta < 0 && next < minA) {
           dis = true;
         }
-        if (delta > 0 && totalPeople >= maxP) {
+        if (delta > 0 && occ >= maxP) {
           dis = true;
         }
-        if (delta > 0 && next > maxP - s.children - s.infants) {
+        if (delta > 0 && next > maxP - s.children - (beds ? 0 : s.infants)) {
           dis = true;
         }
-      } else if (slug === 'children' || slug === 'infants') {
+      } else if (slug === 'children') {
         if (delta < 0 && next < 0) {
           dis = true;
         }
-        if (delta > 0 && totalPeople >= maxP) {
+        if (delta > 0 && occ >= maxP) {
+          dis = true;
+        }
+      } else if (slug === 'infants') {
+        if (delta < 0 && next < 0) {
+          dis = true;
+        }
+        if (delta > 0 && next > maxInf) {
+          dis = true;
+        }
+        if (!beds && delta > 0 && occ >= maxP) {
           dis = true;
         }
       } else if (slug === 'pets') {
@@ -1278,16 +1360,17 @@
       return;
     }
     applySelectedPlotUnavailableDates();
-    if (mwb_mbfw_public_obj.wps_cal_type !== 'dual_cal') {
+    var stayMode = typeof vilaAkoyaBooking !== 'undefined' && vilaAkoyaBooking.stayMode;
+    if (!stayMode && mwb_mbfw_public_obj.wps_cal_type !== 'dual_cal') {
       initPlotSelector();
       scheduleStayRangeAvailabilityCheck();
       layoutBookingFormSections();
       return;
     }
-    if (mwb_mbfw_public_obj.booking_unit === 'hour') {
+    if (!stayMode && mwb_mbfw_public_obj.booking_unit === 'hour') {
       return;
     }
-    if (mwb_mbfw_public_obj.mwb_mbfw_show_date_with_time === 'yes') {
+    if (!stayMode && mwb_mbfw_public_obj.mwb_mbfw_show_date_with_time === 'yes') {
       return;
     }
 
@@ -1336,7 +1419,7 @@
 
     var $ui = $(
       '<div class="vila-airbnb-booking vila-airbnb-booking--dates vila-booking-range-ui mb-6">' +
-        '<p class="vila-airbnb-booking__legend mb-2">' +
+        '<p class="vila-airbnb-booking__legend">' +
         (vilaAkoyaBooking && vilaAkoyaBooking.strings ? vilaAkoyaBooking.strings.stayDates : 'Stay dates') +
         '</p>' +
         '<input type="text" id="vila-akoya-booking-range" class="vila-airbnb-booking__date-input w-full min-w-0 font-body text-left cursor-pointer" readonly tabindex="0" />' +
@@ -1455,18 +1538,20 @@
       return '';
     }
 
+    function normalizeBookingMode(mode) {
+      return mode === 'village' ? 'accommodation' : mode;
+    }
+
     function activate(mode) {
-      if (mode === 'village') {
-        mode = 'accommodation';
-      }
+      mode = normalizeBookingMode(mode || '');
       $card.find('[data-va-booking-tab]').each(function () {
-        var sel = $(this).attr('data-va-booking-tab') === mode;
+        var sel = normalizeBookingMode($(this).attr('data-va-booking-tab')) === mode;
         $(this).toggleClass('is-active', sel);
         $(this).attr('aria-selected', sel ? 'true' : 'false');
         $(this).attr('tabindex', sel ? '0' : '-1');
       });
       $card.find('[data-va-booking-panel]').each(function () {
-        var show = $(this).attr('data-va-booking-panel') === mode;
+        var show = normalizeBookingMode($(this).attr('data-va-booking-panel')) === mode;
         $(this).prop('hidden', !show);
         $(this).attr('aria-hidden', show ? 'false' : 'true');
       });
@@ -1474,7 +1559,7 @@
 
     $card.on('click', '[data-va-booking-tab]', function (e) {
       e.preventDefault();
-      var mode = $(this).attr('data-va-booking-tab');
+      var mode = normalizeBookingMode($(this).attr('data-va-booking-tab'));
       if (!mode) {
         return;
       }

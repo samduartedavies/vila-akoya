@@ -32,6 +32,13 @@ add_filter( 'block_categories_all', 'vila_akoya_block_categories', 10, 1 );
  */
 function vila_akoya_section_block_defs() {
 	return array(
+		'announcement-banner' => array(
+			'title'       => __( 'Announcement banner', 'vila-akoya' ),
+			'description' => __( 'Full-bleed homepage announcement (launch party, dates, CTAs).', 'vila-akoya' ),
+			'icon'        => 'megaphone',
+			'template'    => 'announcement-banner.php',
+			'keywords'    => array( 'banner', 'announcement', 'launch', 'party' ),
+		),
 		'home-hero'       => array(
 			'title'       => __( 'Home hero', 'vila-akoya' ),
 			'description' => __( 'Full-bleed home hero with heading, body, and two buttons.', 'vila-akoya' ),
@@ -265,6 +272,21 @@ function vila_akoya_register_section_block_field_groups() {
 	}
 
 	$groups = array(
+		array(
+			'key'    => 'group_vila_block_announcement_banner',
+			'title'  => 'Block: Announcement banner',
+			'block'  => 'acf/vila-announcement-banner',
+			'fields' => array(
+				vila_akoya_block_text_field( 'field_vila_b_announce_eyebrow', 'eyebrow', __( 'Eyebrow', 'vila-akoya' ) ),
+				vila_akoya_block_text_field( 'field_vila_b_announce_heading', 'heading', __( 'Heading', 'vila-akoya' ) ),
+				vila_akoya_block_text_field( 'field_vila_b_announce_dates', 'dates', __( 'Dates', 'vila-akoya' ) ),
+				vila_akoya_block_textarea_field( 'field_vila_b_announce_body', 'body', __( 'Body', 'vila-akoya' ) ),
+				vila_akoya_block_text_field( 'field_vila_b_announce_highlights', 'highlights', __( 'Highlights (comma-separated)', 'vila-akoya' ) ),
+				vila_akoya_block_link_field( 'field_vila_b_announce_primary_link', 'primary_link', __( 'Primary button', 'vila-akoya' ) ),
+				vila_akoya_block_link_field( 'field_vila_b_announce_secondary_link', 'secondary_link', __( 'Secondary button', 'vila-akoya' ) ),
+				vila_akoya_block_text_field( 'field_vila_b_announce_until', 'until_date', __( 'Hide after (YYYY-MM-DD)', 'vila-akoya' ) ),
+			),
+		),
 		array(
 			'key'      => 'group_vila_block_home_hero',
 			'title'    => 'Block: Home hero',
@@ -828,6 +850,19 @@ function vila_akoya_home_row_to_acf_block( $layout, array $row ) {
  */
 function vila_akoya_section_block_field_map() {
 	return array(
+		'announcement_banner' => array(
+			'block' => 'vila-announcement-banner',
+			'keys'  => array(
+				'eyebrow'        => 'field_vila_b_announce_eyebrow',
+				'heading'        => 'field_vila_b_announce_heading',
+				'dates'          => 'field_vila_b_announce_dates',
+				'body'           => 'field_vila_b_announce_body',
+				'highlights'     => 'field_vila_b_announce_highlights',
+				'primary_link'   => 'field_vila_b_announce_primary_link',
+				'secondary_link' => 'field_vila_b_announce_secondary_link',
+				'until_date'     => 'field_vila_b_announce_until',
+			),
+		),
 		'home_hero'       => array(
 			'block' => 'vila-home-hero',
 			'keys'  => array(

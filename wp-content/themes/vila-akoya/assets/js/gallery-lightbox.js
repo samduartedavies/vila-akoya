@@ -1,6 +1,6 @@
 (() => {
   const GALLERY_SELECTOR = ".va-campsite-gallery, .vila-stay-gallery";
-  const ITEM_SELECTOR = ".va-campsite-gallery__item, .va-campsite-gallery a[href]";
+  const ITEM_SELECTOR = ".va-campsite-gallery__item, .va-campsite-gallery a[href], .vila-stay-gallery__item";
 
   let lightbox;
   let lightboxImage;
@@ -177,6 +177,16 @@
   });
 
   document.addEventListener("click", (event) => {
+    const showAll = event.target.closest("[data-vila-stay-gallery-all]");
+    if (showAll) {
+      const gallery = showAll.closest(GALLERY_SELECTOR);
+      if (!gallery) return;
+      event.preventDefault();
+      const first = gallery.querySelector(ITEM_SELECTOR);
+      openLightbox(gallery, first);
+      return;
+    }
+
     const item = event.target.closest(ITEM_SELECTOR);
     if (!item) return;
     const gallery = item.closest(GALLERY_SELECTOR);
@@ -185,4 +195,76 @@
     event.preventDefault();
     openLightbox(gallery, item);
   });
+})();
+
+(() => {
+  function showSlide(root, index) {
+    const slides = Array.from(root.querySelectorAll(".vila-stay-card__slide"));
+    if (!slides.length) return;
+    const next = (index + slides.length) % slides.length;
+    slides.forEach((slide, i) => {
+      const on = i === next;
+      slide.classList.toggle("is-active", on);
+      slide.setAttribute("aria-hidden", on ? "false" : "true");
+      if (on) {
+        slide.removeAttribute("tabindex");
+      } else {
+        slide.setAttribute("tabindex", "-1");
+      }
+    });
+    root.querySelectorAll("[data-vila-stay-carousel-dot]").forEach((dot, i) => {
+      dot.classList.toggle("is-active", i === next);
+    });
+    root.dataset.vilaStayCarouselIndex = String(next);
+  }
+
+  function currentIndex(root) {
+    return parseInt(root.dataset.vilaStayCarouselIndex || "0", 10) || 0;
+  }
+
+  document.addEventListener("click", (event) => {
+    const prev = event.target.closest("[data-vila-stay-carousel-prev]");
+    const next = event.target.closest("[data-vila-stay-carousel-next]");
+    const dot = event.target.closest("[data-vila-stay-carousel-dot]");
+    if (!prev && !next && !dot) return;
+    const root = event.target.closest("[data-vila-stay-carousel]");
+    if (!root) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (dot) {
+      showSlide(root, parseInt(dot.getAttribute("data-vila-stay-carousel-dot") || "0", 10) || 0);
+      return;
+    }
+    showSlide(root, currentIndex(root) + (next ? 1 : -1));
+  });
+
+  let swipeRoot = null;
+  let startX = 0;
+
+  document.addEventListener(
+    "touchstart",
+    (event) => {
+      const root = event.target.closest("[data-vila-stay-carousel]");
+      if (!root || !event.changedTouches || !event.changedTouches.length) {
+        swipeRoot = null;
+        return;
+      }
+      swipeRoot = root;
+      startX = event.changedTouches[0].screenX;
+    },
+    { passive: true }
+  );
+
+  document.addEventListener(
+    "touchend",
+    (event) => {
+      if (!swipeRoot || !event.changedTouches || !event.changedTouches.length) return;
+      const delta = event.changedTouches[0].screenX - startX;
+      const root = swipeRoot;
+      swipeRoot = null;
+      if (Math.abs(delta) < 40) return;
+      showSlide(root, currentIndex(root) + (delta < 0 ? 1 : -1));
+    },
+    { passive: true }
+  );
 })();

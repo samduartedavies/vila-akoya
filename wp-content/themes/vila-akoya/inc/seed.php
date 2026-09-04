@@ -194,6 +194,7 @@ function vila_akoya_seed_replace_cf7_placeholders( $html, array $cf7 ) {
 		'campus'             => 'vila-cf7 vila-cf7--campus',
 		'contact'            => 'vila-cf7 vila-cf7--contact',
 		'event_inquiry'      => 'vila-cf7 vila-cf7--event',
+		'stay_inquiry'       => 'vila-cf7 vila-cf7--stay',
 	);
 
 	foreach ( $classes as $key => $class ) {

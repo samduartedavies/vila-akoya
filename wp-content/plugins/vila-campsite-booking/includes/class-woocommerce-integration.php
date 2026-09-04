@@ -280,6 +280,32 @@ class WooCommerce_Integration {
 	}
 
 	/**
+	 * Whether product is a village stay (theme-linked hidden bookable product).
+	 *
+	 * @param int $product_id Product ID.
+	 * @return bool
+	 */
+	public static function is_stay_product( $product_id ) {
+		return function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id );
+	}
+
+	/**
+	 * Campsite pitch, village stay, or meal booking — one booking line per cart.
+	 *
+	 * @param int $product_id Product ID.
+	 * @return bool
+	 */
+	public static function is_vila_booking_product( $product_id ) {
+		$product_id = (int) $product_id;
+		if ( $product_id < 1 ) {
+			return false;
+		}
+		return self::is_campsite_product( $product_id )
+			|| self::is_stay_product( $product_id )
+			|| Meal_Booking::is_meals_product( $product_id );
+	}
+
+	/**
 	 * @param int $product_id Product ID.
 	 * @return array{adults: int, children: int, infants: int, pets: int}
 	 */
@@ -503,9 +529,7 @@ class WooCommerce_Integration {
 		}
 		$product_id   = (int) $product_id;
 		$quantity     = (int) $quantity;
-		$campsite     = self::is_campsite_product( $product_id );
-		$is_meals     = Meal_Booking::is_meals_product( $product_id );
-		$replace_cart = $campsite || $is_meals;
+		$replace_cart = self::is_vila_booking_product( $product_id );
 
 		if ( $replace_cart && $quantity > 1 ) {
 			wc_add_notice( __( 'You can only add one booking at a time (quantity must be 1).', 'vila-campsite-booking' ), 'error' );
@@ -553,10 +577,7 @@ class WooCommerce_Integration {
 			}
 			$pid = isset( $row['product_id'] ) ? (int) $row['product_id'] : 0;
 			$vid = isset( $row['variation_id'] ) ? (int) $row['variation_id'] : 0;
-			if ( self::is_campsite_product( $pid ) || ( $vid && self::is_campsite_product( $vid ) ) ) {
-				return true;
-			}
-			if ( Meal_Booking::is_meals_product( $pid ) ) {
+			if ( self::is_vila_booking_product( $pid ) || ( $vid && self::is_vila_booking_product( $vid ) ) ) {
 				return true;
 			}
 		}

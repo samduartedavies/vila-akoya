@@ -276,6 +276,7 @@ function vila_akoya_cf7_form_copy_labels() {
 		'campus'             => __( 'Campus — host your own', 'vila-akoya' ),
 		'contact'            => __( 'Contact', 'vila-akoya' ),
 		'event_inquiry'      => __( 'Event inquiry', 'vila-akoya' ),
+		'stay_inquiry'       => __( 'Stay inquiry', 'vila-akoya' ),
 	);
 }
 
@@ -461,6 +462,46 @@ function vila_akoya_cf7_form_mail_configs_defaults() {
 					array( __( 'Message', 'vila-akoya' ), '[your-message]' ),
 				),
 				'outro'    => __( 'We will check availability and get back to you soon.', 'vila-akoya' ),
+			),
+		),
+		'stay_inquiry'       => array(
+			'admin'     => array(
+				'subject' => __( 'Vila Akoya — stay request ([stay-title])', 'vila-akoya' ),
+				'title'   => __( 'New stay request', 'vila-akoya' ),
+				'intro'   => __( 'Someone asked about booking a stay.', 'vila-akoya' ),
+				'rows'    => array(
+					array( __( 'Stay', 'vila-akoya' ), '[stay-title]' ),
+					array( __( 'Link', 'vila-akoya' ), '[stay-url]' ),
+					array( __( 'From', 'vila-akoya' ), '[stay-from]' ),
+					array( __( 'To', 'vila-akoya' ), '[stay-to]' ),
+					array( __( 'Adults', 'vila-akoya' ), '[stay-adults]' ),
+					array( __( 'Children', 'vila-akoya' ), '[stay-children]' ),
+					array( __( 'Babies', 'vila-akoya' ), '[stay-infants]' ),
+					array( __( 'Pets', 'vila-akoya' ), '[stay-pets]' ),
+					array( __( 'Estimated total', 'vila-akoya' ), '[stay-total]' ),
+					array( __( 'Name', 'vila-akoya' ), '[your-name]' ),
+					array( __( 'Email', 'vila-akoya' ), '[your-email]' ),
+					array( __( 'Phone', 'vila-akoya' ), '[your-phone]' ),
+					array( __( 'Notes', 'vila-akoya' ), '[stay-notes]' ),
+				),
+			),
+			'autoreply' => array(
+				'subject'  => __( 'Thanks for your stay request — Vila Akoya', 'vila-akoya' ),
+				'title'    => __( 'We received your request', 'vila-akoya' ),
+				'greeting' => __( 'Hi', 'vila-akoya' ) . ' [your-name],',
+				'intro'    => __( 'Thank you. Here is a copy of what you sent:', 'vila-akoya' ),
+				'rows'     => array(
+					array( __( 'Stay', 'vila-akoya' ), '[stay-title]' ),
+					array( __( 'From', 'vila-akoya' ), '[stay-from]' ),
+					array( __( 'To', 'vila-akoya' ), '[stay-to]' ),
+					array( __( 'Adults', 'vila-akoya' ), '[stay-adults]' ),
+					array( __( 'Children', 'vila-akoya' ), '[stay-children]' ),
+					array( __( 'Babies', 'vila-akoya' ), '[stay-infants]' ),
+					array( __( 'Pets', 'vila-akoya' ), '[stay-pets]' ),
+					array( __( 'Estimated total', 'vila-akoya' ), '[stay-total]' ),
+					array( __( 'Notes', 'vila-akoya' ), '[stay-notes]' ),
+				),
+				'outro'    => __( 'We will check those dates and get back to you.', 'vila-akoya' ),
 			),
 		),
 	);

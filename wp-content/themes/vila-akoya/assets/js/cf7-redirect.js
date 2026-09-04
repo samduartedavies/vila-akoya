@@ -21,6 +21,10 @@
       title: "Message sent",
       body: "Thank you for writing — we've received your note and will reply as soon as we can.",
     },
+    stay: {
+      title: "Request sent",
+      body: "We'll check those dates and get back to you.",
+    },
     default: {
       title: "Message sent",
       body: "Thank you — we've received your message and will get back to you soon.",
@@ -40,6 +44,9 @@
     }
     if (className.indexOf("vila-cf7--contact") !== -1) {
       return COPY.contact;
+    }
+    if (className.indexOf("vila-cf7--stay") !== -1) {
+      return COPY.stay;
     }
     return COPY.default;
   }

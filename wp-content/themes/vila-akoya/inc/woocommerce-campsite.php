@@ -770,61 +770,125 @@ function vila_akoya_campsite_option_cart_redirect_after_add( $value ) {
 add_filter( 'option_woocommerce_cart_redirect_after_add', 'vila_akoya_campsite_option_cart_redirect_after_add', 20 );
 
 /**
- * Require phone number at checkout (classic + block checkout locale).
+ * Checkout address fields guests may leave blank. Email stays required.
+ *
+ * @return string[] Locale / default-address field keys.
+ */
+function vila_akoya_checkout_optional_address_field_keys() {
+	return array( 'first_name', 'last_name', 'address_1', 'city', 'postcode', 'phone' );
+}
+
+/**
+ * Mark selected address fields optional (visible, not required).
+ *
+ * @param array<string, mixed> $fields Address or locale field map.
+ * @return array<string, mixed>
+ */
+function vila_akoya_checkout_mark_address_fields_optional( $fields ) {
+	if ( ! is_array( $fields ) ) {
+		return $fields;
+	}
+	foreach ( vila_akoya_checkout_optional_address_field_keys() as $key ) {
+		if ( ! isset( $fields[ $key ] ) || ! is_array( $fields[ $key ] ) ) {
+			$fields[ $key ] = array();
+		}
+		$fields[ $key ]['required'] = false;
+	}
+	return $fields;
+}
+
+/**
+ * Make billing name, address, and phone optional (classic + block checkout).
  *
  * @param array<string, mixed> $fields Address fields.
  * @return array<string, mixed>
  */
-function vila_akoya_checkout_require_phone( $fields ) {
-	if ( isset( $fields['phone'] ) && is_array( $fields['phone'] ) ) {
-		$fields['phone']['required'] = true;
-	}
-	return $fields;
+function vila_akoya_checkout_optional_address_fields( $fields ) {
+	return vila_akoya_checkout_mark_address_fields_optional( $fields );
 }
-add_filter( 'woocommerce_default_address_fields', 'vila_akoya_checkout_require_phone', 20 );
+add_filter( 'woocommerce_default_address_fields', 'vila_akoya_checkout_optional_address_fields', 100 );
 
 /**
  * @param array<string, array<string, mixed>> $fields Checkout fields.
  * @return array<string, array<string, mixed>>
  */
-function vila_akoya_checkout_billing_require_phone( $fields ) {
-	if ( isset( $fields['billing']['billing_phone'] ) ) {
-		$fields['billing']['billing_phone']['required'] = true;
+function vila_akoya_checkout_billing_optional_fields( $fields ) {
+	if ( ! isset( $fields['billing'] ) || ! is_array( $fields['billing'] ) ) {
+		return $fields;
+	}
+	foreach ( vila_akoya_checkout_optional_address_field_keys() as $key ) {
+		$billing_key = 'billing_' . $key;
+		if ( isset( $fields['billing'][ $billing_key ] ) && is_array( $fields['billing'][ $billing_key ] ) ) {
+			$fields['billing'][ $billing_key ]['required'] = false;
+		}
 	}
 	return $fields;
 }
-add_filter( 'woocommerce_checkout_fields', 'vila_akoya_checkout_billing_require_phone', 20 );
+add_filter( 'woocommerce_checkout_fields', 'vila_akoya_checkout_billing_optional_fields', 100 );
 
 /**
  * @param array<string, array<string, mixed>> $locale Country locale fields.
  * @return array<string, array<string, mixed>>
  */
-function vila_akoya_checkout_country_locale_require_phone( $locale ) {
+function vila_akoya_checkout_country_locale_optional_fields( $locale ) {
+	if ( ! is_array( $locale ) ) {
+		return $locale;
+	}
 	foreach ( $locale as $country => $fields ) {
-		if ( ! is_array( $fields ) ) {
-			continue;
-		}
-		if ( ! isset( $locale[ $country ]['phone'] ) || ! is_array( $locale[ $country ]['phone'] ) ) {
-			$locale[ $country ]['phone'] = array();
-		}
-		$locale[ $country ]['phone']['required'] = true;
+		$locale[ $country ] = vila_akoya_checkout_mark_address_fields_optional( is_array( $fields ) ? $fields : array() );
 	}
 	return $locale;
 }
-add_filter( 'woocommerce_get_country_locale', 'vila_akoya_checkout_country_locale_require_phone', 20 );
+add_filter( 'woocommerce_get_country_locale', 'vila_akoya_checkout_country_locale_optional_fields', 100 );
 
 /**
- * @param array<string, mixed> $locale Default locale.
+ * @param array<string, mixed> $locale Default / base locale.
  * @return array<string, mixed>
  */
-function vila_akoya_checkout_default_locale_require_phone( $locale ) {
-	if ( ! isset( $locale['phone'] ) || ! is_array( $locale['phone'] ) ) {
-		$locale['phone'] = array();
-	}
-	$locale['phone']['required'] = true;
-	return $locale;
+function vila_akoya_checkout_default_locale_optional_fields( $locale ) {
+	return vila_akoya_checkout_mark_address_fields_optional( $locale );
 }
-add_filter( 'woocommerce_get_country_locale_default', 'vila_akoya_checkout_default_locale_require_phone', 20 );
+add_filter( 'woocommerce_get_country_locale_default', 'vila_akoya_checkout_default_locale_optional_fields', 100 );
+add_filter( 'woocommerce_get_country_locale_base', 'vila_akoya_checkout_default_locale_optional_fields', 100 );
+
+/**
+ * Phone is stored as a Checkout-block option (required / optional / hidden).
+ *
+ * @return string
+ */
+function vila_akoya_checkout_phone_field_optional() {
+	return 'optional';
+}
+add_filter( 'option_woocommerce_checkout_phone_field', 'vila_akoya_checkout_phone_field_optional' );
+add_filter( 'default_option_woocommerce_checkout_phone_field', 'vila_akoya_checkout_phone_field_optional' );
+
+/**
+ * Block checkout: do not require phone even if the saved block still has requirePhoneField.
+ *
+ * @param array $parsed_block Parsed block.
+ * @param array $source_block Source block.
+ * @return array
+ */
+function vila_akoya_checkout_block_optional_phone( $parsed_block, $source_block ) {
+	unset( $source_block );
+	if ( empty( $parsed_block['blockName'] ) ) {
+		return $parsed_block;
+	}
+	$names = array(
+		'woocommerce/checkout',
+		'woocommerce/checkout-fields-block',
+		'woocommerce/checkout-contact-information-block',
+	);
+	if ( ! in_array( $parsed_block['blockName'], $names, true ) ) {
+		return $parsed_block;
+	}
+	if ( ! isset( $parsed_block['attrs'] ) || ! is_array( $parsed_block['attrs'] ) ) {
+		$parsed_block['attrs'] = array();
+	}
+	$parsed_block['attrs']['requirePhoneField'] = false;
+	return $parsed_block;
+}
+add_filter( 'render_block_data', 'vila_akoya_checkout_block_optional_phone', 10, 2 );
 
 /**
  * Whether the checkout page uses the WooCommerce Checkout block.

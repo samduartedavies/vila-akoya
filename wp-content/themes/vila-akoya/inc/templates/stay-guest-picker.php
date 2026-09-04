@@ -1,58 +1,83 @@
 <?php
 /**
- * Guest picker for village stays: occupancy only (nightly rate is for the whole stay).
+ * Guest picker for village stays.
+ *
+ * Sleeps capacity is adults + children. Babies and pets do not take a bed.
  *
  * @package Vila_Akoya
  */
 
 defined( 'ABSPATH' ) || exit;
 
-if ( empty( $product_id ) ) {
+$inquiry = ! empty( $inquiry );
+$stay_id = isset( $stay_id ) ? (int) $stay_id : 0;
+if ( ! $inquiry && empty( $product_id ) ) {
 	return;
 }
 
-$product_id = (int) $product_id;
-$min_people = (int) wps_booking_get_meta_data( $product_id, 'mwb_mbfw_minimum_people_per_booking', true );
-$max_people = (int) wps_booking_get_meta_data( $product_id, 'mwb_mbfw_maximum_people_per_booking', true );
-if ( $min_people < 1 ) {
-	$min_people = 1;
+$product_id = isset( $product_id ) ? (int) $product_id : 0;
+if ( $stay_id < 1 && $product_id && function_exists( 'vila_akoya_stay_id_from_product_id' ) ) {
+	$stay_id = vila_akoya_stay_id_from_product_id( $product_id );
 }
-if ( $max_people < $min_people ) {
-	$max_people = max( $min_people, 4 );
+$stay_data = ( $stay_id && function_exists( 'vila_akoya_get_stay_data' ) ) ? vila_akoya_get_stay_data( $stay_id ) : array();
+
+$min_people = 1;
+$max_people = isset( $stay_data['sleeps'] ) ? max( 1, (int) $stay_data['sleeps'] ) : 2;
+if ( ! $inquiry && $product_id && function_exists( 'wps_booking_get_meta_data' ) ) {
+	$min_meta = (int) wps_booking_get_meta_data( $product_id, 'mwb_mbfw_minimum_people_per_booking', true );
+	$max_meta = (int) wps_booking_get_meta_data( $product_id, 'mwb_mbfw_maximum_people_per_booking', true );
+	if ( $min_meta >= 1 ) {
+		$min_people = $min_meta;
+	}
+	if ( $max_meta >= $min_people ) {
+		$max_people = $max_meta;
+	}
 }
 
-$stay_id    = function_exists( 'vila_akoya_stay_id_from_product_id' ) ? vila_akoya_stay_id_from_product_id( $product_id ) : 0;
-$stay_data  = $stay_id && function_exists( 'vila_akoya_get_stay_data' ) ? vila_akoya_get_stay_data( $stay_id ) : array();
-$pets_ok    = ! empty( $stay_data['pets'] );
-$max_pets   = $pets_ok ? 2 : 0;
+$pets_ok   = ! empty( $stay_data['pets'] );
+$max_pets  = $pets_ok ? 2 : 0;
+$max_inf   = 5;
+$def_ad    = max( $min_people, min( 2, $max_people ) );
+$uid       = 'vila-guest-' . ( $inquiry ? 'stay-' . $stay_id : (string) $product_id );
+$show_rate = ! $inquiry;
 
-$def_ad = max( $min_people, min( 2, $max_people ) );
-$uid    = 'vila-guest-' . $product_id;
+$name_adults   = $inquiry ? 'stay-adults' : 'mwb_mbfw_people_number';
+$name_children = $inquiry ? 'stay-children' : 'vila_guest_children';
+$name_infants  = $inquiry ? 'stay-infants' : 'vila_guest_infants';
+$name_pets     = $inquiry ? 'stay-pets' : 'vila_guest_pets';
+$id_adults     = $inquiry ? 'stay-inq-adults' : 'mwb_mbfw_people_number';
+$id_children   = $inquiry ? 'stay-inq-children' : 'vila_guest_children';
+$id_infants    = $inquiry ? 'stay-inq-infants' : 'vila_guest_infants';
+$id_pets       = $inquiry ? 'stay-inq-pets' : 'vila_guest_pets';
+$include_inputs = ! isset( $include_inputs ) || $include_inputs;
+$summary        = function_exists( 'vila_akoya_guest_picker_summary_string' )
+	? vila_akoya_guest_picker_summary_string( $def_ad, 0, 0, 0, true )
+	: sprintf(
+		/* translators: %d: guests */
+		_n( '%d guest', '%d guests', $def_ad, 'vila-akoya' ),
+		$def_ad
+	);
 ?>
-<div
-	class="vila-guest-picker vila-airbnb-booking vila-airbnb-booking--who"
-	id="<?php echo esc_attr( $uid ); ?>"
-	data-vila-default-adults="<?php echo esc_attr( (string) $def_ad ); ?>"
-	data-vila-min-adults="<?php echo esc_attr( (string) $min_people ); ?>"
-	data-vila-max-people="<?php echo esc_attr( (string) $max_people ); ?>"
-	data-vila-max-pets="<?php echo esc_attr( (string) $max_pets ); ?>"
->
-	<input
-		type="number"
-		class="sr-only"
-		name="mwb_mbfw_people_number"
-		id="mwb_mbfw_people_number"
-		value="<?php echo esc_attr( (string) $def_ad ); ?>"
-		min="<?php echo esc_attr( (string) $min_people ); ?>"
-		max="<?php echo esc_attr( (string) $max_people ); ?>"
-		step="1"
-		required
-		aria-hidden="true"
-		tabindex="-1"
-	/>
-	<input type="hidden" name="vila_guest_children" id="vila_guest_children" value="0" />
-	<input type="hidden" name="vila_guest_infants" id="vila_guest_infants" value="0" />
-	<input type="hidden" name="vila_guest_pets" id="vila_guest_pets" value="0" />
+<div class="vila-guest-picker vila-airbnb-booking vila-airbnb-booking--who" id="<?php echo esc_attr( $uid ); ?>" data-vila-default-adults="<?php echo esc_attr( (string) $def_ad ); ?>" data-vila-min-adults="<?php echo esc_attr( (string) $min_people ); ?>" data-vila-max-people="<?php echo esc_attr( (string) $max_people ); ?>" data-vila-max-pets="<?php echo esc_attr( (string) $max_pets ); ?>" data-vila-max-infants="<?php echo esc_attr( (string) $max_inf ); ?>" data-vila-occupancy="beds">
+	<?php if ( $include_inputs ) : ?>
+	<div class="sr-only">
+		<input
+			type="number"
+			name="<?php echo esc_attr( $name_adults ); ?>"
+			id="<?php echo esc_attr( $id_adults ); ?>"
+			value="<?php echo esc_attr( (string) $def_ad ); ?>"
+			min="<?php echo esc_attr( (string) $min_people ); ?>"
+			max="<?php echo esc_attr( (string) $max_people ); ?>"
+			step="1"
+			<?php echo $inquiry ? '' : 'required'; ?>
+			aria-hidden="true"
+			tabindex="-1"
+		/>
+		<input type="hidden" name="<?php echo esc_attr( $name_children ); ?>" id="<?php echo esc_attr( $id_children ); ?>" value="0" />
+		<input type="hidden" name="<?php echo esc_attr( $name_infants ); ?>" id="<?php echo esc_attr( $id_infants ); ?>" value="0" />
+		<input type="hidden" name="<?php echo esc_attr( $name_pets ); ?>" id="<?php echo esc_attr( $id_pets ); ?>" value="0" />
+	</div>
+	<?php endif; ?>
 
 	<div class="mbfw-additionl-detail-listing-section__wrapper vila-guest-picker__shell">
 		<p class="vila-airbnb-booking__legend mb-2 mt-0">
@@ -67,7 +92,7 @@ $uid    = 'vila-guest-' . $product_id;
 				aria-controls="<?php echo esc_attr( $uid ); ?>-panel"
 				id="<?php echo esc_attr( $uid ); ?>-trigger"
 			>
-				<span class="vila-guest-picker__summary font-medium truncate"><?php echo esc_html( vila_akoya_guest_picker_summary_string( $def_ad, 0, 0, 0 ) ); ?></span>
+				<span class="vila-guest-picker__summary font-medium truncate"><?php echo esc_html( $summary ); ?></span>
 			</button>
 		</div>
 
@@ -90,13 +115,13 @@ $uid    = 'vila-guest-' . $product_id;
 				),
 				'infants'  => array(
 					'label'    => __( 'Babies', 'vila-akoya' ),
-					'subtitle' => __( 'Under 2', 'vila-akoya' ),
+					'subtitle' => __( 'Under 2 — do not take a bed', 'vila-akoya' ),
 				),
 			);
 			if ( $pets_ok ) {
 				$rows['pets'] = array(
 					'label'    => __( 'Pets', 'vila-akoya' ),
-					'subtitle' => __( 'Welcome in this stay', 'vila-akoya' ),
+					'subtitle' => __( 'Do not take a bed', 'vila-akoya' ),
 				);
 			}
 			foreach ( $rows as $slug => $row ) :
@@ -108,7 +133,7 @@ $uid    = 'vila-guest-' . $product_id;
 						<?php if ( ! empty( $row['subtitle'] ) ) : ?>
 						<div class="text-sm text-on-surface-variant"><?php echo esc_html( $row['subtitle'] ); ?></div>
 						<?php endif; ?>
-						<?php if ( 'adults' === $slug ) : ?>
+						<?php if ( $show_rate && 'adults' === $slug ) : ?>
 							<div class="mt-1 text-xs text-on-surface-variant/90"><?php esc_html_e( 'Included in the nightly rate', 'vila-akoya' ); ?></div>
 						<?php endif; ?>
 					</div>

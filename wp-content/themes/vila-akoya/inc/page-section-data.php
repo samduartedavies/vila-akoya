@@ -63,6 +63,7 @@ function vila_akoya_section_cf7_shortcode( $key ) {
 		'campus'             => 'vila-cf7 vila-cf7--campus',
 		'contact'            => 'vila-cf7 vila-cf7--contact',
 		'event_inquiry'      => 'vila-cf7 vila-cf7--event',
+		'stay_inquiry'       => 'vila-cf7 vila-cf7--stay',
 	);
 
 	$class = $classes[ $key ] ?? 'vila-cf7';

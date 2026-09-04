@@ -10,8 +10,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Bump when seeded CF7 form markup changes.
  */
-define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '17' );
-define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '5' );
+define( 'VILA_AKOYA_CF7_SCHEMA_VERSION', '22' );
+define( 'VILA_AKOYA_CF7_MAIL_TEMPLATE_VER', '8' );
 define( 'VILA_AKOYA_CF7_MAIL_FROM', 'info@vila-akoya.com' );
 define( 'VILA_AKOYA_CF7_MAIL_TO', 'info@vila-akoya.com' );
 
@@ -112,6 +112,7 @@ function vila_akoya_cf7_required_form_keys() {
 		'campus',
 		'contact',
 		'event_inquiry',
+		'stay_inquiry',
 	);
 }
 
@@ -211,6 +212,7 @@ function vila_akoya_cf7_detect_form_key( WPCF7_ContactForm $form ) {
 		'campus-host-name'       => 'campus',
 		'contact-name'           => 'contact',
 		'event-inq-name'         => 'event_inquiry',
+		'stay-inq-from'          => 'stay_inquiry',
 	);
 
 	foreach ( $markers as $needle => $key ) {
@@ -302,8 +304,25 @@ function vila_akoya_cf7_upgrade_mail_templates() {
  * @return int Number of forms updated.
  */
 function vila_akoya_cf7_upgrade_form_markup( array $seeded_form_ids ) {
+	$updated = 0;
+	$defs    = vila_akoya_cf7_form_definitions();
+	if ( ! empty( $seeded_form_ids['stay_inquiry'] ) && isset( $defs['stay_inquiry']['form'] ) ) {
+		$stay_form = vila_akoya_cf7_get_form( $seeded_form_ids['stay_inquiry'] );
+		if ( $stay_form instanceof WPCF7_ContactForm ) {
+			$properties         = $stay_form->get_properties();
+			$current            = isset( $properties['form'] ) ? (string) $properties['form'] : '';
+			$next               = (string) $defs['stay_inquiry']['form'];
+			if ( $next && $current !== $next ) {
+				$properties['form'] = $next;
+				$stay_form->set_properties( $properties );
+				$stay_form->save();
+				++$updated;
+			}
+		}
+	}
+
 	if ( empty( $seeded_form_ids['village_inquiry'] ) ) {
-		return 0;
+		return $updated;
 	}
 
 	$form = vila_akoya_cf7_get_form( $seeded_form_ids['village_inquiry'] );
@@ -356,14 +375,14 @@ function vila_akoya_cf7_upgrade_form_markup( array $seeded_form_ids ) {
 	);
 
 	if ( 0 === $replacement_count + $label_replacement_count + $textarea_replacement_count + $textarea_size_replacement_count || $updated_markup === $markup ) {
-		return 0;
+		return $updated;
 	}
 
 	$properties['form'] = $updated_markup;
 	$form->set_properties( $properties );
 	$form->save();
 
-	return 1;
+	return $updated + 1;
 }
 
 /**
@@ -550,6 +569,38 @@ function vila_akoya_cf7_form_definitions() {
 				)
 			),
 		),
+		'stay_inquiry'      => array(
+			'title' => __( 'Stay inquiry', 'vila-akoya' ),
+			'form'  => implode(
+				"\n",
+				array(
+					'<div class="vila-stay-dates-who vila-booking-dates-who">',
+					'<div class="vila-airbnb-booking vila-airbnb-booking--dates vila-stay-dates">',
+					'<p class="vila-airbnb-booking__legend">' . esc_html__( 'Your dates', 'vila-akoya' ) . '</p>',
+					'<div class="vila-stay-dates__split">',
+					'<div class="vila-stay-dates__cell"><label for="stay-inq-from">' . esc_html__( 'Check-in', 'vila-akoya' ) . '</label>[date* stay-from id:stay-inq-from min:today]</div>',
+					'<div class="vila-stay-dates__cell"><label for="stay-inq-to">' . esc_html__( 'Check-out', 'vila-akoya' ) . '</label>[date* stay-to id:stay-inq-to min:today]</div>',
+					'</div>',
+					'</div>',
+					'<div class="vila-stay-guest-picker-slot"></div>',
+					'</div>',
+					'[hidden stay-adults "1"]',
+					'[hidden stay-children "0"]',
+					'[hidden stay-infants "0"]',
+					'[hidden stay-pets "0"]',
+					'[hidden stay-total ""]',
+					'<div class="vila-stay-estimate-slot"></div>',
+					'<div class="vila-stay-contact">',
+					'<p class="vila-airbnb-booking__legend">' . esc_html__( 'Your details', 'vila-akoya' ) . '</p>',
+					'<div><label for="stay-inq-name">' . esc_html__( 'Name', 'vila-akoya' ) . '</label>[text* your-name id:stay-inq-name]</div>',
+					'<div><label for="stay-inq-email">' . esc_html__( 'Email', 'vila-akoya' ) . '</label>[email* your-email id:stay-inq-email]</div>',
+					'<div><label for="stay-inq-phone">' . esc_html__( 'Phone', 'vila-akoya' ) . '</label>[tel* your-phone id:stay-inq-phone]</div>',
+					'<div><label for="stay-inq-notes">' . esc_html__( 'Notes', 'vila-akoya' ) . '</label>[textarea stay-notes id:stay-inq-notes]</div>',
+					'</div>',
+					'[submit "' . esc_html__( 'Send request', 'vila-akoya' ) . '"]',
+				)
+			),
+		),
 	);
 }
 
@@ -642,12 +693,18 @@ function vila_akoya_get_cf7_form_ids() {
  * Contact Form 7 injects <p> and <br> around tags by default, which conflicts
  * with the flex layout we use for the newsletter input/button row.
  *
- * @param bool                $autop        Whether autop is enabled.
- * @param WPCF7_ContactForm   $contact_form Current CF7 form instance.
+ * @param bool  $autop   Whether autop is enabled.
+ * @param mixed $options CF7 options array, or a form instance on older versions.
  * @return bool
  */
-function vila_akoya_cf7_disable_autop_for_newsletters( $autop, $contact_form ) {
-	if ( ! $contact_form instanceof WPCF7_ContactForm ) {
+function vila_akoya_cf7_disable_autop_for_newsletters( $autop, $options = null ) {
+	$form = null;
+	if ( $options instanceof WPCF7_ContactForm ) {
+		$form = $options;
+	} elseif ( class_exists( 'WPCF7_ContactForm' ) ) {
+		$form = WPCF7_ContactForm::get_current();
+	}
+	if ( ! $form instanceof WPCF7_ContactForm ) {
 		return $autop;
 	}
 
@@ -656,10 +713,11 @@ function vila_akoya_cf7_disable_autop_for_newsletters( $autop, $contact_form ) {
 		array(
 			isset( $form_ids['newsletter_home'] ) ? (string) $form_ids['newsletter_home'] : '',
 			isset( $form_ids['newsletter_village'] ) ? (string) $form_ids['newsletter_village'] : '',
+			isset( $form_ids['stay_inquiry'] ) ? (string) $form_ids['stay_inquiry'] : '',
 		)
 	);
 
-	if ( in_array( (string) $contact_form->id(), $targets, true ) ) {
+	if ( in_array( (string) $form->id(), $targets, true ) ) {
 		return false;
 	}
 

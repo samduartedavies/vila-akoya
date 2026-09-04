@@ -262,6 +262,7 @@ add_filter( 'the_content', 'vila_akoya_wrap_section_blocks_content', 8 );
  */
 function vila_akoya_render_section_template( $layout ) {
 	$map = array(
+		'announcement_banner'=> 'announcement-banner.php',
 		'home_hero'          => 'home-hero.php',
 		'cover_hero'         => 'cover-hero.php',
 		'campsite_facilities'=> 'campsite-facilities.php',
@@ -439,6 +440,13 @@ function vila_akoya_section_link( $link, $default_label, $class ) {
  */
 function vila_akoya_home_section_rows() {
 	return array(
+		array(
+			'acf_fc_layout' => 'announcement_banner',
+			'heading'       => 'Launch festival',
+			'dates'         => '23–27 September',
+			'body'          => 'Musicians, DJs, workshops and experiences all week long — come stay, dance, make things, and help us open Vila Akoya.',
+			'until_date'    => '2026-09-28',
+		),
 		array(
 			'acf_fc_layout'  => 'home_hero',
 			'image'          => 'https://vila-akoya.com/images/home-hero.jpg',

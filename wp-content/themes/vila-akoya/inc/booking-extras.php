@@ -522,25 +522,33 @@ function vila_akoya_get_guest_category_nightly_rates( $product_id ) {
 /**
  * Summary line for the guest picker trigger (Airbnb-style).
  *
- * @param int $adults   Adults count.
- * @param int $children Children count.
- * @param int $infants  Infants count.
- * @param int $pets     Pets count.
+ * @param int  $adults   Adults count.
+ * @param int  $children Children count.
+ * @param int  $infants  Infants count.
+ * @param int  $pets     Pets count.
+ * @param bool $beds     If true, babies are listed separately (they do not take a bed).
  * @return string
  */
-function vila_akoya_guest_picker_summary_string( $adults, $children, $infants, $pets ) {
+function vila_akoya_guest_picker_summary_string( $adults, $children, $infants, $pets, $beds = false ) {
 	$adults   = max( 0, (int) $adults );
 	$children = max( 0, (int) $children );
 	$infants  = max( 0, (int) $infants );
 	$pets     = max( 0, (int) $pets );
 
-	$people = $adults + $children + $infants;
+	$people = $beds ? ( $adults + $children ) : ( $adults + $children + $infants );
 	$parts  = array();
 	if ( 1 === $people ) {
 		$parts[] = __( '1 guest', 'vila-akoya' );
 	} else {
 		/* translators: %d: number of people */
 		$parts[] = sprintf( __( '%d guests', 'vila-akoya' ), $people );
+	}
+	if ( $beds && $infants > 0 ) {
+		$parts[] = sprintf(
+			/* translators: %d: number of babies */
+			_n( '%d baby', '%d babies', $infants, 'vila-akoya' ),
+			$infants
+		);
 	}
 	if ( $pets > 0 ) {
 		$parts[] = sprintf(
@@ -679,27 +687,43 @@ function vila_akoya_stay_discount_info( $stay_nights ) {
 		return \Vila_CB\Stay_Discount::info( $stay_nights );
 	}
 	$stay     = max( 0, (int) $stay_nights );
-	$applied  = null;
-	foreach ( vila_akoya_stay_discount_tiers() as $tier ) {
-		if ( $stay >= (int) $tier['stay'] ) {
-			$applied = $tier;
-		}
+	$weekly   = $stay - intdiv( $stay, 7 );
+	$monthly  = intdiv( $stay, 30 ) * 20 + ( $stay % 30 );
+	$billable = $stay < 1 ? 0 : min( $weekly, $monthly );
+	$free     = max( 0, $stay - $billable );
+	$applied  = $free > 0 ? array(
+		'stay' => $stay,
+		'pay'  => $billable,
+	) : null;
+	if ( $stay < 7 ) {
+		$target = 7;
+	} elseif ( $stay < 30 ) {
+		$target = 30;
+	} else {
+		$target = ( intdiv( $stay, 30 ) + 1 ) * 30;
 	}
-	$free     = $applied ? ( (int) $applied['stay'] - (int) $applied['pay'] ) : 0;
-	$next     = null;
-	foreach ( vila_akoya_stay_discount_tiers() as $tier ) {
-		if ( $stay < (int) $tier['stay'] ) {
-			$next = $tier;
-			break;
-		}
+	$target_billable = $target - intdiv( $target, 7 );
+	$target_monthly  = intdiv( $target, 30 ) * 20 + ( $target % 30 );
+	$target_billable = min( $target_billable, $target_monthly );
+	$target_free     = max( 0, $target - $target_billable );
+	$save_nights     = max( 0, $target_free - $free );
+	$next            = null;
+	$more_nights     = 0;
+	if ( $save_nights > 0 && $target > $stay ) {
+		$next = array(
+			'stay'        => $target,
+			'pay'         => $target_billable,
+			'save_nights' => $save_nights,
+		);
+		$more_nights = $target - $stay;
 	}
 	return array(
 		'stay'        => $stay,
-		'billable'    => max( 0, $stay - $free ),
+		'billable'    => $billable,
 		'free'        => $free,
 		'applied'     => $applied,
 		'next'        => $next,
-		'more_nights' => $next ? max( 0, (int) $next['stay'] - $stay ) : 0,
+		'more_nights' => $more_nights,
 	);
 }
 
@@ -761,7 +785,7 @@ function vila_akoya_cart_nightly_accommodation_for_line( array $cart_item ) {
  * @return string
  */
 function vila_akoya_stay_discount_applied_label( array $info ) {
-	if ( empty( $info['applied'] ) || (int) $info['free'] < 1 ) {
+	if ( (int) $info['free'] < 1 ) {
 		return '';
 	}
 	$free       = (int) $info['free'];
@@ -769,8 +793,8 @@ function vila_akoya_stay_discount_applied_label( array $info ) {
 	return sprintf(
 		/* translators: 1: stay nights, 2: payable nights, 3: free nights, 4: "night" or "nights" */
 		__( 'Stay %1$d, pay %2$d — %3$d %4$s free', 'vila-akoya' ),
-		(int) $info['applied']['stay'],
-		(int) $info['applied']['pay'],
+		(int) $info['stay'],
+		(int) $info['billable'],
 		$free,
 		$night_word
 	);
@@ -787,7 +811,8 @@ function vila_akoya_stay_discount_upsell_message( array $info, $nightly_rate ) {
 	}
 	$next       = $info['next'];
 	$more       = (int) $info['more_nights'];
-	$save       = ( (int) $next['stay'] - (int) $next['pay'] ) * max( 0.0, (float) $nightly_rate );
+	$save_nights = isset( $next['save_nights'] ) ? (int) $next['save_nights'] : max( 0, (int) $next['stay'] - (int) $next['pay'] );
+	$save       = $save_nights * max( 0.0, (float) $nightly_rate );
 	$night_word = ( 1 === $more ) ? __( 'night', 'vila-akoya' ) : __( 'nights', 'vila-akoya' );
 	return sprintf(
 		/* translators: 1: extra nights needed, 2: "night" or "nights", 3: formatted discount amount, 4: stay nights of next deal, 5: payable nights of next deal */
@@ -927,7 +952,8 @@ function vila_akoya_add_booking_notes_cart_item_data( $cart_item_data, $product_
 add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_booking_notes_cart_item_data', 32, 3 );
 
 /**
- * Validate guest breakdown vs MWB min/max people (capacity counts adults + children + infants; pets separate).
+ * Validate guest breakdown vs capacity.
+ * Campsite: adults + children + infants. Stays: adults + children (babies and pets do not take a bed).
  *
  * @param bool $passed     Whether validation passed.
  * @param int  $product_id Product ID.
@@ -936,7 +962,8 @@ add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_booking_notes_cart
  */
 function vila_akoya_validate_guest_breakdown_add_to_cart( $passed, $product_id, $quantity ) {
 	unset( $quantity );
-	if ( ! $passed || ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) ) {
+	$is_stay = function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id );
+	if ( ! $passed || ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! $is_stay ) ) {
 		return $passed;
 	}
 	if ( ! function_exists( 'wps_booking_get_meta_data' ) ) {
@@ -964,18 +991,44 @@ function vila_akoya_validate_guest_breakdown_add_to_cart( $passed, $product_id, 
 		wc_add_notice( __( 'Please choose at least the minimum number of adults for this booking.', 'vila-akoya' ), 'error' );
 		return false;
 	}
-	if ( $adults + $children + $infants > $max_p ) {
-		wc_add_notice(
-			sprintf(
-				/* translators: %d: maximum guests */
-				__( 'Guest count cannot exceed %d people.', 'vila-akoya' ),
-				$max_p
-			),
-			'error'
-		);
+	$occupancy = $is_stay ? ( $adults + $children ) : ( $adults + $children + $infants );
+	if ( $occupancy > $max_p ) {
+		if ( $is_stay ) {
+			wc_add_notice(
+				sprintf(
+					/* translators: %d: maximum guests who need a bed */
+					__( 'This stay sleeps %d (adults and children). Babies and pets do not count.', 'vila-akoya' ),
+					$max_p
+				),
+				'error'
+			);
+		} else {
+			wc_add_notice(
+				sprintf(
+					/* translators: %d: maximum guests */
+					__( 'Guest count cannot exceed %d people.', 'vila-akoya' ),
+					$max_p
+				),
+				'error'
+			);
+		}
 		return false;
 	}
-	if ( $pets > 5 ) {
+	if ( $infants > 5 ) {
+		wc_add_notice( __( 'Please enter a valid number of babies.', 'vila-akoya' ), 'error' );
+		return false;
+	}
+	$max_pets = 5;
+	if ( $is_stay ) {
+		$stay_id = function_exists( 'vila_akoya_stay_id_from_product_id' ) ? vila_akoya_stay_id_from_product_id( (int) $product_id ) : 0;
+		$pets_ok = false;
+		if ( $stay_id && function_exists( 'vila_akoya_get_stay_data' ) ) {
+			$stay    = vila_akoya_get_stay_data( $stay_id );
+			$pets_ok = ! empty( $stay['pets'] );
+		}
+		$max_pets = $pets_ok ? 2 : 0;
+	}
+	if ( $pets > $max_pets ) {
 		wc_add_notice( __( 'Please enter a valid number of pets.', 'vila-akoya' ), 'error' );
 		return false;
 	}
@@ -1727,31 +1780,27 @@ function vila_akoya_render_meal_selector( $product_id ) {
 	}
 	?>
 	<div class="vila-airbnb-booking vila-airbnb-booking--meals mb-8">
-		<fieldset class="vila-meal-fieldset vila-airbnb-booking__card border-0 m-0 min-w-0">
-			<legend class="vila-airbnb-booking__legend">
-				<?php esc_html_e( 'Meals', 'vila-akoya' ); ?>
-			</legend>
-			<div class="vila-meal-grid vila-airbnb-booking__chip-grid">
-				<?php foreach ( $options as $slug => $info ) :
-					$fid = 'vila-meal-' . $slug;
-					?>
-					<label class="vila-meal-option vila-airbnb-booking__chip">
-						<input
-							class="vila-meal-input sr-only"
-							type="checkbox"
-							name="vila_meal_options[]"
-							id="<?php echo esc_attr( $fid ); ?>"
-							value="<?php echo esc_attr( $slug ); ?>"
-							data-vila-day-mode="<?php echo esc_attr( isset( $info['day_mode'] ) ? (string) $info['day_mode'] : 'all_nights' ); ?>"
-						/>
-						<span class="vila-airbnb-booking__chip-body">
-							<span class="vila-airbnb-booking__chip-title"><?php echo esc_html( $info['label'] ); ?></span>
-							<span class="vila-airbnb-booking__chip-meta"><?php echo esc_html( isset( $info['meta'] ) ? (string) $info['meta'] : '' ); ?></span>
-						</span>
-					</label>
-				<?php endforeach; ?>
-			</div>
-		</fieldset>
+		<p class="vila-airbnb-booking__legend"><?php esc_html_e( 'Meals', 'vila-akoya' ); ?></p>
+		<div class="vila-meal-grid vila-airbnb-booking__chip-grid">
+			<?php foreach ( $options as $slug => $info ) :
+				$fid = 'vila-meal-' . $slug;
+				?>
+				<label class="vila-meal-option vila-airbnb-booking__chip">
+					<input
+						class="vila-meal-input sr-only"
+						type="checkbox"
+						name="vila_meal_options[]"
+						id="<?php echo esc_attr( $fid ); ?>"
+						value="<?php echo esc_attr( $slug ); ?>"
+						data-vila-day-mode="<?php echo esc_attr( isset( $info['day_mode'] ) ? (string) $info['day_mode'] : 'all_nights' ); ?>"
+					/>
+					<span class="vila-airbnb-booking__chip-body">
+						<span class="vila-airbnb-booking__chip-title"><?php echo esc_html( $info['label'] ); ?></span>
+						<span class="vila-airbnb-booking__chip-meta"><?php echo esc_html( isset( $info['meta'] ) ? (string) $info['meta'] : '' ); ?></span>
+					</span>
+				</label>
+			<?php endforeach; ?>
+		</div>
 	</div>
 	<?php
 }
@@ -2011,7 +2060,7 @@ function vila_akoya_enqueue_booking_ui_script() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		return;
 	}
-	$stay_mode = is_singular( 'stay' );
+	$stay_mode = is_singular( 'stay' ) && defined( 'VILA_AKOYA_STAY_ONLINE_BOOKING' ) && VILA_AKOYA_STAY_ONLINE_BOOKING;
 	$stay_pid  = 0;
 	if ( $stay_mode && function_exists( 'vila_akoya_get_stay_data' ) ) {
 		$stay_data = vila_akoya_get_stay_data( (int) get_queried_object_id() );
@@ -2189,6 +2238,9 @@ function vila_akoya_enqueue_booking_ui_script() {
 				'oneGuest' => __( '1 guest', 'vila-akoya' ),
 				/* translators: %d will be replaced in JS */
 				'nGuests'  => __( '%d guests', 'vila-akoya' ),
+				'oneBaby'  => __( '1 baby', 'vila-akoya' ),
+				/* translators: %d will be replaced in JS */
+				'nBabies'  => __( '%d babies', 'vila-akoya' ),
 				'onePet'   => __( '1 pet', 'vila-akoya' ),
 				/* translators: %d will be replaced in JS */
 				'nPets'    => __( '%d pets', 'vila-akoya' ),
