@@ -391,12 +391,13 @@
       if (disc.next && disc.moreNights > 0) {
         var moreWord = disc.moreNights === 1 ? strings.night || "night" : strings.nights || "nights";
         upsellEl.textContent = vilaSprintf(
-          strings.upsell || "Only %1$d more %2$s and you will get a discount of %3$s (stay %4$d, pay %5$d).",
+          strings.upsell || "Only %1$d more %2$s and you unlock stay %3$d, pay %4$d (%5$d extra %6$s free).",
           disc.moreNights,
           moreWord,
-          formatEuro(nightly * disc.next.saveNights),
           disc.next.stay,
-          disc.next.pay
+          disc.next.pay,
+          disc.next.saveNights,
+          disc.next.saveNights === 1 ? strings.night || "night" : strings.nights || "nights"
         );
         upsellEl.hidden = false;
       } else {

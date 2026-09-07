@@ -49,6 +49,26 @@ class Database {
 	}
 
 	/**
+	 * Village stay holds (website bookings, admin bookings, and date blocks).
+	 *
+	 * @return string
+	 */
+	public static function stay_holds_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'vila_stay_holds';
+	}
+
+	/**
+	 * Occupied nights for village stays. UNIQUE (stay_id, night_ymd).
+	 *
+	 * @return string
+	 */
+	public static function stay_hold_nights_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'vila_stay_hold_nights';
+	}
+
+	/**
 	 * @return string
 	 */
 	public static function guest_registrations_table() {

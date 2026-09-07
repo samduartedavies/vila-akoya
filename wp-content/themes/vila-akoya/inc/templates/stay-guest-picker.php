@@ -96,13 +96,7 @@ $summary        = function_exists( 'vila_akoya_guest_picker_summary_string' )
 			</button>
 		</div>
 
-		<div
-			class="vila-guest-picker__panel border border-outline-variant/20 bg-surface-container-low p-1 shadow-lg"
-			id="<?php echo esc_attr( $uid ); ?>-panel"
-			role="dialog"
-			aria-labelledby="<?php echo esc_attr( $uid ); ?>-trigger"
-			hidden
-		>
+		<div class="vila-guest-picker__panel border border-outline-variant/20 bg-surface-container-low p-1 shadow-lg" id="<?php echo esc_attr( $uid ); ?>-panel" role="dialog" aria-labelledby="<?php echo esc_attr( $uid ); ?>-trigger" hidden>
 			<?php
 			$rows = array(
 				'adults'   => array(

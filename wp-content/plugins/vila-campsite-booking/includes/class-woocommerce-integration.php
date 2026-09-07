@@ -79,6 +79,7 @@ class WooCommerce_Integration {
 		add_action( 'wp_loaded', array( __CLASS__, 'maybe_autoconfigure_product' ), 25 );
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'enforce_single_campsite_cart_rules' ), 5, 3 );
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'add_to_cart_validation' ), 10, 3 );
+		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'add_to_cart_validation_stay' ), 12, 3 );
 		add_filter( 'woocommerce_add_cart_item_data', array( __CLASS__, 'add_cart_item_data' ), 10, 3 );
 		add_filter( 'woocommerce_get_cart_item_from_session', array( __CLASS__, 'get_cart_item_from_session' ), 10, 3 );
 		// Run after MWB and other extensions so campsite line totals match Campsite → Settings (adult override, guest rates).
@@ -111,6 +112,7 @@ class WooCommerce_Integration {
 		add_filter( 'woocommerce_is_sold_individually', array( __CLASS__, 'campsite_sold_individually' ), 10, 2 );
 		add_filter( 'woocommerce_quantity_input_args', array( __CLASS__, 'campsite_quantity_input_args' ), 10, 2 );
 		add_action( 'woocommerce_checkout_process', array( __CLASS__, 'validate_campsite_cart_has_stay_data' ), 10, 0 );
+		add_action( 'woocommerce_checkout_process', array( __CLASS__, 'validate_stay_cart_availability' ), 12, 0 );
 		add_filter( 'woocommerce_hidden_order_itemmeta', array( __CLASS__, 'hidden_order_itemmeta' ), 10, 1 );
 		add_filter( 'woocommerce_order_item_get_formatted_meta_data', array( __CLASS__, 'order_item_formatted_meta_data' ), 20, 2 );
 		add_action( 'woocommerce_admin_order_data_after_order_details', array( __CLASS__, 'render_order_admin_extras_after_order_details' ), 10, 1 );
@@ -365,6 +367,10 @@ class WooCommerce_Integration {
 		$from = isset( $_POST['mwb_mbfw_booking_from_time'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['mwb_mbfw_booking_from_time'] ) ) ) : '';
 		$to   = isset( $_POST['mwb_mbfw_booking_to_time'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['mwb_mbfw_booking_to_time'] ) ) ) : '';
 		if ( '' === $from || '' === $to ) {
+			$from = isset( $_POST['mwb-mbfw-booking-from-time'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['mwb-mbfw-booking-from-time'] ) ) ) : '';
+			$to   = isset( $_POST['mwb-mbfw-booking-to-time'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['mwb-mbfw-booking-to-time'] ) ) ) : '';
+		}
+		if ( '' === $from || '' === $to ) {
 			return null;
 		}
 		$cin  = self::parse_mwb_date_to_ymd( $from );
@@ -513,6 +519,81 @@ class WooCommerce_Integration {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Village stays: refuse add-to-cart when the unit is already held (website or admin).
+	 *
+	 * @param bool $passed     Passed.
+	 * @param int  $product_id Product ID.
+	 * @param int  $qty        Qty.
+	 * @return bool
+	 */
+	public static function add_to_cart_validation_stay( $passed, $product_id, $qty ) {
+		unset( $qty );
+		if ( ! $passed || ! self::is_stay_product( $product_id ) ) {
+			return $passed;
+		}
+
+		$range = Stay_Hold_Service::dates_from_request();
+		if ( ! $range ) {
+			$range = self::get_mwb_booking_stay_ymd_from_post();
+		}
+		if ( ! $range ) {
+			return $passed;
+		}
+
+		$stay_id = Stay_Hold_Service::stay_id_from_product( (int) $product_id );
+		if ( $stay_id < 1 ) {
+			return $passed;
+		}
+
+		$svc = new Stay_Hold_Service();
+		if ( ! $svc->is_available( $stay_id, $range['check_in'], $range['check_out'] ) ) {
+			wc_add_notice( __( 'Those dates are not available for this stay. Please choose different dates.', 'vila-campsite-booking' ), 'error' );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Classic checkout: village stay dates must still be free.
+	 */
+	public static function validate_stay_cart_availability() {
+		if ( ! function_exists( 'WC' ) || ! WC()->cart || WC()->cart->is_empty() ) {
+			return;
+		}
+		$msg = self::stay_cart_unavailable_message( WC()->cart->get_cart() );
+		if ( $msg ) {
+			wc_add_notice( $msg, 'error' );
+		}
+	}
+
+	/**
+	 * @param array<string, array<string, mixed>> $cart_contents Cart lines.
+	 * @return string Empty when available.
+	 */
+	private static function stay_cart_unavailable_message( array $cart_contents ) {
+		$svc = new Stay_Hold_Service();
+		foreach ( $cart_contents as $cart_item ) {
+			if ( ! is_array( $cart_item ) ) {
+				continue;
+			}
+			$pid = isset( $cart_item['product_id'] ) ? (int) $cart_item['product_id'] : 0;
+			if ( ! self::is_stay_product( $pid ) ) {
+				continue;
+			}
+			$stay_id = Stay_Hold_Service::stay_id_from_product( $pid );
+			$range   = self::cart_item_resolve_stay_ymd( $cart_item );
+			if ( $stay_id < 1 || ! $range ) {
+				continue;
+			}
+			if ( ! $svc->is_available( $stay_id, $range['check_in'], $range['check_out'] ) ) {
+				return __( 'Those dates are not available for this stay. Please choose different dates.', 'vila-campsite-booking' );
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -1021,7 +1102,9 @@ class WooCommerce_Integration {
 	 */
 	public static function add_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
 		unset( $variation_id );
-		if ( ! self::is_campsite_product( $product_id ) ) {
+		$is_stay     = self::is_stay_product( $product_id );
+		$is_campsite = self::is_campsite_product( $product_id );
+		if ( ! $is_campsite && ! $is_stay ) {
 			return $cart_item_data;
 		}
 
@@ -1189,6 +1272,10 @@ class WooCommerce_Integration {
 	public static function checkout_save_line_item( $item, $cart_key, $values, $order ) {
 		unset( $order );
 		$pid = (int) $item->get_product_id();
+		if ( self::is_stay_product( $pid ) ) {
+			self::checkout_save_stay_line_item( $item, $cart_key, $values );
+			return;
+		}
 		if ( ! self::is_campsite_product( $pid ) ) {
 			return;
 		}
@@ -1223,6 +1310,45 @@ class WooCommerce_Integration {
 		}
 
 		self::backfill_mwb_line_meta_from_cart( $item, $merged );
+	}
+
+	/**
+	 * Persist guest counts, meals, and Y-m-d dates on village-stay order lines.
+	 *
+	 * @param \WC_Order_Item_Product $item     Line item.
+	 * @param string                 $cart_key Cart key.
+	 * @param array<string, mixed>   $values   Cart line.
+	 * @return void
+	 */
+	private static function checkout_save_stay_line_item( $item, $cart_key, $values ) {
+		$merged = self::merge_checkout_cart_line( $cart_key, $values );
+		$adults = 0;
+		if ( ! empty( $merged['mwb_mbfw_booking_values']['people_number'] ) ) {
+			$adults = (int) $merged['mwb_mbfw_booking_values']['people_number'];
+		}
+		$guests = array(
+			'adults'       => $adults > 0 ? $adults : 1,
+			'children'     => isset( $merged['vila_guest_children'] ) ? (int) $merged['vila_guest_children'] : 0,
+			'infants'      => isset( $merged['vila_guest_infants'] ) ? (int) $merged['vila_guest_infants'] : 0,
+			'pets'         => isset( $merged['vila_guest_pets'] ) ? (int) $merged['vila_guest_pets'] : 0,
+			'meal_options' => ! empty( $merged['vila_meal_options'] ) ? $merged['vila_meal_options'] : array(),
+		);
+		$guests = self::normalize_guests_for_storage( $guests );
+		$item->update_meta_data( self::META_GUESTS, wp_json_encode( $guests ) );
+		$item->update_meta_data( '_vila_guest_children', (string) (int) $guests['children'] );
+		$item->update_meta_data( '_vila_guest_infants', (string) (int) $guests['infants'] );
+		$item->update_meta_data( '_vila_guest_pets', (string) (int) $guests['pets'] );
+		if ( ! empty( $guests['meal_options'] ) ) {
+			$item->update_meta_data( Meal_Plan_Service::META_MEAL_OPTIONS, wp_json_encode( $guests['meal_options'] ) );
+		}
+		$range = Stay_Hold_Service::dates_from_order_item( $item );
+		if ( ! $range ) {
+			$range = Stay_Hold_Service::dates_from_request();
+		}
+		if ( $range ) {
+			$item->update_meta_data( self::META_CHECK_IN, $range['check_in'] );
+			$item->update_meta_data( self::META_CHECK_OUT, $range['check_out'] );
+		}
 	}
 
 	/**
@@ -1674,6 +1800,10 @@ class WooCommerce_Integration {
 				__( 'Please choose check-in and check-out dates for your campsite booking. Use the booking form on the product page, or return to the cart and add the stay again.', 'vila-campsite-booking' )
 			);
 			return;
+		}
+		$stay_msg = self::stay_cart_unavailable_message( $cart->get_cart() );
+		if ( $stay_msg ) {
+			$errors->add( 'vila_cb_stay_unavailable', $stay_msg );
 		}
 	}
 
@@ -2511,10 +2641,72 @@ class WooCommerce_Integration {
 			}
 		}
 		if ( '' === $raw ) {
-			return self::normalize_guests_for_storage( array() );
+			$from_item = self::guest_counts_from_stay_line_item( $order, $line_item_id );
+			return $from_item ? $from_item : self::normalize_guests_for_storage( array() );
 		}
 		$decoded = json_decode( $raw, true );
 		return self::normalize_guests_for_storage( is_array( $decoded ) ? $decoded : array() );
+	}
+
+	/**
+	 * Guest counts from a village-stay order line when _vila_cb_guest_json was never saved.
+	 *
+	 * @param \WC_Order|null $order        Order.
+	 * @param int            $line_item_id Line ID.
+	 * @return array<string, mixed>|null
+	 */
+	private static function guest_counts_from_stay_line_item( $order, $line_item_id ) {
+		if ( ! ( $order instanceof \WC_Order ) || (int) $line_item_id < 1 ) {
+			return null;
+		}
+		$item = $order->get_item( (int) $line_item_id );
+		if ( ! $item || ! is_callable( array( $item, 'get_meta' ) ) ) {
+			return null;
+		}
+		$pid = is_callable( array( $item, 'get_product_id' ) ) ? (int) $item->get_product_id() : 0;
+		if ( $pid && ! self::is_stay_product( $pid ) ) {
+			return null;
+		}
+		$adults   = (int) $item->get_meta( '_mwb_mbfw_people_number', true );
+		$children = (int) $item->get_meta( '_vila_guest_children', true );
+		$infants  = (int) $item->get_meta( '_vila_guest_infants', true );
+		$pets     = (int) $item->get_meta( '_vila_guest_pets', true );
+		$meals    = Meal_Plan_Service::normalize_meal_slugs( $item->get_meta( Meal_Plan_Service::META_MEAL_OPTIONS, true ) );
+		if ( $adults < 1 && $children < 1 && $infants < 1 && $pets < 1 && empty( $meals ) ) {
+			return null;
+		}
+		return self::normalize_guests_for_storage(
+			array(
+				'adults'       => max( 1, $adults ),
+				'children'     => max( 0, $children ),
+				'infants'      => max( 0, $infants ),
+				'pets'         => max( 0, $pets ),
+				'meal_options' => $meals,
+			)
+		);
+	}
+
+	/**
+	 * Meal add-on labels for a stay/campsite order line (calendar extra line).
+	 *
+	 * @param \WC_Order|null $order        Order.
+	 * @param int            $line_item_id Line ID.
+	 * @param string|null    $guest_json   Optional guest JSON.
+	 * @return string
+	 */
+	public static function meal_labels_for_order_line( $order, $line_item_id, $guest_json = '' ) {
+		$booking = array(
+			'guest_json'   => is_string( $guest_json ) ? $guest_json : '',
+			'line_item_id' => (int) $line_item_id,
+		);
+		$slugs = Meal_Plan_Service::meal_slugs_for_booking( $booking, $order instanceof \WC_Order ? $order : null );
+		if ( empty( $slugs ) ) {
+			return '';
+		}
+		if ( function_exists( 'vila_akoya_meal_labels_join' ) ) {
+			return (string) vila_akoya_meal_labels_join( $slugs );
+		}
+		return implode( ', ', $slugs );
 	}
 
 	/**
@@ -2967,22 +3159,7 @@ class WooCommerce_Integration {
 	 * @return string
 	 */
 	private static function guest_summary( array $guests ) {
-		$guests = self::normalize_guests_for_storage( $guests );
-		$a = isset( $guests['adults'] ) ? (int) $guests['adults'] : 1;
-		$c = isset( $guests['children'] ) ? (int) $guests['children'] : 0;
-		$i = isset( $guests['infants'] ) ? (int) $guests['infants'] : 0;
-		$p = isset( $guests['pets'] ) ? (int) $guests['pets'] : 0;
-		$people = $a + $c + $i;
-		$parts  = array();
-		if ( 1 === $people ) {
-			$parts[] = __( '1 guest', 'vila-campsite-booking' );
-		} else {
-			$parts[] = sprintf( /* translators: %d people */ __( '%d guests', 'vila-campsite-booking' ), $people );
-		}
-		if ( $p > 0 ) {
-			$parts[] = sprintf( /* translators: %d pets */ __( '%d pets', 'vila-campsite-booking' ), $p );
-		}
-		return implode( ' · ', $parts );
+		return self::format_guest_counts_calendar_line( $guests );
 	}
 
 	/**
@@ -3275,6 +3452,10 @@ class WooCommerce_Integration {
 		// Theme/plugin JSON for multi-select; managed via Campsite extras UI (do not edit raw JSON in the line meta box).
 		$hidden[] = '_vila_vehicle_slugs';
 		$hidden[] = '_vila_meal_options';
+		$hidden[] = '_vila_guest_children';
+		$hidden[] = '_vila_guest_infants';
+		$hidden[] = '_vila_guest_pets';
+		$hidden[] = Stay_Hold_Service::LINE_META_HOLD_ID;
 		return array_values( array_unique( array_map( 'strval', $hidden ) ) );
 	}
 
@@ -3289,7 +3470,8 @@ class WooCommerce_Integration {
 		if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_product_id' ) ) ) {
 			return $formatted_meta;
 		}
-		if ( ! self::is_campsite_product( (int) $item->get_product_id() ) ) {
+		$pid = (int) $item->get_product_id();
+		if ( ! self::is_campsite_product( $pid ) && ! self::is_stay_product( $pid ) ) {
 			return $formatted_meta;
 		}
 		if ( ! is_array( $formatted_meta ) ) {
@@ -3362,6 +3544,16 @@ class WooCommerce_Integration {
 			if ( is_array( $decoded ) ) {
 				$guests = $decoded;
 			}
+		}
+		if ( empty( $guests ) ) {
+			$order_for_guests = null;
+			if ( is_callable( array( $item, 'get_order_id' ) ) ) {
+				$oidg = (int) $item->get_order_id();
+				if ( $oidg > 0 ) {
+					$order_for_guests = wc_get_order( $oidg );
+				}
+			}
+			$guests = self::resolve_guest_counts_for_booking( '', $order_for_guests, (int) $item->get_id() );
 		}
 		$gtext = self::guest_summary( $guests );
 		if ( $gtext ) {
@@ -3509,6 +3701,23 @@ class WooCommerce_Integration {
 		if ( $order_needs_save ) {
 			$order->save();
 		}
+
+		$stay_svc = new Stay_Hold_Service();
+		foreach ( $order->get_items( 'line_item' ) as $item ) {
+			if ( ! is_object( $item ) || ! is_callable( array( $item, 'get_product_id' ) ) ) {
+				continue;
+			}
+			$pid = (int) $item->get_product_id();
+			if ( ! self::is_stay_product( $pid ) ) {
+				continue;
+			}
+			$hold_id = $stay_svc->sync_order_line( $order, $item );
+			if ( $hold_id < 1 && ! $order->get_meta( '_vila_stay_hold_warned', true ) ) {
+				$order->add_order_note( __( 'Village stay could not be reserved for these dates (they may already be booked or blocked).', 'vila-campsite-booking' ) );
+				$order->update_meta_data( '_vila_stay_hold_warned', '1' );
+				$order->save();
+			}
+		}
 	}
 
 	/**
@@ -3517,5 +3726,6 @@ class WooCommerce_Integration {
 	public static function release_bookings( $order_id ) {
 		$svc = new Booking_Service();
 		$svc->release_order_bookings( (int) $order_id );
+		( new Stay_Hold_Service() )->release_order( (int) $order_id );
 	}
 }

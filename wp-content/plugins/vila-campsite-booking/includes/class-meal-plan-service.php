@@ -194,7 +194,7 @@ class Meal_Plan_Service {
 			$nights = Dates::nights_in_range( (string) $b['check_in'], (string) $b['check_out'] );
 			$night_set = array_fill_keys( $nights, true );
 
-			$resolved[ $bid ] = array(
+			$resolved[ 'booking-' . $bid ] = array(
 				'booking'    => $b,
 				'order'      => $order,
 				'meals'      => $meals,
@@ -211,6 +211,10 @@ class Meal_Plan_Service {
 					admin_url( 'admin.php' )
 				),
 			);
+		}
+
+		foreach ( self::resolve_stay_holds_for_range( $range_from, $range_to ) as $stay_key => $stay_row ) {
+			$resolved[ $stay_key ] = $stay_row;
 		}
 
 		$standalone = Meal_Booking::get_paid_purchases_in_range( $days_ymd[0], $last );
@@ -336,6 +340,96 @@ class Meal_Plan_Service {
 			'days'   => $out_days,
 			'totals' => $totals,
 		);
+	}
+
+	/**
+	 * Village-stay meals (tiny houses / caravans) paid with the stay order.
+	 *
+	 * @param string $range_from Y-m-d.
+	 * @param string $range_to   Y-m-d exclusive-ish end used for booking overlap.
+	 * @return array<string, array<string, mixed>>
+	 */
+	private static function resolve_stay_holds_for_range( $range_from, $range_to ) {
+		if ( ! class_exists( Stay_Hold_Repository::class ) ) {
+			return array();
+		}
+		$from = (string) $range_from;
+		$to_inclusive = (string) $range_to;
+		$to_dt = Dates::parse_ymd( $to_inclusive );
+		if ( $to_dt ) {
+			$to_inclusive = $to_dt->modify( '-1 day' )->format( 'Y-m-d' );
+		}
+		$repo  = new Stay_Hold_Repository();
+		$holds = $repo->get_overlapping( $from, $to_inclusive );
+		if ( empty( $holds ) ) {
+			return array();
+		}
+		$nights_by_hold = $repo->nights_by_hold_ids(
+			array_map(
+				static function ( $hold ) {
+					return isset( $hold['id'] ) ? (int) $hold['id'] : 0;
+				},
+				$holds
+			)
+		);
+		$out = array();
+		foreach ( $holds as $hold ) {
+			if ( Stay_Hold_Repository::KIND_BLOCK === (string) $hold['kind'] ) {
+				continue;
+			}
+			$hid   = (int) $hold['id'];
+			$oid   = isset( $hold['order_id'] ) ? (int) $hold['order_id'] : 0;
+			$lid   = isset( $hold['line_item_id'] ) ? (int) $hold['line_item_id'] : 0;
+			$order = $oid ? wc_get_order( $oid ) : null;
+			$item  = ( $order instanceof \WC_Order && $lid > 0 ) ? $order->get_item( $lid ) : null;
+			$guest_json = '';
+			if ( $item && is_callable( array( $item, 'get_meta' ) ) ) {
+				$guest_json = (string) $item->get_meta( WooCommerce_Integration::META_GUESTS, true );
+			}
+			$booking_like = array(
+				'id'           => $hid,
+				'guest_json'   => $guest_json,
+				'line_item_id' => $lid,
+				'order_id'     => $oid,
+			);
+			$meals      = self::meal_slugs_for_booking( $booking_like, $order );
+			$meal_dates = self::meal_dates_for_booking( $booking_like );
+			if ( empty( $meals ) && empty( $meal_dates['breakfast'] ) && empty( $meal_dates['dinner'] ) ) {
+				continue;
+			}
+			$guests = WooCommerce_Integration::resolve_guest_counts_for_booking( $guest_json, $order, $lid );
+			$nights = isset( $nights_by_hold[ $hid ] ) ? $nights_by_hold[ $hid ] : Dates::nights_in_range( (string) $hold['check_in'], (string) $hold['check_out'] );
+			$name   = trim( (string) $hold['guest_name'] );
+			if ( '' === $name && $order instanceof \WC_Order ) {
+				$name = trim( (string) $order->get_formatted_billing_full_name() );
+			}
+			if ( '' === $name ) {
+				$name = $oid ? '#' . $oid : '#' . $hid;
+			}
+			$stay_id = (int) $hold['stay_id'];
+			$plabel  = $stay_id ? get_the_title( $stay_id ) : __( 'Village stay', 'vila-campsite-booking' );
+			if ( '' === (string) $plabel ) {
+				$plabel = __( 'Village stay', 'vila-campsite-booking' );
+			}
+			$out[ 'stay-' . $hid ] = array(
+				'booking'    => $booking_like,
+				'order'      => $order,
+				'meals'      => $meals,
+				'meal_dates' => $meal_dates,
+				'guests'     => $guests,
+				'name'       => $name,
+				'plot'       => $plabel,
+				'night_set'  => array_fill_keys( $nights, true ),
+				'edit_url'   => add_query_arg(
+					array(
+						'page'    => Admin_Stays::PAGE,
+						'hold_id' => $hid,
+					),
+					admin_url( 'admin.php' )
+				),
+			);
+		}
+		return $out;
 	}
 
 	/**

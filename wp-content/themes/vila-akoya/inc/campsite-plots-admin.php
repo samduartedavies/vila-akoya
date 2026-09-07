@@ -47,6 +47,15 @@ function vila_akoya_get_plot_unavailable_ymd_for_product( $product_id ) {
 			$dates[ $ymd ] = true;
 		}
 	}
+	if ( class_exists( '\Vila_CB\Stay_Hold_Service' ) ) {
+		$held = ( new \Vila_CB\Stay_Hold_Service() )->unavailable_ymd_for_product( $product_id );
+		foreach ( $held as $ymd ) {
+			$ymd = (string) $ymd;
+			if ( '' !== $ymd ) {
+				$dates[ $ymd ] = true;
+			}
+		}
+	}
 	$out = array_keys( $dates );
 	sort( $out );
 	set_transient( $cache_key, $out, 5 * MINUTE_IN_SECONDS );

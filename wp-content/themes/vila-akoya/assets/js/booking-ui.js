@@ -431,18 +431,11 @@
     }
     S = S || {};
     var upsellFmt =
-      S.upsell || 'Only %1$d more %2$s and you will get a discount of %3$s (stay %4$d, pay %5$d).';
+      S.upsell || 'Only %1$d more %2$s and you unlock stay %3$d, pay %4$d (%5$d extra %6$s free).';
     var saveNights = disc.next.saveNights || Math.max(0, disc.next.stay - disc.next.pay);
-    var save = saveNights * nightlyAccom;
     var moreWord = disc.moreNights === 1 ? S.nightSingular || 'night' : S.nightPlural || 'nights';
-    return vilaSprintf(
-      upsellFmt,
-      disc.moreNights,
-      moreWord,
-      vilaFormatPricePlain(save),
-      disc.next.stay,
-      disc.next.pay
-    );
+    var freeWord = saveNights === 1 ? S.nightSingular || 'night' : S.nightPlural || 'nights';
+    return vilaSprintf(upsellFmt, disc.moreNights, moreWord, disc.next.stay, disc.next.pay, saveNights, freeWord);
   }
 
   function ensureStayDiscountUpsellRow() {
@@ -1102,33 +1095,25 @@
     return s.adults + s.children + s.infants;
   }
 
-  function guestSummaryString(a, c, i, p, beds) {
-    var people = beds ? a + c : a + c + i;
+  function guestSummaryString(a, c, i, p) {
     var parts = [];
     var gs = typeof vilaAkoyaBooking !== 'undefined' && vilaAkoyaBooking.guestStrings ? vilaAkoyaBooking.guestStrings : null;
-    if (people === 1) {
-      parts.push(gs && gs.oneGuest ? gs.oneGuest : '1 guest');
-    } else {
-      var tpl = gs && gs.nGuests ? gs.nGuests : '%d guests';
-      parts.push(tpl.replace('%d', String(people)));
-    }
-    if (beds && i > 0) {
-      if (i === 1) {
-        parts.push(gs && gs.oneBaby ? gs.oneBaby : '1 baby');
-      } else {
-        var babyTpl = gs && gs.nBabies ? gs.nBabies : '%d babies';
-        parts.push(babyTpl.replace('%d', String(i)));
+    function counted(n, one, many, fallbackOne, fallbackMany) {
+      if (n < 1) {
+        return;
       }
-    }
-    if (p > 0) {
-      if (p === 1) {
-        parts.push(gs && gs.onePet ? gs.onePet : '1 pet');
-      } else {
-        var petTpl = gs && gs.nPets ? gs.nPets : '%d pets';
-        parts.push(petTpl.replace('%d', String(p)));
+      if (n === 1) {
+        parts.push(gs && gs[one] ? gs[one] : fallbackOne);
+        return;
       }
+      var tpl = gs && gs[many] ? gs[many] : fallbackMany;
+      parts.push(tpl.replace('%d', String(n)));
     }
-    return parts.join(' · ');
+    counted(a, 'oneAdult', 'nAdults', '1 adult', '%d adults');
+    counted(c, 'oneChild', 'nChildren', '1 child', '%d children');
+    counted(i, 'oneBaby', 'nBabies', '1 baby', '%d babies');
+    counted(p, 'onePet', 'nPets', '1 pet', '%d pets');
+    return parts.length ? parts.join(' · ') : '1 adult';
   }
 
   function getGuestState($root) {

@@ -465,6 +465,11 @@ function vila_akoya_wc_body_classes( $classes ) {
 add_filter( 'body_class', 'vila_akoya_wc_body_classes' );
 
 /**
+ * Order received: guests already have the order key in the URL — skip the email re-entry step.
+ */
+add_filter( 'woocommerce_order_email_verification_required', '__return_false' );
+
+/**
  * Embedded product on /booking/: use H2 for title (page already has H1), drop related/upsells, hide breadcrumbs.
  */
 function vila_akoya_booking_embedded_product_hooks() {

@@ -26,7 +26,8 @@ class Install {
 		self::seed_plots();
 		self::ensure_guest_registration_page();
 		self::ensure_meal_booking_page();
-		update_option( self::OPTION_DB_VERSION, '1.1.2' );
+		update_option( self::OPTION_DB_VERSION, '1.2.0' );
+		self::schedule_stay_hold_backfill();
 	}
 
 	public static function init() {
@@ -164,7 +165,42 @@ class Install {
 			Guest_Registration_Exporter::seed_siba_settings();
 			update_option( self::OPTION_DB_VERSION, '1.1.5' );
 		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.2.0', '<' ) ) {
+			self::create_tables();
+			if ( function_exists( 'vila_akoya_invalidate_campsite_plot_availability_caches' ) ) {
+				vila_akoya_invalidate_campsite_plot_availability_caches();
+			}
+			update_option( self::OPTION_DB_VERSION, '1.2.0' );
+			self::schedule_stay_hold_backfill();
+		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.2.1', '<' ) ) {
+			if ( class_exists( Stay_Hold_Repository::class ) ) {
+				( new Stay_Hold_Repository() )->repair_invalid_hold_dates();
+			}
+			update_option( self::OPTION_DB_VERSION, '1.2.1' );
+		}
 		self::schedule_public_pages_check();
+	}
+
+	/**
+	 * Import existing village-stay WooCommerce orders into occupancy holds after init (CPT registered).
+	 */
+	public static function backfill_stay_holds() {
+		if ( ! class_exists( Stay_Hold_Service::class ) ) {
+			return;
+		}
+		( new Stay_Hold_Service() )->backfill_from_orders();
+	}
+
+	/**
+	 * @return void
+	 */
+	private static function schedule_stay_hold_backfill() {
+		if ( did_action( 'init' ) ) {
+			self::backfill_stay_holds();
+			return;
+		}
+		add_action( 'init', array( __CLASS__, 'backfill_stay_holds' ), 40 );
 	}
 
 	/**
@@ -377,8 +413,10 @@ class Install {
 		$books   = Database::bookings_table();
 		$nights  = Database::booking_nights_table();
 		$blocks  = Database::plot_blocks_table();
-		$regs    = Database::guest_registrations_table();
-		$persons = Database::guest_persons_table();
+		$regs       = Database::guest_registrations_table();
+		$persons    = Database::guest_persons_table();
+		$stay_holds = Database::stay_holds_table();
+		$stay_nights = Database::stay_hold_nights_table();
 
 		$sql = "CREATE TABLE $plots (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -467,6 +505,38 @@ class Install {
 			PRIMARY KEY  (id),
 			KEY registration_id (registration_id),
 			KEY skip_siba (skip_siba)
+		) $charset;\n";
+
+		$sql .= "CREATE TABLE $stay_holds (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			stay_id BIGINT UNSIGNED NOT NULL,
+			product_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			order_id BIGINT UNSIGNED NULL,
+			line_item_id BIGINT UNSIGNED NULL,
+			kind VARCHAR(20) NOT NULL DEFAULT 'booking',
+			source VARCHAR(20) NOT NULL DEFAULT 'admin',
+			guest_name VARCHAR(191) NOT NULL DEFAULT '',
+			note VARCHAR(255) NULL,
+			check_in DATE NOT NULL,
+			check_out DATE NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'confirmed',
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY stay_id (stay_id),
+			KEY order_id (order_id),
+			KEY status_range (status, check_in, check_out)
+		) $charset;\n";
+
+		$sql .= "CREATE TABLE $stay_nights (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			hold_id BIGINT UNSIGNED NOT NULL,
+			stay_id BIGINT UNSIGNED NOT NULL,
+			night_ymd DATE NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY stay_night (stay_id, night_ymd),
+			KEY hold_id (hold_id),
+			KEY night_ymd (night_ymd)
 		) $charset;\n";
 
 		dbDelta( $sql );

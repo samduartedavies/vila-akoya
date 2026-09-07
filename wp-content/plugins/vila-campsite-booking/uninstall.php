@@ -11,6 +11,8 @@ $remove_tables = apply_filters( 'vila_cb_uninstall_remove_tables', false );
 
 if ( $remove_tables ) {
 	global $wpdb;
+	$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'vila_stay_hold_nights' );
+	$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'vila_stay_holds' );
 	$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'vila_booking_nights' );
 	$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'vila_bookings' );
 	$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'vila_plot_blocks' );

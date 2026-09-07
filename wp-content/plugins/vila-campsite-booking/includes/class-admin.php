@@ -136,6 +136,10 @@ class Admin {
 				'label' => __( 'Calendar', 'vila-campsite-booking' ),
 			),
 			array(
+				'page'  => Admin_Stays::PAGE,
+				'label' => __( 'Village stays', 'vila-campsite-booking' ),
+			),
+			array(
 				'page'  => self::PAGE_MEALS,
 				'label' => __( 'Meals', 'vila-campsite-booking' ),
 			),
@@ -1072,7 +1076,7 @@ class Admin {
 				<div class="vila-cb-ui-hero__text">
 					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Meals', 'vila-campsite-booking' ); ?></h1>
 					<p class="vila-cb-ui-lead">
-						<?php esc_html_e( 'How many guests to cook for. Breakfast is the morning after each night stayed; dinner is Mon–Fri evenings for guests staying that night. Under-2s are listed but not included in the cook total.', 'vila-campsite-booking' ); ?>
+						<?php esc_html_e( 'How many guests to cook for, including campsite pitches and village stays. Breakfast is the morning after each night stayed; dinner is Mon–Fri evenings for guests staying that night. Under-2s are listed but not included in the cook total.', 'vila-campsite-booking' ); ?>
 					</p>
 				</div>
 				<form method="get" class="vila-cb-daynav vila-cb-ui-nav">
@@ -1351,7 +1355,7 @@ class Admin {
 				<div class="vila-cb-ui-hero__text">
 					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Calendar', 'vila-campsite-booking' ); ?></h1>
 					<p class="vila-cb-ui-lead">
-						<?php esc_html_e( '14-day occupancy grid. Bookings show after orders are synced (processing, completed, or on-hold).', 'vila-campsite-booking' ); ?>
+						<?php esc_html_e( '14-day occupancy grid for pitches and village stays. Website bookings appear after payment (processing, completed, or on-hold). Off-site stay bookings can be added under Village stays.', 'vila-campsite-booking' ); ?>
 					</p>
 				</div>
 				<form method="get" class="vila-cb-daynav vila-cb-ui-nav">
@@ -1375,7 +1379,7 @@ class Admin {
 				<table class="vila-cb-grid">
 					<thead>
 						<tr>
-							<th class="vila-cb-grid__plot" scope="col"><?php esc_html_e( 'Plot', 'vila-campsite-booking' ); ?></th>
+							<th class="vila-cb-grid__plot" scope="col"><?php esc_html_e( 'Pitch / stay', 'vila-campsite-booking' ); ?></th>
 							<?php foreach ( $days as $dl ) : ?>
 								<?php
 								$is_today = ( $dl['ymd'] === $today_ymd );
@@ -1440,6 +1444,10 @@ class Admin {
 							</tr>
 							<?php
 						endif;
+						Admin_Stays::render_calendar_rows( $days, $today_ymd );
+						if ( ! empty( $plots ) ) {
+							echo '<tr class="vila-cb-grid__row-section"><th class="vila-cb-grid__section-label" scope="colgroup" colspan="' . (int) ( $day_count + 1 ) . '">' . esc_html__( 'Pitches', 'vila-campsite-booking' ) . '</th></tr>';
+						}
 						foreach ( $plots as $plot ) :
 							$pid = (int) $plot['id'];
 							?>
@@ -1616,7 +1624,7 @@ class Admin {
 	 * @param string $check_out Y-m-d exclusive end.
 	 * @return string
 	 */
-	private static function calendar_booking_stay_date_range_label( $check_in, $check_out ) {
+	public static function calendar_booking_stay_date_range_label( $check_in, $check_out ) {
 		$cin  = Dates::parse_ymd( (string) $check_in );
 		$cout = Dates::parse_ymd( (string) $check_out );
 		if ( ! $cin || ! $cout ) {
@@ -1715,9 +1723,10 @@ class Admin {
 	 * @param string $date_range  Compact d/m - d/m range or empty.
 	 * @param bool   $submitted   Whether guest registration exists.
 	 * @param int    $reg_id      Registration ID when submitted.
+	 * @param bool   $show_checkin_badge Whether to show the legal guest-registration badge.
 	 * @return string Safe HTML.
 	 */
-	private static function render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range = '', $submitted = false, $reg_id = 0 ) {
+	public static function render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range = '', $submitted = false, $reg_id = 0, $show_checkin_badge = true ) {
 		$guest_name  = (string) $guest_name;
 		$detail_line = (string) $detail_line;
 		$unit_type   = (string) $unit_type;
@@ -1729,7 +1738,9 @@ class Admin {
 			$inner .= '<span class="vila-cb-grid__cell-dates">' . esc_html( $date_range ) . '</span>';
 		}
 		$inner .= '<span class="vila-cb-grid__cell-name">' . esc_html( $guest_name ) . '</span>';
-		$inner .= self::guest_checkin_badge_html( (bool) $submitted, (int) $reg_id, 'compact' );
+		if ( $show_checkin_badge ) {
+			$inner .= self::guest_checkin_badge_html( (bool) $submitted, (int) $reg_id, 'compact' );
+		}
 		$inner .= '' !== $detail_line
 			? '<span class="vila-cb-grid__cell-guests">' . esc_html( $detail_line ) . '</span>'
 			: '';
@@ -1886,7 +1897,7 @@ class Admin {
 				<div class="vila-cb-ui-hero__text">
 					<h1 class="vila-cb-ui-title"><?php esc_html_e( 'Campsite · Block dates', 'vila-campsite-booking' ); ?></h1>
 					<p class="vila-cb-ui-lead">
-						<?php esc_html_e( 'Close pitches for maintenance or block the whole campsite. Blocked nights cannot be booked online and appear on the calendar.', 'vila-campsite-booking' ); ?>
+						<?php esc_html_e( 'Close pitches for maintenance or block the whole campsite. Blocked nights cannot be booked online and appear on the calendar. To hold a village stay (tiny house / caravan) booked off the website, use Village stays.', 'vila-campsite-booking' ); ?>
 					</p>
 				</div>
 			</div>

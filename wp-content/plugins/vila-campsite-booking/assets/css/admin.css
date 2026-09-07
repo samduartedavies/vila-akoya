@@ -861,6 +861,29 @@
 	background: #faf6f4;
 }
 
+.vila-cb-cal .vila-cb-grid__row-section .vila-cb-grid__section-label {
+	background: #efe8df !important;
+	color: #3d342c;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	padding: 10px 12px;
+	text-align: left;
+	position: sticky;
+	left: 0;
+	z-index: 3;
+	box-shadow: none;
+}
+
+.vila-cb-cal .vila-cb-grid tbody tr.vila-cb-grid__row-stay .vila-cb-grid__plot-cell {
+	background: #f7f1ea !important;
+}
+
+.vila-cb-admin .vila-cb-row-highlight td {
+	background: #fff8e5;
+}
+
 .vila-cb-cal .vila-cb-grid__blocked-label {
 	display: block;
 	font-size: 11px;

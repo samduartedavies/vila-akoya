@@ -2505,7 +2505,8 @@
   }
 
   /* Flatpickr popup (appended to body) */
-  body.vila-page-booking .flatpickr-calendar {
+  body.vila-page-booking .flatpickr-calendar,
+  body.vila-page-stay .flatpickr-calendar {
     @apply rounded-2xl border border-outline-variant/20 bg-surface-container-low font-body;
     box-shadow: 0 20px 60px rgba(61, 42, 34, 0.08), 0 8px 24px rgba(61, 42, 34, 0.04);
     min-width: min(100vw - 2rem, 38rem);
@@ -2516,55 +2517,69 @@
    * (`.flatpickr-day.hidden { visibility: hidden }` in multi-month mode).
    * Without this, days collapse left and land under the wrong weekdays.
    */
-  body.vila-page-booking .flatpickr-day.hidden {
+  body.vila-page-booking .flatpickr-day.hidden,
+  body.vila-page-stay .flatpickr-day.hidden {
     display: inline-block !important;
     visibility: hidden;
   }
 
-  body.vila-page-booking .flatpickr-calendar.hasTime {
+  body.vila-page-booking .flatpickr-calendar.hasTime,
+  body.vila-page-stay .flatpickr-calendar.hasTime {
     min-width: min(100vw - 2rem, 38rem);
   }
 
-  body.vila-page-booking .flatpickr-months .flatpickr-month {
+  body.vila-page-booking .flatpickr-months .flatpickr-month,
+  body.vila-page-stay .flatpickr-months .flatpickr-month {
     @apply bg-surface-container-low;
   }
 
-  body.vila-page-booking .flatpickr-day.inRange {
+  body.vila-page-booking .flatpickr-day.inRange,
+  body.vila-page-stay .flatpickr-day.inRange {
     @apply bg-primary/10 text-on-background border-none shadow-none;
   }
 
   body.vila-page-booking .flatpickr-day.startRange,
-  body.vila-page-booking .flatpickr-day.endRange {
+  body.vila-page-booking .flatpickr-day.endRange,
+  body.vila-page-stay .flatpickr-day.startRange,
+  body.vila-page-stay .flatpickr-day.endRange {
     background: var(--wp--preset--color--primary) !important;
     border-color: var(--wp--preset--color--primary) !important;
     @apply text-on-primary;
   }
 
-  body.vila-page-booking .flatpickr-months {
+  body.vila-page-booking .flatpickr-months,
+  body.vila-page-stay .flatpickr-months {
     @apply rounded-t-2xl bg-surface-container-low text-on-background;
   }
 
-  body.vila-page-booking .flatpickr-weekdays {
+  body.vila-page-booking .flatpickr-weekdays,
+  body.vila-page-stay .flatpickr-weekdays {
     @apply bg-surface-container-low;
   }
 
-  body.vila-page-booking .flatpickr-weekday {
+  body.vila-page-booking .flatpickr-weekday,
+  body.vila-page-stay .flatpickr-weekday {
     @apply font-label text-[0.6rem] font-semibold uppercase tracking-wider text-on-surface-variant;
   }
 
   body.vila-page-booking .flatpickr-day.selected,
   body.vila-page-booking .flatpickr-day.startRange,
-  body.vila-page-booking .flatpickr-day.endRange {
+  body.vila-page-booking .flatpickr-day.endRange,
+  body.vila-page-stay .flatpickr-day.selected,
+  body.vila-page-stay .flatpickr-day.startRange,
+  body.vila-page-stay .flatpickr-day.endRange {
     background: var(--wp--preset--color--primary) !important;
     border-color: var(--wp--preset--color--primary) !important;
     @apply text-on-primary;
   }
 
-  body.vila-page-booking .flatpickr-day:hover {
+  body.vila-page-booking .flatpickr-day:hover,
+  body.vila-page-stay .flatpickr-day:hover {
     @apply bg-primary/10;
   }
 
-  body.vila-page-booking .flatpickr-day.flatpickr-disabled {
+  body.vila-page-booking .flatpickr-day.flatpickr-disabled,
+  body.vila-page-stay .flatpickr-day.flatpickr-disabled {
     @apply text-on-surface-variant/30;
   }
 
@@ -3073,7 +3088,7 @@
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-container,
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation {
-    @apply mx-auto max-w-2xl px-5 py-14 font-body sm:px-8 md:py-20 lg:max-w-3xl;
+    @apply mx-auto max-w-2xl px-5 py-14 text-center font-body sm:px-8 md:py-20 lg:max-w-3xl;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status {
@@ -3081,6 +3096,16 @@
     position: relative;
     font-size: 0 !important;
     line-height: 0 !important;
+  }
+
+  body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status > * {
+    @apply hidden;
+  }
+
+  body.vila-wc-commerce.woocommerce-order-received .woocommerce-verify-email,
+  body.vila-wc-commerce.woocommerce-order-received form.woocommerce-form-verify-email,
+  body.vila-wc-commerce.woocommerce-order-received .wp-block-woocommerce-order-confirmation-create-account {
+    @apply hidden;
   }
 
   body.vila-wc-commerce.woocommerce-order-received .wc-block-order-confirmation-status::before {
@@ -5457,12 +5482,17 @@ body.vila-page-booking .va-booking-reserve-card .vila-stays-inquiry {
 
 body.vila-page-stay .vila-wc-booking--stay .woocommerce-breadcrumb,
 body.vila-page-stay .vila-wc-booking--stay .woocommerce-product-gallery,
+body.vila-page-stay .vila-wc-booking--stay .woocommerce-product-gallery__wrapper,
+body.vila-page-stay .vila-wc-booking--stay .images,
 body.vila-page-stay .vila-wc-booking--stay .product_title,
 body.vila-page-stay .vila-wc-booking--stay p.price,
 body.vila-page-stay .vila-wc-booking--stay .woocommerce-tabs,
 body.vila-page-stay .vila-wc-booking--stay .related.products,
 body.vila-page-stay .vila-wc-booking--stay .woocommerce-product-rating,
-body.vila-page-stay .vila-wc-booking--stay .product_meta {
+body.vila-page-stay .vila-wc-booking--stay .product_meta,
+body.vila-page-stay .vila-stay-book .quantity,
+body.vila-page-stay .vila-stay-book span.onsale,
+body.vila-page-stay .vila-stay-book .stock {
   display: none !important;
 }
 
@@ -5621,6 +5651,35 @@ body.vila-page-stay .vila-stay-book .mwb_mbfw_included_service_title {
 body.vila-page-stay .vila-stay-book .vila-meal-grid.vila-airbnb-booking__chip-grid {
   max-width: none;
   grid-template-columns: 1fr;
+}
+
+body.vila-page-stay .vila-stay-book .vila-booking-notes {
+  min-height: 5.5rem;
+  width: 100%;
+  resize: vertical;
+  border-radius: 0.5rem;
+  border: 2px solid transparent;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1);
+  padding: 1rem 1.25rem;
+  font-family: var(--vila-font-body, "Josefin Sans", system-ui, sans-serif);
+  font-size: 1rem;
+  color: rgb(var(--vila-rgb-on-background) / 1);
+  box-shadow: none;
+}
+
+body.vila-page-stay .vila-stay-book .vila-booking-notes:hover {
+  background: rgb(var(--vila-rgb-surface-container-high) / 1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 0.4);
+}
+
+body.vila-page-stay .vila-stay-book .vila-booking-notes:focus {
+  outline: none;
+  background: rgb(var(--vila-rgb-surface-container-low) / 1);
+  border-color: rgb(var(--vila-rgb-outline-variant) / 1);
+}
+
+body.vila-page-stay .vila-stay-book .single_add_to_cart_button.button {
+  margin-top: 0.25rem;
 }
 
 .vila-stay-review-page__pick a {

@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 define( 'VILA_AKOYA_STAYS_REWRITE_VER', '1' );
 define( 'VILA_AKOYA_STAY_PRODUCT_IDS_OPTION', 'vila_akoya_stay_product_ids' );
 if ( ! defined( 'VILA_AKOYA_STAY_ONLINE_BOOKING' ) ) {
-	define( 'VILA_AKOYA_STAY_ONLINE_BOOKING', false );
+	define( 'VILA_AKOYA_STAY_ONLINE_BOOKING', true );
 }
 
 /**
@@ -1141,7 +1141,9 @@ function vila_akoya_render_stay_woocommerce_booking_form( $product_id ) {
 	if ( ! $product || ! $product->is_purchasable() ) {
 		return '<p class="vila-cb-msg vila-cb-msg--error">' . esc_html__( 'This stay cannot be booked online right now.', 'vila-akoya' ) . '</p>';
 	}
-	return '<div class="vila-wc-booking vila-wc-booking--stay">' . do_shortcode( sprintf( '[product_page id="%d"]', $product_id ) ) . '</div>';
+	$html = do_shortcode( sprintf( '[product_page id="%d"]', $product_id ) );
+	$html = is_string( $html ) ? $html : '';
+	return '<div class="vila-wc-booking vila-wc-booking--stay">' . vila_akoya_compact_markup( vila_akoya_repair_wpautop_html( $html ) ) . '</div>';
 }
 
 /**
@@ -1237,6 +1239,25 @@ function vila_akoya_compact_markup( $html ) {
 	$html = preg_replace( '/\s+/', ' ', $html );
 	$html = preg_replace( '/>\s+</', '><', $html );
 	return is_string( $html ) ? trim( $html ) : '';
+}
+
+/**
+ * Undo wpautop leftovers that break guest-picker / booking markup.
+ *
+ * @param string $html HTML.
+ * @return string
+ */
+function vila_akoya_repair_wpautop_html( $html ) {
+	if ( ! is_string( $html ) || '' === $html ) {
+		return '';
+	}
+	$html = preg_replace( '/<p>\s*(<(?:div|section|aside|ul|ol|li|h[1-6]|form|button|fieldset|table))/i', '$1', $html );
+	$html = preg_replace( '/(<\/(?:div|section|aside|ul|ol|li|h[1-6]|form|button|fieldset|table)>)\s*<\/p>/i', '$1', $html );
+	$html = preg_replace( '/<(div|section|aside|ul|ol|li|form|button|fieldset)(\s[^>]*)?>\s*<\/p>/i', '<$1$2>', $html );
+	$html = preg_replace( '/<p>\s*<\/(div|section|aside|ul|ol|li|form|button|fieldset)>/i', '</$1>', $html );
+	$html = preg_replace( '/<\/p>\s*(<(?:div|section|aside|ul|ol|li|h[1-6]|form|button|fieldset))/i', '$1', $html );
+	$html = preg_replace( '/<br\s*\/?>/i', '', $html );
+	return is_string( $html ) ? $html : '';
 }
 
 /**
@@ -1551,10 +1572,7 @@ function vila_akoya_strip_stay_shortcode_autop( $content, $block = array() ) {
 	if ( false === strpos( $content, 'vila-stay-single' ) && false === strpos( $content, 'vila-stay-book' ) && false === strpos( $content, 'vila-stay-card' ) && false === strpos( $content, 'vila-stays-browse' ) ) {
 		return $content;
 	}
-	$content = preg_replace( '/<br\s*\/?>/i', '', $content );
-	$content = preg_replace( '/<p>(\s*)<(div|section|aside|ul|ol|li|h[1-6]|form|button)/i', '$1<$2', $content );
-	$content = preg_replace( '/<\/(div|section|aside|ul|ol|li|form|h[1-6]|button)>(\s*)<\/p>/i', '</$1>$2', $content );
-	return is_string( $content ) ? $content : '';
+	return vila_akoya_repair_wpautop_html( $content );
 }
 add_filter( 'render_block', 'vila_akoya_strip_stay_shortcode_autop', 20, 2 );
 
@@ -1845,7 +1863,7 @@ function vila_akoya_enqueue_stay_commerce_assets() {
 					'minStay'         => __( 'Minimum stay is %1$d nights.', 'vila-akoya' ),
 					'stayRateFlat'    => __( 'Stay — %1$s/night × %2$d %3$s', 'vila-akoya' ),
 					'discountApplied' => __( 'Stay %1$d, pay %2$d — %3$d %4$s free', 'vila-akoya' ),
-					'upsell'          => __( 'Only %1$d more %2$s and you will get a discount of %3$s (stay %4$d, pay %5$d).', 'vila-akoya' ),
+					'upsell'          => __( 'Only %1$d more %2$s and you unlock stay %3$d, pay %4$d (%5$d extra %6$s free).', 'vila-akoya' ),
 					'perNight'        => __( '%1$s / night', 'vila-akoya' ),
 					'perMonth'        => __( '%1$s / month', 'vila-akoya' ),
 				),
