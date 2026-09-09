@@ -91,7 +91,6 @@
       setAddToCartProductId(pid);
       applySelectedPlotUnavailableDates();
       redrawRangePickerIfAny();
-      $('#mwb-mbfw-booking-from-time').trigger('change');
     });
   }
 
@@ -692,18 +691,10 @@
     scheduleStayRangeAvailabilityCheck();
   }
 
-  // Keep MWB's own (hidden) totals/state in sync without depending on it for
-  // display. Debounced so rapid changes don't spam admin-ajax.
-  var vilaMwbNudgeTimer = null;
-  function nudgeMwbState() {
-    clearTimeout(vilaMwbNudgeTimer);
-    vilaMwbNudgeTimer = setTimeout(function () {
-      var $from = $('#mwb-mbfw-booking-from-time');
-      if ($from.length && $from.val() && $('#mwb-mbfw-booking-to-time').val()) {
-        $from.trigger('change');
-      }
-    }, 250);
-  }
+  // Live bill is the source of truth. Do not trigger MWB's change→admin-ajax
+  // recalculation: that request re-renders the form, which used to fire
+  // ajaxComplete → another change → hundreds of admin-ajax.php calls.
+  function nudgeMwbState() {}
 
   function ensureAvailabilityBanner() {
     var $el = $('#vila-booking-availability-msg');
@@ -1165,7 +1156,7 @@
         over--;
       }
     }
-    $root.find('#mwb_mbfw_people_number').val(String(s.adults)).trigger('change');
+    $root.find('#mwb_mbfw_people_number').val(String(s.adults));
     $root.find('#vila_guest_children, [name="stay-children"]').val(String(s.children));
     $root.find('#vila_guest_infants, [name="stay-infants"]').val(String(s.infants));
     $root.find('#vila_guest_pets, [name="stay-pets"]').val(String(s.pets));
@@ -1483,7 +1474,7 @@
     var da = parseDMY(f);
     var db = parseDMY(t);
     if (da && db) {
-      fp._flatpickr.setDate([da, db], true);
+      fp._flatpickr.setDate([da, db], false);
     }
     scheduleStayRangeAvailabilityCheck();
   }
@@ -1504,8 +1495,10 @@
     if (!fromVal || !toVal) {
       return false;
     }
-    $(fromEl).val(fromVal).trigger('change');
-    $(toEl).val(toVal).trigger('change');
+    // Set values only — do not trigger change. MWB AJAX on change during
+    // Book Now races the add-to-cart POST and can reload the booking page.
+    fromEl.value = fromVal;
+    toEl.value = toVal;
     return true;
   }
 
@@ -1635,9 +1628,37 @@
 
     // Clear the overlay if add-to-cart fails (so the user isn't trapped) and
     // when returning to the page via the browser back/forward cache.
-    $(document).ajaxError(function () {
-      hideBookingSubmitOverlay();
-    });
+    if (!window.vilaMwbAjaxPrefilterBound) {
+      window.vilaMwbAjaxPrefilterBound = true;
+      $.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+        var data = options.data || '';
+        var isMwbCost = false;
+        var isAddToCart = false;
+
+        if (typeof data === 'string') {
+          isMwbCost =
+            data.indexOf('mwb_mbfw') !== -1 ||
+            data.indexOf('mbfw_') !== -1 ||
+            data.indexOf('wps_mbfw') !== -1;
+          isAddToCart =
+            data.indexOf('add-to-cart') !== -1 ||
+            data.indexOf('add_to_cart') !== -1;
+        } else if (typeof FormData !== 'undefined' && data instanceof FormData) {
+          try {
+            var action = data.get('action') || '';
+            isMwbCost = action.indexOf('mbfw') !== -1;
+          } catch (e) {}
+        }
+
+        if (!isMwbCost) {
+          return;
+        }
+        if (isAddToCart) {
+          return;
+        }
+        jqXHR.abort();
+      });
+    }
     $(window).on('pagehide.vilaBookingRestore', function () {
       hideBookingSubmitOverlay();
     });
@@ -1656,13 +1677,5 @@
       syncBookingTotalsAndCtaState();
       renderLiveBill();
     }, 150);
-
-    // MWB's hidden AJAX can rebuild its own total area and, in doing so, may
-    // recreate the shell before our container exists. Re-assert our bill after
-    // any AJAX settles so it always reflects the current form state.
-    $(document).ajaxComplete(function () {
-      syncBookingTotalsAndCtaState();
-      renderLiveBill();
-    });
   });
 })(jQuery);

@@ -641,6 +641,42 @@ function vila_akoya_campsite_add_to_cart_redirect_checkout( $url, $product = nul
 add_filter( 'woocommerce_add_to_cart_redirect', 'vila_akoya_campsite_add_to_cart_redirect_checkout', 99, 2 );
 
 /**
+ * Force WooCommerce to flush the session to the database before the redirect.
+ *
+ * On LiteSpeed / Hostinger the PHP shutdown handlers that normally persist the
+ * session can race with (or be skipped before) the 302 response reaching the
+ * client.  Calling save_data() here guarantees the cart exists in the DB by
+ * the time the browser follows the redirect to checkout.
+ *
+ * @param string $url Redirect URL (passed through unchanged).
+ * @return string
+ */
+function vila_akoya_flush_wc_session_before_redirect( $url ) {
+	if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+		return $url;
+	}
+
+	// Ensure the cart session data is flushed into the session object before
+	// save_data(). On some hosts the woocommerce_after_calculate_totals →
+	// set_session chain has not yet run at filter time.
+	if ( WC()->cart && is_callable( array( WC()->cart, 'get_cart_for_session' ) ) ) {
+		WC()->session->set( 'cart', WC()->cart->get_cart_for_session() );
+		WC()->session->set( 'cart_totals', WC()->cart->get_totals() );
+		WC()->session->set( 'applied_coupons', WC()->cart->get_applied_coupons() );
+		WC()->session->set( 'coupon_discount_totals', WC()->cart->get_coupon_discount_totals() );
+		WC()->session->set( 'coupon_discount_tax_totals', WC()->cart->get_coupon_discount_tax_totals() );
+		WC()->session->set( 'removed_cart_contents', WC()->cart->get_removed_cart_contents() );
+	}
+
+	if ( is_callable( array( WC()->session, 'save_data' ) ) ) {
+		WC()->session->save_data();
+	}
+
+	return $url;
+}
+add_filter( 'woocommerce_add_to_cart_redirect', 'vila_akoya_flush_wc_session_before_redirect', 999 );
+
+/**
  * Hide the “… has been added to your cart” notice for campsite stays (redundant when redirecting to checkout).
  *
  * @param string               $message  Notice HTML/text.

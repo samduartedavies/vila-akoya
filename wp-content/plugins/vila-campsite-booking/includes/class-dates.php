@@ -25,9 +25,12 @@ class Dates {
 		if ( '' === $ymd || '0000-00-00' === $ymd || str_starts_with( $ymd, '0000-' ) ) {
 			return null;
 		}
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $ymd ) ) {
+			return null;
+		}
 		try {
 			$d = new \DateTimeImmutable( $ymd . ' 00:00:00', wp_timezone() );
-			if ( (int) $d->format( 'Y' ) < 1970 ) {
+			if ( $d->format( 'Y-m-d' ) !== $ymd || (int) $d->format( 'Y' ) < 1970 ) {
 				return null;
 			}
 			return $d;
@@ -133,10 +136,6 @@ class Dates {
 			if ( $parsed ) {
 				return $parsed->format( 'Y-m-d' );
 			}
-		}
-		$parsed = self::parse_ymd( $date_str );
-		if ( $parsed ) {
-			return $parsed->format( 'Y-m-d' );
 		}
 		$wp_df = (string) get_option( 'date_format' );
 		if ( '' !== $wp_df ) {

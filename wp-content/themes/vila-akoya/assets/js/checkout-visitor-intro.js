@@ -1,5 +1,8 @@
 /**
  * Block checkout: WC additional fields only support type "text". Upgrade to a textarea for the visitor intro.
+ *
+ * Do not dispatch bubbling input/change on mount. Checkout recaptcha plugins listen on document and call
+ * grecaptcha.execute before the API is ready, which throws and can remount the checkout (refresh loop).
  */
 (function () {
   'use strict';
@@ -11,10 +14,18 @@
     );
   }
 
+  function writeValue(input, value) {
+    var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+    if (desc && desc.set) {
+      desc.set.call(input, value);
+    } else {
+      input.value = value;
+    }
+  }
+
   function syncToInput(textarea, input) {
-    input.value = textarea.value;
+    writeValue(input, textarea.value);
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function enhance() {
@@ -25,6 +36,10 @@
 
     var wrap = input.closest('.wc-block-components-text-input, .wc-block-components-form-group');
     if (!wrap) {
+      return;
+    }
+    if (wrap.querySelector('.vila-checkout-visitor-intro__textarea')) {
+      input.dataset.vilaIntroEnhanced = '1';
       return;
     }
 
@@ -61,7 +76,6 @@
     textarea.addEventListener('input', function () {
       syncToInput(textarea, input);
     });
-    syncToInput(textarea, input);
   }
 
   function boot() {

@@ -1767,9 +1767,26 @@
     transform: translateY(-1px);
   }
 
-  /* Campsite vs Village tabs (booking reserve column) */
+  /* Campsite vs accommodation tabs (booking reserve column) */
+  body.vila-page-booking .va-booking-reserve-tabs {
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.vila-page-booking .va-booking-reserve-tabs__list {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
   body.vila-page-booking .va-booking-reserve-tabs__tab {
     @apply text-on-surface-variant;
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
+    text-align: center;
+    line-height: 1.2;
   }
 
   body.vila-page-booking .va-booking-reserve-tabs__tab:focus-visible {
@@ -1778,6 +1795,27 @@
 
   body.vila-page-booking .va-booking-reserve-tabs__tab.is-active {
     @apply bg-white text-primary shadow-sm;
+  }
+
+  @media (max-width: 639px) {
+    body.vila-page-booking .va-booking-reserve-card.vila-booking-card-shell,
+    body.vila-page-booking .va-booking-reserve-card {
+      padding: 1.25rem !important;
+      border-radius: 2rem !important;
+    }
+
+    body.vila-page-booking .va-booking-reserve-tabs__list {
+      gap: 0.25rem;
+      padding: 0.25rem;
+    }
+
+    body.vila-page-booking .va-booking-reserve-tabs__tab {
+      padding: 0.7rem 0.4rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      white-space: normal;
+    }
   }
 
   /* CF7 in reserve column (campsite inquiry + village tab): same structural overrides as campus/contact */
