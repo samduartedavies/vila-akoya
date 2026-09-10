@@ -3340,7 +3340,7 @@ main.overflow-x-hidden,
   flex-wrap: wrap;
   gap: 0.65rem 0.85rem;
   align-items: center;
-  margin: 0;
+  margin: 0.85rem 0 0;
 }
 
 .vila-launch-banner__btn {

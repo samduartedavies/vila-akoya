@@ -264,6 +264,26 @@ function vila_akoya_block_link_field( $key, $name, $label ) {
 }
 
 /**
+ * @param string $key       Field key.
+ * @param string $name      Field name.
+ * @param string $label     Field label.
+ * @param string $post_type Post type slug.
+ * @return array<string, mixed>
+ */
+function vila_akoya_block_post_object_field( $key, $name, $label, $post_type ) {
+	return array(
+		'key'           => $key,
+		'label'         => $label,
+		'name'          => $name,
+		'type'          => 'post_object',
+		'post_type'     => array( $post_type ),
+		'return_format' => 'object',
+		'allow_null'    => 1,
+		'ui'            => 1,
+	);
+}
+
+/**
  * Register local field groups for each section block.
  */
 function vila_akoya_register_section_block_field_groups() {
@@ -284,6 +304,7 @@ function vila_akoya_register_section_block_field_groups() {
 				vila_akoya_block_text_field( 'field_vila_b_announce_highlights', 'highlights', __( 'Highlights (comma-separated)', 'vila-akoya' ) ),
 				vila_akoya_block_link_field( 'field_vila_b_announce_primary_link', 'primary_link', __( 'Primary button', 'vila-akoya' ) ),
 				vila_akoya_block_link_field( 'field_vila_b_announce_secondary_link', 'secondary_link', __( 'Secondary button', 'vila-akoya' ) ),
+				vila_akoya_block_post_object_field( 'field_vila_b_announce_event', 'event', __( 'Event (More info button)', 'vila-akoya' ), 'event' ),
 				vila_akoya_block_text_field( 'field_vila_b_announce_until', 'until_date', __( 'Hide after (YYYY-MM-DD)', 'vila-akoya' ) ),
 			),
 		),
@@ -860,6 +881,7 @@ function vila_akoya_section_block_field_map() {
 				'highlights'     => 'field_vila_b_announce_highlights',
 				'primary_link'   => 'field_vila_b_announce_primary_link',
 				'secondary_link' => 'field_vila_b_announce_secondary_link',
+				'event'          => 'field_vila_b_announce_event',
 				'until_date'     => 'field_vila_b_announce_until',
 			),
 		),

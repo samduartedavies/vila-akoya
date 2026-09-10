@@ -19,6 +19,14 @@ $body    = (string) vila_akoya_section_field(
 	'body',
 	'Musicians, DJs, workshops and experiences all week long — come stay, dance, make things, and help us open Vila Akoya.'
 );
+
+$event     = vila_akoya_section_field( 'event', null );
+$event_url = '';
+if ( $event instanceof WP_Post ) {
+	$event_url = get_permalink( $event );
+} elseif ( is_numeric( $event ) ) {
+	$event_url = get_permalink( (int) $event );
+}
 ?>
 <aside class="vila-launch-banner" role="region" aria-label="<?php echo esc_attr( $heading ); ?>">
 	<div class="vila-launch-banner__glow" aria-hidden="true"></div>
@@ -35,6 +43,13 @@ $body    = (string) vila_akoya_section_field(
 			<?php endif; ?>
 			<?php if ( '' !== $body ) : ?>
 				<p class="vila-launch-banner__body"><?php echo esc_html( $body ); ?></p>
+			<?php endif; ?>
+			<?php if ( '' !== $event_url ) : ?>
+				<p class="vila-launch-banner__actions">
+					<a class="vila-launch-banner__btn vila-launch-banner__btn--primary" href="<?php echo esc_url( $event_url ); ?>">
+						<?php esc_html_e( 'More info', 'vila-akoya' ); ?>
+					</a>
+				</p>
 			<?php endif; ?>
 		</div>
 	</div>
