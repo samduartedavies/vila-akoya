@@ -507,6 +507,68 @@
   color: #b00020;
 }
 
+/* Childcare booking */
+.vila-cb-childcare__remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  cursor: pointer;
+}
+
+.vila-cb-childcare__remember span {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #332e1e;
+}
+
+.vila-cb-childcare__children {
+  display: grid;
+  gap: 14px;
+}
+
+.vila-cb-childcare__child {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(126, 118, 98, 0.24);
+  border-radius: 14px;
+  background: rgb(var(--vila-rgb-surface-container-low, 251 240 213) / 0.45);
+}
+
+.vila-cb-childcare__remove {
+  justify-self: start;
+  margin-top: 0;
+}
+
+.vila-cb-childcare__calendar .vila-cb-cal__day {
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.vila-cb-childcare__remaining {
+  display: block;
+  max-width: 100%;
+  font-size: 9px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.82;
+}
+
+.vila-cb-childcare__calendar .vila-cb-cal__day.is-disabled .vila-cb-childcare__remaining {
+  white-space: normal;
+  text-decoration: none;
+}
+
 .vila-cb-gr__success {
   margin-top: 8px;
 }

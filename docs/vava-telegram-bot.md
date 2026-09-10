@@ -43,6 +43,12 @@ ASK
 @vila_akoya_bot what should I do today?  (after /register Your Name)
 /ask <question> · /mytasks
 
+CHILDCARE
+Book childcare on the website: /book-childcare/
+Parents can DM or tag VAVA: “Sam won’t attend childcare today”
+Child minders can DM VAVA: “what are today’s allergies?” or “what is Sam’s parent’s phone number?”
+Private child details are only shared in DMs with people assigned to the Child minder Job in Notion.
+
 COMMUNITY PROFILE
 /register Your Name — join Members + short questionnaire (skills, areas, bio)
 /questionnaire — update your Community profile anytime
@@ -59,8 +65,16 @@ ALSO
 • /help for the full list
 
 MORNING ROUNDUP (~08:00 Lisbon)
-• Group topic: events, campsite, meals, yesterday’s highlights
+• Group topic: events, campsite, meals, childcare count, yesterday’s highlights
 • Personal duties + tasks: DM only (after /register)
+• Child minder roster: DM only for registered Members assigned to the Child minder Job
 
 EN + PT fine · Be specific for best results
 ```
+
+## Childcare ops setup
+
+- Website bookings are paid through WooCommerce on `/book-childcare/`.
+- WordPress syncs daily childcare rosters to the Notion `Childcare` database.
+- VAVA needs `VILA_OPS_API_TOKEN` as well as `WP_SITE_URL` to mark children absent from Telegram.
+- Child minders must be registered Members (`/register Name`) and assigned in a Notion Job named `Child minder`.

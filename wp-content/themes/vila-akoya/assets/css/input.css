@@ -3235,16 +3235,6 @@ main.overflow-x-hidden,
   }
 }
 
-.vila-launch-banner__glow {
-  position: absolute;
-  inset: -40% -10% auto auto;
-  width: 55%;
-  height: 160%;
-  pointer-events: none;
-  background: linear-gradient(115deg, transparent 30%, rgb(255 246 225 / 0.18) 48%, transparent 62%);
-  animation: vila-launch-shimmer 7s var(--vila-motion-soft) infinite;
-}
-
 .vila-launch-banner__inner {
   position: relative;
   z-index: 1;
@@ -3257,32 +3247,84 @@ main.overflow-x-hidden,
   padding: 1.15rem 1.5rem 1.35rem;
 }
 
+.vila-launch-banner__inner--has-poster {
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: center;
+  justify-items: stretch;
+}
+
 @media (min-width: 768px) {
-  .vila-launch-banner__inner {
-    grid-template-columns: minmax(11rem, auto) minmax(0, 1fr);
-    padding: 1.35rem 2rem 1.55rem;
+  .vila-launch-banner__inner--has-poster {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1.35rem 2.25rem;
+    align-items: stretch;
+    padding: 1.1rem 2rem 1.2rem;
   }
 }
 
-.vila-launch-banner__dates {
+.vila-launch-banner__poster {
   margin: 0;
-  display: inline-flex;
+  display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0.55rem 1rem;
-  border-radius: 999px;
-  background: rgb(var(--vila-rgb-surface-bright) / 0.16);
-  border: 1px solid rgb(var(--vila-rgb-on-primary) / 0.28);
-  text-align: center;
-  width: fit-content;
 }
 
-.vila-launch-banner__dates-num {
-  font-family: var(--vila-font-barrio);
-  font-size: clamp(1.35rem, 3.2vw, 2.15rem);
-  line-height: 1.1;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+@media (min-width: 768px) {
+  .vila-launch-banner__poster {
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+}
+
+.vila-launch-banner__poster-link {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--vila-rgb-on-primary) / 0.22);
+  box-shadow: 0 10px 28px rgb(18 14 3 / 0.28);
+  transition:
+    transform 220ms var(--vila-motion-ease),
+    box-shadow 220ms var(--vila-motion-ease);
+}
+
+@media (min-width: 768px) {
+  .vila-launch-banner__poster-link {
+    height: 100%;
+    margin: 0;
+  }
+}
+
+.vila-launch-banner__poster-link:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 14px 32px rgb(18 14 3 / 0.34);
+}
+
+.vila-launch-banner__poster-img {
+  display: block;
+  width: min(100%, 11rem);
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+  max-width: 11rem;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--vila-rgb-on-primary) / 0.22);
+  box-shadow: 0 10px 28px rgb(18 14 3 / 0.28);
+}
+
+@media (min-width: 768px) {
+  .vila-launch-banner__poster-img {
+    width: auto;
+    height: 100%;
+    min-height: 10.5rem;
+    min-width: 8rem;
+    max-width: 10rem;
+  }
 }
 
 .vila-launch-banner__eyebrow {
@@ -3378,26 +3420,6 @@ main.overflow-x-hidden,
 
 .vila-launch-banner__btn--ghost:hover {
   background: rgb(var(--vila-rgb-surface-bright) / 0.12);
-}
-
-@keyframes vila-launch-shimmer {
-  0% {
-    transform: translateX(-35%);
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    transform: translateX(55%);
-    opacity: 0.35;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vila-launch-banner__glow {
-    animation: none;
-  }
 }
 
 .vila-forest-wash,

@@ -1318,3 +1318,37 @@
 	font-weight: 600;
 	color: var(--vila-cb-ui-text);
 }
+
+/* -------------------------------------------------------------------------
+ * Childcare roster
+ * ------------------------------------------------------------------------- */
+
+.vila-cb-kpi--childcare {
+	border-color: #d6ccf4;
+	background: linear-gradient(180deg, #f7f4ff 0%, #fff 70%);
+}
+
+.vila-cb-childcare-day.is-closed {
+	background: #fafafa;
+}
+
+.vila-cb-childcare-day .vila-cb-meal-col {
+	border-left: 0;
+}
+
+.vila-cb-childcare-roster {
+	gap: 10px;
+}
+
+.vila-cb-childcare-child.is-absent {
+	opacity: 0.72;
+	background: #f6f7f7;
+}
+
+.vila-cb-childcare-child.is-absent .vila-cb-meal-party__name {
+	text-decoration: line-through;
+}
+
+.vila-cb-childcare-absent-form {
+	margin: 0;
+}

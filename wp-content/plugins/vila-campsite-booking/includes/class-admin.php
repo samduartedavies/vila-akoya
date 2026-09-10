@@ -103,6 +103,17 @@ class Admin {
 		);
 		$wp_admin_bar->add_node(
 			array(
+				'id'     => 'vila-cb-toolbar-childcare',
+				'title'  => __( 'Childcare', 'vila-campsite-booking' ),
+				'href'   => admin_url( 'admin.php?page=' . Childcare_Admin::PAGE ),
+				'meta'   => array(
+					'title' => __( 'Campsite childcare roster', 'vila-campsite-booking' ),
+				),
+				'parent' => false,
+			)
+		);
+		$wp_admin_bar->add_node(
+			array(
 				'id'     => 'vila-cb-toolbar-guest-checkin',
 				'title'  => __( 'Guest check-in', 'vila-campsite-booking' ),
 				'href'   => admin_url( 'admin.php?page=' . Admin_Guest_Registrations::PAGE ),
@@ -142,6 +153,10 @@ class Admin {
 			array(
 				'page'  => self::PAGE_MEALS,
 				'label' => __( 'Meals', 'vila-campsite-booking' ),
+			),
+			array(
+				'page'  => Childcare_Admin::PAGE,
+				'label' => __( 'Childcare', 'vila-campsite-booking' ),
 			),
 			array(
 				'page'  => Admin_Guest_Registrations::PAGE,
@@ -738,6 +753,10 @@ class Admin {
 
 		if ( isset( $_POST['vila_cb_siba'] ) && is_array( $_POST['vila_cb_siba'] ) ) {
 			update_option( Guest_Registration_Exporter::OPTION_SETTINGS, Guest_Registration_Exporter::sanitize_settings( wp_unslash( $_POST['vila_cb_siba'] ) ) );
+		}
+
+		if ( isset( $_POST['vila_cb_childcare'] ) && is_array( $_POST['vila_cb_childcare'] ) ) {
+			update_option( Childcare_Service::OPTION_SETTINGS, Childcare_Service::sanitize_settings( wp_unslash( $_POST['vila_cb_childcare'] ) ) );
 		}
 
 		Pricing_Settings::sync_woocommerce_currency_option();
@@ -2209,6 +2228,7 @@ class Admin {
 		$plot_count = (int) get_option( 'vila_cb_plot_count', count( Plot_Repository::default_plot_numbers() ) );
 		$pricing    = Pricing_Settings::get();
 		$siba       = Guest_Registration_Exporter::settings();
+		$childcare  = Childcare_Service::settings();
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-settings">
@@ -2240,14 +2260,14 @@ class Admin {
 									<span class="vila-cb-guest-badge vila-cb-guest-badge--pending"><?php esc_html_e( 'Missing — add VILA_NOTION_API_KEY to wp-config.php', 'vila-campsite-booking' ); ?></span>
 								<?php endif; ?>
 								<p class="description"><code>define( 'VILA_NOTION_API_KEY', 'your-notion-integration-key' );</code></p>
-								<p class="description"><?php esc_html_e( 'Optional: VILA_NOTION_BOOKINGS_DB_ID and VILA_NOTION_MEALS_DB_ID if database IDs are known. Otherwise they are resolved from the catalog option or Notion search on first sync.', 'vila-campsite-booking' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Optional: VILA_NOTION_BOOKINGS_DB_ID, VILA_NOTION_MEALS_DB_ID, and VILA_NOTION_CHILDCARE_DB_ID if database IDs are known. Otherwise they are resolved from the catalog option or Notion search on first sync.', 'vila-campsite-booking' ); ?></p>
 							</td>
 						</tr>
 						<tr>
 							<th scope="row"><?php esc_html_e( 'Databases', 'vila-campsite-booking' ); ?></th>
 							<td>
-								<p class="description"><?php echo esc_html( Notion_Sync::bookings_database_name() ); ?> · <?php echo esc_html( Notion_Sync::meals_database_name() ); ?></p>
-								<p class="description"><?php esc_html_e( 'Create those databases with npm run notion:setup, then add Calendar layouts on Date in Notion. Telegram recap and “who’s checking in / dinner numbers?” questions read from these databases.', 'vila-campsite-booking' ); ?></p>
+								<p class="description"><?php echo esc_html( Notion_Sync::bookings_database_name() ); ?> · <?php echo esc_html( Notion_Sync::meals_database_name() ); ?> · <?php echo esc_html( Notion_Sync::childcare_database_name() ); ?></p>
+								<p class="description"><?php esc_html_e( 'Create those databases with npm run notion:setup, then add Calendar layouts on Date in Notion. Telegram recap and questions read from these databases.', 'vila-campsite-booking' ); ?></p>
 							</td>
 						</tr>
 					</table>
@@ -2440,6 +2460,51 @@ class Admin {
 						}
 						?>
 					</table>
+					<h3 class="vila-cb-ui-section-title" style="margin-top:1.5em;font-size:14px;"><?php esc_html_e( 'Childcare', 'vila-campsite-booking' ); ?></h3>
+					<p class="description"><?php esc_html_e( 'Paid childcare booking settings. Capacity is counted per child per day; absences free a place without refunding the original order.', 'vila-campsite-booking' ); ?></p>
+					<table class="form-table vila-cb-ui-form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="vila_cb_childcare_fee"><?php esc_html_e( 'Price', 'vila-campsite-booking' ); ?></label></th>
+							<td>
+								<input name="vila_cb_childcare[fee_per_child_day]" id="vila_cb_childcare_fee" type="number" min="0" step="0.01" value="<?php echo esc_attr( (string) $childcare['fee_per_child_day'] ); ?>" class="small-text" /> <?php esc_html_e( 'EUR / child / day', 'vila-campsite-booking' ); ?>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_childcare_capacity"><?php esc_html_e( 'Daily capacity', 'vila-campsite-booking' ); ?></label></th>
+							<td>
+								<input name="vila_cb_childcare[capacity]" id="vila_cb_childcare_capacity" type="number" min="1" step="1" value="<?php echo esc_attr( (string) $childcare['capacity'] ); ?>" class="small-text" /> <?php esc_html_e( 'children / day', 'vila-campsite-booking' ); ?>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Open days', 'vila-campsite-booking' ); ?></th>
+							<td>
+								<?php
+								$day_labels = array(
+									0 => __( 'Sunday', 'vila-campsite-booking' ),
+									1 => __( 'Monday', 'vila-campsite-booking' ),
+									2 => __( 'Tuesday', 'vila-campsite-booking' ),
+									3 => __( 'Wednesday', 'vila-campsite-booking' ),
+									4 => __( 'Thursday', 'vila-campsite-booking' ),
+									5 => __( 'Friday', 'vila-campsite-booking' ),
+									6 => __( 'Saturday', 'vila-campsite-booking' ),
+								);
+								foreach ( $day_labels as $day_idx => $day_label ) :
+									?>
+									<label style="display:inline-block;margin-right:12px;margin-bottom:8px;">
+										<input type="checkbox" name="vila_cb_childcare[open_weekdays][]" value="<?php echo esc_attr( (string) $day_idx ); ?>" <?php checked( in_array( $day_idx, (array) $childcare['open_weekdays'], true ) ); ?> />
+										<?php echo esc_html( $day_label ); ?>
+									</label>
+								<?php endforeach; ?>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="vila_cb_childcare_cutoff"><?php esc_html_e( 'Next-day cutoff', 'vila-campsite-booking' ); ?></label></th>
+							<td>
+								<input name="vila_cb_childcare[cutoff_hour]" id="vila_cb_childcare_cutoff" type="number" min="0" max="23" step="1" value="<?php echo esc_attr( (string) $childcare['cutoff_hour'] ); ?>" class="small-text" />
+								<p class="description"><?php esc_html_e( '24-hour Lisbon time. Today is always blocked; after this hour, tomorrow is blocked too.', 'vila-campsite-booking' ); ?></p>
+							</td>
+						</tr>
+					</table>
 					<?php submit_button( __( 'Save settings', 'vila-campsite-booking' ), 'primary', '', false, array( 'class' => 'vila-cb-ui-submit' ) ); ?>
 				</div>
 			</form>
@@ -2451,6 +2516,8 @@ class Admin {
 				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Add this shortcode to a guest-facing page where people can search their booking or enter stay details manually for SIBA registration.', 'vila-campsite-booking' ); ?></p>
 				<p class="vila-cb-ui-code-wrap" style="margin-top:14px;"><code class="vila-cb-ui-code">[vila_meal_booking]</code></p>
 				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Guest page to book and pay for breakfast/dinner — link to an existing stay or book meals as a walk-in.', 'vila-campsite-booking' ); ?></p>
+				<p class="vila-cb-ui-code-wrap" style="margin-top:14px;"><code class="vila-cb-ui-code">[vila_childcare_booking]</code></p>
+				<p class="description vila-cb-ui-footnote vila-cb-ui-footnote--flush"><?php esc_html_e( 'Guest page to book and pay for childcare by the day.', 'vila-campsite-booking' ); ?></p>
 				<p class="description vila-cb-ui-footnote">
 					<?php
 					echo esc_html(
@@ -2470,8 +2537,12 @@ class Admin {
 				Install::ensure_public_pages_now();
 				$guest_page = (int) get_option( Install::OPTION_GUEST_REGISTRATION_PAGE_ID, 0 );
 				$meal_page  = Install::get_meal_booking_page_id();
+				$childcare_page = Install::get_childcare_booking_page_id();
 				if ( ! $meal_page ) {
 					$meal_page = (int) Install::ensure_meal_booking_page();
+				}
+				if ( ! $childcare_page ) {
+					$childcare_page = (int) Install::ensure_childcare_booking_page();
 				}
 				if ( $guest_page ) :
 					?>
@@ -2486,6 +2557,16 @@ class Admin {
 				<?php else : ?>
 					<p class="description vila-cb-ui-footnote" style="color:#b00020;">
 						<?php esc_html_e( 'Book meals page not found.', 'vila-campsite-booking' ); ?>
+						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?vila_cb_create_public_pages=1' ), 'vila_cb_create_public_pages' ) ); ?>"><?php esc_html_e( 'Create it now', 'vila-campsite-booking' ); ?></a>
+					</p>
+				<?php endif; ?>
+				<?php if ( $childcare_page ) : ?>
+					<p class="description vila-cb-ui-footnote">
+						<a href="<?php echo esc_url( get_permalink( $childcare_page ) ); ?>" target="_blank" rel="noreferrer"><?php esc_html_e( 'Open childcare booking page', 'vila-campsite-booking' ); ?></a>
+					</p>
+				<?php else : ?>
+					<p class="description vila-cb-ui-footnote" style="color:#b00020;">
+						<?php esc_html_e( 'Book childcare page not found.', 'vila-campsite-booking' ); ?>
 						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?vila_cb_create_public_pages=1' ), 'vila_cb_create_public_pages' ) ); ?>"><?php esc_html_e( 'Create it now', 'vila-campsite-booking' ); ?></a>
 					</p>
 				<?php endif; ?>

@@ -154,7 +154,7 @@ const DATABASES = [
       Description: rich(),
       Notes: rich(),
     },
-    samples: [],
+    samples: ["Child minder"],
   },
   {
     key: "Campsite Bookings",
@@ -187,6 +187,24 @@ const DATABASES = [
       "Breakfast detail": rich(),
       "Dinner detail": rich(),
       "Weekday dinner?": check(),
+    },
+    samples: [],
+  },
+  {
+    key: "Childcare",
+    parentSection: "Calendars",
+    purpose:
+      "Daily childcare roster for child minders. Add a Calendar layout on Date. Contains parent contacts and allergy/medical notes.",
+    calendarView: { name: "Calendar", dateColumn: "Date" },
+    properties: {
+      Name: title(),
+      "Day ID": rich(),
+      Date: date(),
+      Headcount: num(),
+      Capacity: num(),
+      Roster: rich(),
+      Absent: num(),
+      "Open?": check(),
     },
     samples: [],
   },

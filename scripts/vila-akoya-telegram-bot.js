@@ -46,6 +46,8 @@
  *   EVENT_CAPTURE_GROUP     Notion Stage for new events (default "Upcoming")
  *   EVENT_RECURRING_GROUP   Notion Stage for repeating events (default "Recurring")
  *   NOTION_POLL_SECONDS     how often to poll Notion for changes (default 60)
+ *   CHILDCARE_DB            Notion childcare database title override
+ *   VILA_OPS_API_TOKEN      WordPress ops token, needed for childcare absence writes
  */
 
 "use strict";
@@ -54,6 +56,7 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const notion = require("./lib/notion");
+const campsiteOps = require("./lib/campsite-ops");
 const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
 const {
@@ -105,6 +108,7 @@ const EXPENSES_DB_NAME = process.env.EXPENSES_DB_NAME || notion.DB.EXPENSES;
 const CAMPSITE_BOOKINGS_DB_NAME =
   process.env.CAMPSITE_BOOKINGS_DB || notion.DB.BOOKINGS;
 const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
+const CHILDCARE_DB_NAME = process.env.CHILDCARE_DB || notion.DB.CHILDCARE;
 
 const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE === "true";
 const AMBIENT_MIN_CONFIDENCE = Number(process.env.AMBIENT_MIN_CONFIDENCE || 0.7);
@@ -116,6 +120,7 @@ const RECAP_TIME = process.env.RECAP_TIME || "08:00";
 const RECAP_TZ = process.env.RECAP_TZ || "Europe/Lisbon";
 const SITE_URL = String(process.env.WP_SITE_URL || "https://vila-akoya.com").replace(/\/$/, "");
 const DINNER_BOOKING_URL = `${SITE_URL}/book-meals/`;
+const CHILDCARE_BOOKING_URL = `${SITE_URL}/book-childcare/`;
 const EVENT_CAPTURE_GROUP = process.env.EVENT_CAPTURE_GROUP || "Upcoming";
 const EVENT_RECURRING_GROUP = process.env.EVENT_RECURRING_GROUP || "Recurring";
 const ADDRESS_WINDOW_MS = Number(process.env.ADDRESS_WINDOW_MS || 120000);
@@ -362,6 +367,36 @@ function looksLikeDinnerBookingRequest(text) {
     /\bbook\s+(?:my\s+)?(?:the\s+)?(?:weekday\s+)?dinner\b/.test(t) ||
     /\b(?:reservar|marcar)\b.*\b(?:jantar|dinner)\b/.test(t)
   );
+}
+
+function looksLikeChildcareBookingRequest(text) {
+  const t = String(text || "").toLowerCase();
+  return (
+    /\b(?:book|reserve|marcar|reservar)\b.*\b(?:childcare|child care|kids?|children|babysit|babysitter|childminder|child minder)\b/.test(t) ||
+    /\b(?:need|want|quero|preciso)\b.*\b(?:childcare|child care|babysit|babysitter|childminder|child minder)\b/.test(t)
+  );
+}
+
+function looksLikeChildcareAbsenceRequest(text) {
+  const t = String(text || "").toLowerCase();
+  return (
+    /\b(?:won'?t|will not|can't|cannot|isn'?t|not|nao|não)\s+(?:come|attend|be there|go)\b/.test(t) &&
+    /\b(?:childcare|child care|today|hoje|kid|child|children)\b/.test(t)
+  ) || /\b(?:child|kid|filh[oa])\b.*\b(?:absent|sick|doente|won'?t come|nao vai|não vai)\b/.test(t);
+}
+
+function extractChildcareAbsence(text) {
+  const raw = String(text || "").trim();
+  const patterns = [
+    /\b(?:my\s+(?:child|kid|son|daughter)\s+)?([A-ZÀ-ÖØ-Þ][\p{L}'-]{1,}(?:\s+[A-ZÀ-ÖØ-Þ][\p{L}'-]{1,})?)\s+(?:won'?t|will not|can't|cannot|isn'?t|not)\s+(?:come|attend|be there|go)/u,
+    /\b([A-ZÀ-ÖØ-Þ][\p{L}'-]{1,}(?:\s+[A-ZÀ-ÖØ-Þ][\p{L}'-]{1,})?)\s+(?:is\s+)?(?:absent|sick|doente)/u,
+    /\b(?:kid|child|filh[oa])\s+([A-ZÀ-ÖØ-Þ][\p{L}'-]{1,}(?:\s+[A-ZÀ-ÖØ-Þ][\p{L}'-]{1,})?)/u,
+  ];
+  for (const pattern of patterns) {
+    const match = raw.match(pattern);
+    if (match?.[1]) return { childName: match[1].trim(), date: todayISO() };
+  }
+  return { childName: "", date: todayISO() };
 }
 
 function looksLikeReceiptIntent(text) {
@@ -823,6 +858,7 @@ function loadState() {
     if (!s.pendingQuestionnaire) s.pendingQuestionnaire = {};
     else s.pendingQuestionnaire = normalizePendingQuestionnaires(s.pendingQuestionnaire);
     if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
+    if (s.lastChildcareRecapDate === undefined) s.lastChildcareRecapDate = null;
     if (s.seededNotion === undefined) {
       if (s.seededMonday !== undefined) s.items = {};
       s.seededNotion = false;
@@ -834,6 +870,7 @@ function loadState() {
       seededNotion: false,
       lastRecapDate: null,
       lastPersonalRecapDate: null,
+      lastChildcareRecapDate: null,
       ambientKeys: {},
       chatActivity: [],
       chatLog: [],
@@ -976,6 +1013,7 @@ function refreshRecapDatesFromDisk() {
     const disk = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
     if (disk.lastRecapDate) state.lastRecapDate = disk.lastRecapDate;
     if (disk.lastPersonalRecapDate) state.lastPersonalRecapDate = disk.lastPersonalRecapDate;
+    if (disk.lastChildcareRecapDate) state.lastChildcareRecapDate = disk.lastChildcareRecapDate;
   } catch {
     // state file missing or unreadable
   }
@@ -2699,6 +2737,49 @@ async function fetchCampsiteMealsForDay(dateISO) {
   };
 }
 
+async function fetchChildcareForDay(dateISO) {
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(CHILDCARE_DB_NAME));
+  } catch (err) {
+    log("Childcare database unavailable:", err.message);
+    return null;
+  }
+
+  for (const page of pages) {
+    if (!pageMatchesDay(page, dateISO)) continue;
+    return {
+      headcount: Number(notion.pagePropText(page, "Headcount") || 0) || 0,
+      capacity: Number(notion.pagePropText(page, "Capacity") || 0) || 0,
+      roster: notion.pagePropText(page, "Roster"),
+      absent: Number(notion.pagePropText(page, "Absent") || 0) || 0,
+      open: notion.pagePropText(page, "Open?").toLowerCase() === "true",
+      name: notion.pageTitle(page),
+    };
+  }
+  return { headcount: 0, capacity: 0, roster: "", absent: 0, open: false, name: "" };
+}
+
+function formatChildcareLine(childcare) {
+  if (!childcare) return "Childcare: database not available";
+  const cap = childcare.capacity ? ` / ${childcare.capacity}` : "";
+  const absent = childcare.absent ? ` (${childcare.absent} absent)` : "";
+  return `Childcare: ${childcare.headcount}${cap} children${absent}`;
+}
+
+function formatChildcareRoster(childcare) {
+  if (!childcare) return "Childcare database is not available.";
+  if (!childcare.headcount && !childcare.absent) return "No children booked into childcare today.";
+  const lines = [formatChildcareLine(childcare)];
+  if (childcare.roster) {
+    lines.push("");
+    for (const line of childcare.roster.split("\n").filter(Boolean)) {
+      lines.push(`• ${line}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 function formatCampsiteSnapshot(dateISO, activity, meals) {
   const lines = ["Campsite bookings (Notion):"];
   if (activity.arrivals.length) {
@@ -2744,13 +2825,17 @@ function formatCampsiteSnapshot(dateISO, activity, meals) {
   return lines.join("\n");
 }
 
-async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
+async function buildScheduleSnapshot(question, { scheduleRange, includeChildcareDetails = false } = {}) {
   const { start, end, label } = resolveScheduleRangeForToday(scheduleRange || "two_weeks");
 
   const lines = [label, ""];
 
   if (start === end) {
-    lines.push(await buildDataSnapshot(start).then((s) => s.split("\n").slice(2).join("\n")));
+    lines.push(
+      await buildDataSnapshot(start, { includeChildcareDetails }).then((s) =>
+        s.split("\n").slice(2).join("\n")
+      )
+    );
   } else {
     lines.push("Events (on Notion):");
     const events = await fetchEventsBetween(start, end);
@@ -2776,17 +2861,19 @@ async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
     }
     if (!anyChores) lines.push("- (none on rota in this period)");
 
-    lines.push("", "Campsite check-ins / meals:");
+    lines.push("", "Campsite check-ins / meals / childcare:");
     day = start;
     let anyCampsite = false;
     while (day <= end) {
       const activity = await fetchCampsiteActivityForDay(day);
       const meals = await fetchCampsiteMealsForDay(day);
+      const childcare = await fetchChildcareForDay(day);
       const hasActivity =
         activity.arrivals.length ||
         activity.departures.length ||
         activity.staying.length ||
-        (meals && (meals.breakfastCook || meals.dinnerCook));
+        (meals && (meals.breakfastCook || meals.dinnerCook)) ||
+        (childcare && (childcare.headcount || childcare.absent));
       if (hasActivity) {
         anyCampsite = true;
         lines.push(`${day}:`);
@@ -2805,19 +2892,28 @@ async function buildScheduleSnapshot(question, { scheduleRange } = {}) {
               (meals.isWeekday === false ? ", dinner (weekend off)" : `, dinner ${meals.dinnerCook}`)
           );
         }
+        if (childcare) {
+          lines.push(`  ${formatChildcareLine(childcare)}`);
+          if (includeChildcareDetails && childcare.roster) {
+            for (const line of childcare.roster.split("\n").filter(Boolean)) {
+              lines.push(`    - ${line}`);
+            }
+          }
+        }
       }
       day = addDaysISO(day, 1);
     }
-    if (!anyCampsite) lines.push("- (no campsite bookings/meals in this period)");
+    if (!anyCampsite) lines.push("- (no campsite bookings/meals/childcare in this period)");
   }
   return lines.join("\n");
 }
 
-async function buildDataSnapshot(dateISO) {
+async function buildDataSnapshot(dateISO, { includeChildcareDetails = false } = {}) {
   const chores = await fetchRotaForDay(dateISO);
   const events = await fetchEventsForDate(dateISO);
   const activity = await fetchCampsiteActivityForDay(dateISO);
   const meals = await fetchCampsiteMealsForDay(dateISO);
+  const childcare = await fetchChildcareForDay(dateISO);
   const dayName = new Intl.DateTimeFormat("en-GB", {
     timeZone: RECAP_TZ,
     weekday: "long",
@@ -2841,6 +2937,12 @@ async function buildDataSnapshot(dateISO) {
     lines.push("- (none)");
   }
   lines.push("", formatCampsiteSnapshot(dateISO, activity, meals));
+  lines.push("", "Childcare:");
+  if (includeChildcareDetails) {
+    lines.push(formatChildcareRoster(childcare));
+  } else {
+    lines.push(formatChildcareLine(childcare));
+  }
   return lines.join("\n");
 }
 
@@ -2855,9 +2957,11 @@ async function buildDailyRecap(dateISO) {
   const yesterdayHighlights = await buildYesterdayHighlights(yesterday);
   let activity = { arrivals: [], departures: [], staying: [] };
   let meals = null;
+  let childcare = null;
   try {
     activity = await fetchCampsiteActivityForDay(dateISO);
     meals = await fetchCampsiteMealsForDay(dateISO);
+    childcare = await fetchChildcareForDay(dateISO);
   } catch (err) {
     log("Campsite Notion fetch for recap failed:", err.message);
   }
@@ -2920,6 +3024,11 @@ async function buildDailyRecap(dateISO) {
         }
       }
     }
+  }
+
+  if (childcare) {
+    lines.push("", "<b>Childcare today</b>");
+    lines.push(`• ${escapeHtml(formatChildcareLine(childcare))}`);
   }
 
   if (yesterdayHighlights.length) {
@@ -3172,6 +3281,177 @@ function memberAsTelegramUser(member) {
   };
 }
 
+function splitAssigneeNames(value) {
+  return String(value || "")
+    .split(/[,;&]|\band\b/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+async function fetchChildMinderMembers() {
+  let jobs;
+  let members;
+  try {
+    ({ pages: jobs } = await notion.queryDatabase(JOBS_DB_NAME));
+    members = await fetchMembersForMorningDm();
+  } catch (err) {
+    log("Child minder resolution failed:", err.message);
+    return [];
+  }
+
+  const wantedNames = new Set();
+  for (const job of jobs || []) {
+    const title = notion.pageTitle(job);
+    const status = notion.pagePropText(job, "Status");
+    if (status === "Archived" || !/\bchild\s*minder\b/i.test(title)) continue;
+    for (const name of splitAssigneeNames(notion.pagePropText(job, "Assignee"))) {
+      wantedNames.add(name);
+    }
+  }
+
+  if (!wantedNames.size) return [];
+  return members.filter((member) => {
+    for (const name of wantedNames) {
+      if (nameMatchesPerson(member.displayName, name) || titleMatches(member.displayName, name)) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+async function isChildMinder(from) {
+  const uid = from?.id ? String(from.id) : "";
+  const username = String(from?.username || "").replace(/^@/, "").toLowerCase();
+  if (!uid && !username) return false;
+  const minders = await fetchChildMinderMembers();
+  return minders.some((member) => {
+    const memberUid = String(member.userId || "");
+    const memberUser = String(member.username || "").replace(/^@/, "").toLowerCase();
+    return (uid && memberUid === uid) || (username && memberUser === username);
+  });
+}
+
+function isPrivateChat(chatId, from) {
+  return from?.id != null && String(chatId) === String(from.id);
+}
+
+function isSensitiveChildcareQuestion(text) {
+  const t = String(text || "").toLowerCase();
+  return (
+    /\b(childcare|child care|child minder|kids?|children)\b/.test(t) &&
+    /\b(allerg|medical|medication|phone|number|parent|roster|who|sam|contact)\b/.test(t)
+  ) || /\b(allerg(?:y|ies)|medical|medication)\b.*\b(today|kid|child|children)\b/.test(t) ||
+    /\b(parent'?s?|parents?)\b.*\b(phone|number|contact)\b/.test(t);
+}
+
+async function maybeSendChildcareMorningBriefings(dateISO) {
+  if (!DAILY_RECAP) return;
+  if (!telegramPollActive) return;
+  refreshRecapDatesFromDisk();
+  if (state.lastChildcareRecapDate === dateISO) return;
+  if (currentHHMM() < RECAP_TIME) return;
+
+  const childcare = await fetchChildcareForDay(dateISO);
+  if (!childcare || (!childcare.headcount && !childcare.absent && childcare.open === false)) {
+    state.lastChildcareRecapDate = dateISO;
+    saveState();
+    return;
+  }
+
+  const minders = await fetchChildMinderMembers();
+  let sent = 0;
+  for (const minder of minders) {
+    try {
+      await sendMessage(
+        minder.userId,
+        `<b>Childcare today</b>\n${escapeHtml(formatChildcareRoster(childcare))}`
+      );
+      sent += 1;
+    } catch (err) {
+      log(`Childcare morning DM failed for ${minder.displayName}:`, err.message);
+    }
+  }
+  state.lastChildcareRecapDate = dateISO;
+  saveState();
+  if (sent) log(`Childcare morning briefings sent: ${sent}`);
+}
+
+function childcareFromOpsDay(day) {
+  if (!day) return null;
+  const rosterLines = [];
+  for (const child of day.children || []) {
+    const bits = [
+      `${child.child_name || ""}, age ${child.child_age || 0}`,
+      `parent ${child.parent_name || ""}`,
+      `phone ${child.parent_phone || ""}`,
+    ];
+    if (child.allergies) bits.push(`allergies/medical: ${child.allergies}`);
+    rosterLines.push(bits.filter(Boolean).join(" · "));
+  }
+  for (const child of day.absent_children || []) {
+    rosterLines.push(`ABSENT: ${child.child_name || ""}, age ${child.child_age || 0} · parent ${child.parent_name || ""} · phone ${child.parent_phone || ""}`);
+  }
+  return {
+    headcount: Number(day.booked_count || 0),
+    capacity: Number(day.capacity || 0),
+    absent: Number(day.absent_count || 0),
+    open: Boolean(day.open),
+    roster: rosterLines.join("\n"),
+  };
+}
+
+async function notifyChildMindersOfAbsence(place, day) {
+  const minders = await fetchChildMinderMembers();
+  if (!minders.length) return 0;
+  const childcare = childcareFromOpsDay(day) || (await fetchChildcareForDay(place?.ymd || todayISO()));
+  const childName = place?.child_name || "A child";
+  const date = place?.ymd || todayISO();
+  let sent = 0;
+  for (const minder of minders) {
+    const text =
+      `<b>Childcare absence</b>\n` +
+      `${escapeHtml(childName)} will not attend childcare on ${escapeHtml(date)}.\n\n` +
+      escapeHtml(formatChildcareRoster(childcare));
+    if (await sendMessage(minder.userId, text)) sent += 1;
+  }
+  return sent;
+}
+
+async function handleChildcareAbsence({ text, from, chatId, childName, date }) {
+  const parsed = childName
+    ? { childName, date: date || todayISO() }
+    : extractChildcareAbsence(text);
+  if (!parsed.childName) {
+    await sendMessage(chatId, "Which child should I mark absent from childcare today?");
+    return true;
+  }
+  try {
+    const result = await campsiteOps.markChildcareAbsent({
+      date: parsed.date || todayISO(),
+      childName: parsed.childName,
+      telegramUsername: from?.username || "",
+    });
+    const place = result?.place || {};
+    await sendMessage(
+      chatId,
+      `Marked <b>${escapeHtml(place.child_name || parsed.childName)}</b> absent for childcare today. I’ve told the child minders.`
+    );
+    await notifyChildMindersOfAbsence(place, result?.day);
+  } catch (err) {
+    const msg = String(err?.message || "");
+    if (msg.includes("409") || /ambiguous/i.test(msg)) {
+      await sendMessage(chatId, "I found more than one matching child. Please send the full child name.");
+    } else if (msg.includes("401") || msg.includes("503")) {
+      await sendMessage(chatId, "I can understand that absence, but the website ops token is not configured for VAVA yet.");
+    } else {
+      await sendMessage(chatId, "I couldn't find a booked childcare place for that child today.");
+    }
+    log("childcare absence error:", msg);
+  }
+  return true;
+}
+
 async function maybeSendPersonalMorningBriefings(dateISO) {
   if (!DAILY_RECAP) return;
   if (!telegramPollActive) return;
@@ -3196,6 +3476,7 @@ async function maybeSendPersonalMorningBriefings(dateISO) {
   state.lastPersonalRecapDate = dateISO;
   saveState();
   if (sent) log(`Personal morning briefings sent: ${sent}`);
+  await maybeSendChildcareMorningBriefings(dateISO);
 }
 
 async function registerMember({ displayName, from, chatId }) {
@@ -4199,8 +4480,21 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
   if (questionKind === "schedule") {
     const rangeOpts = { scheduleRange: scheduleRange || "two_weeks" };
     const calendar = buildWeekCalendarContext(todayISO(), RECAP_TZ);
+    const wantsChildcareDetails = isSensitiveChildcareQuestion(text);
+    const allowChildcareDetails =
+      wantsChildcareDetails && isPrivateChat(chatId, from) && (await isChildMinder(from));
+    if (wantsChildcareDetails && !allowChildcareDetails) {
+      await sendMessage(
+        chatId,
+        "I can only share childcare names, allergies, and parent phone numbers in a private chat with someone on the Child minder role."
+      );
+      return true;
+    }
     try {
-      const snapshot = await buildScheduleSnapshot(text, rangeOpts);
+      const snapshot = await buildScheduleSnapshot(text, {
+        ...rangeOpts,
+        includeChildcareDetails: allowChildcareDetails,
+      });
       const dataResult = await openaiLib.answerFromData(
         text,
         `${calendar}\n\n${snapshot}`
@@ -4214,7 +4508,10 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
       log("answerFromNotionData error:", err.message);
     }
     try {
-      const snapshot = await buildScheduleSnapshot(text, rangeOpts);
+      const snapshot = await buildScheduleSnapshot(text, {
+        ...rangeOpts,
+        includeChildcareDetails: allowChildcareDetails,
+      });
       await sendMessage(chatId, `<pre>${escapeHtml(snapshot)}</pre>`);
       log(`Schedule answer (snapshot): ${text.slice(0, 60)}`);
       return true;
@@ -4488,6 +4785,35 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
 
   if (interactive && text && looksLikeExpenseQuestion(text)) {
     await sendExpenseSummary(chatId, { from });
+    return;
+  }
+
+  if (interactive && text && looksLikeChildcareAbsenceRequest(text)) {
+    await handleChildcareAbsence({ text, from, chatId });
+    return;
+  }
+
+  if (interactive && text && looksLikeChildcareBookingRequest(text)) {
+    await sendMessage(
+      chatId,
+      `You can book childcare on the website: <a href="${CHILDCARE_BOOKING_URL}">book-childcare</a>.`
+    );
+    return;
+  }
+
+  if (
+    interactive &&
+    text &&
+    c.action === "childcare_absent" &&
+    conf >= EVENT_MIN_CONFIDENCE
+  ) {
+    await handleChildcareAbsence({
+      text,
+      from,
+      chatId,
+      childName: c.childcare_absence?.child_name,
+      date: c.childcare_absence?.date,
+    });
     return;
   }
 

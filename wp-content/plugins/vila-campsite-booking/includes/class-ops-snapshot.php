@@ -119,6 +119,7 @@ class Ops_Snapshot {
 			'staying'    => $staying,
 			'bookings'   => $bookings,
 			'meals'      => self::serialize_meal_day( $meal_day ),
+			'childcare'  => Childcare_Service::day_snapshot( $ymd ),
 		);
 	}
 
@@ -153,6 +154,28 @@ class Ops_Snapshot {
 			'days'   => $days,
 			'totals' => isset( $plan['totals'] ) ? $plan['totals'] : array(),
 		);
+	}
+
+	/**
+	 * Childcare plan for an inclusive date range.
+	 *
+	 * @param string $from_ymd Y-m-d inclusive.
+	 * @param string $to_ymd   Y-m-d inclusive.
+	 * @return array<string, mixed>
+	 */
+	public static function get_childcare_range( $from_ymd, $to_ymd ) {
+		$from_ymd = sanitize_text_field( (string) $from_ymd );
+		$to_ymd   = sanitize_text_field( (string) $to_ymd );
+		if ( ! Dates::parse_ymd( $from_ymd ) || ! Dates::parse_ymd( $to_ymd ) || $to_ymd < $from_ymd ) {
+			return array(
+				'from'  => $from_ymd,
+				'to'    => $to_ymd,
+				'error' => 'invalid_range',
+				'days'  => array(),
+			);
+		}
+
+		return Childcare_Service::get_range( $from_ymd, $to_ymd );
 	}
 
 	/**

@@ -45,6 +45,7 @@ const ACTIONS = [
   "availability",
   "announcement",
   "book_meal",
+  "childcare_absent",
   "create_expense",
   "question_expenses",
 ];
@@ -261,10 +262,10 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '    EN: "what should I do today?", "what\'s on my list?", "my chores today", "what do I need to do?"',
     '    PT: "o que tenho de fazer hoje?", "quais são as minhas tarefas?"',
     "    Use this when the speaker refers to themselves (I/me/my), NOT the whole village schedule.",
-    "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, or meal headcounts already in Notion",
+    "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, meal headcounts, or childcare rosters already in Notion",
     "    Set schedule_lookup=true and schedule_range: today | this_week | next_week | two_weeks",
     "    Pick the range that matches what the speaker asked (use WEEK CALENDAR above).",
-    "    Guest arrival/departure and breakfast/dinner cook counts → question_schedule (NOT guest_issue).",
+    "    Guest arrival/departure, breakfast/dinner cook counts, and childcare allergy/phone/roster questions → question_schedule (NOT guest_issue).",
     "    Whole-group “what’s happening / who’s on rota” → question_schedule (not question_my_day).",
     "",
     "── Notion actions (create or update databases) ──",
@@ -332,6 +333,10 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '    NOT book_meal: headcount questions ("how many for dinner?"), organising a new meal/event (create_event),',
     '    or reporting a kitchen issue (create_task / guest_issue).',
     "- rsvp_event: speaker says they are coming to an event, RSVP, or \"I'm in\" for a known event.",
+    "- childcare_absent: parent says their child/kid will not attend childcare today.",
+    '    EN: "Sam won\'t attend childcare today", "my kid Maya is sick", "Luna won\'t come today"',
+    '    PT: "o meu filho Sam não vai hoje", "a Maya está doente"',
+    "    Populate childcare_absence.child_name when the child is named; date defaults to today unless explicit.",
     '    Examples: "I\'m coming to the BBQ", "count me in for yoga", "eu vou ao almoço"',
     "    Populate rsvp.title with the event name to match.",
     "- create_reminder: speaker wants to be reminded about something in X days/weeks/months, or set a deadline reminder.",
@@ -381,7 +386,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "rsvp": { "title" } | null,',
     '  "reminder": { "title", "due_date", "notes" } | null,',
     '  "note": { "target_title", "text" } | null,',
-    '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "notes" } | null }',
+    '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "notes" } | null,',
+    '  "childcare_absence": { "child_name", "date" } | null }',
     "",
     "For create_event always provide event.title; provide event.date for one-offs.",
     "For repeating events always provide event.recurrence (canonical form above) and event.date = next occurrence.",
@@ -467,6 +473,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     expense: "create_expense",
     receipt: "create_expense",
     receipts: "question_expenses",
+    child_absent: "childcare_absent",
+    childcare_absence: "childcare_absent",
   };
   let action = ACTIONS.includes(legacyMap[rawAction] || rawAction)
     ? legacyMap[rawAction] || rawAction
@@ -610,6 +618,17 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
   const expense =
     action === "create_expense" ? normalizeExpenseFields(expenseRaw || {}) : null;
 
+  const childcareAbsenceRaw = result.childcare_absence || {};
+  const childcareAbsence =
+    action === "childcare_absent"
+      ? {
+          child_name: String(childcareAbsenceRaw.child_name || "").trim().slice(0, 100),
+          date: childcareAbsenceRaw.date
+            ? String(childcareAbsenceRaw.date).slice(0, 10)
+            : todayISOForParse(),
+        }
+      : null;
+
   const scheduleDays = Number(result.schedule_days);
   const scheduleRange = normalizeScheduleRange(result);
   const isQuestion =
@@ -634,6 +653,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_reminder: action === "create_reminder" && Boolean(reminder?.title),
     is_add_note: action === "add_note" && Boolean(note?.target_title),
     is_book_meal: action === "book_meal",
+    is_childcare_absence: action === "childcare_absent",
     is_expense: action === "create_expense",
     question_kind:
       action === "question_doc"
@@ -660,6 +680,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     reminder,
     note,
     expense,
+    childcare_absence: childcareAbsence,
   };
 }
 

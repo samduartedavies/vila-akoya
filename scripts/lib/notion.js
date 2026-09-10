@@ -28,6 +28,7 @@ const DB = {
   RECURRING: "Recurring Duties",
   BOOKINGS: "Campsite Bookings",
   MEALS: "Campsite Meals",
+  CHILDCARE: "Childcare",
   PROJECTS: "Projects",
   DOCS: "Documentation",
   MEMBERS: "Members",

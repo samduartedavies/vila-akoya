@@ -17,6 +17,7 @@ class Shortcode {
 	const SHORTCODE = 'vila_campsite_booking';
 	const GUEST_REGISTRATION_SHORTCODE = 'vila_guest_registration';
 	const MEAL_BOOKING_SHORTCODE = 'vila_meal_booking';
+	const CHILDCARE_BOOKING_SHORTCODE = 'vila_childcare_booking';
 
 	/**
 	 * Init hooks.
@@ -25,6 +26,7 @@ class Shortcode {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_shortcode( self::GUEST_REGISTRATION_SHORTCODE, array( __CLASS__, 'render_guest_registration' ) );
 		add_shortcode( self::MEAL_BOOKING_SHORTCODE, array( __CLASS__, 'render_meal_booking' ) );
+		add_shortcode( self::CHILDCARE_BOOKING_SHORTCODE, array( __CLASS__, 'render_childcare_booking' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 	}
 
@@ -62,6 +64,13 @@ class Shortcode {
 		wp_register_script(
 			'vila-cb-meal-booking',
 			VILA_CB_URL . 'assets/js/meal-booking.js',
+			array(),
+			VILA_CB_VERSION,
+			true
+		);
+		wp_register_script(
+			'vila-cb-childcare-booking',
+			VILA_CB_URL . 'assets/js/childcare-booking.js',
 			array(),
 			VILA_CB_VERSION,
 			true
@@ -585,6 +594,182 @@ class Shortcode {
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Public childcare booking / payment form.
+	 *
+	 * @return string
+	 */
+	public static function render_childcare_booking() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return '';
+		}
+		$product_id = Childcare_Booking::ensure_product();
+		if ( $product_id < 1 ) {
+			return '<p class="vila-cb-msg vila-cb-msg--error">' . esc_html__( 'Childcare booking is not available yet.', 'vila-campsite-booking' ) . '</p>';
+		}
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return '<p class="vila-cb-msg vila-cb-msg--error">' . esc_html__( 'Childcare booking is not available yet.', 'vila-campsite-booking' ) . '</p>';
+		}
+
+		wp_enqueue_style( 'vila-cb-frontend' );
+		wp_enqueue_script( 'vila-cb-childcare-booking' );
+
+		$settings     = Childcare_Service::settings();
+		$availability = esc_url_raw( rest_url( 'vila-campsite-booking/v1/childcare/availability' ) );
+		$checkout     = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' );
+		$currency     = array(
+			'symbol'     => function_exists( 'get_woocommerce_currency_symbol' ) ? html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) : '€',
+			'decimalSep' => function_exists( 'wc_get_price_decimal_separator' ) ? wc_get_price_decimal_separator() : ',',
+		);
+		$config       = array(
+			'availabilityUrl' => $availability,
+			'checkout'        => $checkout,
+			'price'           => isset( $settings['fee_per_child_day'] ) ? (float) $settings['fee_per_child_day'] : 15.0,
+			'capacity'        => isset( $settings['capacity'] ) ? (int) $settings['capacity'] : 8,
+			'currency'        => $currency,
+			'strings'         => array(
+				'needParent'        => __( 'Please enter the parent name.', 'vila-campsite-booking' ),
+				'needPhone'         => __( 'Please enter a phone number.', 'vila-campsite-booking' ),
+				'needChild'         => __( 'Add at least one child name.', 'vila-campsite-booking' ),
+				'needDates'         => __( 'Select at least one childcare date.', 'vila-campsite-booking' ),
+				'notAvailable'      => __( 'Some selected dates are no longer available.', 'vila-campsite-booking' ),
+				'perDay'            => __( '%s / child / day', 'vila-campsite-booking' ),
+				'selectedDays'      => __( 'selected days', 'vila-campsite-booking' ),
+				'children'          => __( 'children', 'vila-campsite-booking' ),
+				'breakdownEmpty'    => __( 'Add children and select dates to see your estimate.', 'vila-campsite-booking' ),
+				'remainingSingular' => __( '1 place left', 'vila-campsite-booking' ),
+				'remainingPlural'   => __( '%d places left', 'vila-campsite-booking' ),
+				'closed'            => __( 'Closed', 'vila-campsite-booking' ),
+				'full'              => __( 'Full', 'vila-campsite-booking' ),
+				'cutoff'            => __( 'Booking closed', 'vila-campsite-booking' ),
+				'addChild'          => __( 'Add child', 'vila-campsite-booking' ),
+				'removeChild'       => __( 'Remove', 'vila-campsite-booking' ),
+			),
+		);
+
+		wp_localize_script( 'vila-cb-childcare-booking', 'vilaChildcareBooking', $config );
+
+		$action = self::childcare_booking_form_action_url();
+		if ( ! $action ) {
+			$action = esc_url( home_url( '/' ) );
+		} else {
+			$action = esc_url( $action );
+		}
+
+		ob_start();
+		?>
+		<div
+			class="vila-cb vila-cb-gr vila-cb-mb vila-cb-childcare"
+			data-vila-childcare-root
+			data-availability-url="<?php echo esc_url( $availability ); ?>"
+			data-pricing="<?php echo esc_attr( wp_json_encode( array( 'child' => (float) $config['price'] ) ) ); ?>"
+			data-currency="<?php echo esc_attr( wp_json_encode( $currency ) ); ?>"
+		>
+			<?php if ( function_exists( 'wc_print_notices' ) ) : ?>
+				<div class="vila-cb-mb__notices">
+					<?php wc_print_notices(); ?>
+				</div>
+			<?php endif; ?>
+			<div class="vila-cb-gr__intro">
+				<p class="vila-cb__hint">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: 1: price, 2: capacity */
+							__( 'Book childcare by the day. Placeholder price: %1$s per child per day. Current capacity: %2$d children per open day.', 'vila-campsite-booking' ),
+							function_exists( 'wc_price' ) ? wp_strip_all_tags( wc_price( (float) $config['price'] ) ) : '€' . (string) (float) $config['price'],
+							(int) $config['capacity']
+						)
+					);
+					?>
+				</p>
+			</div>
+
+			<form class="vila-cb-gr__form" method="post" action="<?php echo $action; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" data-vila-childcare-form>
+				<?php wp_nonce_field( 'vila_childcare_booking', 'vila_childcare_booking_nonce' ); ?>
+				<input type="hidden" name="add-to-cart" value="<?php echo esc_attr( (string) $product_id ); ?>" />
+				<input type="hidden" name="quantity" value="1" />
+				<div data-vila-childcare-hidden-dates></div>
+
+				<section class="vila-cb-gr__panel">
+					<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Parent details', 'vila-campsite-booking' ); ?></h2>
+					<div class="vila-cb-gr__manual-fields">
+						<label>
+							<span><?php esc_html_e( 'Your name', 'vila-campsite-booking' ); ?></span>
+							<input type="text" name="vila_childcare_parent_name" autocomplete="name" required data-vila-childcare-parent-name />
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Phone number', 'vila-campsite-booking' ); ?></span>
+							<input type="tel" name="vila_childcare_parent_phone" autocomplete="tel" required data-vila-childcare-parent-phone />
+						</label>
+						<label>
+							<span><?php esc_html_e( 'Telegram username (optional)', 'vila-campsite-booking' ); ?></span>
+							<input type="text" name="vila_childcare_telegram" autocomplete="off" placeholder="@username" data-vila-childcare-telegram />
+						</label>
+					</div>
+					<label class="vila-cb-childcare__remember">
+						<input type="checkbox" data-vila-childcare-remember />
+						<span><?php esc_html_e( 'Remember my details on this device', 'vila-campsite-booking' ); ?></span>
+					</label>
+				</section>
+
+				<section class="vila-cb-gr__panel">
+					<div class="vila-cb-gr__guest-tools">
+						<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Children', 'vila-campsite-booking' ); ?></h2>
+						<button type="button" class="vila-cb-gr__add-guest" data-vila-childcare-add-child><?php esc_html_e( 'Add child', 'vila-campsite-booking' ); ?></button>
+					</div>
+					<div class="vila-cb-childcare__children" data-vila-childcare-children></div>
+				</section>
+
+				<section class="vila-cb-gr__panel">
+					<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Childcare dates', 'vila-campsite-booking' ); ?></h2>
+					<p class="vila-cb__hint">
+						<?php esc_html_e( 'Tap days on the calendar to add or remove them. Today is closed; after 15:00, tomorrow is closed too.', 'vila-campsite-booking' ); ?>
+					</p>
+					<div class="vila-cb-mb__dates" data-vila-childcare-dates></div>
+					<div class="vila-cb-mb__calendar vila-cb-childcare__calendar" data-vila-childcare-calendar aria-label="<?php esc_attr_e( 'Childcare dates calendar', 'vila-campsite-booking' ); ?>"></div>
+				</section>
+
+				<section class="vila-cb-gr__panel vila-cb-mb__summary">
+					<div class="vila-cb-mb__bill">
+						<ul class="vila-cb-mb__breakdown" data-vila-childcare-breakdown aria-live="polite"></ul>
+						<p class="vila-cb-mb__total">
+							<span class="vila-cb-mb__total-label"><?php esc_html_e( 'Total', 'vila-campsite-booking' ); ?></span>
+							<span class="vila-cb-mb__total-amount" data-vila-childcare-total>€0</span>
+						</p>
+					</div>
+					<button type="submit" class="vila-cb__cta"><?php esc_html_e( 'Continue to payment', 'vila-campsite-booking' ); ?></button>
+				</section>
+			</form>
+
+			<div class="vila-cb-gr__message" data-vila-childcare-message role="status" aria-live="polite"></div>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * @return string
+	 */
+	private static function childcare_booking_form_action_url() {
+		$page_id = (int) get_queried_object_id();
+		if ( $page_id > 0 && 'page' === get_post_type( $page_id ) ) {
+			$url = get_permalink( $page_id );
+			if ( is_string( $url ) && '' !== $url ) {
+				return $url;
+			}
+		}
+		$page = Install::get_childcare_booking_page_id();
+		if ( $page > 0 ) {
+			$url = get_permalink( $page );
+			if ( is_string( $url ) && '' !== $url ) {
+				return $url;
+			}
+		}
+		return '';
 	}
 
 	/**

@@ -106,6 +106,40 @@ async function fetchOpsMeals(from, to) {
   );
 }
 
+/**
+ * @param {string} from Y-m-d
+ * @param {string} to Y-m-d
+ */
+async function fetchOpsChildcare(from, to) {
+  return fetchJson(
+    `/wp-json/vila-campsite-booking/v1/ops/childcare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+  );
+}
+
+async function markChildcareAbsent({ date, childName, telegramUsername, placeId }) {
+  const body = placeId
+    ? { place_id: placeId }
+    : { date, child_name: childName, telegram_username: telegramUsername };
+  const url = `${apiBase()}/wp-json/vila-campsite-booking/v1/ops/childcare/absent`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Non-JSON from ${url} (HTTP ${res.status}): ${text.slice(0, 160)}`);
+  }
+  if (!res.ok) {
+    const msg = json?.message || json?.code || res.statusText;
+    throw new Error(`Childcare absence failed (HTTP ${res.status}): ${msg}`);
+  }
+  return json;
+}
+
 function formatBookingRecapLine(booking) {
   const plot = booking.plot_label ? ` — ${booking.plot_label}` : "";
   const party = booking.party_line ? ` — ${booking.party_line}` : "";
@@ -135,6 +169,8 @@ module.exports = {
   fetchOpsActivity,
   fetchOpsBookings,
   fetchOpsMeals,
+  fetchOpsChildcare,
+  markChildcareAbsent,
   formatBookingRecapLine,
   formatMealParties,
   addDaysISO,

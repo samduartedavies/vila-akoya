@@ -83,4 +83,14 @@ class Database {
 		global $wpdb;
 		return $wpdb->prefix . 'vila_guest_persons';
 	}
+
+	/**
+	 * Paid childcare places, one child per day.
+	 *
+	 * @return string
+	 */
+	public static function childcare_places_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'vila_childcare_places';
+	}
 }

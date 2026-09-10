@@ -17,6 +17,7 @@ class Install {
 	const OPTION_DB_VERSION = 'vila_cb_db_version';
 	const OPTION_GUEST_REGISTRATION_PAGE_ID = 'vila_cb_guest_registration_page_id';
 	const OPTION_MEAL_BOOKING_PAGE_ID = 'vila_cb_meal_booking_page_id';
+	const OPTION_CHILDCARE_BOOKING_PAGE_ID = 'vila_cb_childcare_booking_page_id';
 
 	/**
 	 * Plugin activation.
@@ -26,7 +27,8 @@ class Install {
 		self::seed_plots();
 		self::ensure_guest_registration_page();
 		self::ensure_meal_booking_page();
-		update_option( self::OPTION_DB_VERSION, '1.2.0' );
+		self::ensure_childcare_booking_page();
+		update_option( self::OPTION_DB_VERSION, '1.3.0' );
 		self::schedule_stay_hold_backfill();
 	}
 
@@ -101,6 +103,7 @@ class Install {
 			return;
 		}
 		self::ensure_meal_booking_page();
+		self::ensure_childcare_booking_page();
 		self::ensure_guest_registration_page();
 		if ( function_exists( 'flush_rewrite_rules' ) ) {
 			flush_rewrite_rules( false );
@@ -179,6 +182,11 @@ class Install {
 			}
 			update_option( self::OPTION_DB_VERSION, '1.2.1' );
 		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.3.0', '<' ) ) {
+			self::create_tables();
+			self::maybe_schedule_childcare_booking_page();
+			update_option( self::OPTION_DB_VERSION, '1.3.0' );
+		}
 		self::schedule_public_pages_check();
 	}
 
@@ -232,6 +240,9 @@ class Install {
 	public static function ensure_public_pages_now() {
 		if ( ! self::is_public_page_valid( self::OPTION_MEAL_BOOKING_PAGE_ID, 'book-meals', '[vila_meal_booking]' ) ) {
 			self::ensure_meal_booking_page();
+		}
+		if ( ! self::is_public_page_valid( self::OPTION_CHILDCARE_BOOKING_PAGE_ID, 'book-childcare', '[vila_childcare_booking]' ) ) {
+			self::ensure_childcare_booking_page();
 		}
 		if ( ! self::is_public_page_valid( self::OPTION_GUEST_REGISTRATION_PAGE_ID, 'guest-registration', '[vila_guest_registration]' ) ) {
 			self::ensure_guest_registration_page();
@@ -334,6 +345,17 @@ class Install {
 	}
 
 	/**
+	 * Ensure childcare booking page creation after init when needed.
+	 */
+	private static function maybe_schedule_childcare_booking_page() {
+		if ( did_action( 'init' ) ) {
+			self::ensure_childcare_booking_page();
+			return;
+		}
+		add_action( 'init', array( __CLASS__, 'ensure_childcare_booking_page' ), 22 );
+	}
+
+	/**
 	 * Published page that hosts the meal booking shortcode.
 	 *
 	 * @return int Page ID.
@@ -401,6 +423,73 @@ class Install {
 	}
 
 	/**
+	 * Published page that hosts the childcare booking shortcode.
+	 *
+	 * @return int Page ID.
+	 */
+	public static function ensure_childcare_booking_page() {
+		$slug    = 'book-childcare';
+		$content = "<!-- wp:shortcode -->\n[vila_childcare_booking]\n<!-- /wp:shortcode -->";
+
+		$existing = get_page_by_path( $slug, OBJECT, 'page' );
+		if ( $existing instanceof \WP_Post ) {
+			$body = (string) $existing->post_content;
+			if ( false === strpos( $body, '[vila_childcare_booking]' ) ) {
+				$body = trim( $body );
+				$body = '' === $body ? $content : $body . "\n\n" . $content;
+				wp_update_post(
+					array(
+						'ID'           => (int) $existing->ID,
+						'post_content' => $body,
+						'post_status'  => 'publish',
+					)
+				);
+			}
+			update_option( self::OPTION_CHILDCARE_BOOKING_PAGE_ID, (int) $existing->ID );
+			return (int) $existing->ID;
+		}
+
+		$page_id = wp_insert_post(
+			array(
+				'post_title'   => __( 'Book childcare', 'vila-campsite-booking' ),
+				'post_name'    => $slug,
+				'post_status'  => 'publish',
+				'post_type'    => 'page',
+				'post_author'  => self::default_page_author_id(),
+				'post_content' => $content,
+			),
+			true
+		);
+
+		if ( is_wp_error( $page_id ) ) {
+			return 0;
+		}
+
+		update_option( self::OPTION_CHILDCARE_BOOKING_PAGE_ID, (int) $page_id );
+		if ( function_exists( 'flush_rewrite_rules' ) ) {
+			flush_rewrite_rules( false );
+		}
+		return (int) $page_id;
+	}
+
+	/**
+	 * Resolve published childcare booking page ID.
+	 *
+	 * @return int
+	 */
+	public static function get_childcare_booking_page_id() {
+		if ( self::is_public_page_valid( self::OPTION_CHILDCARE_BOOKING_PAGE_ID, 'book-childcare', '[vila_childcare_booking]' ) ) {
+			$id = (int) get_option( self::OPTION_CHILDCARE_BOOKING_PAGE_ID, 0 );
+			if ( $id > 0 && 'publish' === get_post_status( $id ) ) {
+				return $id;
+			}
+			$existing = get_page_by_path( 'book-childcare', OBJECT, 'page' );
+			return $existing instanceof \WP_Post ? (int) $existing->ID : 0;
+		}
+		return 0;
+	}
+
+	/**
 	 * Create custom tables.
 	 */
 	private static function create_tables() {
@@ -417,6 +506,7 @@ class Install {
 		$persons    = Database::guest_persons_table();
 		$stay_holds = Database::stay_holds_table();
 		$stay_nights = Database::stay_hold_nights_table();
+		$childcare = Database::childcare_places_table();
 
 		$sql = "CREATE TABLE $plots (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -537,6 +627,29 @@ class Install {
 			UNIQUE KEY stay_night (stay_id, night_ymd),
 			KEY hold_id (hold_id),
 			KEY night_ymd (night_ymd)
+		) $charset;\n";
+
+		$sql .= "CREATE TABLE $childcare (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			order_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			line_item_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			child_index INT NOT NULL DEFAULT 0,
+			ymd DATE NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'booked',
+			parent_name VARCHAR(191) NOT NULL DEFAULT '',
+			parent_phone VARCHAR(80) NOT NULL DEFAULT '',
+			parent_email VARCHAR(191) NOT NULL DEFAULT '',
+			telegram_username VARCHAR(80) NOT NULL DEFAULT '',
+			child_name VARCHAR(191) NOT NULL DEFAULT '',
+			child_age INT NOT NULL DEFAULT 0,
+			allergies TEXT NULL,
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY order_child_day (order_id, line_item_id, child_index, ymd),
+			KEY ymd_status (ymd, status),
+			KEY child_name (child_name),
+			KEY telegram_username (telegram_username)
 		) $charset;\n";
 
 		dbDelta( $sql );

@@ -5,6 +5,7 @@
  * Database model (day-centric, like meals):
  *   Campsite Bookings → one page per calendar day (arrivals / departures / on site)
  *   Campsite Meals    → one page per calendar day (breakfast / dinner cooks)
+ *   Childcare         → one page per calendar day (child roster)
  *
  * Secrets live in wp-config.php (never commit them):
  *   define( 'VILA_NOTION_API_KEY', '...' );
@@ -27,15 +28,19 @@ class Notion_Sync {
 
 	const CRON_STAY_DAYS = 'vila_cb_notion_sync_stay_days';
 	const CRON_MEALS     = 'vila_cb_notion_sync_meals';
+	const CRON_CHILDCARE = 'vila_cb_notion_sync_childcare';
 	const OPTION_STAY_DAY_PAGES = 'vila_cb_notion_stay_day_page_ids';
 	const OPTION_MEAL_PAGES     = 'vila_cb_notion_meal_page_ids';
+	const OPTION_CHILDCARE_PAGES = 'vila_cb_notion_childcare_page_ids';
 	const OPTION_BOOKINGS_DB_ID = 'vila_cb_notion_bookings_db_id';
 	const OPTION_MEALS_DB_ID    = 'vila_cb_notion_meals_db_id';
+	const OPTION_CHILDCARE_DB_ID = 'vila_cb_notion_childcare_db_id';
 	const OPTION_CATALOG        = 'vila_cb_notion_catalog';
 	const API_URL               = 'https://api.notion.com/v1';
 
 	const DB_BOOKINGS = 'Campsite Bookings';
 	const DB_MEALS    = 'Campsite Meals';
+	const DB_CHILDCARE = 'Childcare';
 
 	/**
 	 * Boot hooks.
@@ -45,9 +50,11 @@ class Notion_Sync {
 		add_action( 'vila_cb_booking_updated', array( __CLASS__, 'on_booking_updated' ), 20, 1 );
 		add_action( 'vila_cb_booking_released', array( __CLASS__, 'on_booking_released' ), 20, 2 );
 		add_action( 'vila_cb_meals_changed', array( __CLASS__, 'on_meals_changed' ), 20, 1 );
+		add_action( 'vila_cb_childcare_changed', array( __CLASS__, 'on_childcare_changed' ), 20, 1 );
 
 		add_action( self::CRON_STAY_DAYS, array( __CLASS__, 'cron_sync_stay_days' ), 10, 1 );
 		add_action( self::CRON_MEALS, array( __CLASS__, 'cron_sync_meals' ), 10, 1 );
+		add_action( self::CRON_CHILDCARE, array( __CLASS__, 'cron_sync_childcare' ), 10, 1 );
 
 		// Back-compat for jobs scheduled under Monday hook names.
 		add_action( 'vila_cb_monday_sync_stay_days', array( __CLASS__, 'cron_sync_stay_days' ), 10, 1 );
@@ -97,6 +104,13 @@ class Notion_Sync {
 	 */
 	public static function meals_database_name() {
 		return self::DB_MEALS;
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function childcare_database_name() {
+		return self::DB_CHILDCARE;
 	}
 
 	/**
@@ -157,6 +171,27 @@ class Notion_Sync {
 			return;
 		}
 		self::schedule_unique( self::CRON_MEALS, array( $dates ) );
+	}
+
+	/**
+	 * @param string[] $ymd_list Childcare dates to refresh.
+	 */
+	public static function on_childcare_changed( $ymd_list ) {
+		if ( ! is_array( $ymd_list ) ) {
+			return;
+		}
+		$dates = array();
+		foreach ( $ymd_list as $ymd ) {
+			$ymd = sanitize_text_field( (string) $ymd );
+			if ( Dates::parse_ymd( $ymd ) ) {
+				$dates[] = $ymd;
+			}
+		}
+		$dates = array_values( array_unique( $dates ) );
+		if ( empty( $dates ) || ! self::is_configured() ) {
+			return;
+		}
+		self::schedule_unique( self::CRON_CHILDCARE, array( $dates ) );
 	}
 
 	/**
@@ -280,6 +315,39 @@ class Notion_Sync {
 	}
 
 	/**
+	 * @param string[] $ymd_list Dates.
+	 */
+	public static function cron_sync_childcare( $ymd_list ) {
+		if ( ! is_array( $ymd_list ) || empty( $ymd_list ) ) {
+			return;
+		}
+		$dates = Childcare_Service::sanitize_ymd_list( $ymd_list );
+		if ( empty( $dates ) ) {
+			return;
+		}
+		sort( $dates );
+		$from = $dates[0];
+		$to   = $dates[ count( $dates ) - 1 ];
+		$want = array_fill_keys( $dates, true );
+
+		try {
+			$plan = Ops_Snapshot::get_childcare_range( $from, $to );
+			foreach ( (array) $plan['days'] as $day ) {
+				$ymd = isset( $day['ymd'] ) ? (string) $day['ymd'] : '';
+				if ( '' === $ymd || empty( $want[ $ymd ] ) ) {
+					continue;
+				}
+				if ( (int) ( $day['booked_count'] ?? 0 ) < 1 && (int) ( $day['absent_count'] ?? 0 ) < 1 ) {
+					continue;
+				}
+				self::upsert_childcare_day_page( $day );
+			}
+		} catch ( \Throwable $e ) {
+			self::log( 'childcare sync failed: ' . $e->getMessage() );
+		}
+	}
+
+	/**
 	 * @param array<string, mixed> $day Activity day from Ops_Snapshot::get_activity_range.
 	 */
 	private static function upsert_stay_day_page( array $day ) {
@@ -398,6 +466,91 @@ class Notion_Sync {
 		} else {
 			self::update_page( $db, $page_id, $name, $props );
 		}
+	}
+
+	/**
+	 * @param array<string, mixed> $day Childcare day from Ops_Snapshot.
+	 */
+	private static function upsert_childcare_day_page( array $day ) {
+		$ymd = isset( $day['ymd'] ) ? (string) $day['ymd'] : '';
+		if ( '' === $ymd ) {
+			return;
+		}
+
+		$db = self::resolve_database( self::DB_CHILDCARE, self::OPTION_CHILDCARE_DB_ID, 'VILA_NOTION_CHILDCARE_DB_ID' );
+
+		$map     = self::get_map( self::OPTION_CHILDCARE_PAGES );
+		$page_id = isset( $map[ $ymd ] ) ? (string) $map[ $ymd ] : '';
+
+		$booked = (int) ( $day['booked_count'] ?? 0 );
+		$absent = (int) ( $day['absent_count'] ?? 0 );
+		$label  = isset( $day['label'] ) ? (string) $day['label'] : $ymd;
+		$name   = sprintf( '%s — childcare %d / %d', $label, $booked, (int) ( $day['capacity'] ?? 0 ) );
+
+		$props = array(
+			'Name'      => $name,
+			'Day ID'    => $ymd,
+			'Date'      => $ymd,
+			'Headcount' => $booked,
+			'Capacity'  => (int) ( $day['capacity'] ?? 0 ),
+			'Roster'    => self::childcare_roster_text( isset( $day['children'] ) ? (array) $day['children'] : array(), isset( $day['absent_children'] ) ? (array) $day['absent_children'] : array() ),
+			'Absent'    => $absent,
+			'Open?'     => ! empty( $day['open'] ),
+		);
+
+		if ( '' === $page_id ) {
+			$page_id = self::find_page_by_day_id( $db, $ymd );
+		}
+
+		if ( '' === $page_id ) {
+			$created = self::create_page( $db, $name, $props );
+			$page_id = (string) ( $created['id'] ?? '' );
+			if ( '' === $page_id ) {
+				throw new \RuntimeException( 'create page returned no id for childcare day' );
+			}
+			$map[ $ymd ] = $page_id;
+			self::save_map( self::OPTION_CHILDCARE_PAGES, $map );
+		} else {
+			self::update_page( $db, $page_id, $name, $props );
+		}
+	}
+
+	/**
+	 * @param array<int, array<string, mixed>> $children Booked children.
+	 * @param array<int, array<string, mixed>> $absent Absent children.
+	 * @return string
+	 */
+	private static function childcare_roster_text( array $children, array $absent ) {
+		$lines = array();
+		foreach ( $children as $child ) {
+			if ( ! is_array( $child ) ) {
+				continue;
+			}
+			$line = sprintf(
+				'%s, age %d · parent %s · phone %s',
+				(string) ( $child['child_name'] ?? '' ),
+				(int) ( $child['child_age'] ?? 0 ),
+				(string) ( $child['parent_name'] ?? '' ),
+				(string) ( $child['parent_phone'] ?? '' )
+			);
+			if ( ! empty( $child['allergies'] ) ) {
+				$line .= ' · allergies/medical: ' . (string) $child['allergies'];
+			}
+			$lines[] = $line;
+		}
+		foreach ( $absent as $child ) {
+			if ( ! is_array( $child ) ) {
+				continue;
+			}
+			$lines[] = sprintf(
+				'ABSENT: %s, age %d · parent %s · phone %s',
+				(string) ( $child['child_name'] ?? '' ),
+				(int) ( $child['child_age'] ?? 0 ),
+				(string) ( $child['parent_name'] ?? '' ),
+				(string) ( $child['parent_phone'] ?? '' )
+			);
+		}
+		return implode( "\n", $lines );
 	}
 
 	/**

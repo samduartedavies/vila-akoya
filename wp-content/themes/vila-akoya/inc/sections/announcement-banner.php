@@ -14,26 +14,54 @@ if ( '' !== $until && current_time( 'Y-m-d' ) > $until ) {
 
 $eyebrow = (string) vila_akoya_section_field( 'eyebrow', '' );
 $heading = (string) vila_akoya_section_field( 'heading', 'Launch festival' );
-$dates   = (string) vila_akoya_section_field( 'dates', '23–27 September' );
 $body    = (string) vila_akoya_section_field(
 	'body',
 	'Musicians, DJs, workshops and experiences all week long — come stay, dance, make things, and help us open Vila Akoya.'
 );
 
-$event     = vila_akoya_section_field( 'event', null );
-$event_url = '';
+$event      = vila_akoya_section_field( 'event', null );
+$event_post = null;
 if ( $event instanceof WP_Post ) {
-	$event_url = get_permalink( $event );
+	$event_post = $event;
 } elseif ( is_numeric( $event ) ) {
-	$event_url = get_permalink( (int) $event );
+	$event_post = get_post( (int) $event );
 }
+
+$event_url  = $event_post instanceof WP_Post ? get_permalink( $event_post ) : '';
+$has_poster = $event_post instanceof WP_Post && has_post_thumbnail( $event_post );
+$poster_alt = $has_poster ? get_the_title( $event_post ) : '';
 ?>
 <aside class="vila-launch-banner" role="region" aria-label="<?php echo esc_attr( $heading ); ?>">
-	<div class="vila-launch-banner__glow" aria-hidden="true"></div>
-	<div class="vila-launch-banner__inner">
-		<p class="vila-launch-banner__dates">
-			<span class="vila-launch-banner__dates-num"><?php echo esc_html( $dates ); ?></span>
-		</p>
+	<div class="vila-launch-banner__inner<?php echo $has_poster ? ' vila-launch-banner__inner--has-poster' : ''; ?>">
+		<?php if ( $has_poster ) : ?>
+			<div class="vila-launch-banner__poster">
+				<?php if ( '' !== $event_url ) : ?>
+					<a class="vila-launch-banner__poster-link" href="<?php echo esc_url( $event_url ); ?>">
+						<?php
+						echo get_the_post_thumbnail(
+							$event_post,
+							'large',
+							array(
+								'class' => 'vila-launch-banner__poster-img',
+								'alt'   => $poster_alt,
+							)
+						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						?>
+					</a>
+				<?php else : ?>
+					<?php
+					echo get_the_post_thumbnail(
+						$event_post,
+						'large',
+						array(
+							'class' => 'vila-launch-banner__poster-img',
+							'alt'   => $poster_alt,
+						)
+					); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					?>
+				<?php endif; ?>
+			</div>
+		<?php endif; ?>
 		<div class="vila-launch-banner__copy">
 			<?php if ( '' !== $eyebrow ) : ?>
 				<p class="vila-launch-banner__eyebrow"><?php echo esc_html( $eyebrow ); ?></p>

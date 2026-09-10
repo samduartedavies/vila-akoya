@@ -42,6 +42,11 @@ const EXAMPLE_JOBS = [
       { name: "Trash (to container)", frequency: "Weekly" },
     ],
   },
+  {
+    name: "Child minder",
+    description: "Receives private childcare rosters and parent absence updates from VAVA.",
+    duties: [],
+  },
 ];
 
 async function ensureDutyLinked(jobId, dutyName, frequency) {

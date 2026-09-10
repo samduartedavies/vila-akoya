@@ -382,7 +382,7 @@ function vila_akoya_the_kids_section_rows() {
 			'image'         => 'https://vila-akoya.com/images/kids-contact.jpg',
 			'heading'       => 'Want to know more?',
 			'body'          => '<p>Get in touch with us for all your questions and suggestions regarding our kids program, and to book your dates.</p>',
-			'link'          => array( 'url' => '/contact', 'title' => 'Contact us', 'target' => '' ),
+			'link'          => array( 'url' => '/book-childcare/', 'title' => 'Book childcare', 'target' => '' ),
 		),
 	);
 }

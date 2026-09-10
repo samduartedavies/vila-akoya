@@ -98,6 +98,31 @@ class Rest_Controller {
 			)
 		);
 
+		register_rest_route(
+			'vila-campsite-booking/v1',
+			'/childcare/availability',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'childcare_availability' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'from'     => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+					'to'       => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+					'children' => array(
+						'required'          => false,
+						'validate_callback' => array( __CLASS__, 'validate_positive_int_optional' ),
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
 		$ops_permission = array( Ops_Snapshot::class, 'verify_ops_token' );
 
 		register_rest_route(
@@ -173,6 +198,36 @@ class Rest_Controller {
 						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
 					),
 				),
+			)
+		);
+
+		register_rest_route(
+			'vila-campsite-booking/v1',
+			'/ops/childcare',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'ops_childcare' ),
+				'permission_callback' => $ops_permission,
+				'args'                => array(
+					'from' => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+					'to'   => array(
+						'required'          => true,
+						'validate_callback' => array( __CLASS__, 'validate_ymd' ),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'vila-campsite-booking/v1',
+			'/ops/childcare/absent',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'ops_childcare_absent' ),
+				'permission_callback' => $ops_permission,
 			)
 		);
 	}
@@ -384,6 +439,27 @@ class Rest_Controller {
 	}
 
 	/**
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function childcare_availability( $request ) {
+		$from = (string) $request->get_param( 'from' );
+		$to   = (string) $request->get_param( 'to' );
+		if ( $to < $from ) {
+			return new \WP_Error( 'invalid_range', __( 'Invalid date range.', 'vila-campsite-booking' ), array( 'status' => 400 ) );
+		}
+		$children = max( 1, (int) $request->get_param( 'children' ) );
+		return rest_ensure_response(
+			array(
+				'from'     => $from,
+				'to'       => $to,
+				'settings' => Childcare_Service::settings(),
+				'days'     => Childcare_Service::availability_range( $from, $to, $children ),
+			)
+		);
+	}
+
+	/**
 	 * Require a valid wp_rest nonce (sent as X-WP-Nonce) for CSRF protection.
 	 *
 	 * @param \WP_REST_Request $request Request.
@@ -447,6 +523,53 @@ class Rest_Controller {
 			Ops_Snapshot::get_meals_range(
 				(string) $request->get_param( 'from' ),
 				(string) $request->get_param( 'to' )
+			)
+		);
+	}
+
+	/**
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function ops_childcare( $request ) {
+		return rest_ensure_response(
+			Ops_Snapshot::get_childcare_range(
+				(string) $request->get_param( 'from' ),
+				(string) $request->get_param( 'to' )
+			)
+		);
+	}
+
+	/**
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function ops_childcare_absent( $request ) {
+		$params = $request->get_json_params();
+		if ( ! is_array( $params ) ) {
+			$params = $request->get_params();
+		}
+
+		$place_id = isset( $params['place_id'] ) ? absint( $params['place_id'] ) : 0;
+		if ( $place_id > 0 ) {
+			$result = Childcare_Service::mark_absent_by_id( $place_id );
+		} else {
+			$result = Childcare_Service::mark_absent_by_match(
+				isset( $params['date'] ) ? sanitize_text_field( (string) $params['date'] ) : wp_date( 'Y-m-d' ),
+				isset( $params['child_name'] ) ? sanitize_text_field( (string) $params['child_name'] ) : '',
+				isset( $params['telegram_username'] ) ? sanitize_text_field( (string) $params['telegram_username'] ) : ''
+			);
+		}
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'place' => $result,
+				'day'   => Childcare_Service::day_snapshot( (string) $result['ymd'] ),
 			)
 		);
 	}
