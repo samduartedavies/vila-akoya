@@ -151,6 +151,8 @@ class Guest_Registration_Exporter {
 				'check_out',
 				'booker_name',
 				'contact_email',
+				'contact_phone',
+				'stay_type',
 				'given_name',
 				'surname',
 				'nationality',
@@ -173,6 +175,8 @@ class Guest_Registration_Exporter {
 					isset( $row['check_out'] ) ? (string) $row['check_out'] : '',
 					isset( $row['booker_name'] ) ? (string) $row['booker_name'] : '',
 					isset( $row['contact_email'] ) ? (string) $row['contact_email'] : '',
+					isset( $row['contact_phone'] ) ? (string) $row['contact_phone'] : '',
+					isset( $row['stay_type'] ) ? (string) $row['stay_type'] : '',
 					isset( $row['given_name'] ) ? (string) $row['given_name'] : '',
 					isset( $row['surname'] ) ? (string) $row['surname'] : '',
 					isset( $row['nationality'] ) ? (string) $row['nationality'] : '',
@@ -275,7 +279,7 @@ class Guest_Registration_Exporter {
 	 * @return string
 	 */
 	private static function date_field( $ymd ) {
-		$dt = Dates::parse_ymd( (string) $ymd );
+		$dt = Dates::parse_ymd( (string) $ymd, 1900 );
 		return $dt ? $dt->format( 'Ymd' ) : str_repeat( ' ', 8 );
 	}
 

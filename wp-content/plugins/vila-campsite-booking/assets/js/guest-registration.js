@@ -241,14 +241,54 @@
     var manualBtn = qs(root, '[data-vila-gr-manual]');
     var form = qs(root, '[data-vila-gr-form]');
     var manualFields = qs(root, '[data-vila-gr-manual-fields]');
+    var stayTypeWrap = qs(root, '[data-vila-gr-stay-type]');
     var selectedText = qs(root, '[data-vila-gr-selected]');
     var personsWrap = qs(root, '[data-vila-gr-persons]');
     var countInput = qs(root, '[data-vila-gr-count]');
     var message = qs(root, '[data-vila-gr-message]');
     var successPanel = qs(root, '[data-vila-gr-success]');
     var successStay = qs(root, '[data-vila-gr-success-stay]');
+    var peopleTitle = qs(root, '[data-vila-gr-people-title]');
+    var addGuestBtn = qs(root, '[data-vila-gr-add-guest]');
+    var backBtn = qs(root, '[data-vila-gr-back]');
     var selectedBooking = null;
     var lookupEmail = '';
+
+    function stayType() {
+      var checked = form.querySelector('input[name="stay_type"]:checked');
+      return checked ? checked.value : 'guest';
+    }
+
+    function personHeading() {
+      return stayType() === 'volunteer'
+        ? txt(root, 'personHeading', 'Person')
+        : txt(root, 'guestHeading', 'Guest');
+    }
+
+    function setStayType(value) {
+      form.querySelectorAll('input[name="stay_type"]').forEach(function (input) {
+        input.checked = input.value === value;
+      });
+      syncStayTypeLabels();
+    }
+
+    function syncStayTypeLabels() {
+      var volunteer = stayType() === 'volunteer';
+      if (peopleTitle) {
+        peopleTitle.textContent = volunteer ? 'People staying' : 'Guests';
+      }
+      if (addGuestBtn) {
+        addGuestBtn.textContent = volunteer
+          ? txt(root, 'addPerson', 'Add person')
+          : txt(root, 'addGuest', 'Add guest');
+      }
+      personsWrap.querySelectorAll('[data-vila-gr-person]').forEach(function (fieldset, i) {
+        var title = qs(fieldset, '.vila-cb-gr__person-title');
+        if (title) {
+          title.textContent = personHeading() + ' ' + (i + 1);
+        }
+      });
+    }
 
     function setMessage(text, isError) {
       if (successPanel && !successPanel.hidden) {
@@ -295,7 +335,7 @@
     }
 
     function syncManualRequirements(manual) {
-      manualFields.querySelectorAll('input[name="check_in"], input[name="check_out"]').forEach(function (input) {
+      manualFields.querySelectorAll('input[name="booker_name"], input[name="contact_email"], input[name="check_in"], input[name="check_out"]').forEach(function (input) {
         input.required = !!manual;
         input.disabled = !manual;
         if (!manual) {
@@ -309,7 +349,7 @@
       return (
         '<fieldset class="vila-cb-gr__person" data-vila-gr-person>' +
         '<legend>' +
-        '<span class="vila-cb-gr__person-title">' + txt(root, 'guestHeading', 'Guest') + ' ' + n + '</span>' +
+        '<span class="vila-cb-gr__person-title">' + personHeading() + ' ' + n + '</span>' +
         '<button type="button" class="vila-cb-gr__remove-guest" data-vila-gr-remove-guest hidden>' +
         txt(root, 'removeGuest', 'Remove') +
         '</button>' +
@@ -320,7 +360,7 @@
         '<label class="vila-cb-gr__wide vila-cb-gr__check"><input type="checkbox" name="skip_siba" data-vila-gr-skip> <span>Portuguese citizen (SIBA not required)</span></label>' +
         '<div class="vila-cb-gr__siba vila-cb-gr__grid vila-cb-gr__wide">' +
         countryFieldMarkup('nationality', 'Nationality') +
-        '<label><span>Date of birth</span><input type="date" name="date_of_birth" required></label>' +
+        '<label><span>Date of birth</span><input type="date" name="date_of_birth" min="1900-01-01" required></label>' +
         '<label><span>Document type</span><select name="document_type" required><option value="">Choose</option><option value="P">Passport</option><option value="B">National ID</option><option value="O">Other</option></select></label>' +
         '<label><span>Document number</span><input type="text" name="document_number" maxlength="32" required></label>' +
         countryFieldMarkup('document_country', 'Issuing country') +
@@ -341,7 +381,7 @@
       personsWrap.querySelectorAll('[data-vila-gr-person]').forEach(function (fieldset, i) {
         var title = qs(fieldset, '.vila-cb-gr__person-title');
         if (title) {
-          title.textContent = txt(root, 'guestHeading', 'Guest') + ' ' + (i + 1);
+          title.textContent = personHeading() + ' ' + (i + 1);
         }
         var removeBtn = qs(fieldset, '[data-vila-gr-remove-guest]');
         if (removeBtn) {
@@ -452,11 +492,21 @@
       }
     }
 
-    function showForm(manual, booking) {
+    function showForm(manual, booking, type) {
       selectedBooking = booking || null;
       form.hidden = false;
+      if (lookupPanel) {
+        lookupPanel.hidden = true;
+      }
+      if (backBtn) {
+        backBtn.hidden = false;
+      }
       manualFields.hidden = !manual;
+      if (stayTypeWrap) {
+        stayTypeWrap.hidden = !manual;
+      }
       syncManualRequirements(manual);
+      setStayType(type || (booking ? 'guest' : 'volunteer'));
       qs(root, '[data-vila-gr-booking-id]').value = booking ? String(booking.booking_id) : '0';
       qs(root, '[data-vila-gr-order-id]').value = booking ? String(booking.order_id || 0) : '0';
       personsWrap.innerHTML = '';
@@ -464,7 +514,7 @@
         selectedText.textContent = booking.booker_name + ': ' + booking.check_in + ' to ' + booking.check_out;
         renderPersons(booking.suggested_guests || 1);
       } else {
-        selectedText.textContent = 'Manual stay details';
+        selectedText.textContent = txt(root, 'manualStay', 'Checking in without a booking');
         renderPersons(1);
       }
       setMessage('', false);
@@ -485,7 +535,7 @@
           results.innerHTML = '';
           var bookings = payload.bookings || [];
           if (!bookings.length) {
-            results.textContent = txt(root, 'noBookings', 'No matching booking found. You can enter the stay details manually.');
+            results.textContent = txt(root, 'noBookings', 'No matching booking found. You can check in without a booking instead.');
             return;
           }
           bookings.forEach(function (booking) {
@@ -508,16 +558,35 @@
     });
 
     manualBtn.addEventListener('click', function () {
-      showForm(true, null);
+      showForm(true, null, 'volunteer');
     });
+
+    if (stayTypeWrap) {
+      stayTypeWrap.addEventListener('change', syncStayTypeLabels);
+    }
+
+    if (backBtn) {
+      backBtn.addEventListener('click', function () {
+        form.hidden = true;
+        backBtn.hidden = true;
+        if (lookupPanel) {
+          lookupPanel.hidden = false;
+        }
+        selectedBooking = null;
+        setMessage('', false);
+        if (lookupPanel) {
+          lookupPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    }
 
     countInput.addEventListener('change', function () {
       renderPersons(countInput.value);
     });
 
-    var addGuestBtn = qs(root, '[data-vila-gr-add-guest]');
-    if (addGuestBtn) {
-      addGuestBtn.addEventListener('click', addGuest);
+    var addGuestBtnBind = qs(root, '[data-vila-gr-add-guest]');
+    if (addGuestBtnBind) {
+      addGuestBtnBind.addEventListener('click', addGuest);
     }
 
     form.addEventListener('submit', function (event) {
@@ -562,6 +631,7 @@
         website: String(fd.get('website') || ''),
         booking_id: selectedBooking ? selectedBooking.booking_id : 0,
         order_id: selectedBooking ? selectedBooking.order_id || 0 : 0,
+        stay_type: selectedBooking ? 'guest' : stayType(),
         booker_name: selectedBooking ? selectedBooking.booker_name : String(fd.get('booker_name') || ''),
         contact_email: selectedBooking ? lookupEmail : String(fd.get('contact_email') || ''),
         check_in: selectedBooking ? selectedBooking.check_in : String(fd.get('check_in') || ''),

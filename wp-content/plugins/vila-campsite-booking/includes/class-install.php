@@ -28,7 +28,7 @@ class Install {
 		self::ensure_guest_registration_page();
 		self::ensure_meal_booking_page();
 		self::ensure_childcare_booking_page();
-		update_option( self::OPTION_DB_VERSION, '1.3.0' );
+		update_option( self::OPTION_DB_VERSION, '1.4.0' );
 		self::schedule_stay_hold_backfill();
 	}
 
@@ -186,6 +186,10 @@ class Install {
 			self::create_tables();
 			self::maybe_schedule_childcare_booking_page();
 			update_option( self::OPTION_DB_VERSION, '1.3.0' );
+		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.4.0', '<' ) ) {
+			self::create_tables();
+			update_option( self::OPTION_DB_VERSION, '1.4.0' );
 		}
 		self::schedule_public_pages_check();
 	}
@@ -567,6 +571,8 @@ class Install {
 			check_out DATE NOT NULL,
 			booker_name VARCHAR(191) NOT NULL DEFAULT '',
 			contact_email VARCHAR(191) NOT NULL DEFAULT '',
+			contact_phone VARCHAR(80) NOT NULL DEFAULT '',
+			stay_type VARCHAR(20) NOT NULL DEFAULT 'guest',
 			source VARCHAR(30) NOT NULL DEFAULT 'manual',
 			siba_status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			created_at DATETIME NOT NULL,
@@ -575,7 +581,8 @@ class Install {
 			KEY booking_id (booking_id),
 			KEY order_id (order_id),
 			KEY stay_range (check_in, check_out),
-			KEY siba_status (siba_status)
+			KEY siba_status (siba_status),
+			KEY stay_type (stay_type)
 		) $charset;\n";
 
 		$sql .= "CREATE TABLE $persons (
@@ -589,6 +596,10 @@ class Install {
 			document_number VARCHAR(32) NOT NULL DEFAULT '',
 			document_country CHAR(3) NOT NULL DEFAULT '',
 			country_of_residence CHAR(3) NOT NULL DEFAULT '',
+			emergency_contact_name VARCHAR(191) NOT NULL DEFAULT '',
+			emergency_contact_phone VARCHAR(80) NOT NULL DEFAULT '',
+			emergency_contact_relation VARCHAR(80) NOT NULL DEFAULT '',
+			allergies TEXT NULL,
 			skip_siba TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,

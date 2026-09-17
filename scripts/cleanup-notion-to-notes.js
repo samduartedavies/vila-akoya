@@ -174,7 +174,7 @@ function briefBlocks() {
       type: "bulleted_list_item",
       bulleted_list_item: {
         rich_text: notion.richText(
-          "Full write-ups (e.g. Wi‑Fi) as pages, plus a Documentation register. Bot answers “how does X work?” and partnership discount questions from here."
+          "Full write-ups (e.g. Wi‑Fi) as pages, plus a Documentation register. Bot answers “how does X work?” and partnership discount questions from here. Where things are — keys, tools, and other portable items; ask VAVA “where is the drill?” or tell it where you left something."
         ),
       },
     },

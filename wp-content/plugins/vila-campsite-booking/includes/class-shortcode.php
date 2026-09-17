@@ -283,18 +283,21 @@ class Shortcode {
 				'nonce'     => $nonce,
 				'strings'   => array(
 					'searching'     => __( 'Searching bookings...', 'vila-campsite-booking' ),
-					'noBookings'    => __( 'No matching booking found. You can enter the stay details manually.', 'vila-campsite-booking' ),
+					'noBookings'    => __( 'No matching booking found. You can check in without a booking instead.', 'vila-campsite-booking' ),
 					'selectBooking' => __( 'Use this booking', 'vila-campsite-booking' ),
 					'guestHeading'  => __( 'Guest', 'vila-campsite-booking' ),
+					'personHeading' => __( 'Person', 'vila-campsite-booking' ),
 					'addGuest'      => __( 'Add guest', 'vila-campsite-booking' ),
+					'addPerson'     => __( 'Add person', 'vila-campsite-booking' ),
 					'removeGuest'   => __( 'Remove', 'vila-campsite-booking' ),
-					'saved'         => __( 'Thank you. Your legal guest registration details have been saved.', 'vila-campsite-booking' ),
+					'saved'         => __( 'Thank you. Your check-in details have been saved.', 'vila-campsite-booking' ),
 					'successTitle'  => __( "You're all set", 'vila-campsite-booking' ),
-					'successLead'   => __( 'Your guest details have been submitted successfully. We have everything we need for your stay.', 'vila-campsite-booking' ),
+					'successLead'   => __( 'Your details have been submitted successfully. We have everything we need for your stay.', 'vila-campsite-booking' ),
 					'successEnjoy'  => __( 'We look forward to welcoming you. Enjoy your stay at Vila Akoya!', 'vila-campsite-booking' ),
 					'successStay'   => __( 'Your stay: %1$s to %2$s', 'vila-campsite-booking' ),
 					'failed'        => __( 'Could not save the registration. Please check the fields and try again.', 'vila-campsite-booking' ),
 					'required'      => __( 'Please complete the required fields.', 'vila-campsite-booking' ),
+					'manualStay'    => __( 'Checking in without a booking', 'vila-campsite-booking' ),
 				),
 			)
 		);
@@ -326,7 +329,13 @@ class Shortcode {
 					<button type="submit" class="vila-cb__cta"><?php esc_html_e( 'Search', 'vila-campsite-booking' ); ?></button>
 				</form>
 				<div class="vila-cb-gr__results" data-vila-gr-results></div>
-				<button type="button" class="vila-cb-gr__manual" data-vila-gr-manual><?php esc_html_e( 'Enter stay details manually instead', 'vila-campsite-booking' ); ?></button>
+				<div class="vila-cb-gr__or" data-vila-gr-or>
+					<span><?php esc_html_e( 'or', 'vila-campsite-booking' ); ?></span>
+				</div>
+				<button type="button" class="vila-cb-gr__manual-cta" data-vila-gr-manual>
+					<?php esc_html_e( 'Check in without a booking', 'vila-campsite-booking' ); ?>
+				</button>
+				<p class="vila-cb-gr__manual-hint"><?php esc_html_e( 'For volunteers and anyone staying without a campsite booking.', 'vila-campsite-booking' ); ?></p>
 			</section>
 
 			<form class="vila-cb-gr__form" data-vila-gr-form hidden>
@@ -337,9 +346,21 @@ class Shortcode {
 				<section class="vila-cb-gr__panel">
 					<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Stay details', 'vila-campsite-booking' ); ?></h2>
 					<p class="vila-cb-gr__selected" data-vila-gr-selected></p>
+					<button type="button" class="vila-cb-gr__manual" data-vila-gr-back hidden><?php esc_html_e( 'Back to booking search', 'vila-campsite-booking' ); ?></button>
+					<fieldset class="vila-cb-gr__stay-type" data-vila-gr-stay-type hidden>
+						<legend><?php esc_html_e( 'Who is checking in?', 'vila-campsite-booking' ); ?></legend>
+						<label class="vila-cb-gr__check">
+							<input type="radio" name="stay_type" value="guest" />
+							<span><?php esc_html_e( 'Guest', 'vila-campsite-booking' ); ?></span>
+						</label>
+						<label class="vila-cb-gr__check">
+							<input type="radio" name="stay_type" value="volunteer" />
+							<span><?php esc_html_e( 'Volunteer', 'vila-campsite-booking' ); ?></span>
+						</label>
+					</fieldset>
 					<div class="vila-cb-gr__manual-fields" data-vila-gr-manual-fields hidden>
 						<label>
-							<span><?php esc_html_e( 'Booker name', 'vila-campsite-booking' ); ?></span>
+							<span data-vila-gr-booker-label><?php esc_html_e( 'Your name', 'vila-campsite-booking' ); ?></span>
 							<input type="text" name="booker_name" autocomplete="name" />
 						</label>
 						<label>
@@ -359,7 +380,7 @@ class Shortcode {
 
 				<section class="vila-cb-gr__panel">
 					<div class="vila-cb-gr__guest-tools">
-						<h2 class="vila-cb-gr__title"><?php esc_html_e( 'Guests', 'vila-campsite-booking' ); ?></h2>
+						<h2 class="vila-cb-gr__title" data-vila-gr-people-title><?php esc_html_e( 'Guests', 'vila-campsite-booking' ); ?></h2>
 						<label class="vila-cb-gr__count-label">
 							<span><?php esc_html_e( 'Number of people', 'vila-campsite-booking' ); ?></span>
 							<input type="number" min="1" max="20" value="1" data-vila-gr-count />
@@ -374,7 +395,7 @@ class Shortcode {
 				</section>
 
 				<div class="vila-cb-gr__actions">
-					<button type="submit" class="vila-cb__cta"><?php esc_html_e( 'Save guest registration', 'vila-campsite-booking' ); ?></button>
+					<button type="submit" class="vila-cb__cta" data-vila-gr-submit><?php esc_html_e( 'Save check-in details', 'vila-campsite-booking' ); ?></button>
 				</div>
 			</form>
 
@@ -387,7 +408,7 @@ class Shortcode {
 						</svg>
 					</div>
 					<h2 class="vila-cb-gr__success-title" data-vila-gr-success-title><?php esc_html_e( "You're all set", 'vila-campsite-booking' ); ?></h2>
-					<p class="vila-cb-gr__success-lead" data-vila-gr-success-lead><?php esc_html_e( 'Your guest details have been submitted successfully. We have everything we need for your stay.', 'vila-campsite-booking' ); ?></p>
+					<p class="vila-cb-gr__success-lead" data-vila-gr-success-lead><?php esc_html_e( 'Your details have been submitted successfully. We have everything we need for your stay.', 'vila-campsite-booking' ); ?></p>
 					<p class="vila-cb-gr__success-stay" data-vila-gr-success-stay hidden></p>
 					<p class="vila-cb-gr__success-enjoy" data-vila-gr-success-enjoy><?php esc_html_e( 'We look forward to welcoming you. Enjoy your stay at Vila Akoya!', 'vila-campsite-booking' ); ?></p>
 				</div>
@@ -647,6 +668,7 @@ class Shortcode {
 				'cutoff'            => __( 'Booking closed', 'vila-campsite-booking' ),
 				'addChild'          => __( 'Add child', 'vila-campsite-booking' ),
 				'removeChild'       => __( 'Remove', 'vila-campsite-booking' ),
+				'childAllergies'    => __( 'Allergies or other important things we should keep in mind about your little one', 'vila-campsite-booking' ),
 			),
 		);
 
@@ -675,16 +697,7 @@ class Shortcode {
 			<?php endif; ?>
 			<div class="vila-cb-gr__intro">
 				<p class="vila-cb__hint">
-					<?php
-					echo esc_html(
-						sprintf(
-							/* translators: 1: price, 2: capacity */
-							__( 'Book childcare by the day. Placeholder price: %1$s per child per day. Current capacity: %2$d children per open day.', 'vila-campsite-booking' ),
-							function_exists( 'wc_price' ) ? wp_strip_all_tags( wc_price( (float) $config['price'] ) ) : '€' . (string) (float) $config['price'],
-							(int) $config['capacity']
-						)
-					);
-					?>
+					<?php esc_html_e( 'Book here your dates for your little ones to join our Kids Forest Hub, every day between Tuesday and Friday, from 11:00 to 13:00.', 'vila-campsite-booking' ); ?>
 				</p>
 			</div>
 

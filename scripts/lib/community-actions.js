@@ -46,8 +46,11 @@ const ACTIONS = [
   "announcement",
   "book_meal",
   "childcare_absent",
+  "create_stay",
   "create_expense",
   "question_expenses",
+  "question_location",
+  "update_location",
 ];
 
 const DECISION_CATEGORIES = [
@@ -74,6 +77,16 @@ const EXPENSE_CATEGORIES = [
   "Other",
 ];
 const EXPENSE_CURRENCIES = ["EUR", "GBP", "USD", "Other"];
+const LOCATION_ITEM_KINDS = [
+  "Keys",
+  "Tool",
+  "Supplies",
+  "Vehicle",
+  "Document",
+  "Furniture",
+  "Other",
+];
+const LOCATION_UPDATE_KINDS = ["current", "usual", "both", "missing"];
 
 const MAINTENANCE_GROUP_BY_AREA = {
   Water: "Water",
@@ -96,9 +109,11 @@ const CHAT_ACTIVITY_KIND = {
   guest_issue: "guest_logged",
   create_decision: "decision_logged",
   create_documentation: "doc_logged",
+  update_location: "location_logged",
   complete_task: "task_completed",
   cancel_event: "event_cancelled",
   rsvp_event: "rsvp",
+  create_stay: "stay_logged",
   create_reminder: "reminder_logged",
   add_note: "note_added",
   offer_help: "offer_help",
@@ -118,6 +133,8 @@ const NOTION_DATABASES = [
   "Members",
   "Documentation",
   "Expenses",
+  "Where things are",
+  "Guest Stays",
 ];
 
 const SCHEDULE_RANGES = ["today", "this_week", "next_week", "two_weeks"];
@@ -218,9 +235,15 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "",
     buildWeekCalendarContext(todayISO),
     "",
-    "Messages may be English, Portuguese, Spanish, French, or mixed. Typos and slang are common.",
-    "Interpret MEANING and intent — never rely on specific keywords or perfect spelling.",
+    "Messages may be English, Portuguese, Spanish, French, or mixed. Typos, slang, and half-finished sentences are common.",
+    "Interpret MEANING and intent — never require specific keywords, commands, or perfect spelling.",
+    "Paraphrases count. 'do I have anything today?' = question_my_day. 'have you seen the keys?' = question_location.",
+    "'that's sorted' / 'wifi working again' = complete_task. 'keeping Maya home' = childcare_absent.",
+    "'can I eat with you tonight?' = book_meal. 'what have I spent?' = question_expenses.",
     "Use recent conversation context when the latest message is short or refers to something above.",
+    "Always fill task.type and task.priority yourself when creating a task — infer them; don't leave them empty.",
+    "If someone is clearly chatting, greeting, or thanking you: action=chat. If they want help but the action is fuzzy,",
+    "still pick the most likely action with moderate confidence rather than insisting on a stock phrase.",
     "",
     "In groups the bot only acts when @tagged or replied-to. Ambient messages are still classified",
     "but the bot gates execution. In private DMs the bot always responds.",
@@ -228,7 +251,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "Set actionable=false ONLY for pure chit-chat (thanks, lol, emoji, banter with no community info).",
     "",
     "═══ CRITICAL: lookup vs propose ═══",
-    "LOOKUP = speaker wants to READ what is already on the calendar/rota (→ question_schedule or question_doc).",
+    "LOOKUP = speaker wants to READ what is already on the calendar/rota/locations (→ question_schedule, question_doc, or question_location).",
     "PROPOSE = speaker suggests or announces something NEW to log (→ create_event, create_task, etc.).",
     "",
     "question_schedule examples (LOOKUP — do NOT create_event):",
@@ -253,14 +276,33 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "Any @bot question about how something works, what something uses, or village/campsite procedures → question_doc + doc_lookup=true.",
     "If question mentions discount/partner/affiliate → question_doc (will also check Partnerships DB).",
     "",
+    "question_location examples (LOOKUP — where a portable item is, NOT how a system works):",
+    '  EN: "where are the bathroom keys?", "where is the drill?", "where did someone leave the charger?"',
+    '  EN: "where do we keep the first aid kit?", "where is everything?" (list the whole board)',
+    '  PT: "onde estão as chaves das casas de banho?", "onde está o berbequim?"',
+    "Portable / misplace-able objects (keys, tools, chargers, ladders) → question_location + location_lookup=true.",
+    "Fixtures and systems (water shutoff, valve, wifi router as procedure) → question_doc, not question_location.",
+    "",
+    "update_location examples (WRITE — speaker says where something is or lives):",
+    '  EN: "I left the bathroom keys on the hook by reception"',
+    '  EN: "the drill is in the workshop cupboard", "the drill lives in the workshop"',
+    '  EN: "I can\'t find the bathroom keys" → update_location with update_kind=missing',
+    '  PT: "deixei o berbequim na cozinha", "as chaves ficam no gancho da recepção"',
+    "NOT create_task: reporting where an object is (or that it is missing) is update_location, not a repair job.",
+    "",
     "Pick ONE primary action (except create_task/guest_issue may list several tasks):",
     "",
     "── Questions (answer only, do NOT create Notion items) ──",
     "- question_doc: how systems work, procedures, what equipment uses (water, wifi, compost, electric, etc.)",
-    "    Also handles partnership/discount questions.",
+    "    Also handles partnership/discount questions. NOT “where did someone leave the keys/drill”.",
+    "- question_location: where a portable item currently is, or where it normally lives.",
+    "    Set location_lookup=true. Populate location.item (the object). Set location.list_all=true for a full list.",
+    "    EN: \"where are the keys?\", \"where is the drill?\", \"where do we keep the ladder?\"",
+    "    PT: \"onde estão as chaves?\", \"onde está o berbequim?\"",
     "- question_my_day: speaker asks what THEY personally should do today / their tasks & duties",
-    '    EN: "what should I do today?", "what\'s on my list?", "my chores today", "what do I need to do?"',
-    '    PT: "o que tenho de fazer hoje?", "quais são as minhas tarefas?"',
+    '    EN: "what should I do today?", "what\'s on my list?", "do I have anything today?", "anything for me?",',
+    '         "what\'s on for me?", "my jobs", "what have I got today?"',
+    '    PT: "o que tenho de fazer hoje?", "quais são as minhas tarefas?", "tenho alguma coisa hoje?"',
     "    Use this when the speaker refers to themselves (I/me/my), NOT the whole village schedule.",
     "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, meal headcounts, or childcare rosters already in Notion",
     "    Set schedule_lookup=true and schedule_range: today | this_week | next_week | two_weeks",
@@ -332,6 +374,18 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '    PT: "quero jantar", "quero jantar hoje", "posso jantar?", "marcar jantar"',
     '    NOT book_meal: headcount questions ("how many for dinner?"), organising a new meal/event (create_event),',
     '    or reporting a kitchen issue (create_task / guest_issue).',
+    "- create_stay: log a GUEST STAY (campsite pitch or accommodation) booked off-site — usually by email or phone,",
+    "    not through the website. Voice notes of email bookings are common. One row per stay.",
+    '    EN: "the Martins booked the cabin 20 to 24 Sept via email, two adults one child"',
+    '    EN: "email booking: João arriving Friday leaving Monday, pitch 4"',
+    '    EN: "add a campsite booking for the Silva family check-in 3 Oct check-out 7 Oct"',
+    '    PT: "reserva por email: família Costa, bungalow, 12 a 15 de Outubro, 2 adultos"',
+    "    Populate stay.guest_name, stay.check_in, stay.check_out (departure date), stay.kind",
+    '    (Campsite | Accommodation), stay.unit (pitch/cabin name), stay.adults, stay.children,',
+    '    stay.party (free text if easier), stay.source (Email | Phone | Telegram | Walk-in | Other).',
+    "    If they list several stays in one message, return ALL in stays[] and set stay to the first.",
+    "    NOT create_event (that is yoga/BBQ/workshops). NOT book_meal. NOT guest_issue.",
+    "    Looking up who is already checking in → question_schedule, not create_stay.",
     "- rsvp_event: speaker says they are coming to an event, RSVP, or \"I'm in\" for a known event.",
     "- childcare_absent: parent says their child/kid will not attend childcare today.",
     '    EN: "Sam won\'t attend childcare today", "my kid Maya is sick", "Luna won\'t come today"',
@@ -351,6 +405,13 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '    PT: "aqui está o recibo", "despesa 12,40", "gastei 8 euros em gasóleo", "reembolso"',
     "    Populate expense.title, expense.amount, expense.currency (EUR default), expense.date, expense.merchant, expense.category, expense.notes.",
     "    NOT create_expense for a repair job that happens to mention buying parts (create_task) unless they are clearly submitting the receipt.",
+    "- update_location: speaker says WHERE they left something, where it currently is, or where it normally lives.",
+    "    Goes to the Where things are database (not Tasks, not Documentation).",
+    "    location.update_kind: current (I left it / last seen) | usual (where it lives) | both | missing.",
+    "    location.item = object name (bathroom keys, drill). location.location = place string.",
+    "    location.item_kind: Keys | Tool | Supplies | Vehicle | Document | Furniture | Other.",
+    "    If they list several objects, set action=update_location and return ALL in locations[].",
+    "    NOT create_task and NOT create_documentation.",
     "- question_expenses: speaker asks how much THEY or the village spent, who is owed, or to list receipts.",
     '    EN: "how much did I spend this month?", "who needs reimbursing?", "show receipts"',
     '    PT: "quanto gastei este mês?", "quem precisa de reembolso?"',
@@ -374,6 +435,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "schedule_lookup": bool,',
     '  "schedule_range": "today" | "this_week" | "next_week" | "two_weeks",',
     '  "doc_lookup": bool,',
+    '  "location_lookup": bool,',
     '  "task": { "title", "type", "priority", "assignee", "project" } | null,',
     '  "tasks": [ { "title", "type", "priority", "assignee", "project" } ] | null,',
     '  "recurring_duty": { "title", "frequency", "assignee", "job" } | null,',
@@ -387,18 +449,26 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "reminder": { "title", "due_date", "notes" } | null,',
     '  "note": { "target_title", "text" } | null,',
     '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "notes" } | null,',
-    '  "childcare_absence": { "child_name", "date" } | null }',
+    '  "childcare_absence": { "child_name", "date" } | null,',
+    '  "stay": { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } | null,',
+    '  "stays": [ { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } ] | null,',
+    '  "location": { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases", "notes", "list_all" } | null,',
+    '  "locations": [ { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases" } ] | null }',
     "",
     "For create_event always provide event.title; provide event.date for one-offs.",
     "For repeating events always provide event.recurrence (canonical form above) and event.date = next occurrence.",
     "Dates for \"next week\" must fall in the Next week range from WEEK CALENDAR.",
     "For question_schedule set schedule_lookup=true; never populate event for lookups.",
     "For question_doc set doc_lookup=true.",
+    "For question_location set location_lookup=true and populate location.item (or list_all=true).",
+    "For update_location always populate location.item and location.location (except missing, where location may be empty).",
     "task.type: Villager = village work anyone can pitch in; Management = needs a professional or arranging.",
     "Tasks store: title, type, priority (Low/Average/High), assignee, created by, status, notes, optional project link.",
     "Recurring duties store: title, frequency, assignee, optional job role — shown daily in /mytasks + morning DM.",
     "When logging more than one recurring duty, recurring_duties[] is required and recurring_duty = recurring_duties[0].",
     "When logging more than one task, tasks[] is required (every job) and task should equal tasks[0].",
+    "For create_stay always provide stay.guest_name and stay.check_in; stay.check_out is the leaving date.",
+    "When logging more than one stay, stays[] is required and stay = stays[0].",
   ].join("\n");
 }
 
@@ -452,6 +522,62 @@ function normalizeExpenseFields(raw) {
   };
 }
 
+function normalizeStayFields(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const guest = String(raw.guest_name || raw.name || raw.title || "").trim().slice(0, 80);
+  const checkIn = String(raw.check_in || raw.date || "").slice(0, 10);
+  if (!guest && !/^\d{4}-\d{2}-\d{2}$/.test(checkIn)) return null;
+  let checkOut = String(raw.check_out || "").slice(0, 10);
+  const nights = Number(raw.nights);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(checkOut) && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && nights > 0) {
+    checkOut = addDaysISO(checkIn, nights);
+  }
+  const kind = ["Campsite", "Accommodation", "Other"].includes(raw.kind)
+    ? raw.kind
+    : null;
+  const source = ["Email", "Phone", "Telegram", "Walk-in", "Other"].includes(raw.source)
+    ? raw.source
+    : null;
+  const adults = Number(raw.adults);
+  const children = Number(raw.children);
+  return {
+    guest_name: guest || "Guest",
+    check_in: /^\d{4}-\d{2}-\d{2}$/.test(checkIn) ? checkIn : null,
+    check_out: /^\d{4}-\d{2}-\d{2}$/.test(checkOut) ? checkOut : null,
+    nights: Number.isFinite(nights) && nights > 0 ? nights : null,
+    kind,
+    unit: raw.unit ? String(raw.unit).slice(0, 80) : "",
+    adults: Number.isFinite(adults) ? adults : null,
+    children: Number.isFinite(children) ? children : null,
+    party: raw.party ? String(raw.party).slice(0, 120) : "",
+    source,
+    notes: raw.notes ? String(raw.notes).slice(0, 800) : "",
+  };
+}
+
+function normalizeLocationFields(raw, { allowEmptyItem = false } = {}) {
+  if (!raw || typeof raw !== "object") return null;
+  const item = String(raw.item || raw.title || "").trim().slice(0, 80);
+  const listAll = raw.list_all === true;
+  if (!item && !allowEmptyItem && !listAll) return null;
+  const updateKind = LOCATION_UPDATE_KINDS.includes(raw.update_kind)
+    ? raw.update_kind
+    : raw.missing === true
+      ? "missing"
+      : "current";
+  return {
+    item,
+    location: String(raw.location || "").trim().slice(0, 200),
+    usual_place: raw.usual_place ? String(raw.usual_place).trim().slice(0, 200) : null,
+    update_kind: updateKind,
+    item_kind: LOCATION_ITEM_KINDS.includes(raw.item_kind) ? raw.item_kind : "Other",
+    area: raw.area ? String(raw.area).slice(0, 80) : null,
+    aliases: raw.aliases ? String(raw.aliases).slice(0, 200) : null,
+    notes: raw.notes ? String(raw.notes).slice(0, 400) : null,
+    list_all: listAll,
+  };
+}
+
 function parseClassification(result, { areas, eventTypes, priorities }) {
   const rawAction = result.action;
   const legacyMap = {
@@ -475,21 +601,34 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     receipts: "question_expenses",
     child_absent: "childcare_absent",
     childcare_absence: "childcare_absent",
+    stay: "create_stay",
+    booking: "create_stay",
+    create_booking: "create_stay",
+    guest_stay: "create_stay",
+    where_is: "question_location",
+    location: "update_location",
+    inventory: "update_location",
   };
   let action = ACTIONS.includes(legacyMap[rawAction] || rawAction)
     ? legacyMap[rawAction] || rawAction
     : "chat";
   const confidence = Number(result.confidence) || 0;
 
-  if (result.doc_lookup === true) {
+  if (result.doc_lookup === true && action !== "question_location") {
     action = "question_doc";
   }
-  if (result.schedule_lookup === true && action !== "question_my_day" && action !== "book_meal") {
+  if (result.schedule_lookup === true && action !== "question_my_day" && action !== "book_meal" && action !== "question_location") {
     action = "question_schedule";
   }
   // Prefer personal agenda when action is my_day (don't let schedule_lookup steal it)
   if (rawAction === "question_my_day" || result.my_day === true) {
     action = "question_my_day";
+  }
+  if (result.location_lookup === true || rawAction === "question_location") {
+    action = "question_location";
+  }
+  if (rawAction === "update_location") {
+    action = "update_location";
   }
 
   let tasks = [];
@@ -629,13 +768,61 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
         }
       : null;
 
+  let stayItems = [];
+  if (action === "create_stay") {
+    const fromArray = Array.isArray(result.stays)
+      ? result.stays.map(normalizeStayFields).filter(Boolean)
+      : [];
+    const single = normalizeStayFields(result.stay);
+    if (fromArray.length) {
+      stayItems = fromArray;
+      if (
+        single &&
+        !stayItems.some(
+          (row) =>
+            row.guest_name.toLowerCase() === single.guest_name.toLowerCase() &&
+            row.check_in === single.check_in
+        )
+      ) {
+        stayItems.unshift(single);
+      }
+    } else if (single) {
+      stayItems = [single];
+    }
+  }
+  const stay = stayItems[0] || null;
+
+  let locationItems = [];
+  if (action === "update_location") {
+    const fromArray = Array.isArray(result.locations)
+      ? result.locations.map((row) => normalizeLocationFields(row)).filter(Boolean)
+      : [];
+    const single = normalizeLocationFields(result.location);
+    if (fromArray.length) {
+      locationItems = fromArray;
+      if (
+        single &&
+        !locationItems.some((row) => row.item.toLowerCase() === single.item.toLowerCase())
+      ) {
+        locationItems.unshift(single);
+      }
+    } else if (single) {
+      locationItems = [single];
+    }
+  } else if (action === "question_location") {
+    const single = normalizeLocationFields(result.location, { allowEmptyItem: true });
+    if (single) locationItems = [single];
+  }
+  const location = locationItems[0] || null;
+
   const scheduleDays = Number(result.schedule_days);
   const scheduleRange = normalizeScheduleRange(result);
   const isQuestion =
     action === "question_doc" ||
     action === "question_schedule" ||
     action === "question_my_day" ||
-    action === "question_expenses";
+    action === "question_expenses" ||
+    action === "question_location";
 
   return {
     actionable: result.actionable !== false && action !== "chat",
@@ -654,7 +841,10 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_add_note: action === "add_note" && Boolean(note?.target_title),
     is_book_meal: action === "book_meal",
     is_childcare_absence: action === "childcare_absent",
+    is_stay: action === "create_stay" && stayItems.length > 0,
     is_expense: action === "create_expense",
+    is_location_update: action === "update_location" && locationItems.length > 0,
+    is_location_question: action === "question_location",
     question_kind:
       action === "question_doc"
         ? "documentation"
@@ -664,7 +854,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
             ? "my_day"
             : action === "question_expenses"
               ? "expenses"
-              : null,
+              : action === "question_location"
+                ? "location"
+                : null,
     schedule_range: scheduleRange,
     schedule_days: scheduleDays > 0 && scheduleDays <= 30 ? Math.round(scheduleDays) : null,
     task,
@@ -681,6 +873,10 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     note,
     expense,
     childcare_absence: childcareAbsence,
+    stay,
+    stays: stayItems,
+    location,
+    locations: locationItems,
   };
 }
 
@@ -698,6 +894,8 @@ module.exports = {
   SCHEDULE_RANGES,
   EXPENSE_CATEGORIES,
   EXPENSE_CURRENCIES,
+  LOCATION_ITEM_KINDS,
+  LOCATION_UPDATE_KINDS,
   buildWeekCalendarContext,
   resolveScheduleRange,
   buildClassifierPrompt,

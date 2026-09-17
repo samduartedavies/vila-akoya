@@ -394,7 +394,12 @@ class Rest_Controller {
 		$check_in   = isset( $params['check_in'] ) ? (string) $params['check_in'] : '';
 		$check_out  = isset( $params['check_out'] ) ? (string) $params['check_out'] : '';
 		$booker     = isset( $params['booker_name'] ) ? sanitize_text_field( (string) $params['booker_name'] ) : '';
+		$phone      = isset( $params['contact_phone'] ) ? sanitize_text_field( (string) $params['contact_phone'] ) : '';
+		$stay_type  = isset( $params['stay_type'] ) ? sanitize_key( (string) $params['stay_type'] ) : 'guest';
 		$source     = $booking_id ? 'booking_lookup' : 'manual';
+		if ( $booking_id ) {
+			$stay_type = 'guest';
+		}
 
 		if ( $booking_id ) {
 			$booking_repo = new Booking_Repository();
@@ -413,6 +418,12 @@ class Rest_Controller {
 		}
 
 		$persons = isset( $params['persons'] ) && is_array( $params['persons'] ) ? $params['persons'] : array();
+		if ( '' === $booker && isset( $persons[0] ) && is_array( $persons[0] ) ) {
+			$booker = trim(
+				sanitize_text_field( (string) ( $persons[0]['given_name'] ?? '' ) ) . ' ' .
+				sanitize_text_field( (string) ( $persons[0]['surname'] ?? '' ) )
+			);
+		}
 		$repo    = new Guest_Registration_Repository();
 		$saved   = $repo->create_or_replace(
 			array(
@@ -422,6 +433,8 @@ class Rest_Controller {
 				'check_out'     => $check_out,
 				'booker_name'   => $booker,
 				'contact_email' => $email,
+				'contact_phone' => $phone,
+				'stay_type'     => $stay_type,
 				'source'        => $source,
 			),
 			$persons

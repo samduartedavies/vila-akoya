@@ -173,6 +173,28 @@ const DATABASES = [
     samples: [],
   },
   {
+    key: "Guest Stays",
+    parentSection: "Calendars",
+    purpose:
+      "Off-site bookings (email, phone, walk-in) logged via VAVA. One row per stay. Website bookings stay on Campsite Bookings.",
+    calendarView: { name: "Check-ins", dateColumn: "Check-in" },
+    properties: {
+      Name: title(),
+      "Check-in": date(),
+      "Check-out": date(),
+      Kind: selectProp(["Campsite", "Accommodation", "Other"]),
+      Unit: rich(),
+      Party: rich(),
+      Adults: num(),
+      Children: num(),
+      Source: selectProp(["Email", "Phone", "Telegram", "Walk-in", "Other"]),
+      Status: selectProp(["Confirmed", "Tentative", "Cancelled"]),
+      Notes: rich(),
+      "Logged by": rich(),
+    },
+    samples: [],
+  },
+  {
     key: "Campsite Meals",
     parentSection: "Calendars",
     purpose:
@@ -385,6 +407,33 @@ const DATABASES = [
       Receipt: files(),
     },
     samples: [],
+  },
+  {
+    key: "Where things are",
+    parentSection: "Documentation hub",
+    purpose:
+      "Portable items (keys, tools, chargers). VAVA answers “where is X?” and updates this when someone says where they left it.",
+    properties: {
+      Name: title(),
+      "Also known as": rich(),
+      "Current location": rich(),
+      "Usual place": rich(),
+      Kind: selectProp([
+        "Keys",
+        "Tool",
+        "Supplies",
+        "Vehicle",
+        "Document",
+        "Furniture",
+        "Other",
+      ]),
+      Area: selectProp(AREAS),
+      Status: selectProp(["Active", "Missing", "Archived"]),
+      "Last seen": date(),
+      "Last updated by": rich(),
+      Notes: rich(),
+    },
+    samples: ["Bathroom keys", "Drill"],
   },
 ];
 

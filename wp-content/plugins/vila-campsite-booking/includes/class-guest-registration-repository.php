@@ -38,6 +38,15 @@ class Guest_Registration_Repository {
 	}
 
 	/**
+	 * @param string $value Raw date of birth.
+	 * @return string
+	 */
+	public static function birth_ymd_or_empty( $value ) {
+		$dt = Dates::parse_birth_ymd( (string) $value );
+		return $dt ? $dt->format( 'Y-m-d' ) : '';
+	}
+
+	/**
 	 * @param int $booking_id Booking ID.
 	 * @return array<string, mixed>|null
 	 */
@@ -354,7 +363,7 @@ class Guest_Registration_Repository {
 			$vals[]  = sanitize_key( (string) $args['status'] );
 		}
 
-		$sql = "SELECT r.id AS registration_id, r.booking_id, r.order_id, r.check_in, r.check_out, r.booker_name, r.contact_email, r.siba_status, p.* FROM $p p INNER JOIN $r r ON r.id = p.registration_id WHERE " . implode( ' AND ', $where ) . ' ORDER BY r.check_in ASC, r.id ASC, p.id ASC';
+		$sql = "SELECT r.id AS registration_id, r.booking_id, r.order_id, r.check_in, r.check_out, r.booker_name, r.contact_email, r.contact_phone, r.stay_type, r.siba_status, p.* FROM $p p INNER JOIN $r r ON r.id = p.registration_id WHERE " . implode( ' AND ', $where ) . ' ORDER BY r.check_in ASC, r.id ASC, p.id ASC';
 		if ( ! empty( $vals ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders are built from fixed fragments.
 			$sql = $wpdb->prepare( $sql, $vals );
@@ -458,13 +467,35 @@ class Guest_Registration_Repository {
 			return new \WP_Error( 'invalid_stay', __( 'Please enter valid check-in and check-out dates.', 'vila-campsite-booking' ), array( 'status' => 400 ) );
 		}
 
+		$stay_type = isset( $registration['stay_type'] ) ? sanitize_key( (string) $registration['stay_type'] ) : 'guest';
+		if ( ! in_array( $stay_type, array( 'guest', 'volunteer' ), true ) ) {
+			$stay_type = 'guest';
+		}
+		if ( ! empty( $registration['booking_id'] ) ) {
+			$stay_type = 'guest';
+		}
+
+		$booker = isset( $registration['booker_name'] ) ? sanitize_text_field( (string) $registration['booker_name'] ) : '';
+		$email  = isset( $registration['contact_email'] ) ? sanitize_email( (string) $registration['contact_email'] ) : '';
+		$phone  = isset( $registration['contact_phone'] ) ? sanitize_text_field( (string) $registration['contact_phone'] ) : '';
+		if ( empty( $registration['booking_id'] ) ) {
+			if ( '' === $booker ) {
+				return new \WP_Error( 'invalid_booker', __( 'Please enter a name for this stay.', 'vila-campsite-booking' ), array( 'status' => 400 ) );
+			}
+			if ( ! is_email( $email ) ) {
+				return new \WP_Error( 'invalid_email', __( 'Please enter a valid contact email.', 'vila-campsite-booking' ), array( 'status' => 400 ) );
+			}
+		}
+
 		return array(
 			'booking_id'    => isset( $registration['booking_id'] ) ? max( 0, (int) $registration['booking_id'] ) : null,
 			'order_id'      => isset( $registration['order_id'] ) ? max( 0, (int) $registration['order_id'] ) : null,
 			'check_in'      => $check_in,
 			'check_out'     => $check_out,
-			'booker_name'   => isset( $registration['booker_name'] ) ? sanitize_text_field( (string) $registration['booker_name'] ) : '',
-			'contact_email' => isset( $registration['contact_email'] ) ? sanitize_email( (string) $registration['contact_email'] ) : '',
+			'booker_name'   => $booker,
+			'contact_email' => $email,
+			'contact_phone' => $phone,
+			'stay_type'     => $stay_type,
 			'source'        => isset( $registration['source'] ) && 'booking_lookup' === $registration['source'] ? 'booking_lookup' : 'manual',
 			'siba_status'   => isset( $registration['siba_status'] ) && in_array( $registration['siba_status'], array( 'pending', 'exported', 'not_required' ), true ) ? (string) $registration['siba_status'] : 'pending',
 		);
@@ -480,9 +511,10 @@ class Guest_Registration_Repository {
 			if ( ! is_array( $person ) ) {
 				continue;
 			}
-			$skip = ! empty( $person['skip_siba'] ) || 'PRT' === self::country_code( isset( $person['nationality'] ) ? (string) $person['nationality'] : '' );
-			$dob  = self::ymd_or_empty( isset( $person['date_of_birth'] ) ? (string) $person['date_of_birth'] : '' );
-			$row  = array(
+			$skip    = ! empty( $person['skip_siba'] ) || 'PRT' === self::country_code( isset( $person['nationality'] ) ? (string) $person['nationality'] : '' );
+			$raw_dob = isset( $person['date_of_birth'] ) ? trim( (string) $person['date_of_birth'] ) : '';
+			$dob     = self::birth_ymd_or_empty( $raw_dob );
+			$row     = array(
 				'given_name'           => isset( $person['given_name'] ) ? sanitize_text_field( (string) $person['given_name'] ) : '',
 				'surname'              => isset( $person['surname'] ) ? sanitize_text_field( (string) $person['surname'] ) : '',
 				'nationality'          => self::country_code( isset( $person['nationality'] ) ? (string) $person['nationality'] : '' ),
@@ -494,22 +526,25 @@ class Guest_Registration_Repository {
 				'skip_siba'            => $skip ? 1 : 0,
 			);
 			if ( '' === $row['given_name'] && '' === $row['surname'] ) {
-				return new \WP_Error( 'invalid_person', sprintf( __( 'Guest %d needs a name.', 'vila-campsite-booking' ), (int) $idx + 1 ), array( 'status' => 400 ) );
+				return new \WP_Error( 'invalid_person', sprintf( __( 'Person %d needs a name.', 'vila-campsite-booking' ), (int) $idx + 1 ), array( 'status' => 400 ) );
 			}
 			if ( ! $skip ) {
+				if ( '' !== $raw_dob && null === $row['date_of_birth'] ) {
+					return new \WP_Error( 'invalid_person', sprintf( __( 'Person %d has an invalid date of birth.', 'vila-campsite-booking' ), (int) $idx + 1 ), array( 'status' => 400 ) );
+				}
 				foreach ( array( 'nationality', 'date_of_birth', 'document_type', 'document_number', 'document_country', 'country_of_residence' ) as $field ) {
 					if ( '' === (string) $row[ $field ] ) {
-						return new \WP_Error( 'invalid_person', sprintf( __( 'Guest %d is missing required SIBA information.', 'vila-campsite-booking' ), (int) $idx + 1 ), array( 'status' => 400 ) );
+						return new \WP_Error( 'invalid_person', sprintf( __( 'Person %d is missing required SIBA information.', 'vila-campsite-booking' ), (int) $idx + 1 ), array( 'status' => 400 ) );
 					}
 				}
 				if ( ! in_array( $row['document_type'], array( 'P', 'B', 'O' ), true ) ) {
-					return new \WP_Error( 'invalid_document_type', sprintf( __( 'Guest %d has an invalid document type.', 'vila-campsite-booking' ), (int) $idx + 1 ), array( 'status' => 400 ) );
+					return new \WP_Error( 'invalid_document_type', sprintf( __( 'Person %d has an invalid document type.', 'vila-campsite-booking' ), (int) $idx + 1 ), array( 'status' => 400 ) );
 				}
 			}
 			$out[] = $row;
 		}
 		if ( empty( $out ) ) {
-			return new \WP_Error( 'no_persons', __( 'Please add at least one guest.', 'vila-campsite-booking' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'no_persons', __( 'Please add at least one person.', 'vila-campsite-booking' ), array( 'status' => 400 ) );
 		}
 		return $out;
 	}

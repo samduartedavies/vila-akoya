@@ -14,9 +14,11 @@
  *   - Voice notes are transcribed; documentation dumps become structured Notion pages.
  *   - Receipt photos, PDFs, or pasted till text are analysed and stored on a private Expenses board.
  *   - AI classification routes to Notion actions: tasks, recurring duties, events (internal/external),
- *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs, expenses.
- *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (events,
- *     campsite, meals, highlights); personal duties + tasks go by DM to registered members.
+ *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs, expenses,
+ *     and where things are (keys, tools, and other portable items).
+ *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (morning
+ *     meeting theme, events, campsite, meals, highlights); personal duties + tasks
+ *     go by DM to registered members.
  *   - /ask, /task, /receipt, /receipts, /register, /questionnaire, /mytasks, /done, /help as before.
  *   - After /register, a short questionnaire (DM only) fills Skills / bio on
  *     the Members (Community) board; /questionnaire updates it later. Answers
@@ -39,6 +41,7 @@
  *   TASK_GROUP_CHAT_ID      group for intake (default: TELEGRAM_CHAT_ID)
  *   AMBIENT_CAPTURE         "true" to enable passive task/event capture (OFF by default)
  *   AMBIENT_MIN_CONFIDENCE  0–1 threshold for task capture (default 0.7)
+ *   INTERACTIVE_MIN_CONFIDENCE  0–1 for @bot / DM (default 0.42; more willing to infer)
  *   LOG_DOC_GAPS            "true" to log documentation gaps on failed /ask
  *   DAILY_RECAP             "false" to disable morning recap
  *   RECAP_TIME              HH:MM in RECAP_TZ (default "08:00")
@@ -59,6 +62,8 @@ const notion = require("./lib/notion");
 const campsiteOps = require("./lib/campsite-ops");
 const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
+const locationsLib = require("./lib/locations");
+const guestStaysLib = require("./lib/guest-stays");
 const {
   CHAT_ACTIVITY_KIND,
   buildWeekCalendarContext,
@@ -109,9 +114,11 @@ const CAMPSITE_BOOKINGS_DB_NAME =
   process.env.CAMPSITE_BOOKINGS_DB || notion.DB.BOOKINGS;
 const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
 const CHILDCARE_DB_NAME = process.env.CHILDCARE_DB || notion.DB.CHILDCARE;
+const LOCATIONS_DB_NAME = process.env.LOCATIONS_DB_NAME || notion.DB.LOCATIONS;
 
 const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE === "true";
 const AMBIENT_MIN_CONFIDENCE = Number(process.env.AMBIENT_MIN_CONFIDENCE || 0.7);
+const INTERACTIVE_MIN_CONFIDENCE = Number(process.env.INTERACTIVE_MIN_CONFIDENCE || 0.42);
 const AMBIENT_MIN_TEXT_LEN = Number(process.env.AMBIENT_MIN_TEXT_LEN || 4);
 const EVENT_MIN_CONFIDENCE = Number(process.env.EVENT_MIN_CONFIDENCE || 0.5);
 const LOG_DOC_GAPS = process.env.LOG_DOC_GAPS === "true";
@@ -156,7 +163,17 @@ const RECAP_IMPORTANT_KINDS = new Set([
   "decision_logged",
   "announcement",
   "doc_logged",
+  "stay_logged",
 ]);
+
+/** Weekday morning-meeting focus, keyed by dayKeyFromISO (Mon–Fri). */
+const MORNING_MEETING_THEMES = {
+  Mon: "general",
+  Tue: "kids",
+  Wed: "villagers",
+  Thu: "commercial",
+  Fri: "creative",
+};
 
 let botMe = null;
 const recentMessages = new Map();
@@ -340,6 +357,10 @@ function dayKeyFromISO(iso, tz = RECAP_TZ) {
   return map[short] || "Mon";
 }
 
+function morningMeetingThemeForDate(dateISO, tz = RECAP_TZ) {
+  return MORNING_MEETING_THEMES[dayKeyFromISO(dateISO, tz)] || null;
+}
+
 function isWeekdayDinnerDay(dateISO, meals) {
   if (meals?.isWeekday === false) return false;
   if (meals?.isWeekday === true) return true;
@@ -360,11 +381,13 @@ function looksLikeDinnerBookingRequest(text) {
     return false;
   }
   return (
-    /\b(?:want|like|need|book|sign\s*(?:me\s*)?up|count\s*me\s*in|i'?ll\s*have|can\s*i\s*have|gostaria|quero)\b.*\b(?:dinner|jantar)\b/.test(
+    /\b(?:want|like|need|book|sign\s*(?:me\s*)?up|count\s*me\s*in|i'?ll\s*have|can\s*i\s*have|join|eat with|gostaria|quero)\b.*\b(?:dinner|jantar)\b/.test(
       t
     ) ||
     /\b(?:dinner|jantar)\b.*\b(?:tonight|today|this evening|esta noite|hoje|amanh[aã])\b/.test(t) ||
     /\bbook\s+(?:my\s+)?(?:the\s+)?(?:weekday\s+)?dinner\b/.test(t) ||
+    /\bcan i eat (?:with you|there|tonight)\b/.test(t) ||
+    /\bis there dinner (?:i can|to)\b/.test(t) ||
     /\b(?:reservar|marcar)\b.*\b(?:jantar|dinner)\b/.test(t)
   );
 }
@@ -377,12 +400,32 @@ function looksLikeChildcareBookingRequest(text) {
   );
 }
 
+function looksLikeStayBooking(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return false;
+  if (looksLikeDinnerBookingRequest(t) || looksLikeChildcareBookingRequest(t)) return false;
+  const hasStay =
+    /\b(campsite|camping|pitch|plot|tent|cabin|cabana|room|house|accommodation|alojamento|glamping|yurt|guest|guests|stay|staying|check[- ]?in|check[- ]?out|reserva)\b/.test(
+      t
+    );
+  const hasBook =
+    /\b(booked|booking|reserva|reservaram|reservou|arrived by email|via email|from (an )?email|off[- ]site)\b/.test(
+      t
+    );
+  return hasStay && hasBook;
+}
+
 function looksLikeChildcareAbsenceRequest(text) {
   const t = String(text || "").toLowerCase();
   return (
-    /\b(?:won'?t|will not|can't|cannot|isn'?t|not|nao|não)\s+(?:come|attend|be there|go)\b/.test(t) &&
-    /\b(?:childcare|child care|today|hoje|kid|child|children)\b/.test(t)
-  ) || /\b(?:child|kid|filh[oa])\b.*\b(?:absent|sick|doente|won'?t come|nao vai|não vai)\b/.test(t);
+    (
+      /\b(?:won'?t|will not|can't|cannot|isn'?t|not|nao|não)\s+(?:come|attend|be there|go|be in)\b/.test(t) &&
+      /\b(?:childcare|child care|today|hoje|kid|child|children|kids)\b/.test(t)
+    ) ||
+    /\b(?:child|kid|filh[oa])\b.*\b(?:absent|sick|doente|won'?t come|nao vai|não vai|off today|staying home)\b/.test(t) ||
+    /\b(?:keeping|keeping .{1,40} home|off (?:childcare|kids)|not sending)\b/.test(t) ||
+    /\b(?:n[aã]o vai(?:\s+hoje)? (?:para )?(?:o |a )?(?:childcare|infant[aá]rio|kids))\b/.test(t)
+  );
 }
 
 function extractChildcareAbsence(text) {
@@ -415,7 +458,7 @@ function looksLikeExpenseQuestion(text) {
   const t = String(text || "").toLowerCase();
   if (!t) return false;
   return (
-    /\b(how much (did|have) i spend|my (expenses|receipts)|who (needs|is owed) reimburs|receipts this month|show receipts)\b/.test(
+    /\b(how much (did|have) i spend|what have i spent|my (expenses|receipts|spending)|who (needs|is owed) reimburs|receipts this month|show (me )?(the )?(receipts|expenses))\b/.test(
       t
     ) ||
     /\b(quanto (gastei|despesa)|os meus recibos|quem (precisa|tem) (de )?reembolso)\b/.test(t)
@@ -2255,23 +2298,110 @@ function looksLikeMyDayQuestion(text) {
     /what should i do/.test(t) ||
     /what do i (need to |have to )?do/.test(t) ||
     /what('?s| is) (on )?my (list|plate|agenda)/.test(t) ||
-    /my (tasks?|duties|chores|jobs) (for )?today/.test(t) ||
+    /what('?s| is) on for me/.test(t) ||
+    /what have i got( today)?/.test(t) ||
+    /do i have (anything|any(thing)? (to do|tasks?|jobs?))/.test(t) ||
+    /anything (for|on) me( today)?/.test(t) ||
+    /my (tasks?|duties|chores|jobs)( for)?( today)?/.test(t) ||
     /\bmy day\b/.test(t) ||
     /o que (eu )?tenho (de |que )?fazer/.test(t) ||
+    /tenho alguma coisa( hoje)?/.test(t) ||
     /minhas tarefas/.test(t)
   );
 }
 
 function looksLikeCompleteTask(text) {
   const t = String(text || "").toLowerCase();
+  if (/\b(i'?m done|done for (the )?day|done for today)\b/.test(t) && !/\b(task|job|wifi|tap)\b/.test(t)) {
+    return false;
+  }
   return (
     /\bmark\b.*\b(done|complete|completed|finished)\b/.test(t) ||
-    /\b(please|can you|could you)\b.*\bmark\b/.test(t) ||
+    /\b(please|can you|could you)\b.*\b(mark|close)\b/.test(t) ||
     /\b(?:i'?ve|i have)\s+done\b/.test(t) ||
-    /\b(?:it|that)('?s| is)\s+done\b/.test(t) ||
-    (/\b(?:done|finished|completed|fixed)\b/.test(t) &&
+    /\b(?:it|that)('?s| is)\s+(?:done|sorted|fixed)\b/.test(t) ||
+    /\b(?:that'?s|it'?s)\s+sorted\b/.test(t) ||
+    /\bworking again\b/.test(t) ||
+    /\b(podes? marcar|j[aá] est[aá] (feito|pronta|resolvido))\b/.test(t) ||
+    (/\b(?:done|finished|completed|fixed|sorted)\b/.test(t) &&
       /\b(wifi|wi-?fi|task|job|tap|toilet|shower|leak|light|valve)\b/.test(t))
   );
+}
+
+function inferTaskTypePriority(text) {
+  const t = String(text || "").toLowerCase();
+  let type = null;
+  let priority = null;
+  if (
+    /\b(villager|village work|anyone can|we can (?:all )?do|diy|pitch in|simples|qualquer um)\b/.test(
+      t
+    )
+  ) {
+    type = "Villager";
+  }
+  if (
+    /\b(management|professional|plumber|electrician|contractor|arranging|needs? a pro|hire|especialista|canalizador|eletricista)\b/.test(
+      t
+    )
+  ) {
+    type = "Management";
+  }
+  if (/\b(low|no rush|whenever|not urgent|quando der|sem pressa)\b/.test(t)) priority = "Low";
+  if (/\b(average|medium|normal)\b/.test(t)) priority = "Average";
+  if (/\b(high|urgent|asap|emergency|safety|perigo|urgente)\b/.test(t)) priority = "High";
+  return { type, priority };
+}
+
+function withTaskDefaults(task, text) {
+  const inferred = inferTaskTypePriority(text);
+  return {
+    ...(task || {}),
+    title: task?.title || String(text || "").slice(0, 80) || "(photo)",
+    type: task?.type || inferred.type || "Villager",
+    priority: task?.priority || inferred.priority || "Average",
+  };
+}
+
+function actionMinConfidence(interactive) {
+  return interactive ? INTERACTIVE_MIN_CONFIDENCE : AMBIENT_MIN_CONFIDENCE;
+}
+
+function looksLikeQuestion(text) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  if (/[?¿]/.test(t)) return true;
+  return /^(what|where|who|when|why|how|which|is |are |can |could |do |does |did |should |would |will |any |anyone |qual|onde|quem|quando|como|porque|porqu[eê]|h[aá] |tem )\b/i.test(
+    t
+  );
+}
+
+function recentChatLines(chatId, excludeText) {
+  return (recentMessages.get(chatId) || [])
+    .map((m) => m.text)
+    .filter((line) => line && line !== excludeText)
+    .slice(-8);
+}
+
+async function replyConversationally({
+  text,
+  chatId,
+  classified = null,
+  situation = "",
+  facts = "",
+} = {}) {
+  if (!text || !openaiLib.isEnabled()) return false;
+  await telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
+  const reply = await openaiLib.converseAsVava({
+    text,
+    recent: recentChatLines(chatId, text),
+    classified,
+    situation,
+    facts,
+    todayISO: todayISO(),
+  });
+  if (!reply) return false;
+  await sendMessage(chatId, escapeHtml(reply));
+  return true;
 }
 
 function extractCompleteTaskTarget(text) {
@@ -2333,6 +2463,106 @@ function mergeCompletionIntent(classified, text, chatId) {
   if (!classified || classified.action === "chat" || !classified.is_complete) {
     log(`Completion intent: mark done → "${completion.target.title}"`);
     return { ...(classified || {}), ...completion };
+  }
+  return classified;
+}
+
+function mergeLocationIntent(classified, text) {
+  if (classified?.is_location_question) {
+    if (!classified.location?.item && !classified.location?.list_all) {
+      const item = locationsLib.extractLocationQuestionItem(text);
+      if (item) {
+        classified = {
+          ...classified,
+          location: { ...(classified.location || {}), item },
+          locations: [{ ...(classified.location || {}), item }],
+        };
+      }
+    }
+    return classified;
+  }
+  if (classified?.is_location_update) {
+    if (!classified.location?.item || !classified.location?.location) {
+      const extracted = locationsLib.extractLocationUpdate(text);
+      if (extracted) {
+        return {
+          ...classified,
+          location: { ...extracted, ...classified.location, item: classified.location?.item || extracted.item, location: classified.location?.location || extracted.location },
+          locations:
+            Array.isArray(classified.locations) && classified.locations.length
+              ? classified.locations
+              : [extracted],
+        };
+      }
+    }
+    return classified;
+  }
+  if (locationsLib.looksLikeLocationQuestion(text)) {
+    const item =
+      classified?.location?.item || locationsLib.extractLocationQuestionItem(text);
+    const listAll =
+      classified?.location?.list_all === true ||
+      /\b(everything|all (?:the )?things|where things are)\b/i.test(text);
+    log(`Location intent: ask where → "${item || (listAll ? "all" : "?")}"`);
+    return {
+      ...(classified || {}),
+      action: "question_location",
+      actionable: true,
+      is_question: true,
+      is_location_question: true,
+      question_kind: "location",
+      confidence: Math.max(classified?.confidence || 0, 0.86),
+      location: {
+        item: item || "",
+        location: "",
+        update_kind: "current",
+        item_kind: "Other",
+        list_all: listAll,
+      },
+      locations: [
+        {
+          item: item || "",
+          location: "",
+          update_kind: "current",
+          item_kind: "Other",
+          list_all: listAll,
+        },
+      ],
+    };
+  }
+  if (
+    locationsLib.looksLikeLocationUpdate(text) &&
+    !classified?.is_complete &&
+    classified?.action !== "complete_task"
+  ) {
+    const extracted = locationsLib.extractLocationUpdate(text);
+    const loc = classified?.location || extracted;
+    if (!loc?.item) return classified;
+    const row = {
+      item: loc.item,
+      location: loc.location || extracted?.location || "",
+      usual_place: loc.usual_place || null,
+      update_kind: loc.update_kind || extracted?.update_kind || "current",
+      item_kind: loc.item_kind || locationsLib.guessItemKind(loc.item),
+      area: loc.area || null,
+      aliases: loc.aliases || null,
+      notes: loc.notes || null,
+    };
+    log(`Location intent: update → "${row.item}" @ "${row.location}"`);
+    return {
+      ...(classified || {}),
+      action: "update_location",
+      actionable: true,
+      is_question: false,
+      is_task: false,
+      is_location_update: true,
+      confidence: Math.max(classified?.confidence || 0, 0.86),
+      location: row,
+      locations:
+        Array.isArray(classified?.locations) && classified.locations.length
+          ? classified.locations
+          : [row],
+    };
   }
   return classified;
 }
@@ -2668,30 +2898,35 @@ function pageMatchesDay(page, dateISO) {
  * Rows mirror meals: Checking in / Checking out / Staying text lists.
  */
 async function fetchCampsiteActivityForDay(dateISO) {
-  let pages;
+  let website = { arrivals: [], departures: [], staying: [] };
   try {
-    ({ pages } = await notion.queryDatabase(CAMPSITE_BOOKINGS_DB_NAME));
+    const { pages } = await notion.queryDatabase(CAMPSITE_BOOKINGS_DB_NAME);
+    const linesFromDetail = (text) =>
+      String(text || "")
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((line) => ({ line, name: line.split(" · ")[0] || line }));
+
+    for (const page of pages) {
+      if (!pageMatchesDay(page, dateISO)) continue;
+      website = {
+        arrivals: linesFromDetail(notion.pagePropText(page, "Checking in")),
+        departures: linesFromDetail(notion.pagePropText(page, "Checking out")),
+        staying: linesFromDetail(notion.pagePropText(page, "Staying")),
+      };
+      break;
+    }
   } catch (err) {
     log("Campsite bookings database unavailable:", err.message);
-    return { arrivals: [], departures: [], staying: [] };
   }
 
-  const linesFromDetail = (text) =>
-    String(text || "")
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((line) => ({ line, name: line.split(" · ")[0] || line }));
-
-  for (const page of pages) {
-    if (!pageMatchesDay(page, dateISO)) continue;
-    const arrivals = linesFromDetail(notion.pagePropText(page, "Checking in"));
-    const departures = linesFromDetail(notion.pagePropText(page, "Checking out"));
-    const staying = linesFromDetail(notion.pagePropText(page, "Staying"));
-    return { arrivals, departures, staying };
-  }
-
-  return { arrivals: [], departures: [], staying: [] };
+  const extra = await guestStaysLib.activityForDay(dateISO).catch(() => ({
+    arrivals: [],
+    departures: [],
+    staying: [],
+  }));
+  return guestStaysLib.mergeActivity(website, extra);
 }
 
 async function fetchCampsiteMealsForDay(dateISO) {
@@ -2781,7 +3016,7 @@ function formatChildcareRoster(childcare) {
 }
 
 function formatCampsiteSnapshot(dateISO, activity, meals) {
-  const lines = ["Campsite bookings (Notion):"];
+  const lines = ["Campsite check-ins (website + email/manual):"];
   if (activity.arrivals.length) {
     lines.push(`Checking in (${activity.arrivals.length}):`);
     for (const b of activity.arrivals) lines.push(`- ${b.line}`);
@@ -2801,7 +3036,7 @@ function formatCampsiteSnapshot(dateISO, activity, meals) {
     for (const b of activity.staying) lines.push(`- ${b.line}`);
   }
 
-  lines.push("", "Meals (Notion):");
+  lines.push("", "Meals booked (from the website):");
   if (!meals) {
     lines.push("- (meals database not available)");
   } else {
@@ -2973,60 +3208,71 @@ async function buildDailyRecap(dateISO) {
   }).format(new Date(dateISO + "T12:00:00"));
 
   const lines = [`Good morning! Here's ${dayName}:`, ""];
-  lines.push("<b>Events today</b>");
+  const meetingTheme = morningMeetingThemeForDate(dateISO);
+  if (meetingTheme) {
+    lines.push("<b>Morning meeting</b>");
+    lines.push(`• Theme: ${escapeHtml(meetingTheme)}`);
+    lines.push("");
+  }
   if (events.length) {
+    lines.push("<b>Events today</b>");
     for (const e of events) {
       const recur = e.recurrence ? ` — ${escapeHtml(e.recurrence)}` : "";
       lines.push(`• ${escapeHtml(e.title)}${e.type ? ` (${escapeHtml(e.type)})` : ""}${recur}`);
     }
-  } else {
-    lines.push("• (nothing scheduled)");
   }
 
-  lines.push("", "<b>Campsite today</b>");
+  const campsiteLines = [];
   if (activity.arrivals.length) {
-    lines.push(`<i>Checking in (${activity.arrivals.length})</i>`);
+    campsiteLines.push(`<i>Checking in (${activity.arrivals.length})</i>`);
     for (const b of activity.arrivals) {
-      lines.push(`• ${escapeHtml(b.line)}`);
+      campsiteLines.push(`• ${escapeHtml(b.line)}`);
     }
-  } else {
-    lines.push("• No check-ins today");
   }
   if (activity.departures.length) {
-    lines.push(`<i>Checking out (${activity.departures.length})</i>`);
+    campsiteLines.push(`<i>Checking out (${activity.departures.length})</i>`);
     for (const b of activity.departures) {
-      lines.push(`• ${escapeHtml(b.line)}`);
+      campsiteLines.push(`• ${escapeHtml(b.line)}`);
     }
-  } else {
-    lines.push("• No check-outs today");
   }
-  lines.push(
-    `• On site tonight: ${escapeHtml(String(activity.staying.length))} pitch${
-      activity.staying.length === 1 ? "" : "es"
-    }`
-  );
+  if (activity.staying.length) {
+    campsiteLines.push(
+      `• On site tonight: ${escapeHtml(String(activity.staying.length))} pitch${
+        activity.staying.length === 1 ? "" : "es"
+      }`
+    );
+  }
+  if (campsiteLines.length) {
+    const heading = activity.arrivals.length
+      ? "<b>Check-ins from the website</b>"
+      : "<b>Campsite from the website</b>";
+    lines.push("", heading);
+    lines.push(...campsiteLines);
+  }
 
-  if (meals) {
-    lines.push("", "<b>Meals today</b>");
-    lines.push(`• Breakfast: ${escapeHtml(String(meals.breakfastCook))} to cook`);
+  const mealLines = [];
+  if (meals?.breakfastCook) {
+    mealLines.push(`• Breakfast: ${escapeHtml(String(meals.breakfastCook))} to cook`);
     if (meals.breakfastDetail) {
       for (const line of meals.breakfastDetail.split("\n").filter(Boolean).slice(0, 6)) {
-        lines.push(`  ${escapeHtml(line)}`);
-      }
-    }
-    if (meals.isWeekday === false) {
-      lines.push("• Dinner: (weekend — no communal dinner)");
-    } else {
-      lines.push(`• Dinner: ${escapeHtml(String(meals.dinnerCook))} to cook`);
-      if (meals.dinnerDetail) {
-        for (const line of meals.dinnerDetail.split("\n").filter(Boolean).slice(0, 6)) {
-          lines.push(`  ${escapeHtml(line)}`);
-        }
+        mealLines.push(`  ${escapeHtml(line)}`);
       }
     }
   }
+  if (meals && meals.isWeekday !== false && meals.dinnerCook) {
+    mealLines.push(`• Dinner: ${escapeHtml(String(meals.dinnerCook))} to cook`);
+    if (meals.dinnerDetail) {
+      for (const line of meals.dinnerDetail.split("\n").filter(Boolean).slice(0, 6)) {
+        mealLines.push(`  ${escapeHtml(line)}`);
+      }
+    }
+  }
+  if (mealLines.length) {
+    lines.push("", "<b>Meals booked on the website</b>");
+    lines.push(...mealLines);
+  }
 
-  if (childcare) {
+  if (childcare && (childcare.headcount || childcare.absent)) {
     lines.push("", "<b>Childcare today</b>");
     lines.push(`• ${escapeHtml(formatChildcareLine(childcare))}`);
   }
@@ -3041,12 +3287,21 @@ async function buildDailyRecap(dateISO) {
   let recap;
   try {
     const plain = template.replace(/<[^>]+>/g, "");
+    const extras = [
+      "Do not mention missing or zero items. Never say there are no check-ins, no check-outs, no meals to prepare, no events, or no childcare — omit those topics instead.",
+      "Check-ins and meal bookings come from the website.",
+    ];
+    if (meetingTheme) {
+      extras.push(`Keep the morning meeting theme (${meetingTheme}) near the top.`);
+    }
+    if (yesterdayHighlights.length) {
+      extras.push(
+        "Rewrite the 'Yesterday's highlights' bullets naturally, e.g. " +
+          "'Yesterday Sam said the shower light is broken.' Keep all facts."
+      );
+    }
     const friendly = await openaiLib.composeRecap(
-      plain +
-        (yesterdayHighlights.length
-          ? "\n\nRewrite the 'Yesterday's highlights' bullets naturally, e.g. " +
-            "'Yesterday Sam said the shower light is broken.' Keep all facts."
-          : "")
+      extras.length ? `${plain}\n\n${extras.join(" ")}` : plain
     );
     recap = friendly.split("\n").map(escapeHtml).join("\n");
   } catch {
@@ -3771,6 +4026,112 @@ async function addNoteToPage({ targetTitle, noteText, from, chatId }) {
   return { ok: false };
 }
 
+async function handleLocationQuestion({ text, classified, chatId }) {
+  try {
+    const result = await locationsLib.answerLocationQuestion({
+      item: classified?.location?.item,
+      listAll: classified?.location?.list_all,
+      area: classified?.location?.area,
+      question: text,
+    });
+    if (result.list) {
+      await sendMessage(chatId, `<pre>${escapeHtml(result.snapshot)}</pre>`);
+      return true;
+    }
+    if (result.ok && result.item) {
+      let reply = `📍 ${escapeHtml(locationsLib.formatLocationAnswer(result.item))}`;
+      if (result.item.url) reply += `\n<a href="${result.item.url}">Notion</a>`;
+      await sendMessage(chatId, reply);
+      return true;
+    }
+    if (result.reason === "ambiguous") {
+      const names = (result.matches || []).map((m) => m.name).join(", ");
+      await sendMessage(chatId, `Which one? I found: ${escapeHtml(names)}.`);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    log("handleLocationQuestion error:", err.message);
+    return false;
+  }
+}
+
+async function handleLocationUpdate({ text, from, chatId, classified }) {
+  const items =
+    Array.isArray(classified?.locations) && classified.locations.length
+      ? classified.locations.filter((row) => row?.item)
+      : classified?.location?.item
+        ? [classified.location]
+        : [];
+  if (!items.length) {
+    const extracted = locationsLib.extractLocationUpdate(text);
+    if (extracted) items.push(extracted);
+  }
+  if (!items.length) {
+    await sendMessage(
+      chatId,
+      "Tell me the object and where it is — e.g. “the drill is in the workshop” or “I left the bathroom keys on the hook”."
+    );
+    return false;
+  }
+
+  const fromName = senderDisplayName(from);
+  const lines = [];
+  for (const loc of items) {
+    const key = ambientDedupeKey(chatId, "location", loc.item);
+    if (wasRecentlyCaptured(key)) continue;
+    try {
+      const result = await locationsLib.upsertLocation({
+        item: loc.item,
+        location: loc.location,
+        usualPlace: loc.usual_place,
+        updateKind: loc.update_kind,
+        itemKind: loc.item_kind,
+        area: loc.area,
+        aliases: loc.aliases,
+        notes: loc.notes,
+        fromName,
+        todayISO: todayISO(),
+        sourceText: text,
+      });
+      if (result.reason === "ambiguous") {
+        const names = (result.matches || []).map((m) => m.name).join(", ");
+        await sendMessage(chatId, `Which one? I found: ${escapeHtml(names)}.`);
+        continue;
+      }
+      if (!result.ok) continue;
+      markCaptured(key);
+      recordChatActivity({
+        kind: "location_logged",
+        from,
+        chatId,
+        title: result.name,
+        text,
+      });
+      let line = result.missing
+        ? `⚠️ Marked missing: <b>${escapeHtml(result.name)}</b>`
+        : result.created
+          ? `📍 Added <b>${escapeHtml(result.name)}</b>`
+          : `📍 Updated <b>${escapeHtml(result.name)}</b>`;
+      if (result.current) line += ` → ${escapeHtml(result.current)}`;
+      if (result.usual && result.usual !== result.current) {
+        line += ` <i>(usual: ${escapeHtml(result.usual)})</i>`;
+      }
+      if (result.url) line += ` — <a href="${result.url}">Notion</a>`;
+      lines.push(line);
+    } catch (err) {
+      log("upsertLocation error:", err.message);
+    }
+  }
+
+  if (!lines.length) {
+    await sendMessage(chatId, "Sorry, I could not save that on Where things are.");
+    return false;
+  }
+  await sendMessage(chatId, lines.join("\n"));
+  return true;
+}
+
 // ── Partnerships DB light query ───────────────────────────────────────────────
 async function answerFromPartnerships(question) {
   let pages;
@@ -4080,15 +4441,19 @@ function looksLikeGeneralConversation(text) {
   const raw = String(text || "").trim();
   if (!raw) return false;
   if (looksLikeQuestionnaireReply(text, { step: "role" })) return false;
-  if (/\?$/.test(raw)) return true;
+  if (/[?¿]$/.test(raw) || looksLikeQuestion(raw)) return true;
   if (
-    /^(what|why|how|who|when|where|are you|you awake|hello|hi|hey|help|thanks|thank you)\b/i.test(
+    /^(what|why|how|who|when|where|are you|you awake|hello|hi|hey|help|thanks|thank you|ok|okay|cool|nice|lol|haha|cheers|bom dia|boa tarde|obrigad)/i.test(
       raw
     )
   ) {
     return true;
   }
-  if (/^(i don'?t understand|reply to what|what do you mean|never mind|huh|wait|sorry)\b/i.test(raw)) {
+  if (
+    /^(i don'?t understand|reply to what|what do you mean|never mind|huh|wait|sorry|can you|could you|please)\b/i.test(
+      raw
+    )
+  ) {
     return true;
   }
   return false;
@@ -4355,18 +4720,37 @@ async function handlePendingClarification(message) {
     return false;
   }
 
-  const text = (message.text || "").trim().toLowerCase();
+  const text = (message.text || "").trim();
   if (!text) return false;
+
+  if (/^(never mind|nevermind|forget it|cancel|stop|no thanks)\b/i.test(text)) {
+    delete state.pendingClarify[key];
+    saveState();
+    await sendMessage(chatId, "Okay — I won’t log that.");
+    return true;
+  }
 
   const partial = pending.partial;
   if (pending.kind === "task_type_priority") {
-    const isVillager = /villager|village/i.test(text);
-    const isMgmt = /management|professional|arranging/i.test(text);
-    if (isVillager) partial.type = "Villager";
-    else if (isMgmt) partial.type = "Management";
-    if (/\blow\b/i.test(text)) partial.priority = "Low";
-    else if (/\baverage\b|\bmedium\b|\bnormal\b/i.test(text)) partial.priority = "Average";
-    else if (/\bhigh\b|\burgent\b/i.test(text)) partial.priority = "High";
+    const inferred = inferTaskTypePriority(text);
+    if (inferred.type) partial.type = inferred.type;
+    if (inferred.priority) partial.priority = inferred.priority;
+    if (!inferred.type && !inferred.priority) {
+      const ai = await openaiLib.interpretTaskClarification(text).catch(() => null);
+      if (ai?.cancel) {
+        delete state.pendingClarify[key];
+        saveState();
+        await sendMessage(chatId, "Okay — I won’t log that.");
+        return true;
+      }
+      if (ai?.type) partial.type = ai.type;
+      if (ai?.priority) partial.priority = ai.priority;
+    }
+    if (!partial.type && !partial.priority && looksLikeQuestion(text)) {
+      return false;
+    }
+    if (!partial.type) partial.type = "Villager";
+    if (!partial.priority) partial.priority = "Average";
   }
 
   try {
@@ -4400,10 +4784,22 @@ const HELP_TEXT = [
   "<b>Group</b>: tag me (@bot), reply to me, or say <b>Vava</b> (or start a voice note with <b>robot</b>, <b>bot</b>, <b>vila akoya bot</b>, or <b>personal assistant</b>).",
   "<b>DMs</b>: always on, no tag needed.",
   "",
-  "I can log tasks (villager work or management jobs), <b>recurring duties</b> (daily/weekly/monthly rota), events, reminders, RSVP to events, add notes to projects, <b>receipts / expenses</b>, answer questions from docs and schedule, and more.",
+  "I can log tasks (villager work or management jobs), <b>recurring duties</b> (daily/weekly/monthly rota), events, reminders, RSVP to events, add notes to projects, <b>receipts / expenses</b>, say where things are, answer questions from docs and schedule, and more.",
+  "Talk normally — I go by meaning, not exact phrases.",
   "Send a list of cleaning/rota jobs in one message (or voice note) — daily, weekly, monthly — and I'll add them all to Notion.",
   "Voice notes are transcribed — explain how something works to create a structured doc.",
   "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado). In the group, tag me or use /receipt.",
+  "",
+  "<b>Email / off-site bookings</b>",
+  "Voice note or text a stay booked by email or phone and I’ll put it on Guest Stays in Notion (and in the morning check-in list).",
+  "• “the Martins booked the cabin 20–24 Sept, 2 adults 1 child, via email”",
+  "• “email booking: João arriving Friday leaving Monday, pitch 4”",
+  "",
+  "<b>Where things are</b>",
+  "• “where are the bathroom keys?” / “where is the drill?”",
+  "• “I left the drill in the kitchen” / “the keys live on the hook by reception”",
+  "• “I can't find the bathroom keys” — marked missing until someone says where they are",
+  "The live list is the <i>Where things are</i> page in Notion.",
   "",
   "<b>Task types</b>",
   "• <i>Villager</i> — village work anyone can pitch in on",
@@ -4441,14 +4837,14 @@ async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
         `task=${classified.is_task} tasks=${classified.tasks?.length || 0} question=${classified.is_question} ` +
         `schedule_range=${classified.schedule_range || "-"} conf=${classified.confidence}`
     );
-    return mergeCompletionIntent(classified, cleanText, chatId);
+    return mergeLocationIntent(mergeCompletionIntent(classified, cleanText, chatId), cleanText);
   } catch (err) {
     log("classifyGroupMessage error:", err.message);
     return null;
   }
 }
 
-async function handleClassifiedQuestion({ text, questionKind, from, chatId, interactive, scheduleRange }) {
+async function handleClassifiedQuestion({ text, questionKind, from, chatId, interactive, scheduleRange, classified }) {
   const logDocGaps = interactive && LOG_DOC_GAPS;
 
   if (questionKind === "expenses" || looksLikeExpenseQuestion(text)) {
@@ -4521,9 +4917,31 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
     return false;
   }
 
+  if (questionKind === "location" || locationsLib.looksLikeLocationQuestion(text)) {
+    const answered = await handleLocationQuestion({ text, classified, chatId });
+    if (answered) return true;
+    const docResult = await handleAsk({ question: text, from, chatId, logGap: false });
+    if (docResult.answered) return true;
+    if (interactive) {
+      const item = locationsLib.extractLocationQuestionItem(text) || "that";
+      await sendMessage(
+        chatId,
+        `I don't know where ${escapeHtml(item)} is yet. Tell me where it lives or where you left it — I'll put it on the Where things are page.`
+      );
+      return true;
+    }
+    return false;
+  }
+
   if (questionKind === "documentation") {
+    if (locationsLib.looksLikeLocationQuestion(text)) {
+      const locHit = await handleLocationQuestion({ text, classified, chatId });
+      if (locHit) return true;
+    }
     const docResult = await handleAsk({ question: text, from, chatId, logGap: logDocGaps });
     if (docResult.answered) return true;
+    const locAfter = await handleLocationQuestion({ text, classified, chatId });
+    if (locAfter) return true;
     if (/partner|discount|affiliate/i.test(text)) {
       try {
         const pResult = await answerFromPartnerships(text);
@@ -4555,6 +4973,15 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
   if (dataResult.answered && dataResult.answer) {
     await sendMessage(chatId, escapeHtml(dataResult.answer));
     return true;
+  }
+  if (interactive) {
+    return replyConversationally({
+      text,
+      chatId,
+      classified,
+      situation:
+        "They asked something. Village docs and the schedule didn't have a clear answer. Be honest about that, then offer a useful next step — don't invent site facts.",
+    });
   }
   return false;
 }
@@ -4596,10 +5023,10 @@ async function captureAmbientDocumentation({ text, from, chatId, interactive }) 
 async function captureAmbientTask({ classified, text, from, chatId, photoFileId }) {
   const tasks =
     Array.isArray(classified?.tasks) && classified.tasks.length
-      ? classified.tasks
+      ? classified.tasks.map((task) => withTaskDefaults(task, text))
       : classified?.task
-        ? [classified.task]
-        : [{ title: text || "(photo)" }];
+        ? [withTaskDefaults(classified.task, text)]
+        : [{ title: text || "(photo)", type: "Villager", priority: "Average" }];
 
   const created = [];
   const activityKind =
@@ -4776,6 +5203,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     task: { title: text },
   };
   const conf = c.confidence || 0;
+  const minConf = actionMinConfidence(interactive);
 
   // Cheap path: personal agenda without waiting on classifier nuance
   if (interactive && text && looksLikeMyDayQuestion(text)) {
@@ -4841,12 +5269,22 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
       chatId,
       interactive,
       scheduleRange: c.schedule_range,
+      classified: c,
     });
     if (interactive && !answered) {
-      await sendMessage(
+      const ok = await replyConversationally({
+        text,
         chatId,
-        "I couldn't find that in our documentation or schedule. Try rephrasing, or use /task to log a job."
-      );
+        classified: c,
+        situation:
+          "They asked a question. Docs/schedule search didn't turn up a solid answer. Be honest, then help them with the next step.",
+      });
+      if (!ok) {
+        await sendMessage(
+          chatId,
+          "I don't have that written down yet. Want me to log it as a job, or tell a steward?"
+        );
+      }
     }
     return;
   }
@@ -4869,15 +5307,15 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
       await sendMessage(
         chatId,
         inRecap
-          ? "Noted — I'll include that in tomorrow's morning roundup."
-          : "Noted."
+          ? "Got it — I'll mention that in tomorrow's morning roundup."
+          : "Got it."
       );
     }
     return;
   }
 
   // Documentation drafts (voice brain dumps → structured workdoc)
-  if (c.is_documentation && text && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.is_documentation && text && conf >= minConf) {
     const ok = await captureAmbientDocumentation({ text, from, chatId, interactive });
     if (!ok && interactive) {
       await sendMessage(chatId, "Sorry, I could not create that documentation.");
@@ -4905,7 +5343,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   // Mark task complete
-  if (c.is_complete && c.target && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.is_complete && c.target && conf >= minConf) {
     try {
       const result = await completeTaskFromChat({ target: c.target, text, from, chatId });
       if (result.ok && !result.duplicate) {
@@ -4931,7 +5369,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   // Cancel event
-  if (c.is_cancel_event && c.target && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.is_cancel_event && c.target && conf >= minConf) {
     try {
       const result = await cancelEventFromChat({ target: c.target, text, from, chatId });
       if (result.ok && !result.duplicate) {
@@ -4950,7 +5388,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   // Governance
-  if (c.action === "create_decision" && c.decision && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.action === "create_decision" && c.decision && conf >= minConf) {
     const key = ambientDedupeKey(chatId, "decision", c.decision.title);
     if (!wasRecentlyCaptured(key)) {
       try {
@@ -4974,7 +5412,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   // RSVP
-  if (c.is_rsvp && c.rsvp?.title && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.is_rsvp && c.rsvp?.title && conf >= minConf) {
     try {
       const displayName = senderDisplayName(from);
       const result = await rsvpEvent({ title: c.rsvp.title, displayName, from, chatId });
@@ -4996,7 +5434,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   // Reminders
-  if (c.is_reminder && c.reminder?.title && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.is_reminder && c.reminder?.title && conf >= minConf) {
     try {
       const { url } = await createReminder({
         title: c.reminder.title,
@@ -5018,7 +5456,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   // Add note to project/task
-  if (c.is_add_note && c.note?.target_title && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.is_add_note && c.note?.target_title && conf >= minConf) {
     try {
       const result = await addNoteToPage({
         targetTitle: c.note.target_title,
@@ -5038,14 +5476,35 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     return;
   }
 
+  // Where things are — left it / lives here
+  if (
+    (c.is_location_update || c.action === "update_location") &&
+    conf >= minConf
+  ) {
+    await handleLocationUpdate({ text, from, chatId, classified: c });
+    return;
+  }
+
+  // Off-site / email guest stays (before events — “booked the cabin” is not a workshop)
+  if (c.is_stay || c.action === "create_stay") {
+    const ok = await captureAmbientStay({
+      classified: c,
+      text,
+      from,
+      chatId,
+      interactive,
+    });
+    if (ok || interactive) return;
+  }
+
   // Events & deliveries
-  if (c.is_event && c.event && conf >= EVENT_MIN_CONFIDENCE) {
+  if (c.is_event && c.event && conf >= (interactive ? minConf : EVENT_MIN_CONFIDENCE)) {
     await captureAmbientEvent({ classified: c, text, from, chatId });
     return;
   }
 
   // Recurring duties (daily/weekly rota — not one-off Tasks)
-  if (c.is_recurring_duty && c.recurring_duty && conf >= AMBIENT_MIN_CONFIDENCE) {
+  if (c.is_recurring_duty && c.recurring_duty && conf >= minConf) {
     const ok = await captureAmbientRecurringDuty({ classified: c, text, from, chatId });
     if (!ok && interactive) {
       await sendMessage(chatId, "Sorry, I could not set up that recurring duty.");
@@ -5055,34 +5514,18 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
 
   // Tasks & guest issues
   if (
-    (c.is_task && c.task && conf >= AMBIENT_MIN_CONFIDENCE) ||
-    (c.action === "guest_issue" && c.task && conf >= AMBIENT_MIN_CONFIDENCE) ||
+    (c.is_task && c.task && conf >= minConf) ||
+    (c.action === "guest_issue" && c.task && conf >= minConf) ||
     photoFileId
   ) {
     const taskList =
       Array.isArray(c.tasks) && c.tasks.length ? c.tasks : c.task ? [c.task] : [];
-    // Only clarify type/priority for a single incomplete task — batch voice dumps skip this.
-    if (
-      interactive &&
-      taskList.length === 1 &&
-      c.task &&
-      (!c.task.type || !c.task.priority)
-    ) {
-      const key = `${chatId}:${from.id}`;
-      state.pendingClarify[key] = {
-        kind: "task_type_priority",
-        partial: { ...c.task, sourceText: text },
-        fromId: from.id,
-        ts: Date.now(),
-      };
-      saveState();
-      await sendMessage(
-        chatId,
-        `Got it — <b>${escapeHtml(c.task.title)}</b>.\nIs this a <i>villager</i> task or <i>management</i> (needs a professional/arranging)? And priority — low / average / high?`
-      );
-      return;
-    }
-    const ok = await captureAmbientTask({ classified: c, text, from, chatId, photoFileId });
+    const classified = {
+      ...c,
+      task: withTaskDefaults(c.task, text),
+      tasks: taskList.map((task) => withTaskDefaults(task, text)),
+    };
+    const ok = await captureAmbientTask({ classified, text, from, chatId, photoFileId });
     if (!ok && interactive) {
       await sendMessage(chatId, "Sorry, I could not save that task.");
     }
@@ -5090,13 +5533,26 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   if (interactive && text) {
-    const docResult = await handleAsk({ question: text, from, chatId, logGap: false });
-    if (docResult.answered) return;
+    if (looksLikeQuestion(text)) {
+      const docResult = await handleAsk({ question: text, from, chatId, logGap: false });
+      if (docResult.answered) return;
+    }
 
-    await sendMessage(
+    const ok = await replyConversationally({
+      text,
       chatId,
-      "I'm not sure what you need — try asking a question, describing a job, or mentioning an event with a date."
-    );
+      classified: c,
+      situation:
+        c.action && c.action !== "chat"
+          ? `I wasn't confident enough to act on "${c.action}". Infer what they want and check with them in plain language.`
+          : "Casual chat, a greeting, or an unclear request. Respond like a person. If they might want a job/event/lookup, offer that.",
+    });
+    if (!ok) {
+      await sendMessage(
+        chatId,
+        "Happy to help — tell me what’s broken, what’s happening, or what you’re looking for."
+      );
+    }
   }
 }
 
@@ -5128,7 +5584,7 @@ async function routeAddressedMessage(message) {
   }
 
   if (!text && !photoFileId && !media) {
-    await sendMessage(chatId, "What can I help with? Ask me anything, or use /help.");
+    await sendMessage(chatId, "Hey — I’m here. What’s up?");
     return;
   }
 
@@ -5146,6 +5602,12 @@ async function routeAddressedMessage(message) {
   if (text && looksLikeExpenseQuestion(text)) {
     await sendExpenseSummary(chatId, { from });
     return;
+  }
+
+  if (text && locationsLib.looksLikeLocationQuestion(text)) {
+    const classified = mergeLocationIntent(null, text);
+    const answered = await handleLocationQuestion({ text, classified, chatId });
+    if (answered) return;
   }
 
   const isPrivate = message.chat?.type === "private";
@@ -5482,14 +5944,23 @@ async function handleAsk({ question, from, chatId, logGap = LOG_DOC_GAPS }) {
     return { answered: true };
   }
 
+  if (locationsLib.looksLikeLocationQuestion(question)) {
+    const locHit = await handleLocationQuestion({
+      question,
+      text: question,
+      classified: null,
+      chatId,
+    });
+    if (locHit) return { answered: true };
+  }
+
   if (!logGap) return { answered: false };
 
   try {
     await createDocGapTask({ question, from, chatId });
     await sendMessage(
       chatId,
-      "I couldn't find that in our documentation yet. I've logged it as a " +
-        "<b>Documentation gap</b> so a steward can write it up. 📝"
+      "I don’t have that written down yet. I’ve logged it as a documentation gap so a steward can fill it in."
     );
   } catch (err) {
     log("createDocGapTask error:", err.message);
@@ -5555,6 +6026,94 @@ async function captureAmbientEvent({ classified, text, from, chatId }) {
     log("createEvent error:", err.message);
     return false;
   }
+}
+
+async function captureAmbientStay({ classified, text, from, chatId, interactive }) {
+  const rawList =
+    Array.isArray(classified?.stays) && classified.stays.length
+      ? classified.stays
+      : classified?.stay
+        ? [classified.stay]
+        : [];
+  const stays = rawList
+    .map((row) => guestStaysLib.normalizeStay(row, { sourceText: text }))
+    .filter(Boolean);
+  if (!stays.length) {
+    if (interactive) {
+      await sendMessage(
+        chatId,
+        "I can log that stay — who is it for, and which dates (check-in and check-out)?"
+      );
+    }
+    return false;
+  }
+
+  const created = [];
+  for (const stay of stays) {
+    if (!stay.check_in) {
+      if (interactive) {
+        await sendMessage(
+          chatId,
+          `I have <b>${escapeHtml(stay.guest_name)}</b> — what are the check-in and check-out dates?`
+        );
+      }
+      continue;
+    }
+    const key = ambientDedupeKey(
+      chatId,
+      "stay",
+      `${stay.guest_name}:${stay.check_in}:${stay.check_out || ""}`
+    );
+    if (wasRecentlyCaptured(key)) continue;
+    try {
+      const result = await guestStaysLib.createStay(stay, {
+        loggedBy: `${senderDisplayName(from)} (${senderHandle(from)})`,
+        notes: telegramNote({ from, chatId, sourceText: text }),
+      });
+      markCaptured(key);
+      markPageSeen(result.id, {
+        stage: "",
+        status: stay.status || "Confirmed",
+        doer: "",
+        done: false,
+      });
+      recordChatActivity({
+        kind: "stay_logged",
+        from,
+        chatId,
+        title: stay.guest_name,
+        eventDate: stay.check_in,
+        text,
+      });
+      created.push({ stay, url: result.url });
+      log(`Stay captured: ${stay.guest_name} ${stay.check_in} → ${stay.check_out || "?"}`);
+    } catch (err) {
+      log("createStay error:", err.message);
+    }
+  }
+
+  if (!created.length) return false;
+
+  if (created.length === 1) {
+    const { stay, url } = created[0];
+    const when = stay.check_out ? `${stay.check_in} → ${stay.check_out}` : stay.check_in;
+    let reply = `🏕️ Stay logged: <b>${escapeHtml(stay.guest_name)}</b> (${escapeHtml(when)})`;
+    if (stay.kind) reply += ` · ${escapeHtml(stay.kind)}`;
+    if (stay.unit) reply += ` · ${escapeHtml(stay.unit)}`;
+    if (stay.party) reply += ` · ${escapeHtml(stay.party)}`;
+    if (url) reply += ` — <a href="${url}">Notion</a>`;
+    await sendMessage(chatId, reply);
+  } else {
+    const lines = created.map(({ stay, url }) => {
+      const when = stay.check_out ? `${stay.check_in} → ${stay.check_out}` : stay.check_in;
+      let line = `• <b>${escapeHtml(stay.guest_name)}</b> (${escapeHtml(when)})`;
+      if (stay.unit) line += ` · ${escapeHtml(stay.unit)}`;
+      if (url) line += ` — <a href="${url}">Notion</a>`;
+      return line;
+    });
+    await sendMessage(chatId, `🏕️ Logged ${created.length} stays:\n${lines.join("\n")}`);
+  }
+  return true;
 }
 
 async function handleAmbientMessage(message) {
@@ -5754,6 +6313,23 @@ async function main() {
   log(`Notion announcements → chat ${TELEGRAM_CHAT_ID || "(off)"}`);
 
   await ensureMembersQuestionnaireSchema();
+  try {
+    const loc = await locationsLib.ensureLocationsDatabase();
+    log(
+      `Where things are: ${loc.wasCreated ? "created" : "ready"} (${LOCATIONS_DB_NAME})` +
+        (loc.seeded ? `, seeded ${loc.seeded} items` : "")
+    );
+  } catch (err) {
+    log("Where things are setup skipped:", err.message);
+  }
+  try {
+    const stays = await guestStaysLib.ensureGuestStaysDatabase();
+    log(
+      `Guest stays: ${stays.wasCreated ? "created" : "ready"} (${guestStaysLib.GUEST_STAYS_DB_NAME})`
+    );
+  } catch (err) {
+    log("Guest stays setup skipped:", err.message);
+  }
 
   if (openaiLib.isEnabled()) {
     const idx = getDocsIndex();

@@ -330,8 +330,13 @@
         '<label><span>Child name</span><input type="text" name="vila_childcare_child_name[]" required data-vila-childcare-child-name /></label>' +
         '<label><span>Age</span><input type="number" min="0" max="17" step="1" name="vila_childcare_child_age[]" required data-vila-childcare-child-age /></label>' +
         '</div>' +
-        '<label><span>Allergies or medical things</span><textarea name="vila_childcare_child_allergies[]" rows="3" data-vila-childcare-child-allergies></textarea></label>' +
+        '<label><span data-vila-childcare-allergies-label></span><textarea name="vila_childcare_child_allergies[]" rows="3" data-vila-childcare-child-allergies></textarea></label>' +
         '<button type="button" class="vila-cb-gr__manual vila-cb-childcare__remove" data-vila-childcare-remove-child>Remove</button>';
+      qs(row, '[data-vila-childcare-allergies-label]').textContent = txt(
+        root,
+        'childAllergies',
+        'Allergies or other important things we should keep in mind about your little one'
+      );
       qs(row, '[data-vila-childcare-child-name]').value = child && child.name ? child.name : '';
       qs(row, '[data-vila-childcare-child-age]').value = child && child.age !== undefined ? child.age : '';
       qs(row, '[data-vila-childcare-child-allergies]').value = child && child.allergies ? child.allergies : '';

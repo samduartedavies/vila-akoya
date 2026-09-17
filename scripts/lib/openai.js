@@ -16,9 +16,11 @@
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "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";
 const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-// gpt-4.1-nano: fastest/cheapest OpenAI chat model — good for JSON classification + short answers.
-// Override with OPENAI_CHAT_MODEL if you need more accuracy (e.g. gpt-4o-mini).
-const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4.1-nano";
+// gpt-4o-mini: better at paraphrases and messy village chat than nano.
+// Override with OPENAI_CHAT_MODEL if you need cheaper/faster (e.g. gpt-4.1-nano).
+const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
+// Natural replies (can match CHAT_MODEL; keep a separate knob if classification stays cheap).
+const CONVERSE_MODEL = process.env.OPENAI_CONVERSE_MODEL || CHAT_MODEL;
 // Vision-capable model for receipt photos / PDFs.
 const VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4o-mini";
 const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small";
@@ -65,10 +67,10 @@ async function chatJSON(system, user) {
   return chatJSONMessages(system, user, { model: CHAT_MODEL });
 }
 
-async function chatJSONMessages(system, userContent, { model } = {}) {
+async function chatJSONMessages(system, userContent, { model, temperature } = {}) {
   const json = await openai("/chat/completions", {
     model: model || CHAT_MODEL,
-    temperature: 0,
+    temperature: temperature ?? 0,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: system },
@@ -179,11 +181,13 @@ async function answerFromDocs(question, contexts) {
     .join("\n\n---\n\n");
 
   const system = [
-    "You are the Vila Akoya documentation assistant.",
-    "Answer ONLY using the documentation excerpts provided.",
-    "If the answer is not clearly contained in them, set answered=false and",
-    "do not guess. Keep answers short, friendly and practical, for people",
-    "living at or visiting a campsite/village.",
+    "You are VAVA, the Vila Akoya village helper.",
+    "Answer using the documentation excerpts provided — rephrase them in a",
+    "warm, practical way, as if you live on site. Combine related excerpts.",
+    "If the excerpts are relevant but incomplete, answer what you can and say",
+    "what's still missing. Set answered=false only when they are irrelevant",
+    "or you would have to invent village-specific facts.",
+    "Keep answers short (a few sentences). English or Portuguese to match the question.",
     "",
     'Return JSON: { "answered": bool, "answer": string, "sources": [doc names used] }.',
   ].join("\n");
@@ -256,12 +260,12 @@ async function classifyIntent(text, todayISO) {
     "You route messages to the Vila Akoya community bot.",
     `Today's date is ${todayISO}.`,
     "",
-    "Pick ONE intent:",
+    "Pick ONE intent from meaning, not exact wording. Typos and paraphrases are fine.",
     "- doc_question: asking how something works, procedures (water, compost, etc.)",
     "- data_question: schedule/rota, who is on duty, what's happening today/this week",
-    "- create_task: wants to log a job that needs doing",
+    "- create_task: wants to log a job that needs doing (including 'the tap is dripping', 'can you put this on the board')",
     "- create_event: wants to log something happening on a date",
-    "- general: greeting, thanks, unclear, or not actionable",
+    "- general: greeting, thanks, unclear, or not actionable — still reply helpfully in summary",
     "",
     `For create_task: title, area (${AREAS.join(", ")}), priority (${PRIORITIES.join(", ")}).`,
     `For create_event: title, date (YYYY-MM-DD), event_type (${EVENT_TYPES.join(", ")}).`,
@@ -299,14 +303,15 @@ async function answerFromData(question, snapshot) {
   if (!isEnabled()) return { answered: false, answer: "" };
 
   const system = [
-    "You are the Vila Akoya community assistant.",
-    "Answer ONLY using the schedule data provided (chores, events, campsite bookings, meals).",
+    "You are VAVA, the Vila Akoya village helper.",
+    "Answer using the schedule data provided (chores, events, campsite bookings, meals).",
+    "Write like a person on site — short, warm, practical — not a database dump.",
     "The data includes a WEEK CALENDAR: this week is always Monday–Sunday containing today;",
     "next week is always the Monday–Sunday period after this Sunday.",
     "Only mention events/bookings/meals whose dates fall inside the range the user asked about.",
-    "Campsite check-ins, check-outs, who is on site, breakfast/dinner cook counts come from Notion.",
+    "Campsite check-ins, check-outs, who is on site, and breakfast/dinner cook counts come from website bookings.",
     "If the answer is not in the data, set answered=false and do not guess.",
-    "Keep answers short, friendly and practical.",
+    "Match the language of the question (English or Portuguese).",
     'Return JSON: { "answered": bool, "answer": string }.',
   ].join("\n");
 
@@ -326,7 +331,7 @@ async function composeRecap(templateText) {
   if (!isEnabled()) return templateText;
   try {
     const result = await chatJSON(
-      "Rewrite this daily community recap to be warm and concise. Keep all facts. Return JSON: { \"text\": string }.",
+      "Rewrite this daily community recap to be warm and concise. Keep all facts that are present. Do not mention missing or zero items — never say there are no check-ins, no meals to prepare, no events, or no childcare; omit those topics instead. Check-ins and meal bookings come from the website. Return JSON: { \"text\": string }.",
       templateText
     );
     return String(result.text || templateText);
@@ -554,6 +559,103 @@ async function transcribeAudio(buf, filename) {
   return String(json.text || "").trim();
 }
 
+/**
+ * Interpret a follow-up when VAVA asked villager/management + priority.
+ * Understands paraphrases: "anyone can do it", "needs a plumber", "it's urgent".
+ */
+async function interpretTaskClarification(text) {
+  if (!isEnabled()) return { type: null, priority: null, cancel: false };
+
+  const system = [
+    "The user is answering how to file a village task.",
+    "type: Villager = anyone on site can pitch in; Management = needs a pro or arranging.",
+    "priority: Low | Average | High.",
+    "cancel=true if they don't want the task logged (never mind, wait, cancel, forget it).",
+    "Infer from meaning, not exact words. 'anyone can do it' → Villager. 'needs a plumber' → Management.",
+    "'no rush' → Low. 'urgent/asap/safety' → High.",
+    "If they only answered one of type/priority, leave the other null.",
+    'Return JSON: { "type": "Villager"|"Management"|null, "priority": "Low"|"Average"|"High"|null, "cancel": bool }',
+  ].join("\n");
+
+  try {
+    const result = await chatJSON(system, text);
+    const type = result.type === "Villager" || result.type === "Management" ? result.type : null;
+    const priority = ["Low", "Average", "High"].includes(result.priority)
+      ? result.priority
+      : null;
+    return { type, priority, cancel: Boolean(result.cancel) };
+  } catch (err) {
+    console.error("interpretTaskClarification failed:", err.message);
+    return { type: null, priority: null, cancel: false };
+  }
+}
+
+/**
+ * Natural reply when classification is fuzzy, or docs/schedule didn't have an answer.
+ * Must not invent village-specific facts that aren't in `facts`.
+ */
+async function converseAsVava({
+  text,
+  recent = [],
+  classified = null,
+  situation = "",
+  facts = "",
+  todayISO: today = "",
+} = {}) {
+  if (!isEnabled()) return "";
+
+  const system = [
+    "You are VAVA, the village helper for Vila Akoya (campsite + small community in Portugal).",
+    today ? `Today is ${today}.` : "",
+    "Talk like a helpful person who lives there: warm, brief, practical. Not a call centre or a command parser.",
+    "Reply in the same language they used (English, Portuguese, or mixed).",
+    "",
+    "You can log jobs, recurring duties, events, reminders, RSVPs, receipts; remember where things are;",
+    "answer from village docs and the Notion schedule; note a child off childcare; point people to dinner/childcare booking.",
+    "",
+    "Do NOT invent village facts (who's on duty, where an object is, how a system works, guest names,",
+    "phone numbers, allergies, bookings) unless they appear under FACTS.",
+    "If you don't know a site-specific fact, say so simply and offer a useful next step",
+    "(look it up, log a job, remember where they left it, etc.).",
+    "Never tell people they must use slash commands or exact phrases.",
+    "Don't list everything you can do unless they ask what you can do.",
+    "If their intent is fuzzy, infer the most likely thing and check in one short question.",
+    "If CLASSIFIER GUESS looks right, you may offer to do that: 'Want me to put that on the board?'",
+    "1–3 short sentences. No markdown headings. A little warmth is good.",
+    'Return JSON: { "reply": string }',
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const user = [
+    facts ? `FACTS (trust these):\n${String(facts).slice(0, 2500)}` : "",
+    situation ? `SITUATION:\n${situation}` : "",
+    classified
+      ? `CLASSIFIER GUESS: action=${classified.action || "chat"} confidence=${classified.confidence ?? "?"}`
+      : "",
+    recent.length
+      ? `RECENT MESSAGES:\n${recent
+          .slice(-8)
+          .map((line) => `- ${line}`)
+          .join("\n")}`
+      : "",
+    `LATEST:\n${text}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  try {
+    const result = await chatJSONMessages(system, user, {
+      model: CONVERSE_MODEL,
+      temperature: 0.55,
+    });
+    return String(result.reply || "").trim().slice(0, 1200);
+  } catch (err) {
+    console.error("converseAsVava failed:", err.message);
+    return "";
+  }
+}
+
 async function summarizeImportantChat(messages, dateISO) {
   if (!isEnabled() || !messages?.length) return [];
 
@@ -597,6 +699,8 @@ module.exports = {
   answerFromData,
   composeRecap,
   summarizeImportantChat,
+  converseAsVava,
+  interpretTaskClarification,
   structureDocumentation,
   extractReceipt,
   transcribeAudio,
@@ -604,6 +708,7 @@ module.exports = {
   EVENT_TYPES,
   EMBED_MODEL,
   CHAT_MODEL,
+  CONVERSE_MODEL,
   VISION_MODEL,
   TRANSCRIBE_MODEL,
 };

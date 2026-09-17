@@ -17,10 +17,14 @@ class Dates {
 	/**
 	 * Parse Y-m-d in site timezone.
 	 *
-	 * @param string $ymd Date string.
+	 * Booking dates default to 1970+ (Unix-safe). Pass a lower $min_year for
+	 * dates of birth, which commonly predate 1970.
+	 *
+	 * @param string $ymd      Date string.
+	 * @param int    $min_year Inclusive minimum year.
 	 * @return \DateTimeImmutable|null
 	 */
-	public static function parse_ymd( $ymd ) {
+	public static function parse_ymd( $ymd, $min_year = 1970 ) {
 		$ymd = trim( (string) $ymd );
 		if ( '' === $ymd || '0000-00-00' === $ymd || str_starts_with( $ymd, '0000-' ) ) {
 			return null;
@@ -28,15 +32,31 @@ class Dates {
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $ymd ) ) {
 			return null;
 		}
+		$min_year = (int) $min_year;
 		try {
 			$d = new \DateTimeImmutable( $ymd . ' 00:00:00', wp_timezone() );
-			if ( $d->format( 'Y-m-d' ) !== $ymd || (int) $d->format( 'Y' ) < 1970 ) {
+			if ( $d->format( 'Y-m-d' ) !== $ymd || (int) $d->format( 'Y' ) < $min_year ) {
 				return null;
 			}
 			return $d;
 		} catch ( \Exception $e ) {
 			return null;
 		}
+	}
+
+	/**
+	 * Parse a date of birth (1900 through today).
+	 *
+	 * @param string $ymd Date string.
+	 * @return \DateTimeImmutable|null
+	 */
+	public static function parse_birth_ymd( $ymd ) {
+		$dt = self::parse_ymd( $ymd, 1900 );
+		if ( ! $dt ) {
+			return null;
+		}
+		$today = new \DateTimeImmutable( 'today', wp_timezone() );
+		return $dt > $today ? null : $dt;
 	}
 
 	/**

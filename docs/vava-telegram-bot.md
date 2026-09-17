@@ -3,7 +3,7 @@
 ## Group / topic description (≤255 chars)
 
 ```
-VAVA (@vila_akoya_bot) — village helper. Tag it or say “Vava” in a voice note to log tasks & events, ask how things work, or write docs. /register · /questionnaire · /mytasks · /help
+VAVA (@vila_akoya_bot) — village helper. Tag it or say “Vava” in a voice note to log tasks & events, ask where things are, or write docs. /register · /questionnaire · /mytasks · /help
 ```
 
 ## Pinned message (paste into the topic)
@@ -37,11 +37,22 @@ In a DM: send a photo or PDF — I'll assume it's a receipt, then ask which NIF 
 Or add Alcateia / Povoado in the caption. In the group: tag the bot or /receipt
 /receipts — this month's totals by person and company
 
+EMAIL / OFF-SITE BOOKINGS
+Voice note or text a stay booked by email or phone — it goes on Guest Stays in Notion (and morning check-ins):
+@vila_akoya_bot the Martins booked the cabin 20–24 Sept, 2 adults 1 child, via email
+@vila_akoya_bot email booking: João arriving Friday leaving Monday, pitch 4
+
 ASK
 @vila_akoya_bot how does the water system work?
 @vila_akoya_bot what’s happening next week?
 @vila_akoya_bot what should I do today?  (after /register Your Name)
 /ask <question> · /mytasks
+
+WHERE THINGS ARE
+@vila_akoya_bot where are the bathroom keys?
+@vila_akoya_bot I left the drill in the kitchen
+@vila_akoya_bot the bathroom keys live on the hook by reception
+Live list: Notion page “Where things are” (Documentation hub)
 
 CHILDCARE
 Book childcare on the website: /book-childcare/
@@ -65,7 +76,7 @@ ALSO
 • /help for the full list
 
 MORNING ROUNDUP (~08:00 Lisbon)
-• Group topic: events, campsite, meals, childcare count, yesterday’s highlights
+• Group topic: morning meeting theme (Mon general, Tue kids, Wed villagers, Thu commercial, Fri creative), events, campsite, meals, childcare count, yesterday’s highlights
 • Personal duties + tasks: DM only (after /register)
 • Child minder roster: DM only for registered Members assigned to the Child minder Job
 

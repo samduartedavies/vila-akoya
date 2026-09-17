@@ -8,16 +8,29 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Site address + map coordinates.
+ * Site address + Google Maps place link.
  *
- * @return array{line:string,lat:float,lng:float,maps_url:string}
+ * @return array{line:string,maps_url:string,place:string}
  */
 function vila_akoya_location_details() {
 	return array(
 		'line'     => 'Horta da Bica, 7670-202 Ourique',
-		'lat'      => 37.5679167,
-		'lng'      => -8.2642778,
-		'maps_url' => 'https://maps.app.goo.gl/oBuiBrk987Q6FmTN6',
+		'maps_url' => 'https://maps.app.goo.gl/SwDXWRQA3HJD4pp69',
+		'place'    => 'Vila Akoya - Eco Campsite & Tiny Home Village, Horta da Bica, 7670-202 Ourique, Portugal',
+	);
+}
+
+/**
+ * Google Maps embed URL for the site place listing.
+ *
+ * @return string
+ */
+function vila_akoya_location_map_embed_url() {
+	$loc = vila_akoya_location_details();
+
+	return sprintf(
+		'https://www.google.com/maps?q=%s&hl=en&z=15&output=embed',
+		rawurlencode( $loc['place'] )
 	);
 }
 
@@ -27,12 +40,8 @@ function vila_akoya_location_details() {
  * @return string
  */
 function vila_akoya_render_location_map() {
-	$loc      = vila_akoya_location_details();
-	$embed    = sprintf(
-		'https://www.google.com/maps?q=%1$s,%2$s&hl=en&z=9&output=embed',
-		rawurlencode( (string) $loc['lat'] ),
-		rawurlencode( (string) $loc['lng'] )
-	);
+	$loc   = vila_akoya_location_details();
+	$embed = vila_akoya_location_map_embed_url();
 	$title_id = 'vila-location-map-heading';
 
 	ob_start();

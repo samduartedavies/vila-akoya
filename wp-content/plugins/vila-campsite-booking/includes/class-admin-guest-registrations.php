@@ -115,6 +115,7 @@ class Admin_Guest_Registrations {
 						<thead>
 							<tr>
 								<th><?php esc_html_e( 'Stay', 'vila-campsite-booking' ); ?></th>
+								<th><?php esc_html_e( 'Type', 'vila-campsite-booking' ); ?></th>
 								<th><?php esc_html_e( 'Booker', 'vila-campsite-booking' ); ?></th>
 								<th><?php esc_html_e( 'Guests', 'vila-campsite-booking' ); ?></th>
 								<th><?php esc_html_e( 'SIBA rows', 'vila-campsite-booking' ); ?></th>
@@ -124,7 +125,7 @@ class Admin_Guest_Registrations {
 						</thead>
 						<tbody>
 							<?php if ( empty( $rows ) ) : ?>
-								<tr><td colspan="6"><?php esc_html_e( 'No guest registrations found.', 'vila-campsite-booking' ); ?></td></tr>
+								<tr><td colspan="7"><?php esc_html_e( 'No guest registrations found.', 'vila-campsite-booking' ); ?></td></tr>
 							<?php endif; ?>
 							<?php foreach ( $rows as $row ) : ?>
 								<?php
@@ -136,12 +137,17 @@ class Admin_Guest_Registrations {
 									}
 								}
 								$detail_url = admin_url( 'admin.php?page=' . self::PAGE . '&registration_id=' . (int) $row['id'] );
+								$stay_type  = isset( $row['stay_type'] ) && 'volunteer' === (string) $row['stay_type'] ? __( 'Volunteer', 'vila-campsite-booking' ) : __( 'Guest', 'vila-campsite-booking' );
 								?>
 								<tr>
 									<td><?php echo esc_html( (string) $row['check_in'] . ' → ' . (string) $row['check_out'] ); ?></td>
+									<td><?php echo esc_html( $stay_type ); ?></td>
 									<td>
 										<strong><?php echo esc_html( (string) $row['booker_name'] ); ?></strong><br />
 										<small><?php echo esc_html( (string) $row['contact_email'] ); ?></small>
+										<?php if ( ! empty( $row['contact_phone'] ) ) : ?>
+											<br /><small><?php echo esc_html( (string) $row['contact_phone'] ); ?></small>
+										<?php endif; ?>
 									</td>
 									<td><?php echo esc_html( (string) count( $persons ) ); ?></td>
 									<td><?php echo esc_html( (string) $siba_count ); ?></td>
@@ -206,6 +212,16 @@ class Admin_Guest_Registrations {
 							<td>
 								<input type="text" name="booker_name" class="regular-text" value="<?php echo esc_attr( (string) $reg['booker_name'] ); ?>" />
 								<input type="email" name="contact_email" class="regular-text" value="<?php echo esc_attr( (string) $reg['contact_email'] ); ?>" />
+								<input type="text" name="contact_phone" class="regular-text" value="<?php echo esc_attr( isset( $reg['contact_phone'] ) ? (string) $reg['contact_phone'] : '' ); ?>" placeholder="<?php esc_attr_e( 'Phone', 'vila-campsite-booking' ); ?>" />
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Stay type', 'vila-campsite-booking' ); ?></th>
+							<td>
+								<select name="stay_type">
+									<option value="guest" <?php selected( isset( $reg['stay_type'] ) ? (string) $reg['stay_type'] : 'guest', 'guest' ); ?>><?php esc_html_e( 'Guest', 'vila-campsite-booking' ); ?></option>
+									<option value="volunteer" <?php selected( isset( $reg['stay_type'] ) ? (string) $reg['stay_type'] : '', 'volunteer' ); ?>><?php esc_html_e( 'Volunteer', 'vila-campsite-booking' ); ?></option>
+								</select>
 							</td>
 						</tr>
 						<tr>
@@ -269,7 +285,7 @@ class Admin_Guest_Registrations {
 			<td><input type="text" name="<?php echo esc_attr( $prefix ); ?>[given_name]" value="<?php echo esc_attr( isset( $person['given_name'] ) ? (string) $person['given_name'] : '' ); ?>" /></td>
 			<td><input type="text" name="<?php echo esc_attr( $prefix ); ?>[surname]" value="<?php echo esc_attr( isset( $person['surname'] ) ? (string) $person['surname'] : '' ); ?>" /></td>
 			<td><input type="text" name="<?php echo esc_attr( $prefix ); ?>[nationality]" maxlength="3" value="<?php echo esc_attr( isset( $person['nationality'] ) ? (string) $person['nationality'] : '' ); ?>" /></td>
-			<td><input type="date" name="<?php echo esc_attr( $prefix ); ?>[date_of_birth]" value="<?php echo esc_attr( isset( $person['date_of_birth'] ) ? (string) $person['date_of_birth'] : '' ); ?>" /></td>
+			<td><input type="date" name="<?php echo esc_attr( $prefix ); ?>[date_of_birth]" min="1900-01-01" value="<?php echo esc_attr( isset( $person['date_of_birth'] ) ? (string) $person['date_of_birth'] : '' ); ?>" /></td>
 			<td>
 				<select name="<?php echo esc_attr( $prefix ); ?>[document_type]">
 					<option value=""></option>
@@ -310,6 +326,8 @@ class Admin_Guest_Registrations {
 				'check_out'     => isset( $_POST['check_out'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['check_out'] ) ) ) : '',
 				'booker_name'   => isset( $_POST['booker_name'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['booker_name'] ) ) ) : '',
 				'contact_email' => isset( $_POST['contact_email'] ) ? sanitize_email( wp_unslash( Request_String::scalar( $_POST['contact_email'] ) ) ) : '',
+				'contact_phone' => isset( $_POST['contact_phone'] ) ? sanitize_text_field( wp_unslash( Request_String::scalar( $_POST['contact_phone'] ) ) ) : '',
+				'stay_type'     => isset( $_POST['stay_type'] ) ? sanitize_key( wp_unslash( Request_String::scalar( $_POST['stay_type'] ) ) ) : 'guest',
 				'source'        => isset( $old['source'] ) ? (string) $old['source'] : 'manual',
 				'siba_status'   => isset( $_POST['siba_status'] ) ? sanitize_key( wp_unslash( Request_String::scalar( $_POST['siba_status'] ) ) ) : 'pending',
 			),

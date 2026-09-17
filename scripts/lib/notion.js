@@ -27,6 +27,7 @@ const DB = {
   JOBS: "Jobs",
   RECURRING: "Recurring Duties",
   BOOKINGS: "Campsite Bookings",
+  GUEST_STAYS: "Guest Stays",
   MEALS: "Campsite Meals",
   CHILDCARE: "Childcare",
   PROJECTS: "Projects",
@@ -39,6 +40,7 @@ const DB = {
   REMINDERS: "Reminders",
   PARTNERSHIPS: "Partnerships",
   EXPENSES: "Expenses",
+  LOCATIONS: "Where things are",
 };
 
 const WATCH_DB_NAMES = [
