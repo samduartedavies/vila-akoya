@@ -76,6 +76,7 @@ const EXPENSE_CATEGORIES = [
   "Guest / campsite",
   "Other",
 ];
+const EXPENSE_PURPOSES = ["Breakfast", "Bar", "Dinner", "Kids Program"];
 const EXPENSE_CURRENCIES = ["EUR", "GBP", "USD", "Other"];
 const LOCATION_ITEM_KINDS = [
   "Keys",
@@ -403,7 +404,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "    Photo of a till receipt, factura, talão, invoice, OR pasted receipt text, OR “I spent €X at Y”.",
     '    EN: "here\'s my receipt", "expense 12.40 Continente", "I spent 8 euros on fuel", "reimburse me for this"',
     '    PT: "aqui está o recibo", "despesa 12,40", "gastei 8 euros em gasóleo", "reembolso"',
-    "    Populate expense.title, expense.amount, expense.currency (EUR default), expense.date, expense.merchant, expense.category, expense.notes.",
+    "    Populate expense.title, expense.amount, expense.currency (EUR default), expense.date, expense.merchant, expense.category, expense.purpose, expense.notes.",
+    "    expense.purpose is what the receipt is for, only if they said it: Breakfast, Bar, Dinner, Kids Program.",
     "    NOT create_expense for a repair job that happens to mention buying parts (create_task) unless they are clearly submitting the receipt.",
     "- update_location: speaker says WHERE they left something, where it currently is, or where it normally lives.",
     "    Goes to the Where things are database (not Tasks, not Documentation).",
@@ -448,7 +450,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "rsvp": { "title" } | null,',
     '  "reminder": { "title", "due_date", "notes" } | null,',
     '  "note": { "target_title", "text" } | null,',
-    '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "notes" } | null,',
+    '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "purpose", "notes" } | null,',
     '  "childcare_absence": { "child_name", "date" } | null,',
     '  "stay": { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } | null,',
     '  "stays": [ { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } ] | null,',
@@ -518,6 +520,10 @@ function normalizeExpenseFields(raw) {
     date: raw.date ? String(raw.date).slice(0, 10) : null,
     merchant: raw.merchant ? String(raw.merchant).slice(0, 80) : null,
     category: EXPENSE_CATEGORIES.includes(raw.category) ? raw.category : "Other",
+    purpose:
+      EXPENSE_PURPOSES.find(
+        (p) => p.toLowerCase() === String(raw.purpose || "").trim().toLowerCase()
+      ) || null,
     notes: raw.notes ? String(raw.notes).slice(0, 500) : null,
   };
 }
@@ -893,6 +899,7 @@ module.exports = {
   NOTION_DATABASES,
   SCHEDULE_RANGES,
   EXPENSE_CATEGORIES,
+  EXPENSE_PURPOSES,
   EXPENSE_CURRENCIES,
   LOCATION_ITEM_KINDS,
   LOCATION_UPDATE_KINDS,

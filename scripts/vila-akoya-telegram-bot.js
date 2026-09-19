@@ -532,6 +532,81 @@ function parseExpenseEntityChoice(text) {
   return null;
 }
 
+/** What the receipt is for — camp operations, not the OCR spend category. */
+const EXPENSE_PURPOSES = [
+  { id: 1, name: "Breakfast" },
+  { id: 2, name: "Bar" },
+  { id: 3, name: "Dinner" },
+  { id: 4, name: "Kids Program" },
+];
+
+function expensePurposeByName(name) {
+  const n = String(name || "").trim().toLowerCase();
+  return EXPENSE_PURPOSES.find((p) => p.name.toLowerCase() === n) || null;
+}
+
+function expensePreviewFromExtracted(extracted) {
+  return {
+    title: extracted?.title || extracted?.merchant || "Receipt",
+    amount: extracted?.amount,
+    currency: extracted?.currency || "EUR",
+    merchant: extracted?.merchant || "",
+  };
+}
+
+function expensePurposePrompt(preview, entity) {
+  const lines = [
+    "What is this receipt for? Reply <b>1</b>, <b>2</b>, <b>3</b>, or <b>4</b>:",
+    "",
+    "1. Breakfast",
+    "2. Bar",
+    "3. Dinner",
+    "4. Kids Program",
+  ];
+  if (preview?.title) {
+    let head = `🧾 <b>${escapeHtml(preview.title)}</b>`;
+    if (preview.amount != null) {
+      head += ` · ${escapeHtml(formatMoney(preview.amount, preview.currency))}`;
+    }
+    if (preview.merchant) head += `\n${escapeHtml(preview.merchant)}`;
+    lines.unshift(head, "");
+  }
+  if (entity?.legalName) {
+    lines.push("", `<i>${escapeHtml(entity.legalName)}</i>`);
+  }
+  return lines.join("\n");
+}
+
+function parseExpensePurposeChoice(text, { allowNumbers = false } = {}) {
+  const t = String(text || "").trim().toLowerCase();
+  if (!t) return null;
+  if (allowNumbers && /^[1-4]$/.test(t)) {
+    return EXPENSE_PURPOSES[Number(t) - 1];
+  }
+  if (
+    /\b(kids?\s*progr?amme?|kids|childcare|crian[cç]as|programa(?:\s+das?|\s+de)?\s+crian[cç]as)\b/.test(
+      t
+    )
+  ) {
+    return EXPENSE_PURPOSES[3];
+  }
+  if (/\b(breakfast|pequeno[-\s]?almo[cç]o)\b/.test(t)) {
+    return EXPENSE_PURPOSES[0];
+  }
+  if (/\b(dinner|jantar|supper)\b/.test(t)) {
+    return EXPENSE_PURPOSES[2];
+  }
+  if (/\bbar\b/.test(t)) return EXPENSE_PURPOSES[1];
+  return null;
+}
+
+function expensePurposeFollowupText() {
+  return (
+    "Reply <b>1</b>, <b>2</b>, <b>3</b>, or <b>4</b>:\n\n" +
+    "1. Breakfast\n2. Bar\n3. Dinner\n4. Kids Program"
+  );
+}
+
 async function replyWithDinnerBookingLink(chatId, dateISO) {
   let meals = null;
   try {
@@ -1366,6 +1441,7 @@ async function createExpense({
   upload,
   mediaKind,
   entity,
+  purpose,
 }) {
   const date = extracted?.date || todayISO();
   const merchant = extracted?.merchant || "";
@@ -1407,6 +1483,9 @@ async function createExpense({
     "Receipt text": receiptText,
     Notes: notes,
   };
+  if (purpose?.name) {
+    properties.For = purpose.name;
+  }
   if (entity) {
     properties.Entity = entity.notionSelect;
     properties.NIF = entity.nif;
@@ -1453,6 +1532,7 @@ async function createExpense({
     currency: extracted?.currency || "EUR",
     merchant,
     entity: entity?.notionSelect || null,
+    purpose: purpose?.name || null,
   };
 }
 
@@ -1465,6 +1545,7 @@ async function finalizeAndLogExpense({
   upload,
   mediaKind,
   entity,
+  purpose,
 }) {
   const result = await createExpense({
     extracted,
@@ -1475,6 +1556,7 @@ async function finalizeAndLogExpense({
     upload,
     mediaKind,
     entity,
+    purpose,
   });
   let reply = `🧾 Logged expense: <b>${escapeHtml(result.title)}</b>`;
   if (result.amount != null) {
@@ -1487,6 +1569,9 @@ async function finalizeAndLogExpense({
   if (entity) {
     reply += `\n<b>${escapeHtml(entity.legalName)}</b> · NIF ${escapeHtml(entity.nif)}`;
   }
+  if (purpose?.name) {
+    reply += `\nFor: <b>${escapeHtml(purpose.name)}</b>`;
+  }
   reply += `\nSubmitted by <b>${escapeHtml(result.submitter)}</b>`;
   if (result.url) reply += `\n<a href="${result.url}">Open in Notion</a>`;
   await sendMessage(chatId, reply);
@@ -1497,7 +1582,7 @@ function pendingExpenseKey(chatId, fromId) {
   return `${chatId}:${fromId}`;
 }
 
-async function queueExpenseEntityChoice({
+async function queueExpenseFollowup({
   extracted,
   from,
   chatId,
@@ -1505,12 +1590,16 @@ async function queueExpenseEntityChoice({
   source,
   media,
   upload,
+  entity = null,
+  purpose = null,
+  step = "entity",
 }) {
   const key = pendingExpenseKey(chatId, from?.id);
   const hadPending = Boolean(state.pendingExpenseEntity?.[key]);
   state.pendingExpenseEntity = state.pendingExpenseEntity || {};
   state.pendingExpenseEntity[key] = {
     ts: Date.now(),
+    step,
     extracted,
     sourceText: sourceText || "",
     source: source || "Text",
@@ -1521,19 +1610,20 @@ async function queueExpenseEntityChoice({
     uploadId: upload?.id || null,
     uploadFilename: upload?.filename || null,
     fromId: from?.id,
+    entity,
+    purpose,
   };
   saveState();
-  const preview = {
-    title: extracted?.title || extracted?.merchant || "Receipt",
-    amount: extracted?.amount,
-    currency: extracted?.currency || "EUR",
-    merchant: extracted?.merchant || "",
-  };
-  let msg = expenseEntityPrompt(preview);
+  const preview = expensePreviewFromExtracted(extracted);
+  let msg =
+    step === "purpose"
+      ? expensePurposePrompt(preview, entity)
+      : expenseEntityPrompt(preview);
   if (hadPending) {
+    const waiting =
+      step === "purpose" ? "waiting for 1–4." : "waiting for 1 or 2.";
     msg =
-      "<i>Previous receipt cancelled — this is the one waiting for 1 or 2.</i>\n\n" +
-      msg;
+      `<i>Previous receipt cancelled — this is the one ${waiting}</i>\n\n` + msg;
   }
   await sendMessage(chatId, msg);
 }
@@ -1565,6 +1655,25 @@ async function resolvePendingExpenseUpload(pending) {
   }
 }
 
+async function completePendingExpense(message, pending, entity, purpose) {
+  const chatId = message.chat.id;
+  const key = pendingExpenseKey(chatId, message.from?.id);
+  delete state.pendingExpenseEntity[key];
+  saveState();
+  const upload = await resolvePendingExpenseUpload(pending);
+  await finalizeAndLogExpense({
+    extracted: pending.extracted,
+    from: message.from,
+    chatId,
+    sourceText: pending.sourceText,
+    source: pending.source,
+    upload,
+    mediaKind: pending.mediaKind,
+    entity,
+    purpose,
+  });
+}
+
 async function handlePendingExpenseEntity(message) {
   const chatId = message.chat.id;
   const fromId = message.from?.id;
@@ -1580,30 +1689,53 @@ async function handlePendingExpenseEntity(message) {
   const text = (message.text || message.caption || "").trim();
   if (!text || text.startsWith("/")) return false;
 
-  const entity = parseExpenseEntityChoice(text);
-  if (!entity) {
+  const step = pending.step || "entity";
+
+  if (step === "entity") {
+    const entity = parseExpenseEntityChoice(text);
+    if (!entity) {
+      await sendMessage(
+        chatId,
+        "Reply <b>1</b> or <b>2</b>:\n\n1. ALDEIA ALCATEIA LDA 517908794\n2. POVOADO GENTIL LDA 519423178"
+      );
+      return true;
+    }
+    const purpose =
+      pending.purpose ||
+      parseExpensePurposeChoice(pending.sourceText, { allowNumbers: false });
+    if (purpose) {
+      try {
+        await completePendingExpense(message, pending, entity, purpose);
+      } catch (err) {
+        log("handlePendingExpenseEntity error:", err.message);
+        await sendMessage(chatId, "Sorry, I could not save that receipt.");
+      }
+      return true;
+    }
+    pending.entity = entity;
+    pending.step = "purpose";
+    pending.ts = Date.now();
+    saveState();
     await sendMessage(
       chatId,
-      "Reply <b>1</b> or <b>2</b>:\n\n1. ALDEIA ALCATEIA LDA 517908794\n2. POVOADO GENTIL LDA 519423178"
+      expensePurposePrompt(expensePreviewFromExtracted(pending.extracted), entity)
     );
     return true;
   }
 
-  delete state.pendingExpenseEntity[key];
-  saveState();
+  const purpose = parseExpensePurposeChoice(text, { allowNumbers: true });
+  if (!purpose) {
+    await sendMessage(chatId, expensePurposeFollowupText());
+    return true;
+  }
 
   try {
-    const upload = await resolvePendingExpenseUpload(pending);
-    await finalizeAndLogExpense({
-      extracted: pending.extracted,
-      from: message.from,
-      chatId,
-      sourceText: pending.sourceText,
-      source: pending.source,
-      upload,
-      mediaKind: pending.mediaKind,
-      entity,
-    });
+    await completePendingExpense(
+      message,
+      pending,
+      pending.entity,
+      purpose
+    );
   } catch (err) {
     log("handlePendingExpenseEntity error:", err.message);
     await sendMessage(chatId, "Sorry, I could not save that receipt.");
@@ -1630,6 +1762,7 @@ async function sendExpenseSummary(chatId, { from } = {}) {
   );
   const byPerson = new Map();
   const byEntity = new Map();
+  const byPurpose = new Map();
   for (const page of thisMonth) {
     const who =
       notion.pagePropText(page, "Submitted by") ||
@@ -1650,6 +1783,12 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     ent.amount += amount;
     ent.count += 1;
     byEntity.set(entity, ent);
+
+    const purpose = notion.pagePropText(page, "For") || "Unassigned";
+    const pur = byPurpose.get(purpose) || { amount: 0, count: 0 };
+    pur.amount += amount;
+    pur.count += 1;
+    byPurpose.set(purpose, pur);
   }
 
   const lines = [`<b>Expenses — ${escapeHtml(month)}</b>`];
@@ -1682,6 +1821,23 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     if (other?.count) {
       lines.push(
         `• <i>Unassigned</i> — ${escapeHtml(formatMoney(other.amount, "EUR"))} (${other.count})`
+      );
+    }
+  }
+
+  if (byPurpose.size) {
+    lines.push("", "<b>By what it's for</b>");
+    for (const purpose of EXPENSE_PURPOSES) {
+      const row = byPurpose.get(purpose.name);
+      if (!row) continue;
+      lines.push(
+        `• ${escapeHtml(purpose.name)} — ${escapeHtml(formatMoney(row.amount, "EUR"))} (${row.count})`
+      );
+    }
+    const otherPurpose = byPurpose.get("Unassigned");
+    if (otherPurpose?.count) {
+      lines.push(
+        `• <i>Unassigned</i> — ${escapeHtml(formatMoney(otherPurpose.amount, "EUR"))} (${otherPurpose.count})`
       );
     }
   }
@@ -1840,7 +1996,11 @@ async function handleReceiptSubmission({
 
   try {
     const entityFromText = parseExpenseEntityChoice(text);
-    if (entityFromText) {
+    const purposeFromText =
+      parseExpensePurposeChoice(text, { allowNumbers: false }) ||
+      expensePurposeByName(classifiedExpense?.purpose);
+
+    if (entityFromText && purposeFromText) {
       if (buf && media?.fileId) {
         try {
           const filename = media.filename || "receipt.jpg";
@@ -1864,11 +2024,12 @@ async function handleReceiptSubmission({
         upload,
         mediaKind: media?.kind,
         entity: entityFromText,
+        purpose: purposeFromText,
       });
       return true;
     }
 
-    await queueExpenseEntityChoice({
+    await queueExpenseFollowup({
       extracted,
       from,
       chatId,
@@ -1876,6 +2037,9 @@ async function handleReceiptSubmission({
       source,
       media,
       upload: null,
+      entity: entityFromText || null,
+      purpose: purposeFromText || null,
+      step: entityFromText ? "purpose" : "entity",
     });
     return true;
   } catch (err) {
@@ -4788,7 +4952,7 @@ const HELP_TEXT = [
   "Talk normally — I go by meaning, not exact phrases.",
   "Send a list of cleaning/rota jobs in one message (or voice note) — daily, weekly, monthly — and I'll add them all to Notion.",
   "Voice notes are transcribed — explain how something works to create a structured doc.",
-  "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado). In the group, tag me or use /receipt.",
+  "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado), then what it's for (Breakfast / Bar / Dinner / Kids Program). In the group, tag me or use /receipt.",
   "",
   "<b>Email / off-site bookings</b>",
   "Voice note or text a stay booked by email or phone and I’ll put it on Guest Stays in Notion (and in the morning check-in list).",

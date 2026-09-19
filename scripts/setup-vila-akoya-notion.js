@@ -374,7 +374,7 @@ const DATABASES = [
     key: "Expenses",
     parentSection: "Expenses",
     purpose:
-      "Receipts from Telegram (photo, PDF, or pasted text). Keep this page private — the bot uses the integration, not a public link. Group by Submitted by and Sum Amount.",
+      "Receipts from Telegram (photo, PDF, or pasted text). Keep this page private — the bot uses the integration, not a public link. Group by Submitted by or For (Breakfast / Bar / Dinner / Kids Program) and Sum Amount.",
     properties: {
       Name: title(),
       Amount: euro(),
@@ -395,6 +395,7 @@ const DATABASES = [
         "Guest / campsite",
         "Other",
       ]),
+      For: selectProp(["Breakfast", "Bar", "Dinner", "Kids Program"]),
       Entity: selectProp(["Aldeia Alcateia", "Povoado Gentil"]),
       Company: rich(),
       NIF: rich(),

@@ -36,6 +36,8 @@ const EXPENSE_CATEGORIES = [
   "Other",
 ];
 
+const EXPENSE_PURPOSES = ["Breakfast", "Bar", "Dinner", "Kids Program"];
+
 const STATUS_OPTIONS = ["To reimburse", "Reimbursed", "Recorded"];
 
 const ENTITY_OPTIONS = ["Aldeia Alcateia", "Povoado Gentil"];
@@ -92,7 +94,7 @@ async function ensureSection(parentId, title, catalog) {
         type: "paragraph",
         paragraph: {
           rich_text: notion.richText(
-            "Each row is one receipt: who submitted it, amount, date, merchant, and the photo or pasted text. Status starts as To reimburse."
+            "Each row is one receipt: who submitted it, amount, date, merchant, what it is for (Breakfast / Bar / Dinner / Kids Program), and the photo or pasted text. Status starts as To reimburse."
           ),
         },
       },
@@ -113,6 +115,7 @@ const EXPENSE_PROPERTIES = {
   "Telegram username": { rich_text: {} },
   "Telegram user ID": { rich_text: {} },
   Category: selectProp(EXPENSE_CATEGORIES),
+  For: selectProp(EXPENSE_PURPOSES),
   Entity: selectProp(ENTITY_OPTIONS),
   Company: { rich_text: {} },
   NIF: { rich_text: {} },
@@ -213,6 +216,24 @@ async function main() {
       );
     } catch (err) {
       console.warn(`  View “${entity}” skipped: ${err.message}`);
+    }
+  }
+
+  for (const purpose of EXPENSE_PURPOSES) {
+    try {
+      const view = await notion.ensureTableView(db.id, {
+        name: purpose,
+        filter: {
+          property: "For",
+          select: { equals: purpose },
+        },
+        sorts,
+      });
+      console.log(
+        `  View “${purpose}”: ${view.wasCreated ? "created" : "exists"} ${view.url || ""}`
+      );
+    } catch (err) {
+      console.warn(`  View “${purpose}” skipped: ${err.message}`);
     }
   }
 
