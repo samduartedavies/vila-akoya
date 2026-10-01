@@ -37,6 +37,8 @@ class Vila_Akoya_Email_Campsite_Booking extends WC_Email {
 		add_action( 'woocommerce_payment_complete', array( $this, 'trigger' ), 25, 1 );
 		add_action( 'woocommerce_order_status_processing', array( $this, 'trigger' ), 25, 1 );
 		add_action( 'woocommerce_order_status_completed', array( $this, 'trigger' ), 25, 1 );
+		// BACS/cheque and some gateways use on-hold; campsite rows finalize on on-hold (see WooCommerce_Integration::maybe_finalize_bookings).
+		add_action( 'woocommerce_order_status_on-hold', array( $this, 'trigger' ), 25, 1 );
 
 		parent::__construct();
 
@@ -97,9 +99,11 @@ class Vila_Akoya_Email_Campsite_Booking extends WC_Email {
 		$this->placeholders['{order_number}'] = $order->get_order_number();
 
 		if ( $this->get_recipient() ) {
-			$this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $this->get_attachments() );
-			$order->update_meta_data( self::SENT_META_KEY, 'yes' );
-			$order->save();
+			$sent = $this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $this->get_attachments() );
+			if ( $sent ) {
+				$order->update_meta_data( self::SENT_META_KEY, 'yes' );
+				$order->save();
+			}
 		}
 
 		$this->restore_locale();

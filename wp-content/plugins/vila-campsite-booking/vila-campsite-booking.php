@@ -41,6 +41,7 @@ require_once VILA_CB_DIR . 'includes/class-plot-repository.php';
 require_once VILA_CB_DIR . 'includes/class-plot-block-repository.php';
 require_once VILA_CB_DIR . 'includes/class-booking-repository.php';
 require_once VILA_CB_DIR . 'includes/class-guest-registration-repository.php';
+require_once VILA_CB_DIR . 'includes/class-guest-registration-reminders.php';
 require_once VILA_CB_DIR . 'includes/class-guest-registration-exporter.php';
 require_once VILA_CB_DIR . 'includes/class-siba-client.php';
 require_once VILA_CB_DIR . 'includes/class-booking-service.php';
@@ -106,6 +107,7 @@ function vila_cb_bootstrap() {
 	Vila_CB\Admin_Guest_Registrations::init();
 	Vila_CB\Admin_Stays::init();
 	Vila_CB\Shortcode::init();
+	Vila_CB\Guest_Registration_Reminders::init();
 }
 add_action( 'woocommerce_loaded', 'vila_cb_bootstrap' );
 
@@ -128,3 +130,4 @@ function vila_cb_plugin_action_links( $links ) {
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'vila_cb_plugin_action_links' );
 
 register_activation_hook( __FILE__, array( 'Vila_CB\\Install', 'activate' ) );
+register_deactivation_hook( __FILE__, array( 'Vila_CB\\Guest_Registration_Reminders', 'deactivate' ) );

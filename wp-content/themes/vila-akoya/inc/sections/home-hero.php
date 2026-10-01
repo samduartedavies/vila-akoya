@@ -20,11 +20,11 @@ $secondary_link = vila_akoya_section_field( 'secondary_link', array( 'url' => '/
 			<div class="wp-block-group max-w-4xl space-y-6 md:text-on-primary">
 				<h1 class="wp-block-heading text-5xl md:text-8xl font-barrio text-on-surface md:text-on-primary leading-tight" data-vila-hero-item style="--vila-hero-i:0"><?php echo esc_html( $heading ); ?></h1>
 				<p class="text-lg md:text-2xl text-on-surface-variant md:text-on-primary/90 font-light max-w-2xl leading-relaxed" data-vila-hero-item style="--vila-hero-i:1"><?php echo esc_html( $body ); ?></p>
-				<div class="wp-block-buttons flex flex-wrap gap-4 pt-4" data-vila-hero-item style="--vila-hero-i:2">
-					<div class="wp-block-button is-style-fill">
+				<div class="wp-block-buttons flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 pt-4" data-vila-hero-item style="--vila-hero-i:2">
+					<div class="wp-block-button is-style-fill w-full sm:w-auto">
 						<?php vila_akoya_section_link( $primary_link, 'Book your stay', 'wp-block-button__link wp-element-button px-8 py-4 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-medium text-lg hover:scale-95 transition-transform' ); ?>
 					</div>
-					<div class="wp-block-button is-style-outline">
+					<div class="wp-block-button is-style-outline w-full sm:w-auto">
 						<?php vila_akoya_section_link( $secondary_link, 'Tell me more!', 'wp-block-button__link wp-element-button px-8 py-4 bg-primary/10 border border-primary/20 text-primary md:bg-surface-bright/20 md:border-white/20 md:text-on-primary rounded-xl font-medium text-lg hover:bg-primary/15 md:hover:bg-surface-bright/30 transition-all' ); ?>
 					</div>
 				</div>

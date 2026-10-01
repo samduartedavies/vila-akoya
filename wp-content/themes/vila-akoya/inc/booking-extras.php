@@ -187,6 +187,15 @@ function vila_akoya_cart_vehicle_types( array $cart_item ) {
 }
 
 /**
+ * Whether guests can add meals when booking a stay (or via the book-meals page).
+ *
+ * @return bool
+ */
+function vila_akoya_campsite_meals_enabled() {
+	return (bool) apply_filters( 'vila_akoya_campsite_meals_enabled', false );
+}
+
+/**
  * Optional meal add-ons (per person per day). Filter to change amounts/labels.
  *
  * day_mode: `all_nights` = every night of the stay; `weekdays` = Mon–Fri nights only.
@@ -194,6 +203,9 @@ function vila_akoya_cart_vehicle_types( array $cart_item ) {
  * @return array<string, array{ label: string, adult_fee: float, child_fee: float, infant_fee: float, day_mode: string, meta: string }>
  */
 function vila_akoya_get_meal_options() {
+	if ( ! is_admin() && ! vila_akoya_campsite_meals_enabled() ) {
+		return array();
+	}
 	$breakfast_meta = sprintf(
 		/* translators: 1: adult price plain, 2: child price plain */
 		__( 'Adults %1$s · Kids %2$s · Under 2 free', 'vila-akoya' ),
@@ -1050,6 +1062,9 @@ add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_vehicle_cart_item_
 function vila_akoya_add_meal_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
 	unset( $variation_id );
 	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) {
+		return $cart_item_data;
+	}
+	if ( ! vila_akoya_campsite_meals_enabled() ) {
 		return $cart_item_data;
 	}
 	if ( ! isset( $_POST['_mwb_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( vila_akoya_scalar_request_string( $_POST['_mwb_nonce'] ) ) ), 'mwb_booking_frontend' ) ) {
@@ -1993,6 +2008,9 @@ add_action( 'mwb_booking_after_add_to_cart_form', 'vila_akoya_render_vehicle_sel
  * @param int $product_id Product ID.
  */
 function vila_akoya_render_meal_selector( $product_id ) {
+	if ( ! vila_akoya_campsite_meals_enabled() ) {
+		return;
+	}
 	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) && ! ( function_exists( 'vila_akoya_is_stay_product_id' ) && vila_akoya_is_stay_product_id( (int) $product_id ) ) ) {
 		return;
 	}

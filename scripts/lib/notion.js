@@ -41,6 +41,7 @@ const DB = {
   PARTNERSHIPS: "Partnerships",
   EXPENSES: "Expenses",
   LOCATIONS: "Where things are",
+  FAQS: "FAQs",
 };
 
 const WATCH_DB_NAMES = [

@@ -474,6 +474,13 @@ class Meal_Booking {
 		if ( ! $passed || ! self::is_meals_product( (int) $product_id ) ) {
 			return $passed;
 		}
+		if ( function_exists( 'vila_akoya_campsite_meals_enabled' ) && ! vila_akoya_campsite_meals_enabled() ) {
+			wc_add_notice(
+				__( 'Meal booking is not available at the moment.', 'vila-campsite-booking' ),
+				'error'
+			);
+			return false;
+		}
 		// Block the bare hidden product page "Add to cart" (shop managers can still open the product URL).
 		if ( ! self::is_meal_booking_post_request() ) {
 			wc_add_notice(

@@ -30,6 +30,7 @@ class Install {
 		self::ensure_childcare_booking_page();
 		update_option( self::OPTION_DB_VERSION, '1.4.0' );
 		self::schedule_stay_hold_backfill();
+		Guest_Registration_Reminders::activate();
 	}
 
 	public static function init() {
@@ -190,6 +191,10 @@ class Install {
 		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.4.0', '<' ) ) {
 			self::create_tables();
 			update_option( self::OPTION_DB_VERSION, '1.4.0' );
+		}
+		if ( version_compare( (string) get_option( self::OPTION_DB_VERSION, '' ), '1.4.1', '<' ) ) {
+			Guest_Registration_Reminders::activate();
+			update_option( self::OPTION_DB_VERSION, '1.4.1' );
 		}
 		self::schedule_public_pages_check();
 	}

@@ -148,4 +148,52 @@ class Booking_Repository {
 		$rows     = $wpdb->get_results( $prepared, ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Confirmed campsite bookings arriving on a calendar day (check-in date).
+	 *
+	 * @param string $check_in_ymd Y-m-d.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_confirmed_arriving_on( $check_in_ymd ) {
+		$check_in_ymd = Dates::parse_ymd( $check_in_ymd ) ? $check_in_ymd : '';
+		if ( '' === $check_in_ymd ) {
+			return array();
+		}
+		global $wpdb;
+		$b    = Database::bookings_table();
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM $b WHERE status = %s AND check_in = %s ORDER BY id ASC",
+				'confirmed',
+				$check_in_ymd
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Confirmed campsite bookings whose departure day is $check_out_ymd (exclusive end date).
+	 *
+	 * @param string $check_out_ymd Y-m-d.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_confirmed_departing_on( $check_out_ymd ) {
+		$check_out_ymd = Dates::parse_ymd( $check_out_ymd ) ? $check_out_ymd : '';
+		if ( '' === $check_out_ymd ) {
+			return array();
+		}
+		global $wpdb;
+		$b    = Database::bookings_table();
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM $b WHERE status = %s AND check_out = %s ORDER BY id ASC",
+				'confirmed',
+				$check_out_ymd
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
 }

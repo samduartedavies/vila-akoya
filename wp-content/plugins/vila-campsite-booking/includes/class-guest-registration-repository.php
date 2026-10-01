@@ -47,6 +47,28 @@ class Guest_Registration_Repository {
 	}
 
 	/**
+	 * Whether legal guest details exist for a website booking or order.
+	 *
+	 * @param int $booking_id Campsite booking ID (0 if N/A).
+	 * @param int $order_id   WooCommerce order ID (0 if N/A).
+	 * @return bool
+	 */
+	public function has_registration_for_booking_or_order( $booking_id, $order_id ) {
+		$booking_id = (int) $booking_id;
+		$order_id   = (int) $order_id;
+		if ( $booking_id > 0 && $this->get_by_booking_id( $booking_id ) ) {
+			return true;
+		}
+		if ( $order_id < 1 ) {
+			return false;
+		}
+		global $wpdb;
+		$t = Database::guest_registrations_table();
+		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM $t WHERE order_id = %d LIMIT 1", $order_id ) );
+		return $id > 0;
+	}
+
+	/**
 	 * @param int $booking_id Booking ID.
 	 * @return array<string, mixed>|null
 	 */

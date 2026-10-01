@@ -14,8 +14,8 @@
  *   - Voice notes are transcribed; documentation dumps become structured Notion pages.
  *   - Receipt photos, PDFs, or pasted till text are analysed and stored on a private Expenses board.
  *   - AI classification routes to Notion actions: tasks, recurring duties, events (internal/external),
- *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs, expenses,
- *     and where things are (keys, tools, and other portable items).
+ *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs, FAQs,
+ *     expenses, and where things are (keys, tools, and other portable items).
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (morning
  *     meeting theme, events, campsite, meals, highlights); personal duties + tasks
  *     go by DM to registered members.
@@ -63,6 +63,7 @@ const campsiteOps = require("./lib/campsite-ops");
 const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
 const locationsLib = require("./lib/locations");
+const faqsLib = require("./lib/faqs");
 const guestStaysLib = require("./lib/guest-stays");
 const {
   CHAT_ACTIVITY_KIND,
@@ -115,6 +116,7 @@ const CAMPSITE_BOOKINGS_DB_NAME =
 const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
 const CHILDCARE_DB_NAME = process.env.CHILDCARE_DB || notion.DB.CHILDCARE;
 const LOCATIONS_DB_NAME = process.env.LOCATIONS_DB_NAME || notion.DB.LOCATIONS;
+const FAQS_DB_NAME = process.env.FAQS_DB_NAME || notion.DB.FAQS;
 
 const AMBIENT_CAPTURE = process.env.AMBIENT_CAPTURE === "true";
 const AMBIENT_MIN_CONFIDENCE = Number(process.env.AMBIENT_MIN_CONFIDENCE || 0.7);
@@ -575,6 +577,14 @@ function expensePurposePrompt(preview, entity) {
     lines.push("", `<i>${escapeHtml(entity.legalName)}</i>`);
   }
   return lines.join("\n");
+}
+
+/** Only read purpose from a short caption — not pasted till text (avoids false "bar" hits). */
+function parseExplicitExpensePurpose(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  if (raw.length > 120 || raw.split(/\n/).length > 3) return null;
+  return parseExpensePurposeChoice(raw, { allowNumbers: true });
 }
 
 function parseExpensePurposeChoice(text, { allowNumbers = false } = {}) {
@@ -1657,6 +1667,20 @@ async function resolvePendingExpenseUpload(pending) {
 
 async function completePendingExpense(message, pending, entity, purpose) {
   const chatId = message.chat.id;
+  if (!purpose?.name) {
+    pending.entity = entity;
+    pending.step = "purpose";
+    pending.ts = Date.now();
+    saveState();
+    await sendMessage(
+      chatId,
+      expensePurposePrompt(
+        expensePreviewFromExtracted(pending.extracted),
+        entity
+      )
+    );
+    return;
+  }
   const key = pendingExpenseKey(chatId, message.from?.id);
   delete state.pendingExpenseEntity[key];
   saveState();
@@ -1698,18 +1722,6 @@ async function handlePendingExpenseEntity(message) {
         chatId,
         "Reply <b>1</b> or <b>2</b>:\n\n1. ALDEIA ALCATEIA LDA 517908794\n2. POVOADO GENTIL LDA 519423178"
       );
-      return true;
-    }
-    const purpose =
-      pending.purpose ||
-      parseExpensePurposeChoice(pending.sourceText, { allowNumbers: false });
-    if (purpose) {
-      try {
-        await completePendingExpense(message, pending, entity, purpose);
-      } catch (err) {
-        log("handlePendingExpenseEntity error:", err.message);
-        await sendMessage(chatId, "Sorry, I could not save that receipt.");
-      }
       return true;
     }
     pending.entity = entity;
@@ -1996,9 +2008,7 @@ async function handleReceiptSubmission({
 
   try {
     const entityFromText = parseExpenseEntityChoice(text);
-    const purposeFromText =
-      parseExpensePurposeChoice(text, { allowNumbers: false }) ||
-      expensePurposeByName(classifiedExpense?.purpose);
+    const purposeFromText = parseExplicitExpensePurpose(text);
 
     if (entityFromText && purposeFromText) {
       if (buf && media?.fileId) {
@@ -2726,6 +2736,66 @@ function mergeLocationIntent(classified, text) {
         Array.isArray(classified?.locations) && classified.locations.length
           ? classified.locations
           : [row],
+    };
+  }
+  return classified;
+}
+
+function mergeFaqIntent(classified, text) {
+  if (classified?.is_faq_create || classified?.action === "create_faq") {
+    if (!classified.faq?.question || !classified.faq?.answer) {
+      const extracted = faqsLib.extractFaqUpsert(text);
+      if (extracted?.question && extracted?.answer) {
+        return {
+          ...classified,
+          action: "create_faq",
+          actionable: true,
+          is_faq_create: true,
+          is_question: false,
+          confidence: Math.max(classified?.confidence || 0, 0.88),
+          faq: { ...(classified.faq || {}), ...extracted },
+        };
+      }
+    }
+    return classified;
+  }
+  if (classified?.is_faq_question || classified?.action === "question_faq") {
+    return classified;
+  }
+  if (faqsLib.looksLikeFaqUpsert(text)) {
+    const extracted = faqsLib.extractFaqUpsert(text);
+    if (extracted?.question && extracted?.answer) {
+      log(`FAQ intent: add → "${extracted.question.slice(0, 60)}"`);
+      return {
+        ...(classified || {}),
+        action: "create_faq",
+        actionable: true,
+        is_question: false,
+        is_faq_create: true,
+        confidence: Math.max(classified?.confidence || 0, 0.88),
+        faq: extracted,
+      };
+    }
+  }
+  if (
+    faqsLib.looksLikeFaqQuestion(text) &&
+    !classified?.is_faq_create &&
+    !classified?.is_location_update &&
+    !classified?.is_location_question
+  ) {
+    log(`FAQ intent: ask → "${String(text).slice(0, 60)}"`);
+    return {
+      ...(classified || {}),
+      action: "question_faq",
+      actionable: true,
+      is_question: true,
+      is_faq_question: true,
+      question_kind: "faq",
+      confidence: Math.max(classified?.confidence || 0, 0.9),
+      faq: {
+        ...(classified?.faq || {}),
+        question: String(text || "").trim().replace(/\?+$/, ""),
+      },
     };
   }
   return classified;
@@ -4296,6 +4366,91 @@ async function handleLocationUpdate({ text, from, chatId, classified }) {
   return true;
 }
 
+async function handleFaqQuestion({ text, classified, chatId }) {
+  try {
+    const result = await faqsLib.answerFaqQuestion({
+      question: classified?.faq?.question || text,
+      listAll: classified?.faq?.list_all,
+      category: classified?.faq?.category,
+    });
+    if (result.list) {
+      await sendMessage(chatId, `<pre>${escapeHtml(result.snapshot)}</pre>`);
+      return true;
+    }
+    if (result.ok && result.faq) {
+      let reply = `❓ ${faqsLib.formatFaqAnswer(result.faq)}`;
+      if (result.faq.url) reply += `\n<a href="${result.faq.url}">Notion</a>`;
+      await sendMessage(chatId, reply);
+      return true;
+    }
+    if (result.reason === "ambiguous") {
+      const names = (result.matches || []).map((m) => m.question).join(", ");
+      await sendMessage(chatId, `Which FAQ? I found: ${escapeHtml(names)}.`);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    log("handleFaqQuestion error:", err.message);
+    return false;
+  }
+}
+
+async function handleFaqCreate({ text, from, chatId, classified }) {
+  let faq = classified?.faq;
+  if (!faq?.question || !faq?.answer) {
+    const extracted = faqsLib.extractFaqUpsert(text);
+    if (extracted) faq = { ...(faq || {}), ...extracted };
+  }
+  if (!faq?.question || !faq?.answer) {
+    await sendMessage(
+      chatId,
+      "Give me a question and answer — e.g. “Add FAQ: What is the delivery address? → Prado, GPS …”"
+    );
+    return false;
+  }
+
+  const key = ambientDedupeKey(chatId, "faq", faq.question);
+  if (wasRecentlyCaptured(key)) return true;
+
+  try {
+    const result = await faqsLib.upsertFaq({
+      question: faq.question,
+      answer: faq.answer,
+      category: faq.category,
+      aliases: faq.aliases,
+      fromName: senderDisplayName(from),
+      sourceText: text,
+    });
+    if (result.reason === "ambiguous") {
+      const names = (result.matches || []).map((m) => m.question).join(", ");
+      await sendMessage(chatId, `Which FAQ should I update? I found: ${escapeHtml(names)}.`);
+      return true;
+    }
+    if (!result.ok) {
+      await sendMessage(chatId, "Sorry, I could not save that FAQ.");
+      return false;
+    }
+    markCaptured(key);
+    recordChatActivity({
+      kind: "faq_logged",
+      from,
+      chatId,
+      title: result.name,
+      text,
+    });
+    let reply = result.created
+      ? `❓ Added FAQ: <b>${escapeHtml(result.name)}</b>`
+      : `❓ Updated FAQ: <b>${escapeHtml(result.name)}</b>`;
+    if (result.url) reply += ` — <a href="${result.url}">Notion</a>`;
+    await sendMessage(chatId, reply);
+    return true;
+  } catch (err) {
+    log("handleFaqCreate error:", err.message);
+    await sendMessage(chatId, "Sorry, I could not save that FAQ.");
+    return false;
+  }
+}
+
 // ── Partnerships DB light query ───────────────────────────────────────────────
 async function answerFromPartnerships(question) {
   let pages;
@@ -4965,6 +5120,11 @@ const HELP_TEXT = [
   "• “I can't find the bathroom keys” — marked missing until someone says where they are",
   "The live list is the <i>Where things are</i> page in Notion.",
   "",
+  "<b>FAQs</b>",
+  "• “what is the address for deliveries?”",
+  "• “Add FAQ: What is the delivery address? → Prado, GPS …”",
+  "Short Q&A lives in the <i>FAQs</i> database in Notion.",
+  "",
   "<b>Task types</b>",
   "• <i>Villager</i> — village work anyone can pitch in on",
   "• <i>Management</i> — needs a professional or arranging",
@@ -5001,7 +5161,7 @@ async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
         `task=${classified.is_task} tasks=${classified.tasks?.length || 0} question=${classified.is_question} ` +
         `schedule_range=${classified.schedule_range || "-"} conf=${classified.confidence}`
     );
-    return mergeLocationIntent(mergeCompletionIntent(classified, cleanText, chatId), cleanText);
+    return mergeFaqIntent(mergeLocationIntent(mergeCompletionIntent(classified, cleanText, chatId), cleanText), cleanText);
   } catch (err) {
     log("classifyGroupMessage error:", err.message);
     return null;
@@ -5010,6 +5170,15 @@ async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
 
 async function handleClassifiedQuestion({ text, questionKind, from, chatId, interactive, scheduleRange, classified }) {
   const logDocGaps = interactive && LOG_DOC_GAPS;
+
+  if (
+    questionKind === "faq" ||
+    faqsLib.looksLikeFaqQuestion(text) ||
+    classified?.is_faq_question
+  ) {
+    const faqFirst = await handleFaqQuestion({ text, classified, chatId });
+    if (faqFirst) return true;
+  }
 
   if (questionKind === "expenses" || looksLikeExpenseQuestion(text)) {
     try {
@@ -5037,7 +5206,7 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
     }
   }
 
-  if (questionKind === "schedule") {
+  if (questionKind === "schedule" && !faqsLib.looksLikeFaqQuestion(text)) {
     const rangeOpts = { scheduleRange: scheduleRange || "two_weeks" };
     const calendar = buildWeekCalendarContext(todayISO(), RECAP_TZ);
     const wantsChildcareDetails = isSensitiveChildcareQuestion(text);
@@ -5077,6 +5246,21 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
       return true;
     } catch (err) {
       log("schedule answer error:", err.message);
+    }
+    return false;
+  }
+
+  if (questionKind === "faq") {
+    const answered = await handleFaqQuestion({ text, classified, chatId });
+    if (answered) return true;
+    const docResult = await handleAsk({ question: text, from, chatId, logGap: false });
+    if (docResult.answered) return true;
+    if (interactive) {
+      await sendMessage(
+        chatId,
+        "I don't have that FAQ yet. Add one: “Add FAQ: your question? → short answer”"
+      );
+      return true;
     }
     return false;
   }
@@ -5640,6 +5824,12 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     return;
   }
 
+  // FAQs — short Q&A
+  if ((c.is_faq_create || c.action === "create_faq") && conf >= minConf) {
+    await handleFaqCreate({ text, from, chatId, classified: c });
+    return;
+  }
+
   // Where things are — left it / lives here
   if (
     (c.is_location_update || c.action === "update_location") &&
@@ -5841,15 +6031,15 @@ async function handleMessageInner(message) {
     return;
   }
 
+  if (text && !text.startsWith("/") && (await handlePendingExpenseEntity(message))) {
+    return;
+  }
+
   if (text && !text.startsWith("/") && (await handlePendingQuestionnaire(message))) {
     return;
   }
 
   if (text && !text.startsWith("/") && (await handlePendingClarification(message))) {
-    return;
-  }
-
-  if (text && !text.startsWith("/") && (await handlePendingExpenseEntity(message))) {
     return;
   }
 
@@ -6078,6 +6268,10 @@ async function handleMessageInner(message) {
 
 async function handleAsk({ question, from, chatId, logGap = LOG_DOC_GAPS }) {
   await telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
+
+  const faqHit = await handleFaqQuestion({ text: question, classified: null, chatId });
+  if (faqHit) return { answered: true };
+
   let result;
   try {
     result = await answerQuestion(question);
@@ -6485,6 +6679,15 @@ async function main() {
     );
   } catch (err) {
     log("Where things are setup skipped:", err.message);
+  }
+  try {
+    const faqDb = await faqsLib.ensureFaqsDatabase();
+    log(
+      `FAQs: ${faqDb.wasCreated ? "created" : "ready"} (${FAQS_DB_NAME})` +
+        (faqDb.seeded ? `, seeded ${faqDb.seeded} FAQ(s)` : "")
+    );
+  } catch (err) {
+    log("FAQs setup skipped:", err.message);
   }
   try {
     const stays = await guestStaysLib.ensureGuestStaysDatabase();

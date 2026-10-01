@@ -342,4 +342,52 @@ class Stay_Hold_Repository {
 		}
 		return $fixed;
 	}
+
+	/**
+	 * Website accommodation holds arriving on check-in day.
+	 *
+	 * @param string $check_in_ymd Y-m-d.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_confirmed_order_holds_arriving_on( $check_in_ymd ) {
+		if ( ! Dates::parse_ymd( $check_in_ymd ) ) {
+			return array();
+		}
+		global $wpdb;
+		$t    = Database::stay_holds_table();
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM $t WHERE status = %s AND kind = %s AND order_id > 0 AND check_in = %s ORDER BY id ASC",
+				self::STATUS_CONFIRMED,
+				self::KIND_BOOKING,
+				$check_in_ymd
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Website accommodation holds with departure on check-out day.
+	 *
+	 * @param string $check_out_ymd Y-m-d.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_confirmed_order_holds_departing_on( $check_out_ymd ) {
+		if ( ! Dates::parse_ymd( $check_out_ymd ) ) {
+			return array();
+		}
+		global $wpdb;
+		$t    = Database::stay_holds_table();
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM $t WHERE status = %s AND kind = %s AND order_id > 0 AND check_out = %s ORDER BY id ASC",
+				self::STATUS_CONFIRMED,
+				self::KIND_BOOKING,
+				$check_out_ymd
+			),
+			ARRAY_A
+		);
+		return is_array( $rows ) ? $rows : array();
+	}
 }

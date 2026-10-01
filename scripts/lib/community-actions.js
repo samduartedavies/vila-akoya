@@ -51,6 +51,8 @@ const ACTIONS = [
   "question_expenses",
   "question_location",
   "update_location",
+  "question_faq",
+  "create_faq",
 ];
 
 const DECISION_CATEGORIES = [
@@ -111,6 +113,7 @@ const CHAT_ACTIVITY_KIND = {
   create_decision: "decision_logged",
   create_documentation: "doc_logged",
   update_location: "location_logged",
+  create_faq: "faq_logged",
   complete_task: "task_completed",
   cancel_event: "event_cancelled",
   rsvp_event: "rsvp",
@@ -135,6 +138,7 @@ const NOTION_DATABASES = [
   "Documentation",
   "Expenses",
   "Where things are",
+  "FAQs",
   "Guest Stays",
 ];
 
@@ -284,6 +288,18 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "Portable / misplace-able objects (keys, tools, chargers, ladders) → question_location + location_lookup=true.",
     "Fixtures and systems (water shutoff, valve, wifi router as procedure) → question_doc, not question_location.",
     "",
+    "question_faq examples (LOOKUP — short factual village FAQs in the FAQs database):",
+    '  EN: "what is the address for deliveries?", "delivery address?", "where do couriers go?"',
+    '  PT: "qual é a morada para entregas?", "morada de entrega?"',
+    "Set faq_lookup=true. Populate faq.question with the topic if obvious.",
+    "NOT question_doc when the answer is a one-line fact stored as FAQ (address, phone, gate code).",
+    "",
+    "create_faq examples (WRITE — add or update a short Q&A row):",
+    '  EN: "Add FAQ: What is the delivery address? → Prado, GPS …"',
+    '  EN: "FAQ: where is reception? — in the main building by the gate"',
+    '  PT: "nova FAQ: morada entregas → …"',
+    "Populate faq.question and faq.answer. faq.category optional (Deliveries, Campsite / guest, Village, Admin, Other).",
+    "",
     "update_location examples (WRITE — speaker says where something is or lives):",
     '  EN: "I left the bathroom keys on the hook by reception"',
     '  EN: "the drill is in the workshop cupboard", "the drill lives in the workshop"',
@@ -300,6 +316,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "    Set location_lookup=true. Populate location.item (the object). Set location.list_all=true for a full list.",
     "    EN: \"where are the keys?\", \"where is the drill?\", \"where do we keep the ladder?\"",
     "    PT: \"onde estão as chaves?\", \"onde está o berbequim?\"",
+    "- question_faq: short factual answers from the FAQs table (delivery address, reception phone, etc.).",
+    "    Set faq_lookup=true. Populate faq.question when the topic is clear.",
     "- question_my_day: speaker asks what THEY personally should do today / their tasks & duties",
     '    EN: "what should I do today?", "what\'s on my list?", "do I have anything today?", "anything for me?",',
     '         "what\'s on for me?", "my jobs", "what have I got today?"',
@@ -414,6 +432,9 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "    location.item_kind: Keys | Tool | Supplies | Vehicle | Document | Furniture | Other.",
     "    If they list several objects, set action=update_location and return ALL in locations[].",
     "    NOT create_task and NOT create_documentation.",
+    "- create_faq: add or update a row in the FAQs database (question + short answer).",
+    "    faq.question and faq.answer required. faq.aliases optional comma-separated phrases.",
+    "    NOT create_documentation (that is long-form docs, not one-line FAQs).",
     "- question_expenses: speaker asks how much THEY or the village spent, who is owed, or to list receipts.",
     '    EN: "how much did I spend this month?", "who needs reimbursing?", "show receipts"',
     '    PT: "quanto gastei este mês?", "quem precisa de reembolso?"',
@@ -438,6 +459,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "schedule_range": "today" | "this_week" | "next_week" | "two_weeks",',
     '  "doc_lookup": bool,',
     '  "location_lookup": bool,',
+    '  "faq_lookup": bool,',
     '  "task": { "title", "type", "priority", "assignee", "project" } | null,',
     '  "tasks": [ { "title", "type", "priority", "assignee", "project" } ] | null,',
     '  "recurring_duty": { "title", "frequency", "assignee", "job" } | null,',
@@ -455,7 +477,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "stay": { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } | null,',
     '  "stays": [ { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } ] | null,',
     '  "location": { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases", "notes", "list_all" } | null,',
-    '  "locations": [ { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases" } ] | null }',
+    '  "locations": [ { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases" } ] | null,',
+    '  "faq": { "question", "answer", "category", "aliases", "list_all" } | null }',
     "",
     "For create_event always provide event.title; provide event.date for one-offs.",
     "For repeating events always provide event.recurrence (canonical form above) and event.date = next occurrence.",
@@ -463,6 +486,8 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "For question_schedule set schedule_lookup=true; never populate event for lookups.",
     "For question_doc set doc_lookup=true.",
     "For question_location set location_lookup=true and populate location.item (or list_all=true).",
+    "For question_faq set faq_lookup=true and populate faq.question when possible.",
+    "For create_faq populate faq.question and faq.answer.",
     "For update_location always populate location.item and location.location (except missing, where location may be empty).",
     "task.type: Villager = village work anyone can pitch in; Management = needs a professional or arranging.",
     "Tasks store: title, type, priority (Low/Average/High), assignee, created by, status, notes, optional project link.",
@@ -584,6 +609,28 @@ function normalizeLocationFields(raw, { allowEmptyItem = false } = {}) {
   };
 }
 
+const FAQ_CATEGORIES = [
+  "Deliveries",
+  "Campsite / guest",
+  "Village",
+  "Admin",
+  "Other",
+];
+
+function normalizeFaqFields(raw, { allowEmptyQuestion = false } = {}) {
+  if (!raw || typeof raw !== "object") return null;
+  const question = String(raw.question || raw.title || "").trim().slice(0, 200);
+  const listAll = raw.list_all === true;
+  if (!question && !allowEmptyQuestion && !listAll) return null;
+  return {
+    question,
+    answer: String(raw.answer || "").trim().slice(0, 1800),
+    category: FAQ_CATEGORIES.includes(raw.category) ? raw.category : null,
+    aliases: raw.aliases ? String(raw.aliases).slice(0, 500) : null,
+    list_all: listAll,
+  };
+}
+
 function parseClassification(result, { areas, eventTypes, priorities }) {
   const rawAction = result.action;
   const legacyMap = {
@@ -614,16 +661,24 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     where_is: "question_location",
     location: "update_location",
     inventory: "update_location",
+    faq: "create_faq",
+    add_faq: "create_faq",
   };
   let action = ACTIONS.includes(legacyMap[rawAction] || rawAction)
     ? legacyMap[rawAction] || rawAction
     : "chat";
   const confidence = Number(result.confidence) || 0;
 
-  if (result.doc_lookup === true && action !== "question_location") {
+  if (result.doc_lookup === true && action !== "question_location" && action !== "question_faq") {
     action = "question_doc";
   }
-  if (result.schedule_lookup === true && action !== "question_my_day" && action !== "book_meal" && action !== "question_location") {
+  if (
+    result.schedule_lookup === true &&
+    action !== "question_my_day" &&
+    action !== "book_meal" &&
+    action !== "question_location" &&
+    action !== "question_faq"
+  ) {
     action = "question_schedule";
   }
   // Prefer personal agenda when action is my_day (don't let schedule_lookup steal it)
@@ -633,8 +688,14 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
   if (result.location_lookup === true || rawAction === "question_location") {
     action = "question_location";
   }
+  if (result.faq_lookup === true || rawAction === "question_faq") {
+    action = "question_faq";
+  }
   if (rawAction === "update_location") {
     action = "update_location";
+  }
+  if (rawAction === "create_faq") {
+    action = "create_faq";
   }
 
   let tasks = [];
@@ -821,6 +882,13 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
   }
   const location = locationItems[0] || null;
 
+  let faq = null;
+  if (action === "create_faq") {
+    faq = normalizeFaqFields(result.faq);
+  } else if (action === "question_faq") {
+    faq = normalizeFaqFields(result.faq, { allowEmptyQuestion: true });
+  }
+
   const scheduleDays = Number(result.schedule_days);
   const scheduleRange = normalizeScheduleRange(result);
   const isQuestion =
@@ -828,7 +896,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     action === "question_schedule" ||
     action === "question_my_day" ||
     action === "question_expenses" ||
-    action === "question_location";
+    action === "question_location" ||
+    action === "question_faq";
 
   return {
     actionable: result.actionable !== false && action !== "chat",
@@ -851,6 +920,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_expense: action === "create_expense",
     is_location_update: action === "update_location" && locationItems.length > 0,
     is_location_question: action === "question_location",
+    is_faq_create: action === "create_faq" && Boolean(faq?.question && faq?.answer),
+    is_faq_question: action === "question_faq",
     question_kind:
       action === "question_doc"
         ? "documentation"
@@ -862,7 +933,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
               ? "expenses"
               : action === "question_location"
                 ? "location"
-                : null,
+                : action === "question_faq"
+                  ? "faq"
+                  : null,
     schedule_range: scheduleRange,
     schedule_days: scheduleDays > 0 && scheduleDays <= 30 ? Math.round(scheduleDays) : null,
     task,
@@ -883,6 +956,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     stays: stayItems,
     location,
     locations: locationItems,
+    faq,
   };
 }
 
