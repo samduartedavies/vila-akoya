@@ -46,10 +46,16 @@
  *   DAILY_RECAP             "false" to disable morning recap
  *   RECAP_TIME              HH:MM in RECAP_TZ (default "08:00")
  *   RECAP_TZ                default "Europe/Lisbon"
+ *   REMINDER_TIME           default send time for Notion broadcast reminders (default RECAP_TIME)
+ *   TELEGRAM_CHAT_ALIASES   JSON map of group name → chat id, e.g. {"Parents & Teachers":"-100..."}
+ *   TELEGRAM_TOPIC_ALIASES  JSON map of topic name → message_thread_id, e.g. {"Parents & Teachers":123}
  *   EVENT_CAPTURE_GROUP     Notion Stage for new events (default "Upcoming")
  *   EVENT_RECURRING_GROUP   Notion Stage for repeating events (default "Recurring")
  *   NOTION_POLL_SECONDS     how often to poll Notion for changes (default 60)
  *   CHILDCARE_DB            Notion childcare database title override
+ *   KIDS_PROGRAMME_DB       Kids Programme Shifts database title override
+ *   KIDS_PROGRAMME_TELEGRAM_CHAT_ID  Parents & Teachers chat (or TELEGRAM_CHAT_ALIASES)
+ *   KIDS_PROGRAMME_TOPIC_ID          Forum topic for daily programme roundup
  *   VILA_OPS_API_TOKEN      WordPress ops token, needed for childcare absence writes
  */
 
@@ -64,7 +70,9 @@ const openaiLib = require("./lib/openai");
 const docsIndex = require("./lib/docs-index");
 const locationsLib = require("./lib/locations");
 const faqsLib = require("./lib/faqs");
+const broadcastRemindersLib = require("./lib/broadcast-reminders");
 const guestStaysLib = require("./lib/guest-stays");
+const kidsProgrammeLib = require("./lib/kids-programme-shifts");
 const {
   CHAT_ACTIVITY_KIND,
   buildWeekCalendarContext,
@@ -115,6 +123,8 @@ const CAMPSITE_BOOKINGS_DB_NAME =
   process.env.CAMPSITE_BOOKINGS_DB || notion.DB.BOOKINGS;
 const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
 const CHILDCARE_DB_NAME = process.env.CHILDCARE_DB || notion.DB.CHILDCARE;
+const KIDS_PROGRAMME_DB_NAME =
+  process.env.KIDS_PROGRAMME_DB || kidsProgrammeLib.DB_NAME;
 const LOCATIONS_DB_NAME = process.env.LOCATIONS_DB_NAME || notion.DB.LOCATIONS;
 const FAQS_DB_NAME = process.env.FAQS_DB_NAME || notion.DB.FAQS;
 
@@ -274,6 +284,12 @@ function escapeHtml(text) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function isNotionTransientError(err) {
+  return /Notion HTTP (500|502|503|504)|unavailable|memcached|try again later/i.test(
+    String(err?.message || err)
+  );
 }
 
 function isDoneName(name) {
@@ -987,6 +1003,8 @@ function loadState() {
     else s.pendingQuestionnaire = normalizePendingQuestionnaires(s.pendingQuestionnaire);
     if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
     if (s.lastChildcareRecapDate === undefined) s.lastChildcareRecapDate = null;
+    if (s.lastKidsProgrammeRecapDate === undefined) s.lastKidsProgrammeRecapDate = null;
+    if (!s.broadcastRemindersSent) s.broadcastRemindersSent = {};
     if (s.seededNotion === undefined) {
       if (s.seededMonday !== undefined) s.items = {};
       s.seededNotion = false;
@@ -999,6 +1017,8 @@ function loadState() {
       lastRecapDate: null,
       lastPersonalRecapDate: null,
       lastChildcareRecapDate: null,
+      lastKidsProgrammeRecapDate: null,
+      broadcastRemindersSent: {},
       ambientKeys: {},
       chatActivity: [],
       chatLog: [],
@@ -1142,6 +1162,7 @@ function refreshRecapDatesFromDisk() {
     if (disk.lastRecapDate) state.lastRecapDate = disk.lastRecapDate;
     if (disk.lastPersonalRecapDate) state.lastPersonalRecapDate = disk.lastPersonalRecapDate;
     if (disk.lastChildcareRecapDate) state.lastChildcareRecapDate = disk.lastChildcareRecapDate;
+    if (disk.lastKidsProgrammeRecapDate) state.lastKidsProgrammeRecapDate = disk.lastKidsProgrammeRecapDate;
   } catch {
     // state file missing or unreadable
   }
@@ -3249,6 +3270,153 @@ function formatChildcareRoster(childcare) {
   return lines.join("\n");
 }
 
+const KIDS_PROGRAMME_HELP =
+  "<b>Kids programme slot</b>\n" +
+  "• <code>/kids Amber · Early Readers · Friday</code>\n" +
+  "• <code>/kids Moon · Arete · 2026-10-10</code>\n" +
+  "• Or say: “put Amber on Early Readers Friday”\n" +
+  `Programmes: ${kidsProgrammeLib.PROGRAMME_ORDER.filter((p) => p !== "Day note").join(", ")}`;
+
+async function assignKidsProgrammeShift(shift, { from, chatId } = {}) {
+  const result = await kidsProgrammeLib.upsertKidsProgrammeShift(shift, {
+    dbName: KIDS_PROGRAMME_DB_NAME,
+    todayISO: todayISO(),
+    tz: RECAP_TZ,
+  });
+  recordChatActivity({
+    kind: "announcement",
+    from,
+    chatId,
+    title: `${result.programme} ${result.dateISO}`,
+    text: result.lead || result.support || result.status,
+  });
+  return result;
+}
+
+function formatKidsAssignReply(result) {
+  if (result.status === kidsProgrammeLib.STATUS_CANCELLED) {
+    return `📅 Cleared <b>${escapeHtml(result.programme)}</b> on ${escapeHtml(result.dateISO)}.`;
+  }
+  const people = [result.lead, result.support].filter(Boolean).join(" + ");
+  const tbc =
+    result.status === kidsProgrammeLib.STATUS_TBC ? " (TBC)" : "";
+  let msg =
+    `📅 ${result.updated ? "Updated" : "Added"} <b>${escapeHtml(result.programme)}</b> ` +
+    `on ${escapeHtml(result.dateISO)}`;
+  if (result.time) msg += ` · ${escapeHtml(result.time)}`;
+  msg += ` — ${escapeHtml(people || "TBC")}${tbc}`;
+  if (result.url) msg += ` — <a href="${result.url}">Notion</a>`;
+  return msg;
+}
+
+async function handleKidsSlashCommand(args, { from, chatId }) {
+  const raw = String(args || "").trim();
+  if (!raw || /^help$/i.test(raw)) {
+    await sendMessage(chatId, KIDS_PROGRAMME_HELP);
+    return true;
+  }
+
+  let shift = null;
+  const parts = raw.split(/·|\|/).map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    shift = {
+      lead: parts[0],
+      programme: parts[1],
+      date: parts[2] || "today",
+      assign_as: "lead",
+    };
+  } else {
+    const onMatch = raw.match(
+      /^(.+?)\s+on\s+(.+?)(?:\s+(today|tomorrow|\d{4}-\d{2}-\d{2}|monday|tuesday|wednesday|thursday|friday|saturday|sunday|segunda|terça|quarta|quinta|sexta|sábado|domingo))?$/i
+    );
+    if (onMatch) {
+      shift = {
+        lead: onMatch[1].trim(),
+        programme: onMatch[2].trim(),
+        date: onMatch[3] || "today",
+        assign_as: "lead",
+      };
+    }
+    const supportMatch = raw.match(
+      /^(.+?)\s+(?:as\s+)?support\s+(?:on|for)\s+(.+?)(?:\s+(today|tomorrow|\d{4}-\d{2}-\d{2}|monday|tuesday|wednesday|thursday|friday|saturday|sunday))?$/i
+    );
+    if (!shift && supportMatch) {
+      shift = {
+        lead: supportMatch[1].trim(),
+        programme: supportMatch[2].trim(),
+        date: supportMatch[3] || "today",
+        assign_as: "support",
+      };
+    }
+    const clearMatch = raw.match(
+      /^(?:clear|cancel)\s+(.+?)(?:\s+(today|tomorrow|\d{4}-\d{2}-\d{2}|monday|tuesday|wednesday|thursday|friday|saturday|sunday))?$/i
+    );
+    if (!shift && clearMatch) {
+      shift = {
+        programme: clearMatch[1].trim(),
+        date: clearMatch[2] || "today",
+        clear: true,
+      };
+    }
+  }
+
+  if (!shift?.programme) {
+    await sendMessage(chatId, `Could not parse that.\n\n${KIDS_PROGRAMME_HELP}`);
+    return true;
+  }
+
+  try {
+    const result = await assignKidsProgrammeShift(shift, { from, chatId });
+    await sendMessage(chatId, formatKidsAssignReply(result));
+  } catch (err) {
+    log("kids programme /kids error:", err.message);
+    await sendMessage(chatId, `Sorry — ${escapeHtml(err.message)}`);
+  }
+  return true;
+}
+
+async function captureAssignKidsProgramme({ classified, from, chatId }) {
+  const shift = classified?.kids_programme_shift;
+  if (!shift?.programme) return false;
+  try {
+    const result = await assignKidsProgrammeShift(shift, { from, chatId });
+    await sendMessage(chatId, formatKidsAssignReply(result));
+    return true;
+  } catch (err) {
+    log("assign kids programme error:", err.message);
+    return false;
+  }
+}
+
+async function fetchKidsProgrammeShiftsForDay(dateISO) {
+  try {
+    return await kidsProgrammeLib.fetchShiftsForDay(dateISO, {
+      dbName: KIDS_PROGRAMME_DB_NAME,
+    });
+  } catch (err) {
+    log("Kids programme shifts unavailable:", err.message);
+    return [];
+  }
+}
+
+function formatKidsProgrammeHtmlLines(shifts) {
+  const { formatLeadLine } = kidsProgrammeLib;
+  const lines = [];
+  for (const shift of shifts) {
+    if (shift.programme === "Day note") {
+      const text = formatLeadLine(shift);
+      lines.push(`• <i>Note:</i> ${escapeHtml(text)}`);
+      continue;
+    }
+    const band = shift.time ? `${escapeHtml(shift.time)} ` : "";
+    let people = escapeHtml(formatLeadLine(shift));
+    let line = `• ${band}<b>${escapeHtml(shift.programme)}</b> — ${people}`;
+    if (shift.notes) line += ` <i>(${escapeHtml(shift.notes)})</i>`;
+    lines.push(line);
+  }
+  return lines;
+}
+
 function formatCampsiteSnapshot(dateISO, activity, meals) {
   const lines = ["Campsite check-ins (website + email/manual):"];
   if (activity.arrivals.length) {
@@ -3369,6 +3537,15 @@ async function buildScheduleSnapshot(question, { scheduleRange, includeChildcare
             }
           }
         }
+        const kidsDay = await fetchKidsProgrammeShiftsForDay(day);
+        if (kidsDay.length) {
+          for (const line of kidsProgrammeLib
+            .formatKidsProgrammeBlock(kidsDay)
+            .split("\n")
+            .filter(Boolean)) {
+            lines.push(`  kids: ${line.replace(/^•\s*/, "")}`);
+          }
+        }
       }
       day = addDaysISO(day, 1);
     }
@@ -3412,6 +3589,11 @@ async function buildDataSnapshot(dateISO, { includeChildcareDetails = false } = 
   } else {
     lines.push(formatChildcareLine(childcare));
   }
+  const kidsShifts = await fetchKidsProgrammeShiftsForDay(dateISO);
+  if (kidsShifts.length) {
+    lines.push("", "Kids programme shifts:");
+    lines.push(kidsProgrammeLib.formatKidsProgrammeBlock(kidsShifts));
+  }
   return lines.join("\n");
 }
 
@@ -3427,10 +3609,12 @@ async function buildDailyRecap(dateISO) {
   let activity = { arrivals: [], departures: [], staying: [] };
   let meals = null;
   let childcare = null;
+  let kidsShifts = [];
   try {
     activity = await fetchCampsiteActivityForDay(dateISO);
     meals = await fetchCampsiteMealsForDay(dateISO);
     childcare = await fetchChildcareForDay(dateISO);
+    kidsShifts = await fetchKidsProgrammeShiftsForDay(dateISO);
   } catch (err) {
     log("Campsite Notion fetch for recap failed:", err.message);
   }
@@ -3509,6 +3693,11 @@ async function buildDailyRecap(dateISO) {
   if (childcare && (childcare.headcount || childcare.absent)) {
     lines.push("", "<b>Childcare today</b>");
     lines.push(`• ${escapeHtml(formatChildcareLine(childcare))}`);
+  }
+
+  if (kidsShifts.length) {
+    lines.push("", "<b>Kids programme today</b>");
+    lines.push(...formatKidsProgrammeHtmlLines(kidsShifts));
   }
 
   if (yesterdayHighlights.length) {
@@ -3866,6 +4055,108 @@ async function maybeSendChildcareMorningBriefings(dateISO) {
   if (sent) log(`Childcare morning briefings sent: ${sent}`);
 }
 
+async function maybeSendKidsProgrammeMorningUpdates(dateISO) {
+  if (!DAILY_RECAP) return;
+  if (!telegramPollActive) return;
+  refreshRecapDatesFromDisk();
+  if (state.lastKidsProgrammeRecapDate === dateISO) return;
+  if (currentHHMM() < RECAP_TIME) return;
+
+  const shifts = await fetchKidsProgrammeShiftsForDay(dateISO);
+  if (!shifts.length) {
+    state.lastKidsProgrammeRecapDate = dateISO;
+    saveState();
+    return;
+  }
+
+  const dayName = new Intl.DateTimeFormat("en-GB", {
+    timeZone: RECAP_TZ,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(dateISO + "T12:00:00"));
+
+  const dest = kidsProgrammeLib.resolveParentsTeachersDestination();
+  if (dest?.chatId) {
+    const topicLines = [
+      `<b>Kids programme — ${escapeHtml(dayName)}</b>`,
+      "",
+      ...formatKidsProgrammeHtmlLines(shifts),
+    ];
+    const tbc = kidsProgrammeLib.countTbcShifts(shifts);
+    if (tbc) {
+      topicLines.push(
+        "",
+        `⚠️ ${tbc} session${tbc === 1 ? "" : "s"} still TBC — update Notion or reply here.`
+      );
+    }
+    const extra = dest.topicId ? { message_thread_id: dest.topicId } : {};
+    const ok = await sendMessage(dest.chatId, topicLines.join("\n"), extra);
+    if (ok) log(`Kids programme topic roundup sent for ${dateISO}`);
+    else log(`Kids programme topic roundup failed for ${dateISO}`);
+  } else {
+    log(
+      "Kids programme topic skipped: set TELEGRAM_CHAT_ALIASES for Parents & Teachers (or KIDS_PROGRAMME_TELEGRAM_CHAT_ID)"
+    );
+  }
+
+  let members = await fetchMembersForMorningDm();
+  let roleMembers = [];
+  members = members.map((m) => ({
+    ...m,
+    role: "",
+  }));
+  try {
+    roleMembers = await broadcastRemindersLib.fetchMembersForRoleDm();
+    const roleById = new Map(roleMembers.map((m) => [m.userId, m]));
+    members = members.map((m) => ({
+      ...m,
+      role: roleById.get(m.userId)?.role || "",
+    }));
+  } catch {
+    // role optional
+  }
+
+  let leadDms = 0;
+  for (const { member, shifts: mine } of kidsProgrammeLib.groupDmTargets(shifts, members)) {
+    const bulletLines = mine.map((s) => {
+      const band = s.time ? `${escapeHtml(s.time)} ` : "";
+      return `• ${band}${escapeHtml(s.programme)}`;
+    });
+    const text =
+      `<b>You're on kids programme today</b> (${escapeHtml(dayName)})\n` +
+      `${bulletLines.join("\n")}\n\n` +
+      `<i>Full schedule is in Parents &amp; Teachers.</i>`;
+    try {
+      await sendMessage(member.userId, text);
+      leadDms += 1;
+    } catch (err) {
+      log(`Kids programme DM failed for ${member.displayName}:`, err.message);
+    }
+  }
+
+  const tbcCount = kidsProgrammeLib.countTbcShifts(shifts);
+  if (tbcCount) {
+    const coordinators = kidsProgrammeLib.membersWithKidsRole(
+      roleMembers.length ? roleMembers : members
+    );
+    const coordText =
+      `<b>Kids programme — cover needed</b>\n` +
+      `${tbcCount} session${tbcCount === 1 ? "" : "s"} today still TBC in Notion.`;
+    for (const coord of coordinators) {
+      try {
+        await sendMessage(coord.userId, coordText);
+      } catch (err) {
+        log(`Kids coordinator TBC DM failed for ${coord.displayName}:`, err.message);
+      }
+    }
+  }
+
+  state.lastKidsProgrammeRecapDate = dateISO;
+  saveState();
+  if (leadDms) log(`Kids programme lead DMs sent: ${leadDms}`);
+}
+
 function childcareFromOpsDay(day) {
   if (!day) return null;
   const rosterLines = [];
@@ -3945,8 +4236,12 @@ async function maybeSendPersonalMorningBriefings(dateISO) {
   if (!DAILY_RECAP) return;
   if (!telegramPollActive) return;
   refreshRecapDatesFromDisk();
-  if (state.lastPersonalRecapDate === dateISO) return;
   if (currentHHMM() < RECAP_TIME) return;
+  if (state.lastPersonalRecapDate === dateISO) {
+    await maybeSendChildcareMorningBriefings(dateISO);
+    await maybeSendKidsProgrammeMorningUpdates(dateISO);
+    return;
+  }
 
   const members = await fetchMembersForMorningDm();
   let sent = 0;
@@ -3966,6 +4261,72 @@ async function maybeSendPersonalMorningBriefings(dateISO) {
   saveState();
   if (sent) log(`Personal morning briefings sent: ${sent}`);
   await maybeSendChildcareMorningBriefings(dateISO);
+  await maybeSendKidsProgrammeMorningUpdates(dateISO);
+}
+
+async function maybeSendBroadcastReminders() {
+  if (!telegramPollActive) return;
+  refreshRecapDatesFromDisk();
+  const today = todayISO();
+  const hhmm = currentHHMM();
+  if (!state.broadcastRemindersSent) state.broadcastRemindersSent = {};
+
+  let reminders;
+  try {
+    reminders = await broadcastRemindersLib.fetchActiveBroadcastReminders();
+  } catch (err) {
+    log("Broadcast reminders fetch failed:", err.message);
+    return;
+  }
+  if (!reminders.length) return;
+
+  let roleMembers = null;
+
+  for (const { page, row } of reminders) {
+    if (!row.message?.trim()) continue;
+    if (state.broadcastRemindersSent[row.id] === today) continue;
+    if (hhmm < row.sendTime) continue;
+    if (!broadcastRemindersLib.reminderDueOnDate(page, today, RECAP_TZ)) continue;
+
+    const titleLine = row.title ? `<b>${escapeHtml(row.title)}</b>\n` : "";
+    const text = `${titleLine}${escapeHtml(row.message)}`;
+
+    const needsRole = row.audiences.includes(broadcastRemindersLib.AUDIENCE_ROLE);
+    if (needsRole && !row.memberRole) {
+      log(`Broadcast reminder "${row.title}" skipped: Members by role but no Member role set`);
+      continue;
+    }
+    if (
+      row.audiences.includes(broadcastRemindersLib.AUDIENCE_CHAT) &&
+      !row.chatId
+    ) {
+      log(`Broadcast reminder "${row.title}" skipped: Telegram chat but no chat id`);
+      continue;
+    }
+
+    roleMembers =
+      roleMembers || (await broadcastRemindersLib.fetchMembersForRoleDm());
+
+    const { ok, sentTo } = await broadcastRemindersLib.deliverBroadcastReminder(
+      row,
+      text,
+      {
+        sendMessage,
+        mainChatId: TELEGRAM_CHAT_ID,
+        roleMembers,
+      }
+    );
+
+    if (ok) {
+      state.broadcastRemindersSent[row.id] = today;
+      saveState();
+      log(`Broadcast reminder sent (${sentTo.join(" + ")}): ${row.title}`);
+    } else if (sentTo.length) {
+      log(
+        `Broadcast reminder "${row.title}" partially sent (${sentTo.join(", ")}); will retry`
+      );
+    }
+  }
 }
 
 async function registerMember({ displayName, from, chatId }) {
@@ -4220,14 +4581,26 @@ async function rsvpEvent({ title, displayName, from, chatId }) {
 }
 
 // ── Create a reminder ────────────────────────────────────────────────────────
-async function createReminder({ title, dueDate, notes, from, chatId }) {
+async function createReminder({ title, dueDate, notes, from, chatId, broadcast }) {
   const props = {
     "Created by": senderDisplayName(from),
     "Telegram user": senderHandle(from),
-    Source: "Telegram",
+    Status: "Open",
   };
   if (dueDate) props["Due date"] = dueDate;
   if (notes) props.Notes = notes;
+
+  if (broadcast?.postToTelegram) {
+    props["Post to Telegram"] = true;
+    if (broadcast.recurrence) props.Recurrence = broadcast.recurrence;
+    if (broadcast.audiences?.length) {
+      props.Audiences = broadcast.audiences;
+    }
+    if (broadcast.telegramChat) props["Telegram chat"] = broadcast.telegramChat;
+    if (broadcast.chatId) props["Telegram chat ID"] = broadcast.chatId;
+    if (broadcast.topicId) props["Topic ID"] = String(broadcast.topicId);
+    if (broadcast.memberRole) props["Member role"] = broadcast.memberRole;
+  }
 
   const page = await notion.createPage({
     databaseName: REMINDERS_DB_NAME,
@@ -4235,7 +4608,7 @@ async function createReminder({ title, dueDate, notes, from, chatId }) {
     properties: props,
   });
   markPageSeen(page.id, { stage: "", status: "", doer: "", done: false });
-  return { itemId: page.id, url: page.url };
+  return { itemId: page.id, url: page.url, broadcast: Boolean(broadcast?.postToTelegram) };
 }
 
 // ── Add note to existing task/project ─────────────────────────────────────────
@@ -4391,6 +4764,13 @@ async function handleFaqQuestion({ text, classified, chatId }) {
     return false;
   } catch (err) {
     log("handleFaqQuestion error:", err.message);
+    if (isNotionTransientError(err)) {
+      await sendMessage(
+        chatId,
+        "Notion is having a brief outage — I can't read FAQs right now. Please try again in a minute."
+      );
+      return true;
+    }
     return false;
   }
 }
@@ -4400,6 +4780,13 @@ async function handleFaqCreate({ text, from, chatId, classified }) {
   if (!faq?.question || !faq?.answer) {
     const extracted = faqsLib.extractFaqUpsert(text);
     if (extracted) faq = { ...(faq || {}), ...extracted };
+  }
+  if ((!faq?.question || !faq?.answer) && classified?.faq?.answer && !classified?.faq?.question) {
+    faq = {
+      question: "What is the address?",
+      answer: classified.faq.answer,
+      ...faq,
+    };
   }
   if (!faq?.question || !faq?.answer) {
     await sendMessage(
@@ -4446,6 +4833,13 @@ async function handleFaqCreate({ text, from, chatId, classified }) {
     return true;
   } catch (err) {
     log("handleFaqCreate error:", err.message);
+    if (isNotionTransientError(err)) {
+      await sendMessage(
+        chatId,
+        "Notion is having a brief outage — I couldn't save that FAQ. Please try again in a minute."
+      );
+      return true;
+    }
     await sendMessage(chatId, "Sorry, I could not save that FAQ.");
     return false;
   }
@@ -5137,6 +5531,7 @@ const HELP_TEXT = [
   "/register &lt;your name&gt; — link Telegram to Members; questionnaire arrives by DM",
   "/questionnaire — fill or update your Community profile (sent privately)",
   "/mytasks — duties due today + open tasks assigned to you",
+  "/kids — assign a teacher/caregiver to a kids programme slot (or say “put Amber on Early Readers Friday”)",
   "/done &lt;item id&gt; — mark a duty/task done (duties reschedule: daily +1 day, weekly +7 days, monthly +1 month)",
   "/whoami — show your Telegram details",
   "/help — this message",
@@ -5253,8 +5648,6 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
   if (questionKind === "faq") {
     const answered = await handleFaqQuestion({ text, classified, chatId });
     if (answered) return true;
-    const docResult = await handleAsk({ question: text, from, chatId, logGap: false });
-    if (docResult.answered) return true;
     if (interactive) {
       await sendMessage(
         chatId,
@@ -5543,13 +5936,34 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     return;
   }
 
-  const c = classified || {
+  let c = classified || {
     action: "create_task",
     actionable: true,
     confidence: 1,
     is_task: true,
     task: { title: text },
   };
+  if (
+    text &&
+    broadcastRemindersLib.looksLikeCommunityBroadcastReminder(text) &&
+    !c.is_reminder
+  ) {
+    c = {
+      ...c,
+      action: "create_reminder",
+      actionable: true,
+      confidence: Math.max(c.confidence || 0, 0.88),
+      is_reminder: true,
+      is_add_note: false,
+      reminder: {
+        ...(c.reminder || {}),
+        title:
+          c.reminder?.title ||
+          broadcastRemindersLib.inferReminderTitleFromText(text),
+        notes: c.reminder?.notes || text,
+      },
+    };
+  }
   const conf = c.confidence || 0;
   const minConf = actionMinConfidence(interactive);
 
@@ -5784,15 +6198,49 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   // Reminders
   if (c.is_reminder && c.reminder?.title && conf >= minConf) {
     try {
-      const { url } = await createReminder({
+      const { broadcast } = broadcastRemindersLib.enrichBroadcastReminder(
+        c.reminder,
+        text,
+        {
+          messageThreadId:
+            message?.is_topic_message && message.message_thread_id
+              ? message.message_thread_id
+              : null,
+        }
+      );
+      const { url, broadcast: isBroadcast } = await createReminder({
         title: c.reminder.title,
-        dueDate: c.reminder.due_date,
+        dueDate: broadcast ? null : c.reminder.due_date,
         notes: c.reminder.notes || text,
         from,
         chatId,
+        broadcast,
       });
-      let reply = `⏰ Reminder set: <b>${escapeHtml(c.reminder.title)}</b>`;
-      if (c.reminder.due_date) reply += ` (due ${escapeHtml(c.reminder.due_date)})`;
+      let reply;
+      if (isBroadcast && broadcast) {
+        reply = `📣 Scheduled reminder: <b>${escapeHtml(c.reminder.title)}</b>`;
+        if (broadcast.recurrence) {
+          reply += `\nWhen: <code>${escapeHtml(broadcast.recurrence)}</code>`;
+        }
+        const where = (broadcast.audiences || []).join(" + ");
+        if (where) reply += `\nTo: ${escapeHtml(where)}`;
+        if (broadcast.telegramChat) {
+          reply += `\nChat: ${escapeHtml(broadcast.telegramChat)}`;
+        }
+        if (broadcast.topicId) reply += ` (topic ${broadcast.topicId})`;
+        if (broadcast.memberRole) reply += `\nRole DMs: ${escapeHtml(broadcast.memberRole)}`;
+        if (
+          broadcast.audiences?.includes(broadcastRemindersLib.AUDIENCE_CHAT) &&
+          !broadcast.chatId
+        ) {
+          reply +=
+            "\n⚠️ Set <b>Telegram chat ID</b> in Notion or env <code>TELEGRAM_CHAT_ALIASES</code> for the Parents & Teachers group.";
+        }
+        reply += "\n<i>VAVA will post on those days after the Time in Notion (default morning).</i>";
+      } else {
+        reply = `⏰ Reminder set: <b>${escapeHtml(c.reminder.title)}</b>`;
+        if (c.reminder.due_date) reply += ` (due ${escapeHtml(c.reminder.due_date)})`;
+      }
       if (url) reply += ` — <a href="${url}">Notion</a>`;
       await sendMessage(chatId, reply);
       recordChatActivity({ kind: "reminder_logged", from, chatId, title: c.reminder.title, text });
@@ -5862,6 +6310,17 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     const ok = await captureAmbientRecurringDuty({ classified: c, text, from, chatId });
     if (!ok && interactive) {
       await sendMessage(chatId, "Sorry, I could not set up that recurring duty.");
+    }
+    return;
+  }
+
+  if (c.is_kids_programme_assign && c.kids_programme_shift && conf >= minConf) {
+    const ok = await captureAssignKidsProgramme({ classified: c, from, chatId });
+    if (!ok && interactive) {
+      await sendMessage(
+        chatId,
+        "Sorry, I could not update that kids programme slot. Try /kids or check the programme name."
+      );
     }
     return;
   }
@@ -6076,6 +6535,11 @@ async function handleMessageInner(message) {
     return;
   }
 
+  if (isCommand && cmd === "/kids") {
+    await handleKidsSlashCommand(args, { from, chatId });
+    return;
+  }
+
   if (isCommand && cmd === "/register") {
     if (!args) {
       await sendMessage(chatId, "Usage: /register Your Full Name");
@@ -6272,6 +6736,8 @@ async function handleAsk({ question, from, chatId, logGap = LOG_DOC_GAPS }) {
   const faqHit = await handleFaqQuestion({ text: question, classified: null, chatId });
   if (faqHit) return { answered: true };
 
+  const faqShaped = faqsLib.looksLikeFaqQuestion(question);
+
   let result;
   try {
     result = await answerQuestion(question);
@@ -6300,6 +6766,14 @@ async function handleAsk({ question, from, chatId, logGap = LOG_DOC_GAPS }) {
       `${escapeHtml(result.answer)}` + (sources ? `\n\n📄 Source: ${sources}` : "")
     );
     return { answered: true };
+  }
+
+  if (faqShaped) {
+    await sendMessage(
+      chatId,
+      "I don't have that in FAQs yet. Add it with: “Add FAQ: What is the address? → …”"
+    );
+    return { answered: false };
   }
 
   if (locationsLib.looksLikeLocationQuestion(question)) {
@@ -6599,7 +7073,15 @@ async function scanBoardsForChanges({ announce }) {
       const link = url ? ` <a href="${url}">open</a>` : "";
 
       if (!prev) {
-        if (announce && ANNOUNCE_NEW_ITEMS && !done) {
+        if (
+          announce &&
+          ANNOUNCE_NEW_ITEMS &&
+          !done &&
+          !(
+            dbName === REMINDERS_DB_NAME &&
+            broadcastRemindersLib.pageCheckbox(page, "Post to Telegram")
+          )
+        ) {
           await sendMessage(
             TELEGRAM_CHAT_ID,
             `🆕 New item on <b>${escapeHtml(dbName)}</b>: ` +
@@ -6672,6 +7154,14 @@ async function main() {
 
   await ensureMembersQuestionnaireSchema();
   try {
+    const br = await broadcastRemindersLib.ensureBroadcastReminderSchema();
+    if (br.added?.length) {
+      log(`Reminders broadcast schema: added ${br.added.join(", ")}`);
+    }
+  } catch (err) {
+    log("Reminders broadcast schema ensure failed:", err.message);
+  }
+  try {
     const loc = await locationsLib.ensureLocationsDatabase();
     log(
       `Where things are: ${loc.wasCreated ? "created" : "ready"} (${LOCATIONS_DB_NAME})` +
@@ -6736,6 +7226,7 @@ async function main() {
   while (true) {
     await pollTelegramOnce();
     await maybeSendDailyRecap();
+    await maybeSendBroadcastReminders();
 
     const now = Date.now();
     if (

@@ -162,7 +162,7 @@ async function writeBrief(parentId, catalog) {
         type: "bulleted_list_item",
         bulleted_list_item: {
           rich_text: notion.richText(
-            "Reminders & deadlines — e.g. organic veggies order Fridays before 3pm."
+            "Reminders — personal deadlines, or tick Post to Telegram to broadcast on a schedule (group, topic, or Members by role). Recurrence e.g. monthly:1,2,3 for the 1st–3rd of each month."
           ),
         },
       },
@@ -178,6 +178,15 @@ async function writeBrief(parentId, catalog) {
         type: "bulleted_list_item",
         bulleted_list_item: {
           rich_text: notion.richText("Campsite Meals — breakfast & dinner cook counts."),
+        },
+      },
+      {
+        object: "block",
+        type: "bulleted_list_item",
+        bulleted_list_item: {
+          rich_text: notion.richText(
+            "Kids Programme Shifts — who leads Coddiwomplers, Early Readers, Arete, HSH, parent activities per day. VAVA posts a daily roundup to Parents & Teachers and DMs registered leads."
+          ),
         },
       },
       {
@@ -370,6 +379,31 @@ async function main() {
   );
   await ensureDatabase(
     calendars.id,
+    "Kids Programme Shifts",
+    {
+      Name: title(),
+      Date: date(),
+      Programme: selectProp([
+        "Coddiwomplers",
+        "Early Readers",
+        "Arete",
+        "Home Schooling Hub",
+        "Parent / villager activity",
+        "Day note",
+      ]),
+      Time: rich(),
+      Lead: rich(),
+      Support: rich(),
+      Status: selectProp(["Confirmed", "TBC", "Cancelled"]),
+      Notes: rich(),
+      "Post to Telegram": check(),
+      Source: selectProp(["Telegram", "Manual", "Import", "Seed"]),
+    },
+    catalog
+  );
+
+  await ensureDatabase(
+    calendars.id,
     "Reminders",
     {
       Name: title(),
@@ -379,12 +413,34 @@ async function main() {
       Recurrence: rich(),
       "Created by": rich(),
       Notes: rich(),
+      "Post to Telegram": check(),
+      Audience: selectProp(["Main group", "Telegram chat", "Members by role"]),
+      Audiences: {
+        multi_select: {
+          options: selectOpts([
+            "Main group",
+            "Telegram chat",
+            "Members by role",
+          ]),
+        },
+      },
+      "Telegram chat": rich(),
+      "Telegram chat ID": rich(),
+      "Topic ID": rich(),
+      "Member role": rich(),
     },
     catalog
   );
 
   // Calendar views
-  for (const name of ["Internal Events", "External Events", "Reminders", "Campsite Bookings", "Campsite Meals"]) {
+  for (const name of [
+    "Internal Events",
+    "External Events",
+    "Reminders",
+    "Kids Programme Shifts",
+    "Campsite Bookings",
+    "Campsite Meals",
+  ]) {
     const id = catalog.databases[name];
     if (!id) continue;
     const dateProp = name === "Reminders" ? "Due date" : "Date";

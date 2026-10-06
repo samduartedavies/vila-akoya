@@ -231,6 +231,33 @@ const DATABASES = [
     samples: [],
   },
   {
+    key: "Kids Programme Shifts",
+    parentSection: "Calendars",
+    purpose:
+      "Teacher/caregiver shifts for kids programmes (Coddiwomplers, Early Readers, Arete, HSH, parent activities). Calendar on Date. VAVA posts daily to Parents & Teachers and DMs registered leads.",
+    calendarView: { name: "Calendar", dateColumn: "Date" },
+    properties: {
+      Name: title(),
+      Date: date(),
+      Programme: selectProp([
+        "Coddiwomplers",
+        "Early Readers",
+        "Arete",
+        "Home Schooling Hub",
+        "Parent / villager activity",
+        "Day note",
+      ]),
+      Time: rich(),
+      Lead: rich(),
+      Support: rich(),
+      Status: selectProp(["Confirmed", "TBC", "Cancelled"]),
+      Notes: rich(),
+      "Post to Telegram": check(),
+      Source: selectProp(["Telegram", "Manual", "Import", "Seed"]),
+    },
+    samples: [],
+  },
+  {
     key: "Events",
     parentSection: "Calendars",
     purpose:

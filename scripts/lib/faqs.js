@@ -239,8 +239,26 @@ function extractFaqUpsert(text) {
   const raw = String(text || "").trim();
   if (!raw) return null;
 
+  const addAnFaq = raw.match(/\badd\s+an?\s+faq\s*:\s*(.+)/is);
+  if (addAnFaq?.[1]) {
+    const body = addAnFaq[1].trim();
+    const addressIs = body.match(/^the address is\s+(.+)/i);
+    if (addressIs?.[1]) {
+      return {
+        question: "What is the address?",
+        answer: addressIs[1].trim().replace(/[.!?]+$/, ""),
+      };
+    }
+    if (body.length >= 8) {
+      return {
+        question: "What is the address?",
+        answer: body.replace(/[.!?]+$/, ""),
+      };
+    }
+  }
+
   const qaArrow = raw.match(
-    /(?:add|new|create|update|set)\s+(?:an?\s+)?faq\s*[:—–-]\s*(.+?)\s*(?:→|->|—|–|-|:)\s*(.+)/i
+    /(?:add|new|create|update|set)\s+(?:an?\s+)?faq\s*[:—–-]\s*(.+?)\s*(?:→|->|—|–)\s*(.+)/i
   );
   if (qaArrow?.[1] && qaArrow?.[2]) {
     return {

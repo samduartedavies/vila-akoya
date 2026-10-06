@@ -30,6 +30,7 @@ const DB = {
   GUEST_STAYS: "Guest Stays",
   MEALS: "Campsite Meals",
   CHILDCARE: "Childcare",
+  KIDS_PROGRAMME_SHIFTS: "Kids Programme Shifts",
   PROJECTS: "Projects",
   DOCS: "Documentation",
   MEMBERS: "Members",
@@ -106,8 +107,17 @@ async function notion(method, endpoint, body, attempt = 1) {
     return notion(method, endpoint, body, attempt + 1);
   }
 
+  const msg = json?.message || JSON.stringify(json);
+  const transientServer =
+    res.status >= 500 ||
+    res.status === 408 ||
+    /unavailable|timeout|memcached|try again/i.test(String(msg));
+  if (transientServer && attempt <= 6) {
+    await sleep(Math.min(20, attempt * 2) * 1000);
+    return notion(method, endpoint, body, attempt + 1);
+  }
+
   if (!res.ok) {
-    const msg = json?.message || JSON.stringify(json);
     throw new Error(`Notion HTTP ${res.status}: ${msg}`);
   }
 

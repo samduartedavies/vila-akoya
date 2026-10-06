@@ -46,6 +46,7 @@ const ACTIONS = [
   "announcement",
   "book_meal",
   "childcare_absent",
+  "assign_kids_programme",
   "create_stay",
   "create_expense",
   "question_expenses",
@@ -109,6 +110,7 @@ const CHAT_ACTIVITY_KIND = {
   create_event: "event_logged",
   create_task: "task_logged",
   create_recurring_duty: "duty_logged",
+  assign_kids_programme: "announcement",
   guest_issue: "guest_logged",
   create_decision: "decision_logged",
   create_documentation: "doc_logged",
@@ -323,10 +325,11 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '         "what\'s on for me?", "my jobs", "what have I got today?"',
     '    PT: "o que tenho de fazer hoje?", "quais são as minhas tarefas?", "tenho alguma coisa hoje?"',
     "    Use this when the speaker refers to themselves (I/me/my), NOT the whole village schedule.",
-    "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, meal headcounts, or childcare rosters already in Notion",
+    "- question_schedule: lookup rota, chores, events, campsite check-ins/outs, meal headcounts, childcare rosters, or kids programme shifts (Coddiwomplers, Early Readers, Arete, HSH, who is teaching) already in Notion",
     "    Set schedule_lookup=true and schedule_range: today | this_week | next_week | two_weeks",
     "    Pick the range that matches what the speaker asked (use WEEK CALENDAR above).",
     "    Guest arrival/departure, breakfast/dinner cook counts, and childcare allergy/phone/roster questions → question_schedule (NOT guest_issue).",
+    "    Kids programme / teacher schedule / “who is on Early Readers Thursday?” → question_schedule.",
     "    Whole-group “what’s happening / who’s on rota” → question_schedule (not question_my_day).",
     "",
     "── Notion actions (create or update databases) ──",
@@ -405,16 +408,29 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "    If they list several stays in one message, return ALL in stays[] and set stay to the first.",
     "    NOT create_event (that is yoga/BBQ/workshops). NOT book_meal. NOT guest_issue.",
     "    Looking up who is already checking in → question_schedule, not create_stay.",
-    "- rsvp_event: speaker says they are coming to an event, RSVP, or \"I'm in\" for a known event.",
     "- childcare_absent: parent says their child/kid will not attend childcare today.",
     '    EN: "Sam won\'t attend childcare today", "my kid Maya is sick", "Luna won\'t come today"',
     '    PT: "o meu filho Sam não vai hoje", "a Maya está doente"',
     "    Populate childcare_absence.child_name when the child is named; date defaults to today unless explicit.",
+    "- assign_kids_programme: assign or update who leads a kids programme slot (Kids Programme Shifts in Notion).",
+    "    NOT question_schedule. Set schedule_lookup=false.",
+    "    Programmes: Coddiwomplers, Early Readers, Arete, Home Schooling Hub, Parent / villager activity.",
+    '    kids_programme_shift: { "programme", "date", "lead", "support", "status", "notes", "assign_as", "clear" }',
+    '    EN: "put Amber on Early Readers Friday", "Moon covering Arete tomorrow", "Tamara support on HSH Monday",',
+    '         "Coddiwomplers TBC on the 10th", "cancel parent activity today"',
+    '    PT: "coloca a Amber nos Early Readers na sexta"',
+    "- rsvp_event: speaker says they are coming to an event, RSVP, or \"I'm in\" for a known event.",
     '    Examples: "I\'m coming to the BBQ", "count me in for yoga", "eu vou ao almoço"',
     "    Populate rsvp.title with the event name to match.",
-    "- create_reminder: speaker wants to be reminded about something in X days/weeks/months, or set a deadline reminder.",
-    '    Examples: "remind me in 2 weeks to check the pump", "lembra-me em 3 dias"',
-    "    Populate reminder.title, reminder.due_date (ISO), reminder.notes.",
+    "- create_reminder: personal deadline OR a scheduled community reminder posted on Telegram.",
+    '    Personal: "remind me in 2 weeks to check the pump", "lembra-me em 3 dias" → reminder.broadcast=false.',
+    '    Community broadcast: remind parents/a group on recurring calendar days, post to a Telegram group/topic.',
+    '    Examples: "reminder on the 1st 2nd 3rd each month for parents to pay lunch, post on Parents and Teachers topic"',
+    "    Set reminder.broadcast=true, reminder.recurrence (e.g. monthly:1,2,3), reminder.audiences as array",
+    '    (\"Telegram chat\", \"Members by role\"), reminder.telegram_chat (e.g. \"Parents & Teachers\"),',
+    "    reminder.topic_id if known, reminder.member_role (e.g. Parent) for DMs.",
+    "    Populate reminder.title, reminder.notes (message body); due_date optional for one-shot only.",
+    '    NOT add_note — \"add a reminder\" is create_reminder, not a note on another page.',
     '- add_note: speaker wants to append info to an existing task or project page.',
     '    Examples: "add to the swimming pool project: tiles arrived", "note on compost task: needs new bin"',
     "    Populate note.target_title and note.text.",
@@ -470,10 +486,11 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "documentation": { "title", "area", "summary" } | null,',
     '  "community": { "title", "summary", "date" } | null,',
     '  "rsvp": { "title" } | null,',
-    '  "reminder": { "title", "due_date", "notes" } | null,',
+    '  "reminder": { "title", "due_date", "notes", "broadcast", "recurrence", "audiences", "telegram_chat", "topic_id", "member_role" } | null,',
     '  "note": { "target_title", "text" } | null,',
     '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "purpose", "notes" } | null,',
     '  "childcare_absence": { "child_name", "date" } | null,',
+    '  "kids_programme_shift": { "programme", "date", "lead", "support", "status", "notes", "assign_as", "clear" } | null,',
     '  "stay": { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } | null,',
     '  "stays": [ { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } ] | null,',
     '  "location": { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases", "notes", "list_all" } | null,',
@@ -519,6 +536,30 @@ function normalizeDutyFrequency(raw) {
   if (f === "seasonal") return "Seasonal";
   if (DUTY_FREQUENCIES.includes(raw)) return raw;
   return "Daily";
+}
+
+function normalizeKidsProgrammeShiftFields(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const programme = String(raw.programme || raw.program || raw.session || "").trim();
+  if (!programme) return null;
+  const date = raw.date ? String(raw.date).trim().slice(0, 32) : "";
+  const lead = raw.lead ? String(raw.lead).trim().slice(0, 120) : "";
+  const support = raw.support ? String(raw.support).trim().slice(0, 120) : "";
+  const status = raw.status ? String(raw.status).trim().slice(0, 32) : "";
+  const notes = raw.notes ? String(raw.notes).trim().slice(0, 500) : "";
+  const assign_as = raw.assign_as ? String(raw.assign_as).trim().toLowerCase() : "";
+  const clear = raw.clear === true || raw.cancelled === true;
+  if (!lead && !support && !clear && !/tbc/i.test(status)) return null;
+  return {
+    programme,
+    date,
+    lead,
+    support,
+    status,
+    notes,
+    assign_as: assign_as === "support" ? "support" : "lead",
+    clear,
+  };
 }
 
 function normalizeRecurringDutyFields(raw) {
@@ -654,6 +695,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     receipts: "question_expenses",
     child_absent: "childcare_absent",
     childcare_absence: "childcare_absent",
+    kids_programme: "assign_kids_programme",
+    kids_programme_shift: "assign_kids_programme",
+    assign_kids_shift: "assign_kids_programme",
     stay: "create_stay",
     booking: "create_stay",
     create_booking: "create_stay",
@@ -677,7 +721,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     action !== "question_my_day" &&
     action !== "book_meal" &&
     action !== "question_location" &&
-    action !== "question_faq"
+    action !== "question_faq" &&
+    action !== "assign_kids_programme"
   ) {
     action = "question_schedule";
   }
@@ -735,6 +780,16 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     }
   }
   const recurringDuty = recurringDuties[0] || null;
+
+  let kidsProgrammeShift = null;
+  if (action === "assign_kids_programme") {
+    kidsProgrammeShift = normalizeKidsProgrammeShiftFields(
+      result.kids_programme_shift || result.kids_programme || result.shift
+    );
+    if (!kidsProgrammeShift) {
+      action = "chat";
+    }
+  }
 
   const eventRaw = result.event || (action === "create_event" ? result.proposal : null);
   let event = null;
@@ -809,6 +864,24 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
           title: String(result.reminder.title || "").slice(0, 80),
           due_date: result.reminder.due_date ? String(result.reminder.due_date).slice(0, 10) : null,
           notes: String(result.reminder.notes || ""),
+          broadcast: Boolean(result.reminder.broadcast),
+          recurrence: result.reminder.recurrence
+            ? String(result.reminder.recurrence).slice(0, 80)
+            : null,
+          audiences: Array.isArray(result.reminder.audiences)
+            ? result.reminder.audiences.map((a) => String(a).slice(0, 60))
+            : result.reminder.audience
+              ? [String(result.reminder.audience)]
+              : null,
+          telegram_chat: result.reminder.telegram_chat
+            ? String(result.reminder.telegram_chat).slice(0, 120)
+            : null,
+          topic_id: result.reminder.topic_id != null
+            ? String(result.reminder.topic_id).slice(0, 20)
+            : null,
+          member_role: result.reminder.member_role
+            ? String(result.reminder.member_role).slice(0, 80)
+            : null,
         }
       : null;
 
@@ -916,6 +989,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_add_note: action === "add_note" && Boolean(note?.target_title),
     is_book_meal: action === "book_meal",
     is_childcare_absence: action === "childcare_absent",
+    is_kids_programme_assign:
+      action === "assign_kids_programme" && Boolean(kidsProgrammeShift?.programme),
     is_stay: action === "create_stay" && stayItems.length > 0,
     is_expense: action === "create_expense",
     is_location_update: action === "update_location" && locationItems.length > 0,
@@ -952,6 +1027,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     note,
     expense,
     childcare_absence: childcareAbsence,
+    kids_programme_shift: kidsProgrammeShift,
     stay,
     stays: stayItems,
     location,

@@ -7,6 +7,7 @@
  *   monthly:1st-Sat
  *   monthly:3rd-Sun
  *   monthly:last-Fri
+ *   monthly:1,2,3   (calendar days 1–3 of each month)
  *   daily
  *
  * Also accepts common natural phrases when reading from Notion or chat.
@@ -142,7 +143,7 @@ function canonicalWeekdays(list) {
 }
 
 /**
- * @returns {{ freq: 'daily'|'weekly'|'monthly', weekdays?: string[], nth?: number, weekday?: string } | null}
+ * @returns {{ freq: 'daily'|'weekly'|'monthly'|'month_days', weekdays?: string[], nth?: number, weekday?: string, days?: number[] } | null}
  */
 function parseRecurrence(raw) {
   if (!raw || typeof raw !== "string") return null;
@@ -162,6 +163,16 @@ function parseRecurrence(raw) {
       return { freq: "weekly", weekdays };
     }
     if (freq === "monthly") {
+      const dayList = rest.match(
+        /^(?:days?\s*=)?(\d{1,2}(?:\s*[,/]\s*\d{1,2})+)$/
+      );
+      if (dayList) {
+        const days = dayList[1]
+          .split(/[,/]/)
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => n >= 1 && n <= 31);
+        if (days.length) return { freq: "month_days", days };
+      }
       const m = rest.match(/^(1st|2nd|3rd|4th|last|first|second|third|fourth|\d+)\s*[- ]\s*([A-Za-zçÇáàãâéêíóôõúü]+)$/i);
       if (!m) return null;
       const nth = normalizeOrdinal(m[1]);
@@ -227,6 +238,9 @@ function formatRecurrence(rule) {
               : "4th";
     return `monthly:${ord}-${rule.weekday}`;
   }
+  if (rule.freq === "month_days") {
+    return `monthly:${(rule.days || []).join(",")}`;
+  }
   return "";
 }
 
@@ -251,6 +265,11 @@ function describeRecurrence(rule) {
               ? "3rd"
               : "4th";
     return `every ${ord} ${rule.weekday} of the month`;
+  }
+  if (rule.freq === "month_days") {
+    const days = rule.days || [];
+    if (days.length === 1) return `on day ${days[0]} of each month`;
+    return `on days ${days.join(", ")} of each month`;
   }
   return formatRecurrence(rule);
 }
@@ -277,6 +296,10 @@ function occursOn(rule, dateISO, tz = DEFAULT_TZ) {
     const occ = weekdayOccurrenceInMonth(dateISO, tz);
     if (rule.nth === -1) return occ.isLast;
     return occ.nth === rule.nth;
+  }
+
+  if (rule.freq === "month_days") {
+    return (rule.days || []).includes(parts.day);
   }
 
   return false;
@@ -341,6 +364,9 @@ if (require.main === module) {
   assert(!occursOn(parseRecurrence("monthly:3rd-Sun"), "2026-07-12"), "Jul 12 is 2nd Sun");
   assert(occursOn(parseRecurrence("monthly:1st-Sat"), "2026-08-01"), "Aug 1 2026 is 1st Sat");
   assert(occursOn(parseRecurrence("weekly:Sat"), "2026-07-25"), "weekly Sat");
+  assert(occursOn(parseRecurrence("monthly:1,2,3"), "2026-10-01"), "month day 1");
+  assert(occursOn(parseRecurrence("monthly:1,2,3"), "2026-10-03"), "month day 3");
+  assert(!occursOn(parseRecurrence("monthly:1,2,3"), "2026-10-04"), "not day 4");
   assert(nextOccurrence(parseRecurrence("monthly:3rd-Sun"), "2026-07-20") === "2026-08-16", "next 3rd Sun");
   console.log("event-recurrence self-check OK");
 }

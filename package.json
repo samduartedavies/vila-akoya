@@ -7,6 +7,7 @@
     "notion:setup-locations": "node scripts/setup-locations-notion.js",
     "notion:setup-faqs": "node scripts/setup-faqs-notion.js",
     "notion:migrate-v2": "node scripts/migrate-notion-v2.js",
+    "notion:import-kids-programme": "node scripts/import-kids-programme-csv.js",
     "notion:expand-recurring": "node scripts/expand-notion-recurring-events.js",
     "notion:enrich-events": "node scripts/enrich-notion-event-pages.js",
     "notion:cleanup-to-notes": "node scripts/cleanup-notion-to-notes.js",
