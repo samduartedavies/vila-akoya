@@ -36,7 +36,13 @@ const EXPENSE_CATEGORIES = [
   "Other",
 ];
 
-const EXPENSE_PURPOSES = ["Breakfast", "Bar", "Dinner", "Kids Program"];
+const EXPENSE_PURPOSES = [
+  "Breakfast",
+  "Bar",
+  "Dinner",
+  "Kids Program",
+  "General",
+];
 
 const STATUS_OPTIONS = ["To reimburse", "Reimbursed", "Recorded"];
 
@@ -94,7 +100,7 @@ async function ensureSection(parentId, title, catalog) {
         type: "paragraph",
         paragraph: {
           rich_text: notion.richText(
-            "Each row is one receipt: who submitted it, amount, date, merchant, what it is for (Breakfast / Bar / Dinner / Kids Program), and the photo or pasted text. Status starts as To reimburse."
+            "Each row is one receipt: who submitted it, amount, date, merchant, what it is for (Breakfast / Bar / Dinner / Kids Program / General), and the photo or pasted text. Status starts as To reimburse."
           ),
         },
       },

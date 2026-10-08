@@ -197,23 +197,56 @@ function countTbcShifts(shifts) {
   ).length;
 }
 
-function resolveParentsTeachersDestination() {
+/**
+ * @param {{ fallbackChatId?: string, topicAliases?: Record<string, number> }} opts
+ */
+function resolveParentsTeachersDestination(opts = {}) {
   const chatAliases = broadcastReminders.parseChatAliases();
-  const topicAliases = broadcastReminders.parseTopicAliases();
+  const topicAliases = {
+    ...broadcastReminders.parseTopicAliases(),
+    ...(opts.topicAliases || {}),
+  };
 
   const chatRaw =
     process.env.KIDS_PROGRAMME_TELEGRAM_CHAT_ID ||
     process.env.KIDS_PROGRAMME_TELEGRAM_CHAT ||
     "Parents & Teachers";
-  const chatId = broadcastReminders.resolveChatIdFromField(chatRaw, chatAliases);
-  if (!chatId || !/^-?\d+$/.test(chatId)) return null;
+  let chatId = broadcastReminders.resolveChatIdFromField(chatRaw, chatAliases);
+  if (!chatId || !/^-?\d+$/.test(String(chatId))) {
+    const fallback = String(
+      opts.fallbackChatId || process.env.TELEGRAM_CHAT_ID || ""
+    ).trim();
+    if (/^-?\d+$/.test(fallback)) chatId = fallback;
+  }
+  if (!chatId || !/^-?\d+$/.test(String(chatId))) return null;
 
   const topicRaw =
     process.env.KIDS_PROGRAMME_TOPIC_ID ||
     process.env.KIDS_PROGRAMME_TOPIC ||
     "Parents & Teachers";
-  const topicId = broadcastReminders.resolveTopicIdFromField(topicRaw, topicAliases);
-  return { chatId, topicId };
+  let topicId = broadcastReminders.resolveTopicIdFromField(topicRaw, topicAliases);
+  if (topicId == null) {
+    for (const key of [
+      "Parents & Teachers",
+      "Parents and Teachers",
+      "parents & teachers",
+      "parents and teachers",
+    ]) {
+      if (topicAliases[key] != null) {
+        topicId = Number(topicAliases[key]);
+        break;
+      }
+      const lower = key.toLowerCase();
+      for (const [name, id] of Object.entries(topicAliases)) {
+        if (name.toLowerCase() === lower || name.toLowerCase().includes("parent")) {
+          topicId = Number(id);
+          break;
+        }
+      }
+      if (topicId != null) break;
+    }
+  }
+  return { chatId: String(chatId), topicId };
 }
 
 function membersWithKidsRole(members, roleHint) {

@@ -45,12 +45,22 @@ Re-running import skips rows that already match the same date, programme, and le
 
 Each morning (~same time as the village recap, `RECAP_TIME`, default 08:00 Lisbon), VAVA posts **today’s programme list** to the **Parents & Teachers** chat/topic when shifts exist.
 
-Configure the destination with env (same as broadcast reminders):
+**One-time setup (forum topic):** open the **Parents & Teachers** topic in the Vila Akoya Telegram group and send:
+
+```text
+/kids-topic
+```
+
+VAVA saves that topic’s thread id on the server (Fly volume) for future morning posts.
+
+Optional env (same as broadcast reminders) instead of `/kids-topic`:
 
 ```json
 TELEGRAM_CHAT_ALIASES={"Parents & Teachers":"-100xxxxxxxxxx"}
 TELEGRAM_TOPIC_ALIASES={"Parents & Teachers":12345}
 ```
+
+If only `TELEGRAM_CHAT_ID` is set (main Vila Akoya group), the bot uses that chat automatically; you still need a topic id via `/kids-topic` or `KIDS_PROGRAMME_TOPIC_ID`.
 
 Optional overrides:
 

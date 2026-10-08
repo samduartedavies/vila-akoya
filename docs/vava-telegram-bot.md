@@ -34,9 +34,9 @@ RECEIPTS (private Expenses board — not shown on the public site)
 In a DM: send a photo or PDF — I'll assume it's a receipt, then ask which NIF (reply 1 or 2):
   1. ALDEIA ALCATEIA LDA 517908794
   2. POVOADO GENTIL LDA 519423178
-Then what it’s for (reply 1–4):
-  1. Breakfast  2. Bar  3. Dinner  4. Kids Program
-Or add Alcateia / Povoado and breakfast / bar / dinner / kids in the caption. In the group: tag the bot or /receipt
+Then what it’s for (reply 1–5):
+  1. Breakfast  2. Bar  3. Dinner  4. Kids Program  5. General
+Or add Alcateia / Povoado and breakfast / bar / dinner / kids / general in the caption. In the group: tag the bot or /receipt
 /receipts — this month's totals by person, company, and what it’s for
 
 EMAIL / OFF-SITE BOOKINGS

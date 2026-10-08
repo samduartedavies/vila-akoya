@@ -556,6 +556,7 @@ const EXPENSE_PURPOSES = [
   { id: 2, name: "Bar" },
   { id: 3, name: "Dinner" },
   { id: 4, name: "Kids Program" },
+  { id: 5, name: "General" },
 ];
 
 function expensePurposeByName(name) {
@@ -574,12 +575,13 @@ function expensePreviewFromExtracted(extracted) {
 
 function expensePurposePrompt(preview, entity) {
   const lines = [
-    "What is this receipt for? Reply <b>1</b>, <b>2</b>, <b>3</b>, or <b>4</b>:",
+    "What is this receipt for? Reply <b>1</b>, <b>2</b>, <b>3</b>, <b>4</b>, or <b>5</b>:",
     "",
     "1. Breakfast",
     "2. Bar",
     "3. Dinner",
     "4. Kids Program",
+    "5. General",
   ];
   if (preview?.title) {
     let head = `🧾 <b>${escapeHtml(preview.title)}</b>`;
@@ -606,7 +608,7 @@ function parseExplicitExpensePurpose(text) {
 function parseExpensePurposeChoice(text, { allowNumbers = false } = {}) {
   const t = String(text || "").trim().toLowerCase();
   if (!t) return null;
-  if (allowNumbers && /^[1-4]$/.test(t)) {
+  if (allowNumbers && /^[1-5]$/.test(t)) {
     return EXPENSE_PURPOSES[Number(t) - 1];
   }
   if (
@@ -623,13 +625,14 @@ function parseExpensePurposeChoice(text, { allowNumbers = false } = {}) {
     return EXPENSE_PURPOSES[2];
   }
   if (/\bbar\b/.test(t)) return EXPENSE_PURPOSES[1];
+  if (/\b(general|geral)\b/.test(t)) return EXPENSE_PURPOSES[4];
   return null;
 }
 
 function expensePurposeFollowupText() {
   return (
-    "Reply <b>1</b>, <b>2</b>, <b>3</b>, or <b>4</b>:\n\n" +
-    "1. Breakfast\n2. Bar\n3. Dinner\n4. Kids Program"
+    "Reply <b>1</b>, <b>2</b>, <b>3</b>, <b>4</b>, or <b>5</b>:\n\n" +
+    "1. Breakfast\n2. Bar\n3. Dinner\n4. Kids Program\n5. General"
   );
 }
 
@@ -1004,6 +1007,7 @@ function loadState() {
     if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
     if (s.lastChildcareRecapDate === undefined) s.lastChildcareRecapDate = null;
     if (s.lastKidsProgrammeRecapDate === undefined) s.lastKidsProgrammeRecapDate = null;
+    if (!s.telegramTopicAliases) s.telegramTopicAliases = {};
     if (!s.broadcastRemindersSent) s.broadcastRemindersSent = {};
     if (s.seededNotion === undefined) {
       if (s.seededMonday !== undefined) s.items = {};
@@ -1018,6 +1022,7 @@ function loadState() {
       lastPersonalRecapDate: null,
       lastChildcareRecapDate: null,
       lastKidsProgrammeRecapDate: null,
+      telegramTopicAliases: {},
       broadcastRemindersSent: {},
       ambientKeys: {},
       chatActivity: [],
@@ -1652,7 +1657,7 @@ async function queueExpenseFollowup({
       : expenseEntityPrompt(preview);
   if (hadPending) {
     const waiting =
-      step === "purpose" ? "waiting for 1–4." : "waiting for 1 or 2.";
+      step === "purpose" ? "waiting for 1–5." : "waiting for 1 or 2.";
     msg =
       `<i>Previous receipt cancelled — this is the one ${waiting}</i>\n\n` + msg;
   }
@@ -3733,12 +3738,24 @@ async function buildDailyRecap(dateISO) {
   return recap && String(recap).trim() ? recap : template;
 }
 
+/** After the main recap has run, keep trying childcare + kids topic posts until their daily slots succeed. */
+async function maybeSendMorningFollowUps(dateISO) {
+  if (!DAILY_RECAP || !telegramPollActive) return;
+  if (currentHHMM() < RECAP_TIME) return;
+  refreshRecapDatesFromDisk();
+  if (state.lastRecapDate !== dateISO) return;
+  await maybeSendPersonalMorningBriefings(dateISO);
+}
+
 async function maybeSendDailyRecap() {
   if (!DAILY_RECAP || !TELEGRAM_CHAT_ID) return;
   if (!telegramPollActive) return;
   refreshRecapDatesFromDisk();
   const today = todayISO();
-  if (state.lastRecapDate === today) return;
+  if (state.lastRecapDate === today) {
+    await maybeSendMorningFollowUps(today);
+    return;
+  }
   if (currentHHMM() < RECAP_TIME) return;
 
   // Claim the slot before sending so a second process sharing this file skips.
@@ -3759,6 +3776,7 @@ async function maybeSendDailyRecap() {
     saveState();
     log("Daily recap error:", err.message);
   }
+  await maybeSendMorningFollowUps(today);
 }
 
 // Log a documentation gap when /ask finds nothing.
@@ -4055,6 +4073,21 @@ async function maybeSendChildcareMorningBriefings(dateISO) {
   if (sent) log(`Childcare morning briefings sent: ${sent}`);
 }
 
+function rememberForumTopicFromMessage(message, explicitName) {
+  const threadId = message?.message_thread_id;
+  if (!threadId) return null;
+  const name =
+    explicitName ||
+    message.forum_topic_created?.name ||
+    message.reply_to_message?.forum_topic_created?.name ||
+    "";
+  const label = String(name || "Parents & Teachers").trim();
+  if (!state.telegramTopicAliases) state.telegramTopicAliases = {};
+  state.telegramTopicAliases[label] = threadId;
+  saveState();
+  return { label, threadId };
+}
+
 async function maybeSendKidsProgrammeMorningUpdates(dateISO) {
   if (!DAILY_RECAP) return;
   if (!telegramPollActive) return;
@@ -4076,7 +4109,11 @@ async function maybeSendKidsProgrammeMorningUpdates(dateISO) {
     month: "long",
   }).format(new Date(dateISO + "T12:00:00"));
 
-  const dest = kidsProgrammeLib.resolveParentsTeachersDestination();
+  const dest = kidsProgrammeLib.resolveParentsTeachersDestination({
+    fallbackChatId: TELEGRAM_CHAT_ID,
+    topicAliases: state.telegramTopicAliases,
+  });
+  let topicPosted = false;
   if (dest?.chatId) {
     const topicLines = [
       `<b>Kids programme — ${escapeHtml(dayName)}</b>`,
@@ -4091,12 +4128,18 @@ async function maybeSendKidsProgrammeMorningUpdates(dateISO) {
       );
     }
     const extra = dest.topicId ? { message_thread_id: dest.topicId } : {};
+    if (!dest.topicId) {
+      log(
+        "Kids programme: no topic id yet — posting to group general. Run /kids-topic inside Parents & Teachers topic once."
+      );
+    }
     const ok = await sendMessage(dest.chatId, topicLines.join("\n"), extra);
+    topicPosted = ok;
     if (ok) log(`Kids programme topic roundup sent for ${dateISO}`);
-    else log(`Kids programme topic roundup failed for ${dateISO}`);
+    else log(`Kids programme topic roundup failed for ${dateISO} (will retry)`);
   } else {
     log(
-      "Kids programme topic skipped: set TELEGRAM_CHAT_ALIASES for Parents & Teachers (or KIDS_PROGRAMME_TELEGRAM_CHAT_ID)"
+      "Kids programme topic skipped: set TELEGRAM_CHAT_ID / KIDS_PROGRAMME_TELEGRAM_CHAT_ID (will retry)"
     );
   }
 
@@ -4152,8 +4195,10 @@ async function maybeSendKidsProgrammeMorningUpdates(dateISO) {
     }
   }
 
-  state.lastKidsProgrammeRecapDate = dateISO;
-  saveState();
+  if (topicPosted) {
+    state.lastKidsProgrammeRecapDate = dateISO;
+    saveState();
+  }
   if (leadDms) log(`Kids programme lead DMs sent: ${leadDms}`);
 }
 
@@ -5501,7 +5546,7 @@ const HELP_TEXT = [
   "Talk normally — I go by meaning, not exact phrases.",
   "Send a list of cleaning/rota jobs in one message (or voice note) — daily, weekly, monthly — and I'll add them all to Notion.",
   "Voice notes are transcribed — explain how something works to create a structured doc.",
-  "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado), then what it's for (Breakfast / Bar / Dinner / Kids Program). In the group, tag me or use /receipt.",
+  "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado), then what it's for (Breakfast / Bar / Dinner / Kids Program / General). In the group, tag me or use /receipt.",
   "",
   "<b>Email / off-site bookings</b>",
   "Voice note or text a stay booked by email or phone and I’ll put it on Guest Stays in Notion (and in the morning check-in list).",
@@ -5532,6 +5577,7 @@ const HELP_TEXT = [
   "/questionnaire — fill or update your Community profile (sent privately)",
   "/mytasks — duties due today + open tasks assigned to you",
   "/kids — assign a teacher/caregiver to a kids programme slot (or say “put Amber on Early Readers Friday”)",
+  "/kids-topic — run once inside the Parents &amp; Teachers forum topic so daily roundups post there",
   "/done &lt;item id&gt; — mark a duty/task done (duties reschedule: daily +1 day, weekly +7 days, monthly +1 month)",
   "/whoami — show your Telegram details",
   "/help — this message",
@@ -6476,6 +6522,9 @@ async function handleMessageInner(message) {
   );
   bufferMessage(message);
   recordGroupMessage(message);
+  if (message.forum_topic_created?.name) {
+    rememberForumTopicFromMessage(message, message.forum_topic_created.name);
+  }
 
   if (!shouldHandleIntake(message)) {
     if (
@@ -6537,6 +6586,23 @@ async function handleMessageInner(message) {
 
   if (isCommand && cmd === "/kids") {
     await handleKidsSlashCommand(args, { from, chatId });
+    return;
+  }
+
+  if (isCommand && cmd === "/kids-topic") {
+    if (!message.is_topic_message || !message.message_thread_id) {
+      await sendMessage(
+        chatId,
+        "Open the <b>Parents & Teachers</b> forum topic in the Vila Akoya group, then run <code>/kids-topic</code> there (or <code>/kids-topic Parents &amp; Teachers</code>). I'll remember the topic for daily kids programme posts."
+      );
+      return;
+    }
+    const label = args.trim() || "Parents & Teachers";
+    const saved = rememberForumTopicFromMessage(message, label);
+    await sendMessage(
+      chatId,
+      `Saved forum topic <b>${escapeHtml(saved.label)}</b> → thread <code>${saved.threadId}</code> for daily kids programme roundups.`
+    );
     return;
   }
 

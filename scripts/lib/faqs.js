@@ -93,27 +93,51 @@ function stripQuestionMark(s) {
   return normalize(s).replace(/\?+$/, "").trim();
 }
 
+function normalizeFaqQuery(query) {
+  return String(query || "")
+    .replace(/\bwgat\b/gi, "what")
+    .replace(/\baddres\b/gi, "address")
+    .trim();
+}
+
+function isPlaceholderFaqAnswer(answer) {
+  const a = String(answer || "").toLowerCase();
+  return (
+    /set the real delivery address here in notion/i.test(a) ||
+    /vava reads this when people ask/i.test(a)
+  );
+}
+
 function scoreFaq(query, page) {
-  const q = stripQuestionMark(query);
+  const q = stripQuestionMark(normalizeFaqQuery(query));
   if (!q) return 0;
   const question = stripQuestionMark(notion.pageTitle(page));
-  const answer = normalize(notion.pagePropText(page, "Answer"));
+  const answerRaw = notion.pagePropText(page, "Answer");
+  const answer = normalize(answerRaw);
   const aliasList = aliasesOf(page).map(stripQuestionMark);
-  if (question === q) return 100;
-  if (aliasList.includes(q)) return 92;
-  if (question.startsWith(q) && q.length >= 10) return 88;
-  if (q.startsWith(question) && question.length >= 10) return 86;
-  if (question.includes(q) || q.includes(question)) return 82;
-  if (aliasList.some((a) => a && (a.includes(q) || q.includes(a)))) return 76;
+
+  const adjust = (base) => {
+    let score = base;
+    if (isPlaceholderFaqAnswer(answerRaw)) score -= 30;
+    else if (answerRaw.length > 25 && /\d{4}-\d{3}|\d{5,}/.test(answerRaw)) score += 12;
+    return Math.max(0, score);
+  };
+
+  if (question === q) return adjust(100);
+  if (aliasList.includes(q)) return adjust(92);
+  if (question.startsWith(q) && q.length >= 10) return adjust(88);
+  if (q.startsWith(question) && question.length >= 10) return adjust(86);
+  if (question.includes(q) || q.includes(question)) return adjust(82);
+  if (aliasList.some((a) => a && (a.includes(q) || q.includes(a)))) return adjust(76);
   const qWords = words(q);
   if (!qWords.length) return 0;
   const hay = [question, answer, ...aliasList].join(" ");
   const hits = qWords.filter((w) => hay.includes(w));
   if (!hits.length) return 0;
   const ratio = hits.length / qWords.length;
-  if (ratio >= 0.85 && hits.length >= 2) return 72;
-  if (ratio >= 0.6 && hits.length >= 2) return 58;
-  if (ratio >= 0.5 && hits.length >= 1) return 48;
+  if (ratio >= 0.85 && hits.length >= 2) return adjust(72);
+  if (ratio >= 0.6 && hits.length >= 2) return adjust(58);
+  if (ratio >= 0.5 && hits.length >= 1) return adjust(48);
   return 0;
 }
 
@@ -181,14 +205,20 @@ async function listFaqsSnapshot({ category } = {}) {
 
 function pickBestFaqMatch(matches, query) {
   if (!matches?.length) return null;
-  if (matches.length === 1) return matches[0];
-  const best = matches[0];
-  const second = matches[1];
-  const qNorm = stripQuestionMark(query);
+  const qNorm = stripQuestionMark(normalizeFaqQuery(query));
+  const substantive = matches.filter((m) => !isPlaceholderFaqAnswer(m.answer));
+  const pool = substantive.length ? substantive : matches;
+  if (pool.length === 1) return pool[0];
+  const ranked = [...pool].sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  const second = ranked[1];
   const bestQ = stripQuestionMark(best.question);
   if (bestQ === qNorm || best.score >= 95) return best;
   if (best.score - (second?.score || 0) >= 12) return best;
   if (best.score >= 80 && (second?.score || 0) < 65) return best;
+  if (/\baddress\b|\bmorada\b/.test(qNorm) && substantive.length === 1) {
+    return substantive[0];
+  }
   return null;
 }
 
@@ -200,7 +230,7 @@ async function answerFaqQuestion({ question, listAll, category }) {
   if (wantsList) {
     return { ok: true, list: true, snapshot: await listFaqsSnapshot({ category }) };
   }
-  const query = String(question || "").trim();
+  const query = normalizeFaqQuery(String(question || "").trim());
   if (!query) return { ok: false, reason: "no_question" };
   const matches = await findFaqMatches(query);
   if (!matches.length) return { ok: false, reason: "not_found", question: query };
@@ -214,6 +244,7 @@ function looksLikeFaqQuestion(text) {
   if (!t || looksLikeFaqUpsert(text)) return false;
   if (/\b(how does|how do|como funciona)\b/.test(t)) return false;
   return (
+    /\b(what|whats|what's|qual)\b.{0,16}\baddress\b/.test(t) ||
     /\b(what is|what's|whats|qual [eé])\s+(?:the\s+)?address\b/.test(t) ||
     /\b(what is|what's|whats)\s+(?:the\s+)?(?:delivery|shipping|campsite|village|vila)\s+address\b/.test(t) ||
     /\b(?:delivery|shipping|campsite|village)\s+address\b/.test(t) ||

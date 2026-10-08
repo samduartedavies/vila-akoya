@@ -79,7 +79,13 @@ const EXPENSE_CATEGORIES = [
   "Guest / campsite",
   "Other",
 ];
-const EXPENSE_PURPOSES = ["Breakfast", "Bar", "Dinner", "Kids Program"];
+const EXPENSE_PURPOSES = [
+  "Breakfast",
+  "Bar",
+  "Dinner",
+  "Kids Program",
+  "General",
+];
 const EXPENSE_CURRENCIES = ["EUR", "GBP", "USD", "Other"];
 const LOCATION_ITEM_KINDS = [
   "Keys",
@@ -439,7 +445,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '    EN: "here\'s my receipt", "expense 12.40 Continente", "I spent 8 euros on fuel", "reimburse me for this"',
     '    PT: "aqui está o recibo", "despesa 12,40", "gastei 8 euros em gasóleo", "reembolso"',
     "    Populate expense.title, expense.amount, expense.currency (EUR default), expense.date, expense.merchant, expense.category, expense.purpose, expense.notes.",
-    "    expense.purpose is what the receipt is for, only if they said it: Breakfast, Bar, Dinner, Kids Program.",
+    "    expense.purpose is what the receipt is for, only if they said it: Breakfast, Bar, Dinner, Kids Program, General.",
     "    NOT create_expense for a repair job that happens to mention buying parts (create_task) unless they are clearly submitting the receipt.",
     "- update_location: speaker says WHERE they left something, where it currently is, or where it normally lives.",
     "    Goes to the Where things are database (not Tasks, not Documentation).",
