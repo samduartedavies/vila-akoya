@@ -378,6 +378,93 @@
     return Math.min(billableWeekly(stay), billableMonthly(stay));
   }
 
+  function campsiteMonthBlocks(stayNights, blockNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    var block = Math.max(1, parseInt(blockNights, 10) || 30);
+    return Math.floor(stay / block);
+  }
+
+  function campsiteNightlyCalendarNights(stayNights, blockNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    var block = Math.max(1, parseInt(blockNights, 10) || 30);
+    var months = campsiteMonthBlocks(stay, block);
+    return months > 0 ? stay % block : stay;
+  }
+
+  function campsiteNightlyBillableNights(stayNights, blockNights) {
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    if (stay < 1) {
+      return 0;
+    }
+    var block = Math.max(1, parseInt(blockNights, 10) || 30);
+    var months = campsiteMonthBlocks(stay, block);
+    var remainder = stay % block;
+    if (months > 0) {
+      if (remainder < 1) {
+        return 0;
+      }
+      return billableWeekly(remainder);
+    }
+    return billableWeekly(stay);
+  }
+
+  function vilaCampsiteStayDiscountInfo(stayNights, P) {
+    P = P || {};
+    var block = P.monthBlockNights || 30;
+    var flat = parseFloat(P.campsiteMonthlyFlat) || 590;
+    var stay = Math.max(0, parseInt(stayNights, 10) || 0);
+    var months = campsiteMonthBlocks(stay, block);
+    var billable = campsiteNightlyBillableNights(stay, block);
+    var calendar = campsiteNightlyCalendarNights(stay, block);
+    var free = 0;
+    if (months > 0 && calendar > 0) {
+      free = Math.max(0, calendar - billableWeekly(calendar));
+    } else if (months === 0) {
+      free = Math.max(0, stay - billable);
+    }
+    var target;
+    if (stay < 7) {
+      target = 7;
+    } else if (stay < block) {
+      target = block;
+    } else {
+      var rem = stay % block;
+      target = rem > 0 ? stay + (block - rem) : stay + block;
+    }
+    var next = null;
+    var moreNights = 0;
+    if (target > stay) {
+      moreNights = target - stay;
+      if (stay < 7) {
+        var targetPay = billableWeekly(target);
+        next = {
+          kind: 'weekly',
+          stay: target,
+          pay: targetPay,
+          saveNights: Math.max(0, target - targetPay),
+        };
+      } else {
+        var targetMonths = campsiteMonthBlocks(target, block);
+        next = {
+          kind: 'monthly_flat',
+          stay: target,
+          months: targetMonths,
+          flat: targetMonths * flat,
+          saveNights: 0,
+        };
+      }
+    }
+    return {
+      stay: stay,
+      billable: billable,
+      free: free,
+      monthBlocks: months,
+      flatTotal: months * flat,
+      next: next,
+      moreNights: moreNights,
+    };
+  }
+
   function upsellTargetStay(stayNights) {
     var stay = Math.max(0, parseInt(stayNights, 10) || 0);
     if (stay < 7) {
@@ -425,14 +512,37 @@
   }
 
   function stayDiscountUpsellMessage(disc, nightlyAccom, S) {
-    if (!disc || !disc.next || disc.moreNights < 1 || nightlyAccom <= 0) {
+    if (!disc || !disc.next || disc.moreNights < 1) {
       return '';
     }
     S = S || {};
+    var moreWord = disc.moreNights === 1 ? S.nightSingular || 'night' : S.nightPlural || 'nights';
+    if (disc.next.kind === 'monthly_flat') {
+      var months = disc.next.months || 1;
+      var flatTotal = disc.next.flat || 0;
+      var price = vilaFormatPricePlain(flatTotal);
+      if (months > 1) {
+        return vilaSprintf(
+          S.upsellMonthlyMulti || 'Only %1$d more %2$s — %4$s for %3$d months (30 nights each).',
+          disc.moreNights,
+          moreWord,
+          months,
+          price
+        );
+      }
+      return vilaSprintf(
+        S.upsellMonthly || 'Only %1$d more %2$s — %3$s for 30 nights.',
+        disc.moreNights,
+        moreWord,
+        price
+      );
+    }
+    if (nightlyAccom <= 0) {
+      return '';
+    }
     var upsellFmt =
       S.upsell || 'Only %1$d more %2$s and you unlock stay %3$d, pay %4$d (%5$d extra %6$s free).';
     var saveNights = disc.next.saveNights || Math.max(0, disc.next.stay - disc.next.pay);
-    var moreWord = disc.moreNights === 1 ? S.nightSingular || 'night' : S.nightPlural || 'nights';
     var freeWord = saveNights === 1 ? S.nightSingular || 'night' : S.nightPlural || 'nights';
     return vilaSprintf(upsellFmt, disc.moreNights, moreWord, disc.next.stay, disc.next.pay, saveNights, freeWord);
   }
@@ -502,7 +612,13 @@
       return;
     }
 
-    var disc = vilaStayDiscountInfo(nights);
+    var stayMode = !!(d && d.stayMode);
+    var disc = stayMode ? vilaStayDiscountInfo(nights) : vilaCampsiteStayDiscountInfo(nights, P);
+    var blockNights = P.monthBlockNights || 30;
+    var monthBlocks = stayMode ? 0 : disc.monthBlocks || 0;
+    var flatMonthly = parseFloat(P.campsiteMonthlyFlat) || 590;
+    var calendarNightly = stayMode ? nights : campsiteNightlyCalendarNights(nights, blockNights);
+    var supplementNights = stayMode ? nights : calendarNightly;
     var adults = Math.max(1, parseInt($('#mwb_mbfw_people_number').val(), 10) || 1);
     var children = Math.max(0, parseInt($('#vila_guest_children').val(), 10) || 0);
     var infants = Math.max(0, parseInt($('#vila_guest_infants').val(), 10) || 0);
@@ -512,19 +628,37 @@
     var rows = [];
     var total = 0;
     var nightlyAccom = 0;
+    var supplementNights = stayMode ? nights : calendarNightly;
 
-    var stayMode = !!(d && d.stayMode);
     var unit = stayMode && P.stayPerNight ? P.stayPerNight : P.adultPerNight;
     var pitchNightly = stayMode ? unit : P.perPerson ? unit * adults : unit;
-    nightlyAccom += pitchNightly;
-    var pitchValue = pitchNightly * nights;
+    var pitchNights = stayMode ? nights : calendarNightly > 0 ? calendarNightly : nights;
+    var pitchNightWord = pitchNights === 1 ? S.nightSingular : S.nightPlural;
+    if (calendarNightly > 0 || stayMode) {
+      nightlyAccom += pitchNightly;
+    }
+    var pitchValue = pitchNightly * pitchNights;
     var pitchTitle;
     if (stayMode) {
       pitchTitle = vilaSprintf(S.stayRateFlat || S.plotRateFlat, vilaFormatPricePlain(unit), nights, nightWord);
     } else {
       pitchTitle = P.perPerson
-        ? vilaSprintf(S.plotRatePerPerson, adults, vilaFormatPricePlain(unit), nights, nightWord)
-        : vilaSprintf(S.plotRateFlat, vilaFormatPricePlain(unit), nights, nightWord);
+        ? vilaSprintf(S.plotRatePerPerson, adults, vilaFormatPricePlain(unit), pitchNights, pitchNightWord)
+        : vilaSprintf(S.plotRateFlat, vilaFormatPricePlain(unit), pitchNights, pitchNightWord);
+    }
+
+    if (!stayMode && monthBlocks > 0) {
+      var flatTotal = monthBlocks * flatMonthly;
+      var monthTitle =
+        monthBlocks === 1
+          ? vilaSprintf(S.monthlyFlatLine || 'Monthly rate — %1$s for 30 nights', vilaFormatPricePlain(flatTotal))
+          : vilaSprintf(
+              S.monthlyFlatMulti || 'Monthly rate — %1$d months × %2$s',
+              monthBlocks,
+              vilaFormatPricePlain(flatTotal)
+            );
+      rows.push(liveBillRow(monthTitle, flatTotal));
+      total += flatTotal;
     }
 
     var weekdayNights = getWeekdayNights();
@@ -551,19 +685,26 @@
       });
     }
     var bundleTitle = vilaMealBundleLabel(mealSlugs, S);
-    if (bundleTitle && mealTotal > 0) {
-      rows.push(liveBillRow(bundleTitle, pitchValue + mealTotal));
-      total += pitchValue + mealTotal;
-    } else {
-      rows.push(liveBillRow(pitchTitle, pitchValue));
-      total += pitchValue;
-      if (mealTotal > 0) {
-        rows.push(liveBillRow('Meals included', mealTotal));
-        total += mealTotal;
+    if ((stayMode || calendarNightly > 0) && (pitchValue > 0 || mealTotal > 0)) {
+      if (bundleTitle && mealTotal > 0) {
+        rows.push(liveBillRow(bundleTitle, pitchValue + mealTotal));
+        total += pitchValue + mealTotal;
+      } else {
+        if (pitchValue > 0) {
+          rows.push(liveBillRow(pitchTitle, pitchValue));
+          total += pitchValue;
+        }
+        if (mealTotal > 0) {
+          rows.push(liveBillRow('Meals included', mealTotal));
+          total += mealTotal;
+        }
       }
+    } else if (mealTotal > 0) {
+      rows.push(liveBillRow(bundleTitle || 'Meals included', mealTotal));
+      total += mealTotal;
     }
 
-    if (!stayMode) {
+    if (!stayMode && calendarNightly > 0) {
       $('input[name="vila_vehicle_types[]"]:checked').each(function () {
         var slug = this.value;
         var info = P.vehicleFees[slug];
@@ -572,32 +713,44 @@
         }
         var vehicleNightly = info.fee * (P.vehicleByGuests ? adults : 1);
         nightlyAccom += vehicleNightly;
-        var lineValue = vehicleNightly * nights;
+        var lineValue = vehicleNightly * calendarNightly;
         total += lineValue;
         var title = P.vehicleByGuests
-          ? vilaSprintf(S.vehicleByGuests, info.label, vilaFormatPricePlain(info.fee), adults, nights, nightWord)
-          : vilaSprintf(S.vehicleFlat, info.label, vilaFormatPricePlain(info.fee), nights, nightWord);
+          ? vilaSprintf(S.vehicleByGuests, info.label, vilaFormatPricePlain(info.fee), adults, calendarNightly, pitchNightWord)
+          : vilaSprintf(S.vehicleFlat, info.label, vilaFormatPricePlain(info.fee), calendarNightly, pitchNightWord);
         rows.push(liveBillRow(title, lineValue));
       });
     }
 
-    if (children > 0 && P.guestRates.children > 0) {
+    if (supplementNights > 0 && children > 0 && P.guestRates.children > 0) {
       nightlyAccom += children * P.guestRates.children;
-      var chVal = children * P.guestRates.children * nights;
+      var chVal = children * P.guestRates.children * supplementNights;
       total += chVal;
-      rows.push(liveBillRow(vilaSprintf(S.children, children, vilaFormatPricePlain(P.guestRates.children), nights, nightWord), chVal));
+      rows.push(
+        liveBillRow(
+          vilaSprintf(S.children, children, vilaFormatPricePlain(P.guestRates.children), supplementNights, pitchNightWord),
+          chVal
+        )
+      );
     }
-    if (infants > 0 && P.guestRates.infants > 0) {
+    if (supplementNights > 0 && infants > 0 && P.guestRates.infants > 0) {
       nightlyAccom += infants * P.guestRates.infants;
-      var infVal = infants * P.guestRates.infants * nights;
+      var infVal = infants * P.guestRates.infants * supplementNights;
       total += infVal;
-      rows.push(liveBillRow(vilaSprintf(S.infants, infants, vilaFormatPricePlain(P.guestRates.infants), nights, nightWord), infVal));
+      rows.push(
+        liveBillRow(
+          vilaSprintf(S.infants, infants, vilaFormatPricePlain(P.guestRates.infants), supplementNights, pitchNightWord),
+          infVal
+        )
+      );
     }
-    if (pets > 0 && P.guestRates.pets > 0) {
+    if (supplementNights > 0 && pets > 0 && P.guestRates.pets > 0) {
       nightlyAccom += pets * P.guestRates.pets;
-      var petVal = pets * P.guestRates.pets * nights;
+      var petVal = pets * P.guestRates.pets * supplementNights;
       total += petVal;
-      rows.push(liveBillRow(vilaSprintf(S.pets, pets, vilaFormatPricePlain(P.guestRates.pets), nights, nightWord), petVal));
+      rows.push(
+        liveBillRow(vilaSprintf(S.pets, pets, vilaFormatPricePlain(P.guestRates.pets), supplementNights, pitchNightWord), petVal)
+      );
     }
 
     if (disc.free > 0 && nightlyAccom > 0) {
@@ -622,7 +775,11 @@
       '<div class="mbfw-total-listing-single-page">' + vilaFormatPriceHtml(total) + '</div>' +
       '</div></div>';
     $bill.html(html);
-    updateStayDiscountUpsellRow(disc, nightlyAccom, S);
+    if (!stayMode && disc.stay > 7) {
+      updateStayDiscountUpsellRow(disc, nightlyAccom > 0 ? nightlyAccom : flatMonthly, S);
+    } else {
+      updateStayDiscountUpsellRow(disc, nightlyAccom, S);
+    }
   }
 
   // ── "Finalising your booking" overlay ────────────────────────────────────

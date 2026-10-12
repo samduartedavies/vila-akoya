@@ -3,7 +3,8 @@
  * Long-stay pitch discounts with repeating blocks.
  *
  * Weekly: every 7 nights → 1 night free (pay 6 per week).
- * Monthly: every 30 nights → pay 20 (10 nights free per block).
+ * Monthly: every 30 nights → pay 20 (10 nights free per block) — village accommodation only.
+ * Campsite bookings use {@see Campsite_Monthly_Rate} instead of the monthly night discount.
  * The better scheme applies to the whole stay — weekly and monthly are not combined.
  *
  * @package Vila_CB

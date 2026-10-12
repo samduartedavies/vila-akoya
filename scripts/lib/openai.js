@@ -692,6 +692,7 @@ module.exports = {
   isEnabled,
   embed,
   embedOne,
+  completeJSON: chatJSONMessages,
   classifyTask,
   classifyGroupMessage,
   classifyIntent,

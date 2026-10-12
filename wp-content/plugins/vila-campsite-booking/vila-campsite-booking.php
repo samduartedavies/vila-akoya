@@ -51,6 +51,7 @@ require_once VILA_CB_DIR . 'includes/class-childcare-service.php';
 require_once VILA_CB_DIR . 'includes/class-childcare-booking.php';
 require_once VILA_CB_DIR . 'includes/class-pricing-settings.php';
 require_once VILA_CB_DIR . 'includes/class-stay-discount.php';
+require_once VILA_CB_DIR . 'includes/class-campsite-monthly-rate.php';
 require_once VILA_CB_DIR . 'includes/class-woocommerce-integration.php';
 require_once VILA_CB_DIR . 'includes/class-stay-hold-repository.php';
 require_once VILA_CB_DIR . 'includes/class-stay-hold-service.php';

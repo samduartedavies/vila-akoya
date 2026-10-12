@@ -1190,8 +1190,16 @@ class WooCommerce_Integration {
 			if ( ! self::is_campsite_product( $pid ) ) {
 				continue;
 			}
-			$cin = isset( $cart_item['vila_cb_check_in'] ) ? (string) $cart_item['vila_cb_check_in'] : '';
-			$cout = isset( $cart_item['vila_cb_check_out'] ) ? (string) $cart_item['vila_cb_check_out'] : '';
+			$cin    = isset( $cart_item['vila_cb_check_in'] ) ? (string) $cart_item['vila_cb_check_in'] : '';
+			$cout   = isset( $cart_item['vila_cb_check_out'] ) ? (string) $cart_item['vila_cb_check_out'] : '';
+			$merged = self::cart_item_flattened_for_stay_check( $cart_item );
+			if ( function_exists( 'vila_akoya_cart_item_stay_ymd' ) ) {
+				$range = vila_akoya_cart_item_stay_ymd( $merged );
+				if ( $range ) {
+					$cin  = $range['check_in'];
+					$cout = $range['check_out'];
+				}
+			}
 			$guests = isset( $cart_item['vila_cb_guests'] ) && is_array( $cart_item['vila_cb_guests'] ) ? $cart_item['vila_cb_guests'] : array();
 			// MWB-only cart rows may omit vila_cb_guests; use adults from mwb_mbfw_booking_values so per-person totals match the booking form.
 			if ( ( ! isset( $guests['adults'] ) || (int) $guests['adults'] < 1 ) && ! empty( $cart_item['mwb_mbfw_booking_values']['people_number'] ) ) {
@@ -1240,18 +1248,26 @@ class WooCommerce_Integration {
 	 */
 	public static function calculate_line_total( $product, $check_in, $check_out, array $guests, $include_guest_supplements = true ) {
 		$nights = Dates::night_count( $check_in, $check_out );
+		$pid    = (int) $product->get_id();
 		if ( $nights < 1 ) {
-			return (float) $product->get_regular_price();
+			$fallback = (float) $product->get_regular_price();
+			if ( $fallback <= 0 && function_exists( 'vila_akoya_stay_catalog_nightly_rate' ) ) {
+				$fallback = (float) vila_akoya_stay_catalog_nightly_rate( $pid, $product );
+			}
+			return $fallback;
 		}
-		$billable = Stay_Discount::billable_nights( $nights );
-		$pid = (int) $product->get_id();
-		$base = (float) apply_filters( 'vila_cb_adult_rate_per_night', (float) $product->get_regular_price(), $pid );
+		$billable = Campsite_Monthly_Rate::nightly_billable_nights( $nights );
+		$base_raw = (float) $product->get_regular_price();
+		if ( $base_raw <= 0 && function_exists( 'vila_akoya_stay_catalog_nightly_rate' ) ) {
+			$base_raw = (float) vila_akoya_stay_catalog_nightly_rate( $pid, $product );
+		}
+		$base = (float) apply_filters( 'vila_cb_adult_rate_per_night', $base_raw, $pid );
 		$adults = isset( $guests['adults'] ) ? max( 1, (int) $guests['adults'] ) : 1;
 		$ch     = isset( $guests['children'] ) ? max( 0, (int) $guests['children'] ) : 0;
 		$inf    = isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;
 		$pets   = isset( $guests['pets'] ) ? max( 0, (int) $guests['pets'] ) : 0;
 
-		$line = $adults * $base * $billable;
+		$line = Campsite_Monthly_Rate::flat_portion_total( $nights ) + ( $adults * $base * $billable );
 
 		if ( $include_guest_supplements ) {
 			$rates = Booking_Service::guest_category_rates( $pid );

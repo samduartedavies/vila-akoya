@@ -16,6 +16,9 @@
  *   - AI classification routes to Notion actions: tasks, recurring duties, events (internal/external),
  *     reminders, RSVP, notes on projects, completions, cancellations, decisions, docs, FAQs,
  *     expenses, and where things are (keys, tools, and other portable items).
+ *   - Addressed messages are read with the recent thread (including VAVA's replies). If a request
+ *     is not one of those actions, VAVA can still answer in conversation or read/write Notion
+ *     from the live database schema (scripts/lib/vava-agent.js).
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (morning
  *     meeting theme, events, campsite, meals, highlights); personal duties + tasks
  *     go by DM to registered members.
@@ -73,6 +76,7 @@ const faqsLib = require("./lib/faqs");
 const broadcastRemindersLib = require("./lib/broadcast-reminders");
 const guestStaysLib = require("./lib/guest-stays");
 const kidsProgrammeLib = require("./lib/kids-programme-shifts");
+const vavaAgent = require("./lib/vava-agent");
 const {
   CHAT_ACTIVITY_KIND,
   buildWeekCalendarContext,
@@ -649,35 +653,85 @@ async function replyWithDinnerBookingLink(chatId, dateISO) {
   await sendMessage(chatId, text);
 }
 
+function messageThreadId(message) {
+  return message?.is_topic_message ? message.message_thread_id || null : null;
+}
+
+function pushChatMemory(chatId, entry) {
+  if (!chatId || !entry?.text) return;
+  const buf = recentMessages.get(chatId) || [];
+  buf.push(entry);
+  while (buf.length > 60) buf.shift();
+  recentMessages.set(chatId, buf);
+}
+
+/** Recent lines for this chat, limited to the current forum topic when there is one. */
+function memoryFor(chatId, threadId = undefined) {
+  const buf = recentMessages.get(chatId) || [];
+  const thread =
+    threadId === undefined ? replyThreadExtra.message_thread_id || null : threadId;
+  if (!thread) return buf.filter((entry) => !entry.threadId);
+  const id = String(thread);
+  return buf.filter((entry) => String(entry.threadId || "") === id);
+}
+
 function bufferMessage(message) {
   const chatId = message.chat?.id;
   if (!chatId) return;
   const text = (message.text || message.caption || "").trim();
   if (!text) return;
-  const buf = recentMessages.get(chatId) || [];
-  buf.push({
+  pushChatMemory(chatId, {
     messageId: message.message_id,
     text,
     from: message.from,
+    name: senderDisplayName(message.from),
+    role: "user",
+    threadId: messageThreadId(message),
     ts: Date.now(),
   });
-  while (buf.length > 20) buf.shift();
-  recentMessages.set(chatId, buf);
 }
 
 function bufferTranscribedText(message, text) {
   const chatId = message.chat?.id;
   if (!chatId || !text) return;
-  const buf = recentMessages.get(chatId) || [];
-  buf.push({
+  pushChatMemory(chatId, {
     messageId: message.message_id,
     text,
     from: message.from,
+    name: senderDisplayName(message.from),
+    role: "user",
+    threadId: messageThreadId(message),
     ts: Date.now(),
     isVoice: true,
   });
-  while (buf.length > 20) buf.shift();
-  recentMessages.set(chatId, buf);
+}
+
+function plainFromTelegramHtml(text) {
+  return String(text || "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Keep VAVA's own replies in the thread so "yes" / "that one" can refer to them. */
+function rememberBotReply(chatId, text) {
+  const plain = plainFromTelegramHtml(text);
+  if (!plain || plain.length > 1200) return;
+  pushChatMemory(chatId, {
+    messageId: `bot-${Date.now()}`,
+    text: plain.slice(0, 420),
+    name: "VAVA",
+    role: "assistant",
+    isBot: true,
+    threadId: replyThreadExtra.message_thread_id || null,
+    ts: Date.now(),
+  });
 }
 
 function isMentioned(message, bot) {
@@ -782,7 +836,7 @@ function recentBufferedVoice(message) {
   const userId = message.from?.id;
   if (!chatId) return null;
   const cutoff = Date.now() - ADDRESS_WINDOW_MS;
-  const buf = recentMessages.get(chatId) || [];
+  const buf = memoryFor(chatId, messageThreadId(message));
   return (
     buf
       .filter(
@@ -817,7 +871,7 @@ async function resolveAddressedText(message, bot) {
   const userId = message.from?.id;
   const reply = message.reply_to_message;
   const cutoff = Date.now() - ADDRESS_WINDOW_MS;
-  const buf = recentMessages.get(chatId) || [];
+  const buf = memoryFor(chatId, messageThreadId(message));
   const recent = buf.filter((m) => m.messageId !== message.message_id && m.ts >= cutoff);
 
   if (reply) {
@@ -1265,6 +1319,7 @@ async function sendMessage(chatId, text, extra = {}) {
   if (isPrivate) delete payload.message_thread_id;
   try {
     await telegram("sendMessage", payload);
+    rememberBotReply(chatId, text);
     return true;
   } catch (err) {
     log("sendMessage error:", err.message);
@@ -2576,10 +2631,13 @@ function looksLikeQuestion(text) {
 }
 
 function recentChatLines(chatId, excludeText) {
-  return (recentMessages.get(chatId) || [])
-    .map((m) => m.text)
-    .filter((line) => line && line !== excludeText)
-    .slice(-8);
+  return memoryFor(chatId)
+    .filter((m) => m.text && m.text !== excludeText)
+    .slice(-10)
+    .map((m) => {
+      const who = m.isBot ? "VAVA" : m.name || senderDisplayName(m.from);
+      return `${who}: ${m.text}`;
+    });
 }
 
 async function replyConversationally({
@@ -2624,7 +2682,7 @@ function extractCompleteTaskTarget(text) {
 }
 
 function findCompleteTaskTargetInRecent(chatId, excludeText) {
-  const buf = recentMessages.get(chatId) || [];
+  const buf = memoryFor(chatId);
   for (const entry of buf.slice(-10).reverse()) {
     if (!entry.text || entry.text === excludeText) continue;
     const title = extractCompleteTaskTarget(entry.text);
@@ -5543,7 +5601,8 @@ const HELP_TEXT = [
   "<b>DMs</b>: always on, no tag needed.",
   "",
   "I can log tasks (villager work or management jobs), <b>recurring duties</b> (daily/weekly/monthly rota), events, reminders, RSVP to events, add notes to projects, <b>receipts / expenses</b>, say where things are, answer questions from docs and schedule, and more.",
-  "Talk normally — I go by meaning, not exact phrases.",
+  "Talk normally — I go by meaning, not exact phrases, and I use the messages around yours.",
+  "If you ask for something I don't already have a set action for, I'll try to do it in Notion anyway.",
   "Send a list of cleaning/rota jobs in one message (or voice note) — daily, weekly, monthly — and I'll add them all to Notion.",
   "Voice notes are transcribed — explain how something works to create a structured doc.",
   "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado), then what it's for (Breakfast / Bar / Dinner / Kids Program / General). In the group, tag me or use /receipt.",
@@ -5586,16 +5645,13 @@ const HELP_TEXT = [
 async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
   if (!text || !openaiLib.isEnabled()) return null;
   try {
-    const contextCount = interactive ? 10 : 6;
-    const buf = (recentMessages.get(chatId) || []).slice(-contextCount);
-    const contextLines = buf
-      .map((m) => m.text)
-      .filter((t) => t && t !== text);
     const cleanText = stripBotMention(text, botMe) || text;
-    const payload =
-      contextLines.length > 0
-        ? `Recent messages in the group:\n${contextLines.join("\n")}\n\nLatest message to classify:\n${cleanText}`
-        : cleanText;
+    const contextCount = interactive ? 14 : 6;
+    const earlier = memoryFor(chatId).filter((m) => m.text && m.text !== cleanText);
+    const context = vavaAgent.formatTranscript(earlier, { limit: contextCount });
+    const payload = context
+      ? `Recent conversation (use this to resolve "it", "that", "yes", and follow-ups):\n${context}\n\nLatest message to classify:\n${cleanText}`
+      : cleanText;
     const classified = await openaiLib.classifyGroupMessage(payload, todayISO());
     log(
       `AI classify: action=${classified.action} event=${classified.is_event} ` +
@@ -5973,12 +6029,14 @@ async function captureAmbientRecurringDuty({ classified, text, from, chatId }) {
 /** Single AI-driven router for both @bot messages and ambient group messages. */
 async function routeByAiClassification({ classified, text, from, chatId, photoFileId, interactive, message }) {
   if (!classified && !photoFileId && !getMessageMedia(message)) {
-    if (interactive) {
+    if (interactive && !openaiLib.isEnabled()) {
       await sendMessage(
         chatId,
         "I need OPENAI_API_KEY to understand natural language. Use /task, /ask, or /help."
       );
+      return true;
     }
+    if (interactive) return false;
     return;
   }
 
@@ -6371,11 +6429,13 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     return;
   }
 
-  // Tasks & guest issues
+  // Tasks & guest issues. A photo with no caption can still become a task.
+  // A photo that came with words only becomes a task when the classifier says so.
+  const photoForcesTask = Boolean(photoFileId) && (!interactive || !String(text || "").trim());
   if (
     (c.is_task && c.task && conf >= minConf) ||
     (c.action === "guest_issue" && c.task && conf >= minConf) ||
-    photoFileId
+    photoForcesTask
   ) {
     const taskList =
       Array.isArray(c.tasks) && c.tasks.length ? c.tasks : c.task ? [c.task] : [];
@@ -6394,25 +6454,108 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   if (interactive && text) {
     if (looksLikeQuestion(text)) {
       const docResult = await handleAsk({ question: text, from, chatId, logGap: false });
-      if (docResult.answered) return;
+      if (docResult.answered) return true;
     }
-
-    const ok = await replyConversationally({
-      text,
-      chatId,
-      classified: c,
-      situation:
-        c.action && c.action !== "chat"
-          ? `I wasn't confident enough to act on "${c.action}". Infer what they want and check with them in plain language.`
-          : "Casual chat, a greeting, or an unclear request. Respond like a person. If they might want a job/event/lookup, offer that.",
-    });
-    if (!ok) {
-      await sendMessage(
-        chatId,
-        "Happy to help — tell me what’s broken, what’s happening, or what you’re looking for."
-      );
-    }
+    return false;
   }
+}
+
+async function thinkAboutMessage({ text, from, chatId, message, missedStandardAction = false }) {
+  const entries = memoryFor(chatId, message ? messageThreadId(message) : undefined);
+  const last = entries[entries.length - 1];
+  if (text && last && !last.isBot && last.text !== text) {
+    entries[entries.length - 1] = { ...last, text };
+  } else if (text && (!last || last.isBot)) {
+    entries.push({ name: senderDisplayName(from), text, role: "user" });
+  }
+  const thought = await vavaAgent.think({
+    transcript: vavaAgent.formatTranscript(entries),
+    todayISO: todayISO(),
+    speaker: senderDisplayName(from),
+    isPrivate: message?.chat?.type === "private",
+    missedStandardAction,
+  });
+  if (thought) {
+    log(
+      `VAVA think: mode=${thought.mode}` +
+        (thought.understanding ? ` — ${thought.understanding}` : "")
+    );
+  }
+  return thought;
+}
+
+async function deliverAgentNotion(plan, { from, chatId, text, message }) {
+  const transcript = vavaAgent.formatTranscript(memoryFor(chatId, message ? messageThreadId(message) : undefined));
+  let executable = plan;
+  try {
+    if (!plan?.notion?.op) {
+      executable = await vavaAgent.planNotion({
+        transcript,
+        todayISO: todayISO(),
+        speaker: senderDisplayName(from),
+        database: plan?.database,
+        notion_request: plan?.notion_request || text,
+        understanding: plan?.understanding,
+      });
+    }
+  } catch (err) {
+    log("freeform notion plan error:", err.message);
+    await sendMessage(chatId, "I couldn't work that out just now. Try again in a moment?");
+    return true;
+  }
+
+  if (executable?.mode === "reply" && executable.reply) {
+    await sendMessage(chatId, escapeHtml(executable.reply));
+    return true;
+  }
+  if (!executable?.notion?.op) {
+    await sendMessage(
+      chatId,
+      "I can put that in Notion, but I need a clearer idea of what to save."
+    );
+    return true;
+  }
+
+  let result;
+  try {
+    result = await vavaAgent.executeNotionPlan(executable);
+  } catch (err) {
+    log("freeform notion error:", err.message);
+    await sendMessage(chatId, "Notion didn't accept that. Tell me a bit more and I'll try again.");
+    return true;
+  }
+  if (!result?.handled) {
+    await sendMessage(chatId, "I couldn't do that in Notion. Want to say it another way?");
+    return true;
+  }
+  if (result.ok && result.pageId) {
+    markPageSeen(result.pageId);
+    recordChatActivity({
+      kind: "announcement",
+      from,
+      chatId,
+      title: result.title || plan.understanding,
+      text,
+    });
+  }
+  let spoken = "";
+  try {
+    spoken = await vavaAgent.phraseReply({
+      transcript,
+      facts: result.reply || "",
+      speaker: senderDisplayName(from),
+      todayISO: todayISO(),
+    });
+  } catch (err) {
+    log("phraseReply error:", err.message);
+  }
+  const body = escapeHtml(spoken || result.reply || "Done.");
+  const reply = result.url ? `${body} — <a href="${result.url}">Notion</a>` : body;
+  await sendMessage(chatId, reply);
+  log(
+    `Freeform Notion ${result.ok ? result.op : result.reason}: ${result.database || ""} ${result.title || ""}`
+  );
+  return true;
 }
 
 async function routeAddressedMessage(message) {
@@ -6447,49 +6590,72 @@ async function routeAddressedMessage(message) {
     return;
   }
 
-  // Personal agenda — no classifier needed (saves tokens)
-  if (text && looksLikeMyDayQuestion(text)) {
-    try {
-      await sendMyDayBriefing(from, chatId, todayISO());
-    } catch (err) {
-      log("my day briefing error:", err.message);
-      await sendMessage(chatId, "Sorry, I could not build your day list right now.");
-    }
-    return;
-  }
-
-  if (text && looksLikeExpenseQuestion(text)) {
-    await sendExpenseSummary(chatId, { from });
-    return;
-  }
-
-  if (text && locationsLib.looksLikeLocationQuestion(text)) {
-    const classified = mergeLocationIntent(null, text);
-    const answered = await handleLocationQuestion({ text, classified, chatId });
-    if (answered) return;
-  }
-
   const isPrivate = message.chat?.type === "private";
   const assumeReceipt = isPrivate && Boolean(media);
+  const receiptWords = /\b(receipt|recibo|factura|fatura|invoice|€|eur|euro|euros)\b/i.test(text || "");
   const tryReceipt =
     assumeReceipt ||
-    looksLikeReceiptIntent(text) ||
     (media && !text) ||
-    (media && looksLikeReceiptIntent(text));
+    (media && looksLikeReceiptIntent(text)) ||
+    (looksLikeReceiptIntent(text) && (!openaiLib.isEnabled() || receiptWords));
   if (tryReceipt) {
     const logged = await handleReceiptSubmission({
       message,
       text,
       from,
       chatId,
-      force: looksLikeReceiptIntent(text) || assumeReceipt,
+      force: assumeReceipt || (!openaiLib.isEnabled() && looksLikeReceiptIntent(text)),
       assumeReceipt,
     });
     if (logged) return;
   }
 
+  if (!(text && openaiLib.isEnabled())) {
+    if (text && looksLikeMyDayQuestion(text)) {
+      try {
+        await sendMyDayBriefing(from, chatId, todayISO());
+      } catch (err) {
+        log("my day briefing error:", err.message);
+        await sendMessage(chatId, "Sorry, I could not build your day list right now.");
+      }
+      return;
+    }
+
+    if (text && looksLikeExpenseQuestion(text)) {
+      await sendExpenseSummary(chatId, { from });
+      return;
+    }
+
+    if (text && locationsLib.looksLikeLocationQuestion(text)) {
+      const classified = mergeLocationIntent(null, text);
+      const answered = await handleLocationQuestion({ text, classified, chatId });
+      if (answered) return;
+    }
+  }
+
+  let thought = null;
+  if (text && openaiLib.isEnabled()) {
+    try {
+      thought = await thinkAboutMessage({ text, from, chatId, message });
+    } catch (err) {
+      log("VAVA think error:", err.message);
+    }
+    if (thought?.mode === "notion") {
+      const done = await deliverAgentNotion(thought, { from, chatId, text, message });
+      if (done) return;
+    }
+    if (thought?.mode === "reply") {
+      await sendMessage(
+        chatId,
+        escapeHtml(thought.reply || "Say a bit more and I'll work it out.")
+      );
+      return;
+    }
+    if (thought?.resolved_message) text = thought.resolved_message;
+  }
+
   const classified = text ? await classifyUserMessage(text, chatId, { interactive: true }) : null;
-  await routeByAiClassification({
+  const acted = await routeByAiClassification({
     classified,
     text,
     from,
@@ -6498,6 +6664,43 @@ async function routeAddressedMessage(message) {
     interactive: true,
     message,
   });
+  if (acted !== false || !text) return;
+
+  if (openaiLib.isEnabled()) {
+    try {
+      const second = await thinkAboutMessage({
+        text,
+        from,
+        chatId,
+        message,
+        missedStandardAction: true,
+      });
+      if (second?.mode === "notion") {
+        const done = await deliverAgentNotion(second, { from, chatId, text, message });
+        if (done) return;
+      }
+      if ((second?.mode === "reply" || second?.mode === "chat") && second.reply) {
+        await sendMessage(chatId, escapeHtml(second.reply));
+        return;
+      }
+    } catch (err) {
+      log("VAVA improvise error:", err.message);
+    }
+  }
+
+  const ok = await replyConversationally({
+    text,
+    chatId,
+    classified,
+    situation:
+      "The usual village actions didn't fit, and there wasn't a safe Notion change to make. Respond like a person who has read the conversation. If they might want something saved, offer that in one question.",
+  });
+  if (!ok) {
+    await sendMessage(
+      chatId,
+      "Happy to help — tell me what’s broken, what’s happening, or what you’re looking for."
+    );
+  }
 }
 
 async function handleMessage(message) {
@@ -7029,7 +7232,7 @@ async function handleAmbientMessage(message) {
       : null;
 
   if (!text && voiceFileId) {
-    const buf = recentMessages.get(chatId) || [];
+    const buf = memoryFor(chatId, messageThreadId(message));
     const entry = buf.find((m) => m.messageId === message.message_id && m.isVoice);
     text = entry?.text || (await transcribeMessageVoice(message, { interactive: false })) || "";
     if (!text) return;

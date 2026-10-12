@@ -2367,7 +2367,7 @@ class Admin {
 				<div class="vila-cb-ui-panel">
 					<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Nightly rates (EUR)', 'vila-campsite-booking' ); ?></h2>
 					<p class="description"><?php echo esc_html( sprintf( __( 'Vila Campsite Booking %s — these values drive checkout line totals, pitch supplements, and guest-category fees. Amounts are per night unless noted.', 'vila-campsite-booking' ), defined( 'VILA_CB_VERSION' ) ? (string) VILA_CB_VERSION : '' ) ); ?></p>
-					<p class="description"><?php esc_html_e( 'Long-stay discounts (pitch, extras, and guest supplements; meals stay per night): 1 night free per full week; pay for 20 nights per full 30 nights. The better rate applies to the whole stay (weekly and monthly discounts are not combined).', 'vila-campsite-booking' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Long-stay campsite pricing (pitch, extras, and guest supplements; meals stay per night): 1 night free per full week; each full 30 nights is a flat monthly rate (guests and electric included). Village accommodation bookings still use the 30-for-20 night discount.', 'vila-campsite-booking' ); ?></p>
 					<table class="form-table vila-cb-ui-form-table" role="presentation">
 						<tr>
 							<th scope="row"><label for="vila_cb_pricing_adult"><?php esc_html_e( 'Adult rate (override)', 'vila-campsite-booking' ); ?></label></th>
