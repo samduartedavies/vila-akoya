@@ -39,12 +39,14 @@ const ACTIONS = [
   "create_documentation",
   "rsvp_event",
   "create_reminder",
+  "update_reminder",
   "add_note",
   "offer_help",
   "help_wanted",
   "availability",
   "announcement",
   "book_meal",
+  "offer_community_meal",
   "childcare_absent",
   "assign_kids_programme",
   "create_stay",
@@ -127,6 +129,7 @@ const CHAT_ACTIVITY_KIND = {
   rsvp_event: "rsvp",
   create_stay: "stay_logged",
   create_reminder: "reminder_logged",
+  update_reminder: "reminder_logged",
   add_note: "note_added",
   offer_help: "offer_help",
   help_wanted: "help_wanted",
@@ -268,6 +271,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "PROPOSE = speaker suggests or announces something NEW to log (→ create_event, create_task, etc.).",
     "",
     "question_schedule examples (LOOKUP — do NOT create_event):",
+    '  EN: "is there a market today?", "market at São Martinho today?", "when is the Milfontes market?"',
     '  EN: "what\'s happening next week?", "whats happenign next week", "any events?", "who cleans toilets today?"',
     '  EN: "anyone checking in today?", "who is leaving tomorrow?", "how many for dinner?", "breakfast numbers?"',
     '  NOT book_meal: "how many for dinner?" is a lookup (question_schedule), not a booking request.',
@@ -392,7 +396,15 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '         "I\'ve done that — please mark it complete", "the leak is fixed"',
     '    PT: "marca a tarefa do wifi como feita", "já está feito"',
     "    Use recent context when speaker says \"mark it as done\" after naming the job above.",
-    "- cancel_event: gathering called off — populate target.title",
+    "- cancel_event: gathering called off — populate target.title (event name to match).",
+    '    One event: "cancel yoga on Sunday", "the BBQ is off".',
+    '    ALL matching events: "remove all djembe events", "no more djembe workshop" → target.title="djembe", target.cancel_all=true.',
+    "    NOT delete from Notion — marks events cancelled/done.",
+    "- update_reminder: change an existing Reminders row (usually Post to Telegram broadcasts).",
+    '    EN: "morning meetings are only Monday to Friday, never weekends" → reminder.match_title="morning meeting",',
+    '         reminder.recurrence="weekly:Mon,Tue,Wed,Thu,Fri".',
+    '    EN: "change the parents lunch reminder to the 1st and 2nd only" → reminder.match_title + reminder.recurrence.',
+    "    Set reminder.match_title to words from the reminder title/notes; reminder.recurrence when schedule changes.",
     "- create_decision: governance item needing discussion or vote",
     "- create_documentation: speaker wants to WRITE or RECORD knowledge for others — how a system works,",
     "    a procedure, troubleshooting guide, guest process, or steward notes (often a voice brain dump).",
@@ -402,6 +414,14 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '    PT: "quero jantar", "quero jantar hoje", "posso jantar?", "marcar jantar"',
     '    NOT book_meal: headcount questions ("how many for dinner?"), organising a new meal/event (create_event),',
     '    or reporting a kitchen issue (create_task / guest_issue).',
+    "- offer_community_meal: villager will COOK a one-off shared meal on a specific day (not recurring, not website dinner booking).",
+    '    EN: "I\'m cooking a bolognese on Wednesday", "Hans is cooking lasagne today" → meal_offer.cook=Hans,',
+    '    "making vegan curry tomorrow at 19:30".',
+    '    PT: "vou fazer lasanha na quarta".',
+    "    Set meal_offer.dish, meal_offer.date (YYYY-MM-DD or wednesday/today/tomorrow). Optional meal_offer.time (default 19:30),",
+    "    meal_offer.diet (meat|veggie|vegan), meal_offer.price_eur (number, 0=free). No recurrence.",
+    "    NOT create_event unless they are scheduling a generic gathering without cooking themselves.",
+    "    NOT book_meal (that signs them up to eat campsite dinner).",
     "- create_stay: log a GUEST STAY (campsite pitch or accommodation) booked off-site — usually by email or phone,",
     "    not through the website. Voice notes of email bookings are common. One row per stay.",
     '    EN: "the Martins booked the cabin 20 to 24 Sept via email, two adults one child"',
@@ -491,6 +511,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "decision": { "title", "category", "summary" } | null,',
     '  "documentation": { "title", "area", "summary" } | null,',
     '  "community": { "title", "summary", "date" } | null,',
+    '  "meal_offer": { "dish", "date", "time", "diet", "price_eur", "cook" } | null,',
     '  "rsvp": { "title" } | null,',
     '  "reminder": { "title", "due_date", "notes", "broadcast", "recurrence", "audiences", "telegram_chat", "topic_id", "member_role" } | null,',
     '  "note": { "target_title", "text" } | null,',
@@ -692,8 +713,12 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     document: "create_documentation",
     rsvp: "rsvp_event",
     reminder: "create_reminder",
+    update_reminder: "update_reminder",
     note: "add_note",
     book_dinner: "book_meal",
+    community_meal: "offer_community_meal",
+    cook_meal: "offer_community_meal",
+    offer_meal: "offer_community_meal",
     recurring_duty: "create_recurring_duty",
     create_duty: "create_recurring_duty",
     expense: "create_expense",
@@ -747,6 +772,17 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
   }
   if (rawAction === "create_faq") {
     action = "create_faq";
+  }
+  if (rawAction === "offer_community_meal") {
+    action = "offer_community_meal";
+  }
+  if (
+    result.meal_offer &&
+    typeof result.meal_offer === "object" &&
+    result.meal_offer.dish &&
+    action === "chat"
+  ) {
+    action = "offer_community_meal";
   }
 
   let tasks = [];
@@ -824,6 +860,7 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
       ? {
           title: String(result.target.title || "").slice(0, 80),
           item_id: result.target.item_id ? String(result.target.item_id).replace(/\D/g, "") : null,
+          cancel_all: Boolean(result.target.cancel_all),
         }
       : null;
 
@@ -864,10 +901,25 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
       ? { title: String(result.rsvp.title || "").slice(0, 80) }
       : null;
 
+  const communityCook = require("./community-cook-offer");
+  const meal_offer =
+    result.meal_offer && action === "offer_community_meal"
+      ? communityCook.normalizeMealOffer(result.meal_offer, {
+          text: "",
+          todayISO: todayISOForParse(),
+          tz: DEFAULT_TZ,
+        })
+      : null;
+
+  const reminderActions = ["create_reminder", "update_reminder"];
   const reminder =
-    result.reminder && action === "create_reminder"
+    result.reminder && reminderActions.includes(action)
       ? {
           title: String(result.reminder.title || "").slice(0, 80),
+          match_title: String(result.reminder.match_title || result.reminder.title || "").slice(
+            0,
+            80
+          ),
           due_date: result.reminder.due_date ? String(result.reminder.due_date).slice(0, 10) : null,
           notes: String(result.reminder.notes || ""),
           broadcast: Boolean(result.reminder.broadcast),
@@ -988,12 +1040,19 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
       action === "create_recurring_duty" && recurringDuties.length > 0,
     is_event: action === "create_event" && Boolean(event?.title),
     is_complete: action === "complete_task" && Boolean(target?.title || target?.item_id),
-    is_cancel_event: action === "cancel_event" && Boolean(target?.title || target?.item_id),
+    is_cancel_event:
+      action === "cancel_event" &&
+      Boolean(target?.title || target?.item_id || target?.cancel_all),
     is_documentation: action === "create_documentation",
     is_rsvp: action === "rsvp_event" && Boolean(rsvp?.title),
     is_reminder: action === "create_reminder" && Boolean(reminder?.title),
+    is_update_reminder:
+      action === "update_reminder" &&
+      Boolean(reminder?.match_title || reminder?.title || reminder?.recurrence),
     is_add_note: action === "add_note" && Boolean(note?.target_title),
     is_book_meal: action === "book_meal",
+    is_community_meal_offer: action === "offer_community_meal",
+    meal_offer,
     is_childcare_absence: action === "childcare_absent",
     is_kids_programme_assign:
       action === "assign_kids_programme" && Boolean(kidsProgrammeShift?.programme),

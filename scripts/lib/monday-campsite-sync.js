@@ -217,7 +217,7 @@ function mealDetailText(bucket) {
   return bucket.parties
     .map((p) => {
       const cook = (p.adults || 0) + (p.children || 0);
-      return `${p.name} · ${p.plot || "?"} · ${cook} to cook`;
+      return `${p.name} · ${cook} to cook`;
     })
     .join("\n");
 }

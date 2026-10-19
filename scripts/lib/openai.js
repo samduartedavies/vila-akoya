@@ -14,6 +14,8 @@
 
 "use strict";
 
+const { withVavaVoice } = require("./vava-voice");
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "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";
 const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
 // gpt-4o-mini: better at paraphrases and messy village chat than nano.
@@ -180,17 +182,16 @@ async function answerFromDocs(question, contexts) {
     )
     .join("\n\n---\n\n");
 
-  const system = [
-    "You are VAVA, the Vila Akoya village helper.",
-    "Answer using the documentation excerpts provided — rephrase them in a",
-    "warm, practical way, as if you live on site. Combine related excerpts.",
-    "If the excerpts are relevant but incomplete, answer what you can and say",
-    "what's still missing. Set answered=false only when they are irrelevant",
-    "or you would have to invent village-specific facts.",
-    "Keep answers short (a few sentences). English or Portuguese to match the question.",
-    "",
-    'Return JSON: { "answered": bool, "answer": string, "sources": [doc names used] }.',
-  ].join("\n");
+  const system = withVavaVoice(
+    [
+      "Answer using the documentation excerpts provided — rephrase them as if you live on site, in VAVA's stoned-Dude voice.",
+      "Combine related excerpts. If incomplete, answer what you can and say what's missing.",
+      "Set answered=false only when excerpts are irrelevant or you'd invent village-specific facts.",
+      "Keep answers short (a few sentences).",
+      "",
+      'Return JSON: { "answered": bool, "answer": string, "sources": [doc names used] }.',
+    ].join("\n")
+  );
 
   const user = `Question: ${question}\n\nDocumentation:\n${context || "(none)"}`;
 
@@ -302,18 +303,21 @@ async function classifyIntent(text, todayISO) {
 async function answerFromData(question, snapshot) {
   if (!isEnabled()) return { answered: false, answer: "" };
 
-  const system = [
-    "You are VAVA, the Vila Akoya village helper.",
-    "Answer using the schedule data provided (chores, events, campsite bookings, meals).",
-    "Write like a person on site — short, warm, practical — not a database dump.",
-    "The data includes a WEEK CALENDAR: this week is always Monday–Sunday containing today;",
-    "next week is always the Monday–Sunday period after this Sunday.",
-    "Only mention events/bookings/meals whose dates fall inside the range the user asked about.",
-    "Campsite check-ins, check-outs, who is on site, and breakfast/dinner cook counts come from website bookings.",
-    "If the answer is not in the data, set answered=false and do not guess.",
-    "Match the language of the question (English or Portuguese).",
-    'Return JSON: { "answered": bool, "answer": string }.',
-  ].join("\n");
+  const system = withVavaVoice(
+    [
+      "Answer using the schedule data provided (chores, events, campsite bookings, meals).",
+      "Short, spacey, stoned-Dude energy — not a database dump. Still include the facts.",
+      "WEEK CALENDAR: this week = Mon–Sun containing today; next week = the following Mon–Sun.",
+      "Only mention items whose dates fall in the range they asked about.",
+      "Market / mercado / feira questions: use the Events section only — ignore chores unless they asked for the rota.",
+      "If they ask whether a named market runs on a date, answer yes or no from Events; if not that day but recurrence is listed, say when it usually runs.",
+      "Set answered=true when Events data is enough to answer, even when chores are irrelevant.",
+      "Check-ins, meals, and headcounts come from website bookings.",
+      "If the answer is not in the data, set answered=false and do not guess.",
+      "Never list bot commands or everything you can do — answer the question only.",
+      'Return JSON: { "answered": bool, "answer": string }.',
+    ].join("\n")
+  );
 
   try {
     const result = await chatJSON(system, `Question: ${question}\n\nData:\n${snapshot}`);
@@ -331,7 +335,7 @@ async function composeRecap(templateText) {
   if (!isEnabled()) return templateText;
   try {
     const result = await chatJSON(
-      "Rewrite this daily community recap to be warm and concise. Keep all facts that are present. Do not mention missing or zero items — never say there are no check-ins, no meals to prepare, no events, or no childcare; omit those topics instead. Check-ins and meal bookings come from the website. Return JSON: { \"text\": string }.",
+      "Rewrite this daily community recap to be warm and concise. Keep all facts that are present. Do not mention missing or zero items — never say there are no meals to prepare, no events, or no childcare; omit those topics instead. Never mention campsite check-ins, check-outs, pitch bookings, or who is staying on site. Meal bookings come from the website. Morning village meetings are Mon–Fri only: if the source has no Morning meeting section, do not mention morning meetings. Keep Community cooking today lines factual (who, dish, diet, price, time). Return JSON: { \"text\": string }.",
       templateText
     );
     return String(result.text || templateText);
@@ -604,28 +608,21 @@ async function converseAsVava({
 } = {}) {
   if (!isEnabled()) return "";
 
-  const system = [
-    "You are VAVA, the village helper for Vila Akoya (campsite + small community in Portugal).",
-    today ? `Today is ${today}.` : "",
-    "Talk like a helpful person who lives there: warm, brief, practical. Not a call centre or a command parser.",
-    "Reply in the same language they used (English, Portuguese, or mixed).",
-    "",
-    "You can log jobs, recurring duties, events, reminders, RSVPs, receipts; remember where things are;",
-    "answer from village docs and the Notion schedule; note a child off childcare; point people to dinner/childcare booking.",
-    "",
-    "Do NOT invent village facts (who's on duty, where an object is, how a system works, guest names,",
-    "phone numbers, allergies, bookings) unless they appear under FACTS.",
-    "If you don't know a site-specific fact, say so simply and offer a useful next step",
-    "(look it up, log a job, remember where they left it, etc.).",
-    "Never tell people they must use slash commands or exact phrases.",
-    "Don't list everything you can do unless they ask what you can do.",
-    "If their intent is fuzzy, infer the most likely thing and check in one short question.",
-    "If CLASSIFIER GUESS looks right, you may offer to do that: 'Want me to put that on the board?'",
-    "1–3 short sentences. No markdown headings. A little warmth is good.",
-    'Return JSON: { "reply": string }',
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const system = withVavaVoice(
+    [
+      today ? `Today is ${today}.` : "",
+      "You can log jobs, duties, events, reminders, RSVPs, receipts; remember where things are;",
+      "answer from docs and the schedule; note childcare absence; point to dinner/childcare booking.",
+      "You cannot delete or archive Notion pages — only add or edit.",
+      "",
+      "Do NOT invent village facts unless they appear under FACTS.",
+      "Never require slash commands. Do not list bot capabilities or /commands unless they explicitly asked what you can do.",
+      "1–5 sentences in VAVA's stoned-Dude voice — never a dry system notice.",
+      'Return JSON: { "reply": string }',
+    ]
+      .filter(Boolean)
+      .join("\n")
+  );
 
   const user = [
     facts ? `FACTS (trust these):\n${String(facts).slice(0, 2500)}` : "",
@@ -647,7 +644,7 @@ async function converseAsVava({
   try {
     const result = await chatJSONMessages(system, user, {
       model: CONVERSE_MODEL,
-      temperature: 0.55,
+      temperature: 0.9,
     });
     return String(result.reply || "").trim().slice(0, 1200);
   } catch (err) {

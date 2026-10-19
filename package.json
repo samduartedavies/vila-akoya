@@ -30,7 +30,7 @@
     "docs:index": "node scripts/index-vila-akoya-docs.js",
     "build:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --minify",
     "watch:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --watch",
-    "wp-env": "bash scripts/wp-env.sh",
+    "wp-env": "bash scripts/wp-envl.sh",
     "wp:start": "bash scripts/wp-env.sh start",
     "wp:stop": "bash scripts/wp-env.sh stop",
     "wp:restart": "bash scripts/wp-env.sh stop && bash scripts/wp-env.sh start",

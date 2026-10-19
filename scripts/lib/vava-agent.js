@@ -12,6 +12,11 @@
 
 const notion = require("./notion");
 const openai = require("./openai");
+const { withVavaVoice } = require("./vava-voice");
+const {
+  assertSafeNotionOp,
+  assertSafeNotionProperties,
+} = require("./notion-guard");
 
 const WRITE_DATABASES = [
   "Tasks",
@@ -82,7 +87,12 @@ function normalizeThought(raw) {
   const understanding = String(src.understanding || "").trim().slice(0, 400);
   const notionRequest = String(src.notion_request || understanding || "").trim().slice(0, 800);
   const n = src.notion && typeof src.notion === "object" ? src.notion : null;
-  const op = ["create", "update", "note", "lookup"].includes(n?.op) ? n.op : "";
+  let op = ["create", "update", "note", "lookup"].includes(n?.op) ? n.op : "";
+  try {
+    if (op) assertSafeNotionOp(op);
+  } catch {
+    op = "";
+  }
   const database = resolveDatabaseName(n?.database) || resolveDatabaseName(src.database);
   const properties = {};
   if (n?.properties && typeof n.properties === "object" && !Array.isArray(n.properties)) {
@@ -142,37 +152,44 @@ function schemaLine(db) {
 }
 
 function thinkSystemPrompt() {
-  return [
-    "You are VAVA, texting as a sharp, warm member of Vila Akoya (a campsite and small village in Portugal).",
-    "Talk the way a good chat model would: read the whole CONVERSATION, infer what they mean,",
-    "including 'yes', 'that one', 'do it', and references to your own last message.",
-    "Use the same language they used. No slash commands, no menus, no 'certainly'.",
-    "",
-    "You can reason, brainstorm, explain, and give practical advice from general knowledge.",
-    "Do not invent site records: who is on shift, guest names, bookings, allergies, phone numbers,",
-    "or where a specific object was left. Those must go through action or notion.",
-    "",
-    "Pick ONE mode:",
-    "",
-    "reply — talk. Advice, opinions, greetings, working something out, or one clarifying question.",
-    "Put the actual message in reply (1–6 sentences). Do not file a task because a message is unclear.",
-    "",
-    "action — a village operation the existing tools already do precisely. Fill resolved_message with a",
-    "self-contained sentence (pronouns replaced). Use action for: one-off task or guest issue; recurring duty;",
-    "create, cancel, or RSVP an event; reminder; note on an existing task or project; write documentation;",
-    "FAQ ask/create; where something is or an update to that; receipt or expense; email/phone guest stay;",
-    "childcare absence; kids programme shift; dinner booking; questions about the schedule, my tasks,",
-    "docs, expenses, locations, or FAQs.",
-    "",
-    "notion — read or change a Notion board in a way action does not cover, or save an idea somewhere sensible.",
-    "Set database to one of: " + WRITE_DATABASES.join(", ") + ".",
-    "Set notion_request to a clear sentence of what to find or change.",
-    "If they already agreed in the thread, do it. If they are only musing, use reply and ask first.",
-    "Never touch Telegram ids, phones, allergies, emails, tokens, or payment details.",
-    "",
-    'Return JSON: { "understanding": string, "mode": "reply"|"action"|"notion", "reply": string,',
-    '  "resolved_message": string, "database": string, "notion_request": string }',
-  ].join("\n");
+  return withVavaVoice(
+    [
+      "Read the whole CONVERSATION, infer what they mean, including 'yes', 'that one', 'do it',",
+      "and references to your own last message. No slash commands or command menus.",
+      "",
+      "You can reason, brainstorm, and give practical advice from general knowledge.",
+      "Do not invent site records: who is on shift, guest names, bookings, allergies, phone numbers,",
+      "or where a specific object was left. Those must go through action or notion.",
+      "",
+      "NEVER delete, archive, or remove Notion pages or rows from Telegram. Only add or edit.",
+      "If they ask to delete something, use reply and offer to update status or add a note instead.",
+      "",
+      "Asking what events exist, what's happening, the weekend, the rota, or the schedule is ALWAYS mode=action.",
+      "Never reply that you are fetching, looking, or checking — you do not have the calendar in this step.",
+      "",
+      "Pick ONE mode:",
+      "",
+      "reply — talk. Advice, opinions, greetings, working something out, or one clarifying question.",
+      "Put the actual Telegram message in reply (1–6 sentences), fully in VAVA's stoned-Dude voice — never a dry system notice.",
+      "Do not file a task because a message is unclear.",
+      "",
+      "action — a village operation the existing tools already do precisely. Fill resolved_message with a",
+      "self-contained sentence (pronouns replaced). Use action for: one-off task or guest issue; recurring duty;",
+      "mark one or all matching events cancelled (not deletion); update a Reminders broadcast schedule;",
+      "RSVP; create reminder; note on task/project;",
+      "write documentation; FAQ ask/create; where something is or an update; receipt or expense;",
+      "guest stay; childcare absence; kids programme shift; dinner booking; schedule/my tasks/docs questions.",
+      "",
+      "notion — read or change a Notion board in a way action does not cover, or save an idea somewhere sensible.",
+      "Set database to one of: " + WRITE_DATABASES.join(", ") + ".",
+      "Set notion_request to a clear sentence of what to find or change (create, update, or append only).",
+      "If they already agreed in the thread, do it. If they are only musing, use reply and ask first.",
+      "Never touch Telegram ids, phones, allergies, emails, tokens, or payment details.",
+      "",
+      'Return JSON: { "understanding": string, "mode": "reply"|"action"|"notion", "reply": string,',
+      '  "resolved_message": string, "database": string, "notion_request": string }',
+    ].join("\n")
+  );
 }
 
 async function think({
@@ -198,7 +215,7 @@ async function think({
     .join("\n\n");
 
   const raw = await openai.completeJSON(thinkSystemPrompt(), user, {
-    temperature: missedStandardAction ? 0.4 : 0.2,
+    temperature: missedStandardAction ? 0.85 : 0.8,
   });
   return normalizeThought(raw);
 }
@@ -354,11 +371,13 @@ async function answerFromPages({ database, pages, question }) {
   }
   try {
     const result = await openai.completeJSON(
-      [
-        "You are VAVA. Answer using ONLY the Notion rows given. If they don't contain the answer, say so.",
-        "Warm, brief, practical. Same language as the question. Do not invent rows.",
-        'Return JSON: { "answer": string }',
-      ].join("\n"),
+      withVavaVoice(
+        [
+          "Answer using ONLY the Notion rows given. If they don't contain the answer, say so.",
+          "Brief and practical. Do not invent rows.",
+          'Return JSON: { "answer": string }',
+        ].join("\n")
+      ),
       `Database: ${database}\nQuestion: ${question}\n\nRows:\n${lines.join("\n")}`,
       { temperature: 0.2 }
     );
@@ -381,6 +400,19 @@ async function executeNotionPlan(plan) {
     return { ok: false, handled: false, reason: "incomplete" };
   }
   const { op, database, title, match, properties, body, question } = notionPlan;
+
+  try {
+    assertSafeNotionOp(op);
+    assertSafeNotionProperties(properties);
+  } catch (err) {
+    return {
+      ok: false,
+      handled: true,
+      reason: "forbidden",
+      reply:
+        "I can't delete or wipe things in Notion from here — only add or update. Want me to change a field or add a note instead?",
+    };
+  }
 
   let db;
   try {
@@ -528,19 +560,22 @@ async function planNotion({
   }
   const { schema, titles } = await loadDatabaseContext(name);
   const raw = await openai.completeJSON(
-    [
-      "You turn one request into a single Notion change for Vila Akoya.",
-      "Use only the property names and option lists in the schema. Do not invent options.",
-      "op=lookup when they want to know what is already there.",
-      "op=update or note when an existing title fits. op=create only when nothing matches and they want something new saved.",
-      "match is the existing page title. title is the new or current title.",
-      "properties values are plain strings. Longer writing goes in body.",
-      "Never set Telegram ids, phones, allergies, emails, tokens, or payment details.",
-      "If you cannot do it safely, set mode to reply and ask one question in reply.",
-      'Return JSON: { "mode": "notion"|"reply", "reply": string, "understanding": string,',
-      '  "notion": { "op": "create"|"update"|"note"|"lookup", "database": string, "title": string,',
-      '    "match": string, "properties": object, "body": string, "question": string } }',
-    ].join("\n"),
+    withVavaVoice(
+      [
+        "You turn one request into a single Notion change for Vila Akoya.",
+        "ONLY create, update, note, or lookup — never delete, archive, or remove pages or rows.",
+        "Use only the property names and option lists in the schema. Do not invent options.",
+        "op=lookup when they want to know what is already there.",
+        "op=update or note when an existing title fits. op=create when they want something new saved.",
+        "match is the existing page title. title is the new or current title.",
+        "properties values are plain strings. Longer writing goes in body.",
+        "Never set Telegram ids, phones, allergies, emails, tokens, or payment details.",
+        "If they want deletion, set mode to reply and explain you can only add or edit.",
+        'Return JSON: { "mode": "notion"|"reply", "reply": string, "understanding": string,',
+        '  "notion": { "op": "create"|"update"|"note"|"lookup", "database": string, "title": string,',
+        '    "match": string, "properties": object, "body": string, "question": string } }',
+      ].join("\n")
+    ),
     [
       todayISO ? `TODAY: ${todayISO}` : "",
       speaker ? `SPEAKER: ${speaker}` : "",
@@ -568,14 +603,15 @@ async function phraseReply({ transcript = "", facts = "", speaker = "", todayISO
   if (!openai.isEnabled() || !facts) return "";
   try {
     const raw = await openai.completeJSON(
-      [
-        "You are VAVA, texting for Vila Akoya. Write the message the person should actually see.",
-        "FACTS are what just happened or what Notion returned. Keep every concrete fact (names, dates, amounts, titles).",
-        "Do not add site records that are not in FACTS or the conversation.",
-        "Sound like a person, not a form. Same language as the person. 1–6 sentences.",
-        "If FACTS say it failed or was ambiguous, say that and ask one question.",
-        'Return JSON: { "reply": string }',
-      ].join("\n"),
+      withVavaVoice(
+        [
+          "Write the Telegram message they actually see — in VAVA's stoned-Dude voice.",
+          "FACTS are what just happened or what Notion returned. Keep every concrete fact (names, dates, amounts, titles).",
+          "Do not add site records that are not in FACTS or the conversation.",
+          "1–6 sentences. If FACTS say it failed or was ambiguous, say that gently and ask one question.",
+          'Return JSON: { "reply": string }',
+        ].join("\n")
+      ),
       [
         todayISO ? `TODAY: ${todayISO}` : "",
         speaker ? `SPEAKER: ${speaker}` : "",
@@ -584,13 +620,188 @@ async function phraseReply({ transcript = "", facts = "", speaker = "", todayISO
       ]
         .filter(Boolean)
         .join("\n\n"),
-      { temperature: 0.5 }
+      { temperature: 0.9 }
     );
     return String(raw.reply || "").trim().slice(0, 1200);
   } catch (err) {
     console.error("phraseReply failed:", err.message);
     return "";
   }
+}
+
+function understandRequestPrompt() {
+  return [
+    "You work out what a Telegram message is asking. You do not write the reply they will see.",
+    "Read the whole conversation. Resolve 'that', 'it', 'yes', and follow-ups.",
+    "Today's village records live in Notion. If the message could be answered from those records, it is a lookup.",
+    "",
+    "kind=lookup when they want to KNOW something: events, markets/mercados/feiras, what's on, this weekend, rota, tasks, duties,",
+    "where something is, how something on site works, FAQs, projects, members, stays, reminders, docs.",
+    "If you are unsure whether Notion might know, choose lookup.",
+    "kind=write when they want something CREATED or CHANGED (log a job, save an idea, update a page). Never delete.",
+    "kind=chat only for greetings, feelings, jokes, or general advice that is not about the village records.",
+    "",
+    "databases: 1 to 3 names from: " + WRITE_DATABASES.join(", ") + ".",
+    "Events and 'what's happening' → Internal Events and External Events.",
+    "question: one self-contained sentence of what they want to know or do.",
+    "",
+    'Return JSON: { "kind": "lookup"|"write"|"chat", "question": string, "databases": string[] }',
+  ].join("\n");
+}
+
+async function understandRequest({ transcript = "", todayISO = "", speaker = "" } = {}) {
+  if (!openai.isEnabled()) return null;
+  const raw = await openai.completeJSON(
+    understandRequestPrompt(),
+    [
+      todayISO ? `TODAY: ${todayISO}` : "",
+      speaker ? `SPEAKER: ${speaker}` : "",
+      transcript ? `CONVERSATION:\n${transcript}` : "(no earlier messages)",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    { temperature: 0.1 }
+  );
+  const kind = ["lookup", "write", "chat"].includes(raw.kind) ? raw.kind : "lookup";
+  const databases = [
+    ...new Set(
+      (Array.isArray(raw.databases) ? raw.databases : [])
+        .map((name) => resolveDatabaseName(name))
+        .filter(Boolean)
+    ),
+  ].slice(0, 3);
+  return {
+    kind,
+    question: String(raw.question || "").trim().slice(0, 500),
+    databases,
+  };
+}
+
+function pickRelevantPages(pages, question) {
+  const words = norm(question)
+    .split(" ")
+    .filter((word) => word.length > 3 && !["what", "when", "where", "this", "that", "there", "weekend", "happening"].includes(word));
+  const ranked = pages.map((page) => {
+    const blob = norm(`${notion.pageTitle(page)} ${summarizePage(page)}`);
+    let score = 0;
+    for (const word of words) if (blob.includes(word)) score += 1;
+    const date =
+      notion.pageDateISO(page, "Date") ||
+      notion.pageDateISO(page, "Due date") ||
+      notion.pageDateISO(page, "Next due date") ||
+      "";
+    return { page, score, date };
+  });
+  ranked.sort((a, b) => b.score - a.score || String(a.date).localeCompare(String(b.date)));
+  const useful = ranked.filter((row) => row.score > 0);
+  const pool = useful.length ? useful : ranked.filter((row) => row.date).concat(ranked);
+  const seen = new Set();
+  const out = [];
+  for (const row of pool) {
+    if (seen.has(row.page.id)) continue;
+    seen.add(row.page.id);
+    out.push(row.page);
+    if (out.length >= 16) break;
+  }
+  return out;
+}
+
+async function loadNotionKnowledge({ question = "", databases = [] } = {}) {
+  const names = [
+    ...new Set(
+      (databases.length ? databases : ["FAQs", "Documentation", "Internal Events", "External Events"])
+        .map((name) => resolveDatabaseName(name))
+        .filter((name) => name && name !== "Expenses")
+    ),
+  ].slice(0, 4);
+  const blocks = [];
+  for (const name of names) {
+    try {
+      const { pages } = await notion.queryDatabase(name);
+      const picked = pickRelevantPages(pages, question);
+      blocks.push(`# ${name}\n${picked.length ? picked.map(summarizePage).join("\n") : "(no rows)"}`);
+    } catch (err) {
+      blocks.push(`# ${name}\n(unavailable: ${err.message})`);
+    }
+  }
+  return blocks.join("\n\n");
+}
+
+async function answerFromNotionKnowledge({ question = "", databases = [], todayISO = "" } = {}) {
+  const knowledge = await loadNotionKnowledge({ question, databases });
+  if (!knowledge) return { answered: false, answer: "", knowledge: "" };
+
+  const raw = await openai.completeJSON(
+    [
+      "Answer the question using ONLY the Notion rows below.",
+      "Set answered=true only when the rows actually contain the answer, including when the answer is that nothing is scheduled.",
+      "If the rows are about a different topic, set answered=false and leave answer empty.",
+      "Do not invent events, people, bookings, or locations.",
+      todayISO ? `Today is ${todayISO}.` : "",
+      'Return JSON: { "answered": bool, "answer": string }',
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    `QUESTION:\n${question}\n\nNOTION:\n${knowledge}`,
+    { temperature: 0.1 }
+  );
+  const answer = String(raw.answer || "").trim().slice(0, 1500);
+  return { answered: Boolean(raw.answered) && Boolean(answer), answer, knowledge };
+}
+
+async function decideWithKnowledge({
+  transcript = "",
+  question = "",
+  knowledge = "",
+  todayISO = "",
+  speaker = "",
+} = {}) {
+  if (!openai.isEnabled()) return null;
+  const raw = await openai.completeJSON(
+    [
+      "Notion is your knowledge base for Vila Akoya. The NOTION section is what you already know.",
+      "Do not say you are fetching or looking something up. You either know it from NOTION or you do not.",
+      "Read the conversation and work out what they want.",
+      "",
+      "mode=answer when NOTION contains the answer. facts must use only those rows.",
+      "mode=write when they want something added or changed, or they just told you a village fact worth keeping.",
+      "Fill notion.op with create, update, or note. Never delete, archive, or remove.",
+      "mode=missing when they asked about the village and NOTION does not have it.",
+      "mode=chat only for greetings, feelings, or general talk that should not be saved.",
+      "Do not turn a vague chat into a task.",
+      "",
+      "databases: " + WRITE_DATABASES.join(", "),
+      'Return JSON: { "mode": "answer"|"write"|"missing"|"chat", "facts": string,',
+      '  "notion": { "op": "create"|"update"|"note"|"lookup", "database": string, "title": string,',
+      '    "match": string, "properties": object, "body": string, "question": string } }',
+    ].join("\n"),
+    [
+      todayISO ? `TODAY: ${todayISO}` : "",
+      speaker ? `SPEAKER: ${speaker}` : "",
+      question ? `WHAT THEY WANT:\n${question}` : "",
+      transcript ? `CONVERSATION:\n${transcript}` : "",
+      `NOTION:\n${knowledge || "(nothing loaded)"}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    { temperature: 0.1 }
+  );
+  const mode = ["answer", "write", "missing", "chat"].includes(raw.mode) ? raw.mode : "missing";
+  const thought = normalizeThought({
+    mode: mode === "write" ? "notion" : "reply",
+    understanding: question,
+    notion_request: question,
+    database: raw.notion?.database,
+    notion: raw.notion,
+    reply: raw.facts,
+  });
+  return {
+    mode,
+    facts: String(raw.facts || "").trim().slice(0, 1500),
+    notion: thought.notion,
+    database: thought.database,
+    notion_request: question,
+  };
 }
 
 module.exports = {
@@ -600,6 +811,10 @@ module.exports = {
   resolveDatabaseName,
   titleScore,
   think,
+  understandRequest,
+  answerFromNotionKnowledge,
+  loadNotionKnowledge,
+  decideWithKnowledge,
   planNotion,
   phraseReply,
   executeNotionPlan,

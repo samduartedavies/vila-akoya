@@ -140,12 +140,25 @@ async function markChildcareAbsent({ date, childName, telegramUsername, placeId 
   return json;
 }
 
+/** Drop plot/pitch segments from synced activity lines (plots are not managed in recaps). */
+function stripPlotFromActivityLine(line) {
+  const parts = String(line || "")
+    .split(" · ")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!parts.length) return "";
+  const isPlotSegment = (seg) =>
+    /^(plot|pitch)\s*#?\s*\d+$/i.test(seg) ||
+    /^#\d+$/.test(seg) ||
+    /^plot\s+\d+$/i.test(seg);
+  return parts.filter((seg, i) => i === 0 || !isPlotSegment(seg)).join(" · ");
+}
+
 function formatBookingRecapLine(booking) {
-  const plot = booking.plot_label ? ` — ${booking.plot_label}` : "";
   const party = booking.party_line ? ` — ${booking.party_line}` : "";
   const unit = booking.unit_type ? ` — ${booking.unit_type}` : "";
   const who = booking.companions_line || booking.guest_name;
-  return `${who}${plot}${party}${unit}`;
+  return `${who}${party}${unit}`;
 }
 
 function formatMealParties(parties, max = 6) {
@@ -154,7 +167,6 @@ function formatMealParties(parties, max = 6) {
     const cook = (p.adults || 0) + (p.children || 0);
     const bits = [];
     if (cook) bits.push(`${cook} to cook`);
-    if (p.plot) bits.push(p.plot);
     return `${p.name}${bits.length ? ` (${bits.join(" · ")})` : ""}`;
   });
   if (parties.length > max) {
@@ -172,6 +184,7 @@ module.exports = {
   fetchOpsChildcare,
   markChildcareAbsent,
   formatBookingRecapLine,
+  stripPlotFromActivityLine,
   formatMealParties,
   addDaysISO,
   todayISO,

@@ -20,10 +20,11 @@
  *     is not one of those actions, VAVA can still answer in conversation or read/write Notion
  *     from the live database schema (scripts/lib/vava-agent.js).
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (morning
- *     meeting theme, events, campsite, meals, highlights); personal duties + tasks
- *     go by DM to registered members.
+ *     meeting theme, events, meals, childcare, kids programme, highlights); personal
+ *     duties + tasks go by DM to registered members; campsite check-ins/outs and pitch
+ *     occupancy go by DM to management (Role / focus = Manager by default).
  *   - /ask, /task, /receipt, /receipts, /register, /questionnaire, /mytasks, /done, /help as before.
- *   - After /register, a short questionnaire (DM only) fills Skills / bio on
+ *   - After /register, a short questionnaire (DM only): role + skillsets on
  *     the Members (Community) board; /questionnaire updates it later. Answers
  *     like "1" are accepted even days later; /start resumes a pending form.
  *   - Schedule and partnership/discount questions answered from Notion.
@@ -75,8 +76,13 @@ const locationsLib = require("./lib/locations");
 const faqsLib = require("./lib/faqs");
 const broadcastRemindersLib = require("./lib/broadcast-reminders");
 const guestStaysLib = require("./lib/guest-stays");
+const communityCookOffer = require("./lib/community-cook-offer");
 const kidsProgrammeLib = require("./lib/kids-programme-shifts");
 const vavaAgent = require("./lib/vava-agent");
+const {
+  messageRequestsNotionRemoval,
+  looksLikeEventCancellationRequest,
+} = require("./lib/notion-guard");
 const {
   CHAT_ACTIVITY_KIND,
   buildWeekCalendarContext,
@@ -380,7 +386,9 @@ function dayKeyFromISO(iso, tz = RECAP_TZ) {
 }
 
 function morningMeetingThemeForDate(dateISO, tz = RECAP_TZ) {
-  return MORNING_MEETING_THEMES[dayKeyFromISO(dateISO, tz)] || null;
+  const day = dayKeyFromISO(dateISO, tz);
+  if (day === "Sat" || day === "Sun") return null;
+  return MORNING_MEETING_THEMES[day] || null;
 }
 
 function isWeekdayDinnerDay(dateISO, meals) {
@@ -1059,6 +1067,9 @@ function loadState() {
     if (!s.pendingQuestionnaire) s.pendingQuestionnaire = {};
     else s.pendingQuestionnaire = normalizePendingQuestionnaires(s.pendingQuestionnaire);
     if (s.lastPersonalRecapDate === undefined) s.lastPersonalRecapDate = null;
+    if (s.lastManagementCampsiteBriefingDate === undefined) {
+      s.lastManagementCampsiteBriefingDate = null;
+    }
     if (s.lastChildcareRecapDate === undefined) s.lastChildcareRecapDate = null;
     if (s.lastKidsProgrammeRecapDate === undefined) s.lastKidsProgrammeRecapDate = null;
     if (!s.telegramTopicAliases) s.telegramTopicAliases = {};
@@ -1074,6 +1085,7 @@ function loadState() {
       seededNotion: false,
       lastRecapDate: null,
       lastPersonalRecapDate: null,
+      lastManagementCampsiteBriefingDate: null,
       lastChildcareRecapDate: null,
       lastKidsProgrammeRecapDate: null,
       telegramTopicAliases: {},
@@ -1220,6 +1232,9 @@ function refreshRecapDatesFromDisk() {
     const disk = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
     if (disk.lastRecapDate) state.lastRecapDate = disk.lastRecapDate;
     if (disk.lastPersonalRecapDate) state.lastPersonalRecapDate = disk.lastPersonalRecapDate;
+    if (disk.lastManagementCampsiteBriefingDate) {
+      state.lastManagementCampsiteBriefingDate = disk.lastManagementCampsiteBriefingDate;
+    }
     if (disk.lastChildcareRecapDate) state.lastChildcareRecapDate = disk.lastChildcareRecapDate;
     if (disk.lastKidsProgrammeRecapDate) state.lastKidsProgrammeRecapDate = disk.lastKidsProgrammeRecapDate;
   } catch {
@@ -1836,6 +1851,42 @@ async function handlePendingExpenseEntity(message) {
   return true;
 }
 
+function expensePageBelongsToUser(page, from) {
+  if (!from?.id) return false;
+  const uid = notion.pagePropText(page, "Telegram user ID").trim();
+  if (uid && uid === String(from.id)) return true;
+  const handle = senderHandle(from).replace(/^@/, "").toLowerCase();
+  const display = senderDisplayName(from).toLowerCase();
+  const who = (
+    notion.pagePropText(page, "Submitted by") ||
+    notion.pagePropText(page, "Telegram username") ||
+    ""
+  )
+    .toLowerCase()
+    .trim();
+  if (!who) return false;
+  if (handle && who.includes(handle)) return true;
+  if (display && who.includes(display)) return true;
+  return false;
+}
+
+function managementMemberRoleNames() {
+  return (process.env.MANAGEMENT_MEMBER_ROLES || "Manager")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+async function isManagementMember(from) {
+  if (!from?.id) return false;
+  const roles = managementMemberRoleNames();
+  if (!roles.length) return false;
+  const { page } = await findMemberByTelegram(senderHandle(from), from.id);
+  if (!page) return false;
+  const role = notion.pagePropText(page, "Role / focus").trim().toLowerCase();
+  return roles.includes(role);
+}
+
 async function sendExpenseSummary(chatId, { from } = {}) {
   let pages;
   try {
@@ -1850,9 +1901,21 @@ async function sendExpenseSummary(chatId, { from } = {}) {
   }
 
   const month = monthKeyFromISO(todayISO());
-  const thisMonth = pages.filter(
+  let thisMonth = pages.filter(
     (p) => (notion.pagePropText(p, "Month") || "").startsWith(month)
   );
+
+  const canViewAll = from ? await isManagementMember(from) : false;
+  if (!canViewAll) {
+    if (!from) {
+      await sendMessage(
+        chatId,
+        "I can only show your own receipts — message me privately and I’ll pull yours up."
+      );
+      return;
+    }
+    thisMonth = thisMonth.filter((p) => expensePageBelongsToUser(p, from));
+  }
   const byPerson = new Map();
   const byEntity = new Map();
   const byPurpose = new Map();
@@ -1884,9 +1947,15 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     byPurpose.set(purpose, pur);
   }
 
-  const lines = [`<b>Expenses — ${escapeHtml(month)}</b>`];
+  const lines = [
+    canViewAll
+      ? `<b>Expenses — ${escapeHtml(month)}</b>`
+      : `<b>Your receipts — ${escapeHtml(month)}</b>`,
+  ];
   if (!byPerson.size) {
-    lines.push("No receipts this month yet.");
+    lines.push(
+      canViewAll ? "No receipts this month yet." : "You don’t have any receipts logged this month yet."
+    );
   } else {
     const rows = [...byPerson.entries()].sort((a, b) =>
       a[0].localeCompare(b[0])
@@ -1901,7 +1970,7 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     lines.push(`<b>Total</b> ${escapeHtml(formatMoney(total, "EUR"))}`);
   }
 
-  if (byEntity.size) {
+  if (canViewAll && byEntity.size) {
     lines.push("", "<b>By company</b>");
     for (const ent of EXPENSE_ENTITIES) {
       const row = byEntity.get(ent.notionSelect);
@@ -1918,7 +1987,7 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     }
   }
 
-  if (byPurpose.size) {
+  if (canViewAll && byPurpose.size) {
     lines.push("", "<b>By what it's for</b>");
     for (const purpose of EXPENSE_PURPOSES) {
       const row = byPurpose.get(purpose.name);
@@ -1935,29 +2004,13 @@ async function sendExpenseSummary(chatId, { from } = {}) {
     }
   }
 
-  const unpaid = thisMonth.filter(
-    (p) => notion.pagePropText(p, "Status") === "To reimburse"
-  );
-  if (unpaid.length) {
-    lines.push(
-      `\n<i>${unpaid.length} still marked To reimburse</i>`
+  if (canViewAll) {
+    const unpaid = thisMonth.filter(
+      (p) => notion.pagePropText(p, "Status") === "To reimburse"
     );
-  }
-
-  const mine = from
-    ? thisMonth.filter((p) => {
-        const uid = notion.pagePropText(p, "Telegram user ID");
-        return uid && String(uid) === String(from.id);
-      })
-    : [];
-  if (mine.length) {
-    const sum = mine.reduce(
-      (s, p) => s + (Number(notion.pagePropText(p, "Amount")) || 0),
-      0
-    );
-    lines.push(
-      `\nYours this month: <b>${escapeHtml(formatMoney(sum, "EUR"))}</b> (${mine.length})`
-    );
+    if (unpaid.length) {
+      lines.push(`\n<i>${unpaid.length} still marked To reimburse</i>`);
+    }
   }
 
   await sendMessage(chatId, lines.join("\n"));
@@ -2545,6 +2598,281 @@ async function createEvent({ title, date, eventType, recurrence, scope, from, ch
     recurrence: recurrenceInfo.canonical || null,
     recurrenceLabel: recurrenceInfo.label || null,
   };
+}
+
+async function fetchCommunityCookOffersForDay(dateISO) {
+  const offers = [];
+  try {
+    const { pages } = await notion.queryDatabase(INTERNAL_EVENTS_DB_NAME);
+    for (const page of pages) {
+      if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+      const notes = notion.pagePropText(page, "Notes");
+      const parsed = communityCookOffer.parseOfferFromNotes(notes);
+      if (!parsed) continue;
+      const pageDate = notion.pageDateISO(page, "Date");
+      const matchDate = parsed.dateISO || pageDate;
+      if (matchDate !== dateISO) continue;
+      const recurrenceText = recurrenceTextFromPage(page);
+      if (recurrenceText && parseRecurrence(recurrenceText)) continue;
+      offers.push({
+        ...parsed,
+        dish: parsed.dish || notion.pageTitle(page),
+      });
+    }
+  } catch (err) {
+    log("Community cook offers fetch failed:", err.message);
+  }
+  return offers;
+}
+
+async function createCommunityCookOffer(offer, { from, chatId, sourceText }) {
+  const key = ambientDedupeKey(
+    chatId,
+    "community_cook",
+    `${offer.dish}:${offer.dateISO}:${offer.cook}`
+  );
+  if (wasRecentlyCaptured(key)) return { duplicate: true };
+
+  const notes = communityCookOffer.buildNotesBlock({
+    ...offer,
+    sourceText,
+  });
+  const time = offer.time || communityCookOffer.DEFAULT_TIME;
+  const dateStart = `${offer.dateISO}T${time}:00`;
+
+  const props = {
+    Stage: "Upcoming",
+    Status: "Confirmed",
+    "Event type": "Shared meal",
+    Date: dateStart,
+    "Announce on Telegram?": true,
+    Source: "Telegram",
+    Notes: notes,
+    "People in charge": offer.cook || senderDisplayName(from),
+  };
+
+  const page = await notion.createPage({
+    databaseName: INTERNAL_EVENTS_DB_NAME,
+    title: String(offer.dish || "Community meal").slice(0, 200),
+    properties: props,
+  });
+  markCaptured(key);
+  recordChatActivity({
+    kind: "event_logged",
+    from,
+    chatId,
+    title: offer.dish,
+    eventDate: offer.dateISO,
+    text: sourceText,
+  });
+  return { url: page.url, pageId: page.id };
+}
+
+async function finishCommunityCookOffer({ offer, from, chatId }) {
+  try {
+    const result = await createCommunityCookOffer(offer, {
+      from,
+      chatId,
+      sourceText: offer.sourceText,
+    });
+    if (result.duplicate) {
+      await sendMessage(chatId, "I already logged that meal offer recently.");
+      return;
+    }
+    await sendMessage(chatId, communityCookOffer.confirmMessage(offer));
+  } catch (err) {
+    log("createCommunityCookOffer error:", err.message);
+    await sendMessage(chatId, "Sorry, I couldn't save that cooking plan.");
+  }
+}
+
+async function beginCommunityCookOfferFlow({ offer, from, chatId, text }) {
+  const key = `${chatId}:${from.id}`;
+  const partial = { ...offer, sourceText: text, cook: offer.cook || senderDisplayName(from) };
+
+  if (!partial.diet) {
+    state.pendingClarify[key] = {
+      kind: "community_cook",
+      step: "diet",
+      partial,
+      ts: Date.now(),
+    };
+    saveState();
+    await sendMessage(chatId, communityCookOffer.dietPromptMessage());
+    return;
+  }
+  if (partial.priceEur == null) {
+    state.pendingClarify[key] = {
+      kind: "community_cook",
+      step: "price",
+      partial,
+      ts: Date.now(),
+    };
+    saveState();
+    await sendMessage(chatId, communityCookOffer.pricePromptMessage());
+    return;
+  }
+  await finishCommunityCookOffer({ offer: partial, from, chatId });
+}
+
+function foldAccents(text) {
+  return String(text || "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+}
+
+function looksLikeMarketQuestion(text) {
+  const t = foldAccents(text);
+  return /\b(market|mercado|feira|farmers)\b/.test(t);
+}
+
+function extractPlaceFromMarketTitle(title) {
+  const m = String(title || "").match(/^market\s*[—–-]\s*(.+)$/i);
+  return m ? m[1].trim() : String(title || "").replace(/^market\s*/i, "").trim();
+}
+
+function matchMarketPlaceInQuestion(text, catalog) {
+  const q = foldAccents(text).replace(/[^a-z0-9\s]/g, " ");
+  if (
+    (/\bsao\s+martinho\b/.test(q) || /\bmartinho\b/.test(q)) &&
+    /\b(amoreiras|armoreiras)\b/.test(q)
+  ) {
+    const hit = catalog.find((m) => foldAccents(m.place).includes("martinho"));
+    if (hit) return hit.place;
+  }
+  for (const m of catalog) {
+    const p = foldAccents(m.place);
+    if (!p) continue;
+    if (q.includes(p)) return m.place;
+    const words = p.split(/\s+/).filter((w) => w.length > 2);
+    const significant = words.filter((w) => !["das", "de", "do", "da", "sao", "são"].includes(w));
+    if (significant.length >= 2 && significant.every((w) => q.includes(w))) return m.place;
+  }
+  return null;
+}
+
+function resolveMarketQueryDate(text) {
+  const t = foldAccents(text);
+  if (/\b(today|hoje)\b/.test(t)) return todayISO();
+  if (/\b(tomorrow|amanha)\b/.test(t)) return addDaysISO(todayISO(), 1);
+  return todayISO();
+}
+
+async function loadMarketCatalog() {
+  const pages = [];
+  try {
+    const { pages: external } = await notion.queryDatabase(EXTERNAL_EVENTS_DB_NAME);
+    pages.push(...external);
+  } catch (err) {
+    log(`Market catalog fetch failed (${EXTERNAL_EVENTS_DB_NAME}):`, err.message);
+  }
+
+  return pages
+    .filter((page) => {
+      if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) return false;
+      const type = notion.pagePropText(page, "Event type");
+      const title = notion.pageTitle(page);
+      return /^market\b/i.test(type) || /^market\s*[—–-]/i.test(title);
+    })
+    .map((page) => ({
+      title: notion.pageTitle(page),
+      place:
+        notion.pagePropText(page, "Location").trim() || extractPlaceFromMarketTitle(notion.pageTitle(page)),
+      date: notion.pageDateISO(page, "Date"),
+      recurrenceText: recurrenceTextFromPage(page),
+    }));
+}
+
+async function answerMarketQuestion(text) {
+  const catalog = await loadMarketCatalog();
+  const targetDate = resolveMarketQueryDate(text);
+  const place = matchMarketPlaceInQuestion(text, catalog);
+
+  if (!catalog.length) {
+    return { answered: false, answer: "" };
+  }
+
+  let pool = catalog;
+  if (place) {
+    pool = catalog.filter((m) => foldAccents(m.place) === foldAccents(place));
+  }
+
+  if (place && !pool.length) {
+    return {
+      answered: true,
+      answer: `I don't have a market listed for ${place} in External Events.`,
+    };
+  }
+
+  const onDate = pool.filter((m) => eventMatchesDate(m.date, m.recurrenceText, targetDate));
+
+  if (place && pool.length === 1) {
+    const m = pool[0];
+    const rule = parseRecurrence(m.recurrenceText || "");
+    const label = rule ? describeRecurrence(rule) : "";
+    const dayLabel = targetDate === todayISO() ? "today" : targetDate;
+    if (onDate.length) {
+      return {
+        answered: true,
+        answer: `Yes — ${m.place} market is on ${dayLabel} (${targetDate}).${label ? ` (${label})` : ""}`,
+      };
+    }
+    const next = rule ? nextOccurrence(rule, targetDate, RECAP_TZ) : null;
+    let msg = `No — ${m.place} market is not on ${dayLabel}.`;
+    if (label) msg += ` It's ${label}.`;
+    if (next && next !== targetDate) msg += ` Next: ${next}.`;
+    return { answered: true, answer: msg };
+  }
+
+  if (onDate.length) {
+    const names = onDate.map((m) => m.place).join(", ");
+    const dayLabel = targetDate === todayISO() ? "today" : targetDate;
+    return {
+      answered: true,
+      answer: `Markets on ${dayLabel} (${targetDate}): ${names}.`,
+    };
+  }
+
+  const dayLabel = targetDate === todayISO() ? "today" : targetDate;
+  if (place) {
+    return {
+      answered: true,
+      answer: `No market at ${place} on ${dayLabel} (${targetDate}).`,
+    };
+  }
+  return {
+    answered: true,
+    answer: `No regional markets listed for ${dayLabel} (${targetDate}) in External Events.`,
+  };
+}
+
+function looksLikeScheduleQuestion(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t) return false;
+  if (looksLikeMarketQuestion(text)) return true;
+  if (/\b(log|add|create|plan|organise|organize|cancel|remind)\b/.test(t) && !/[?]/.test(t)) {
+    return false;
+  }
+  if (
+    /\b(what(?:'s| is| are)? (?:happening|on|going on)|any events?|what events?|which events?|events? (?:this|next|on|do we)|this weekend|who(?:'s| is) on|on the rota|the schedule)\b/.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return (
+    /\bevents?\b/.test(t) &&
+    /\b(what|any|which|are there|is there|list|happening|weekend|coming up)\b/.test(t)
+  );
+}
+
+function guessScheduleRange(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\b(today|hoje|tonight)\b/.test(t)) return "today";
+  if (/\b(next week|pr[oó]xima semana|semana que vem)\b/.test(t)) return "next_week";
+  if (/\b(this week|esta semana|this weekend|este fim de semana)\b/.test(t)) return "this_week";
+  return "two_weeks";
 }
 
 function looksLikeMyDayQuestion(text) {
@@ -3147,6 +3475,7 @@ async function fetchEventsForDate(dateISO) {
   const events = [];
   for (const page of allPages) {
     if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+    if (notion.pagePropText(page, "Notes").includes(communityCookOffer.MARKER)) continue;
     const itemDate = notion.pageDateISO(page, "Date");
     const recurrenceText = recurrenceTextFromPage(page);
     if (!eventMatchesDate(itemDate, recurrenceText, dateISO)) continue;
@@ -3215,7 +3544,7 @@ function pageMatchesDay(page, dateISO) {
  * Campsite occupancy for a calendar day from Notion.
  * Rows mirror meals: Checking in / Checking out / Staying text lists.
  */
-async function fetchCampsiteActivityForDay(dateISO) {
+async function fetchWebsiteCampsiteActivityForDay(dateISO) {
   let website = { arrivals: [], departures: [], staying: [] };
   try {
     const { pages } = await notion.queryDatabase(CAMPSITE_BOOKINGS_DB_NAME);
@@ -3223,6 +3552,8 @@ async function fetchCampsiteActivityForDay(dateISO) {
       String(text || "")
         .split("\n")
         .map((s) => s.trim())
+        .filter(Boolean)
+        .map((raw) => campsiteOps.stripPlotFromActivityLine(raw))
         .filter(Boolean)
         .map((line) => ({ line, name: line.split(" · ")[0] || line }));
 
@@ -3238,13 +3569,80 @@ async function fetchCampsiteActivityForDay(dateISO) {
   } catch (err) {
     log("Campsite bookings database unavailable:", err.message);
   }
+  return website;
+}
 
+async function fetchCampsiteActivityForDay(dateISO) {
+  const website = await fetchWebsiteCampsiteActivityForDay(dateISO);
   const extra = await guestStaysLib.activityForDay(dateISO).catch(() => ({
     arrivals: [],
     departures: [],
     staying: [],
   }));
   return guestStaysLib.mergeActivity(website, extra);
+}
+
+function appendCampsiteActivityHtmlLines(lines, activity) {
+  if (activity.arrivals?.length) {
+    lines.push(`<i>Checking in today (${activity.arrivals.length})</i>`);
+    for (const b of activity.arrivals) lines.push(`• ${escapeHtml(b.line)}`);
+  }
+  if (activity.departures?.length) {
+    lines.push(`<i>Checking out today (${activity.departures.length})</i>`);
+    for (const b of activity.departures) lines.push(`• ${escapeHtml(b.line)}`);
+  }
+  if (activity.staying?.length) {
+    lines.push(
+      `<i>Pitches booked / occupied tonight (${activity.staying.length})</i>`
+    );
+    for (const b of activity.staying) lines.push(`• ${escapeHtml(b.line)}`);
+  }
+}
+
+async function buildManagementCampsiteBriefing(dateISO) {
+  const website = await fetchWebsiteCampsiteActivityForDay(dateISO);
+  const guest = await guestStaysLib.activityForDay(dateISO).catch(() => ({
+    arrivals: [],
+    departures: [],
+    staying: [],
+  }));
+
+  const hasWebsite =
+    website.arrivals.length || website.departures.length || website.staying.length;
+  const hasGuest =
+    guest.arrivals.length || guest.departures.length || guest.staying.length;
+  if (!hasWebsite && !hasGuest) return null;
+
+  const dayName = new Intl.DateTimeFormat("en-GB", {
+    timeZone: RECAP_TZ,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(dateISO + "T12:00:00"));
+
+  const lines = [
+    `<b>Campsite arrivals &amp; occupancy</b> — ${escapeHtml(dayName)}`,
+    "",
+  ];
+
+  if (hasWebsite) {
+    lines.push("<b>Booked through the website</b>");
+    lines.push(
+      "<i>These check-ins, check-outs, and occupied pitches are from online campsite bookings on the website — not email or phone stays.</i>"
+    );
+    appendCampsiteActivityHtmlLines(lines, website);
+    if (hasGuest) lines.push("");
+  }
+
+  if (hasGuest) {
+    lines.push("<b>Other guest stays</b>");
+    lines.push(
+      "<i>Logged manually (email, phone, walk-in, etc.) — not from the website checkout.</i>"
+    );
+    appendCampsiteActivityHtmlLines(lines, guest);
+  }
+
+  return lines.join("\n").trim();
 }
 
 async function fetchCampsiteMealsForDay(dateISO) {
@@ -3669,12 +4067,10 @@ async function buildDailyRecap(dateISO) {
   const events = await fetchEventsForDate(dateISO);
   const yesterday = yesterdayISO();
   const yesterdayHighlights = await buildYesterdayHighlights(yesterday);
-  let activity = { arrivals: [], departures: [], staying: [] };
   let meals = null;
   let childcare = null;
   let kidsShifts = [];
   try {
-    activity = await fetchCampsiteActivityForDay(dateISO);
     meals = await fetchCampsiteMealsForDay(dateISO);
     childcare = await fetchChildcareForDay(dateISO);
     kidsShifts = await fetchKidsProgrammeShiftsForDay(dateISO);
@@ -3703,32 +4099,12 @@ async function buildDailyRecap(dateISO) {
     }
   }
 
-  const campsiteLines = [];
-  if (activity.arrivals.length) {
-    campsiteLines.push(`<i>Checking in (${activity.arrivals.length})</i>`);
-    for (const b of activity.arrivals) {
-      campsiteLines.push(`• ${escapeHtml(b.line)}`);
+  const cookOffers = await fetchCommunityCookOffersForDay(dateISO);
+  if (cookOffers.length) {
+    lines.push("", "<b>Community cooking today</b>");
+    for (const offer of cookOffers) {
+      lines.push(`• ${escapeHtml(communityCookOffer.formatRecapLine(offer))}`);
     }
-  }
-  if (activity.departures.length) {
-    campsiteLines.push(`<i>Checking out (${activity.departures.length})</i>`);
-    for (const b of activity.departures) {
-      campsiteLines.push(`• ${escapeHtml(b.line)}`);
-    }
-  }
-  if (activity.staying.length) {
-    campsiteLines.push(
-      `• On site tonight: ${escapeHtml(String(activity.staying.length))} pitch${
-        activity.staying.length === 1 ? "" : "es"
-      }`
-    );
-  }
-  if (campsiteLines.length) {
-    const heading = activity.arrivals.length
-      ? "<b>Check-ins from the website</b>"
-      : "<b>Campsite from the website</b>";
-    lines.push("", heading);
-    lines.push(...campsiteLines);
   }
 
   const mealLines = [];
@@ -3774,11 +4150,18 @@ async function buildDailyRecap(dateISO) {
   try {
     const plain = template.replace(/<[^>]+>/g, "");
     const extras = [
-      "Do not mention missing or zero items. Never say there are no check-ins, no check-outs, no meals to prepare, no events, or no childcare — omit those topics instead.",
-      "Check-ins and meal bookings come from the website.",
+      "Do not mention missing or zero items. Never say there are no meals to prepare, no events, or no childcare — omit those topics instead.",
+      "Do not mention campsite check-ins, check-outs, pitch bookings, or who is staying on site — that is management-only.",
+      "Meal bookings come from the website.",
+      "Village morning meetings are Monday–Friday only — never Saturday or Sunday.",
+      "Keep any 'Community cooking today' lines exactly as written (cook, dish, diet, price, time).",
     ];
     if (meetingTheme) {
       extras.push(`Keep the morning meeting theme (${meetingTheme}) near the top.`);
+    } else {
+      extras.push(
+        "The source text has no morning meeting block today — do not mention morning meetings at all (do not say they happen every day or on weekends)."
+      );
     }
     if (yesterdayHighlights.length) {
       extras.push(
@@ -3803,6 +4186,7 @@ async function maybeSendMorningFollowUps(dateISO) {
   refreshRecapDatesFromDisk();
   if (state.lastRecapDate !== dateISO) return;
   await maybeSendPersonalMorningBriefings(dateISO);
+  await maybeSendManagementCampsiteBriefings(dateISO);
 }
 
 async function maybeSendDailyRecap() {
@@ -3829,6 +4213,7 @@ async function maybeSendDailyRecap() {
     if (!sent) throw new Error("Daily recap send failed");
     log(`Daily recap sent for ${today}`);
     await maybeSendPersonalMorningBriefings(today);
+    await maybeSendManagementCampsiteBriefings(today);
   } catch (err) {
     state.lastRecapDate = previous;
     saveState();
@@ -4003,6 +4388,18 @@ async function findMemberByTelegram(handle, userId) {
   return { page: byHandle };
 }
 
+function memberPageToMorningDm(page) {
+  const stage = notion.pagePropText(page, "Stage");
+  const status = notion.pagePropText(page, "Member status");
+  if (stage === "Left / inactive" || status === "Inactive") return null;
+  const userId = notion.pagePropText(page, "Telegram user ID").trim();
+  if (!userId || !/^\d+$/.test(userId)) return null;
+  const username = notion.pagePropText(page, "Telegram username");
+  const displayName =
+    notion.pagePropText(page, "Display name") || notion.pageTitle(page);
+  return { userId, username, displayName };
+}
+
 async function fetchMembersForMorningDm() {
   let pages;
   try {
@@ -4012,17 +4409,24 @@ async function fetchMembersForMorningDm() {
     return [];
   }
 
+  return pages.map(memberPageToMorningDm).filter(Boolean);
+}
+
+async function fetchManagementMembersForDm() {
+  const roles = managementMemberRoleNames();
+  if (!roles.length) return [];
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(MEMBERS_DB_NAME));
+  } catch (err) {
+    log("Members fetch for management DM failed:", err.message);
+    return [];
+  }
   return pages
     .map((page) => {
-      const stage = notion.pagePropText(page, "Stage");
-      const status = notion.pagePropText(page, "Member status");
-      if (stage === "Left / inactive" || status === "Inactive") return null;
-      const userId = notion.pagePropText(page, "Telegram user ID").trim();
-      if (!userId || !/^\d+$/.test(userId)) return null;
-      const username = notion.pagePropText(page, "Telegram username");
-      const displayName =
-        notion.pagePropText(page, "Display name") || notion.pageTitle(page);
-      return { userId, username, displayName };
+      const role = notion.pagePropText(page, "Role / focus").trim().toLowerCase();
+      if (!roles.includes(role)) return null;
+      return memberPageToMorningDm(page);
     })
     .filter(Boolean);
 }
@@ -4335,6 +4739,38 @@ async function handleChildcareAbsence({ text, from, chatId, childName, date }) {
   return true;
 }
 
+async function maybeSendManagementCampsiteBriefings(dateISO) {
+  if (!DAILY_RECAP) return;
+  if (!telegramPollActive) return;
+  refreshRecapDatesFromDisk();
+  if (currentHHMM() < RECAP_TIME) return;
+  if (state.lastManagementCampsiteBriefingDate === dateISO) return;
+  if (state.lastRecapDate !== dateISO) return;
+
+  const text = await buildManagementCampsiteBriefing(dateISO);
+  if (!text) {
+    state.lastManagementCampsiteBriefingDate = dateISO;
+    saveState();
+    return;
+  }
+
+  const members = await fetchManagementMembersForDm();
+  if (!members.length) {
+    log("Management campsite briefing skipped: no registered management members");
+    state.lastManagementCampsiteBriefingDate = dateISO;
+    saveState();
+    return;
+  }
+
+  let sent = 0;
+  for (const member of members) {
+    if (await sendMessage(member.userId, text)) sent += 1;
+  }
+  state.lastManagementCampsiteBriefingDate = dateISO;
+  saveState();
+  if (sent) log(`Management campsite briefing sent to ${sent} member(s)`);
+}
+
 async function maybeSendPersonalMorningBriefings(dateISO) {
   if (!DAILY_RECAP) return;
   if (!telegramPollActive) return;
@@ -4559,6 +4995,129 @@ function titleMatches(query, itemName) {
   if (!qWords.length) return false;
   const hits = qWords.filter((w) => n.includes(w));
   return hits.length >= Math.min(2, qWords.length);
+}
+
+function extractEventCancelQuery(text) {
+  const t = String(text || "");
+  let m = t.match(
+    /\b(?:remove|delete|cancel)\s+(?:all\s+)?(?:the\s+)?events?\s+(?:for|about|called|named)?\s+(.+?)(?:\.|,|$|please)/i
+  );
+  if (m) return m[1].trim().replace(/\s+events?\s*$/i, "");
+  m = t.match(/\bno more\s+(.+?)(?:\s+anymore)?(?:\.|,|$)/i);
+  if (m) {
+    return m[1]
+      .trim()
+      .replace(/\s+(workshop|class|event|session)s?\s*$/i, "")
+      .trim();
+  }
+  m = t.match(/\b(?:stop|discontinu(?:e|ed))\s+(?:the\s+)?(.+?)(?:\.|,|$)/i);
+  if (m) return m[1].trim();
+  return "";
+}
+
+function reminderPageMatches(page, query) {
+  const q = String(query || "").toLowerCase().trim();
+  if (!q) return false;
+  const title = notion.pageTitle(page);
+  const notes = notion.pagePropText(page, "Notes");
+  if (titleMatches(q, title)) return true;
+  if (notes && titleMatches(q, notes)) return true;
+  return title.toLowerCase().includes(q) || notes.toLowerCase().includes(q);
+}
+
+async function findEventsBySearchQuery(query) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+  const dbNames = [INTERNAL_EVENTS_DB_NAME, EXTERNAL_EVENTS_DB_NAME];
+  const matches = [];
+  for (const dbName of dbNames) {
+    let pages;
+    try {
+      ({ pages } = await notion.queryDatabase(dbName));
+    } catch {
+      continue;
+    }
+    for (const page of pages) {
+      if (pageIsDone(page)) continue;
+      const name = notion.pageTitle(page);
+      if (titleMatches(q, name) || name.toLowerCase().includes(q.toLowerCase())) {
+        matches.push({ id: page.id, name, boardName: dbName });
+      }
+    }
+  }
+  return matches;
+}
+
+async function cancelEventsMatchingFromChat({ query, text, from, chatId }) {
+  const key = ambientDedupeKey(chatId, "cancel-all", query);
+  if (wasRecentlyCaptured(key)) return { ok: true, duplicate: true, names: [] };
+
+  const matches = await findEventsBySearchQuery(query);
+  if (!matches.length) return { ok: false, reason: "not_found" };
+
+  const names = [];
+  for (const m of matches) {
+    const result = await markItemDone(m.id);
+    if (result.ok) {
+      names.push(result.name || m.name);
+      recordChatActivity({
+        kind: "event_cancelled",
+        from,
+        chatId,
+        title: result.name || m.name,
+        text,
+      });
+    }
+  }
+  if (!names.length) return { ok: false, reason: "not_found" };
+  markCaptured(key);
+  return { ok: true, names };
+}
+
+async function updateReminderFromChat({ reminder, from, chatId }) {
+  const query = reminder.match_title || reminder.title;
+  if (!query && !reminder.recurrence) return { ok: false, reason: "empty" };
+
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(REMINDERS_DB_NAME));
+  } catch (err) {
+    log("Reminders fetch failed:", err.message);
+    return { ok: false, reason: "db_error" };
+  }
+
+  const open = pages.filter((p) => {
+    const status = notion.pagePropText(p, "Status").toLowerCase();
+    return status !== "done" && status !== "cancelled";
+  });
+  const matches = open.filter((p) => reminderPageMatches(p, query));
+  if (!matches.length) return { ok: false, reason: "not_found" };
+  if (matches.length > 1) {
+    return {
+      ok: false,
+      reason: "ambiguous",
+      matches: matches.map((p) => notion.pageTitle(p)),
+    };
+  }
+
+  const page = matches[0];
+  const props = {};
+  if (reminder.recurrence) {
+    const info = normalizeRecurrenceField(reminder.recurrence);
+    props.Recurrence = info.canonical || reminder.recurrence;
+  }
+  if (reminder.notes) props.Notes = reminder.notes;
+  if (!Object.keys(props).length) return { ok: false, reason: "empty" };
+
+  await notion.updatePageProps(REMINDERS_DB_NAME, page.id, props);
+  recordChatActivity({
+    kind: "reminder_logged",
+    from,
+    chatId,
+    title: notion.pageTitle(page),
+    text: reminder.recurrence ? `Recurrence → ${props.Recurrence}` : "",
+  });
+  return { ok: true, name: notion.pageTitle(page), recurrence: props.Recurrence || null };
 }
 
 async function findItemsByTarget({ dbNames, target }) {
@@ -5195,13 +5754,7 @@ function questionnairePrompt(stepId) {
   return "Unknown questionnaire step.";
 }
 
-const QUESTIONNAIRE_STEP_ORDER = [
-  "role",
-  "skills",
-  "areas",
-  "bio",
-  "contact",
-];
+const QUESTIONNAIRE_STEP_ORDER = ["role", "skills"];
 
 function normalizePendingQuestionnaires(bag) {
   const next = {};
@@ -5547,6 +6100,42 @@ async function handlePendingClarification(message) {
   }
 
   const partial = pending.partial;
+  if (pending.kind === "community_cook") {
+    if (pending.step === "diet") {
+      const diet = communityCookOffer.parseDietFromReply(text);
+      if (!diet) {
+        await sendMessage(
+          chatId,
+          "Reply <b>1</b>, <b>2</b>, or <b>3</b> (meat, veggie, or vegan)."
+        );
+        return true;
+      }
+      partial.diet = diet;
+      if (partial.priceEur == null) {
+        pending.step = "price";
+        pending.partial = partial;
+        pending.ts = Date.now();
+        saveState();
+        await sendMessage(chatId, communityCookOffer.pricePromptMessage());
+        return true;
+      }
+    } else if (pending.step === "price") {
+      const price = communityCookOffer.parsePriceFromReply(text);
+      if (price == null) {
+        await sendMessage(
+          chatId,
+          "Send a number for euros per portion, or <b>0</b> / <b>free</b>."
+        );
+        return true;
+      }
+      partial.priceEur = price;
+    }
+    delete state.pendingClarify[key];
+    saveState();
+    await finishCommunityCookOffer({ offer: partial, from: message.from, chatId });
+    return true;
+  }
+
   if (pending.kind === "task_type_priority") {
     const inferred = inferTaskTypePriority(text);
     if (inferred.type) partial.type = inferred.type;
@@ -5608,7 +6197,7 @@ const HELP_TEXT = [
   "Receipts: in a <b>private DM</b>, send a photo or PDF and I'll treat it as a receipt (unless it clearly isn't). I'll then ask which company NIF (Alcateia or Povoado), then what it's for (Breakfast / Bar / Dinner / Kids Program / General). In the group, tag me or use /receipt.",
   "",
   "<b>Email / off-site bookings</b>",
-  "Voice note or text a stay booked by email or phone and I’ll put it on Guest Stays in Notion (and in the morning check-in list).",
+  "Voice note or text a stay booked by email or phone and I’ll put it on Guest Stays in Notion (management get a daily DM with arrivals and occupancy).",
   "• “the Martins booked the cabin 20–24 Sept, 2 adults 1 child, via email”",
   "• “email booking: João arriving Friday leaving Monday, pitch 4”",
   "",
@@ -5704,6 +6293,18 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
   }
 
   if (questionKind === "schedule" && !faqsLib.looksLikeFaqQuestion(text)) {
+    if (looksLikeMarketQuestion(text)) {
+      try {
+        const marketResult = await answerMarketQuestion(text);
+        if (marketResult.answered && marketResult.answer) {
+          await sendMessage(chatId, escapeHtml(marketResult.answer));
+          log(`Market answer: ${text.slice(0, 60)}`);
+          return true;
+        }
+      } catch (err) {
+        log("answerMarketQuestion error:", err.message);
+      }
+    }
     const rangeOpts = { scheduleRange: scheduleRange || "two_weeks" };
     const calendar = buildWeekCalendarContext(todayISO(), RECAP_TZ);
     const wantsChildcareDetails = isSensitiveChildcareQuestion(text);
@@ -5732,6 +6333,20 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
       }
     } catch (err) {
       log("answerFromNotionData error:", err.message);
+    }
+    if (looksLikeMarketQuestion(text)) {
+      try {
+        const marketResult = await answerMarketQuestion(text);
+        if (marketResult.answered && marketResult.answer) {
+          await sendMessage(chatId, escapeHtml(marketResult.answer));
+          return true;
+        }
+      } catch (err) {
+        log("answerMarketQuestion fallback error:", err.message);
+      }
+    }
+    if (looksLikeMarketQuestion(text)) {
+      return false;
     }
     try {
       const snapshot = await buildScheduleSnapshot(text, {
@@ -6237,6 +6852,35 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   // Cancel event
   if (c.is_cancel_event && c.target && conf >= minConf) {
     try {
+      const cancelAll =
+        c.target.cancel_all ||
+        (/\b(all|every)\b/i.test(text || "") &&
+          /\bevents?\b/i.test(text || "")) ||
+        /\bno more\b/i.test(text || "");
+      const bulkQuery =
+        c.target.title || extractEventCancelQuery(text || "") || "";
+      if (cancelAll && bulkQuery) {
+        const result = await cancelEventsMatchingFromChat({
+          query: bulkQuery,
+          text,
+          from,
+          chatId,
+        });
+        if (result.ok && !result.duplicate && result.names?.length) {
+          const list = result.names.map((n) => `• ${escapeHtml(n)}`).join("\n");
+          await sendMessage(
+            chatId,
+            `🚫 Marked cancelled in Notion (${result.names.length}):\n${list}`
+          );
+        } else if (result.reason === "not_found" && interactive) {
+          await sendMessage(
+            chatId,
+            `I couldn't find any upcoming events matching “${escapeHtml(bulkQuery)}”.`
+          );
+        }
+        return;
+      }
+
       const result = await cancelEventFromChat({ target: c.target, text, from, chatId });
       if (result.ok && !result.duplicate) {
         await sendMessage(chatId, `🚫 Cancelled: <b>${escapeHtml(result.name)}</b>`);
@@ -6249,6 +6893,41 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     } catch (err) {
       log("cancelEventFromChat error:", err.message);
       if (interactive) await sendMessage(chatId, "Sorry, I could not cancel that event.");
+    }
+    return;
+  }
+
+  if (c.is_update_reminder && c.reminder && conf >= minConf) {
+    try {
+      let recurrence = c.reminder.recurrence;
+      if (!recurrence) {
+        recurrence = broadcastRemindersLib.inferWeekdaysOnlyRecurrence(text || "");
+      }
+      const result = await updateReminderFromChat({
+        reminder: { ...c.reminder, recurrence },
+        from,
+        chatId,
+      });
+      if (result.ok) {
+        let reply = `📅 Updated reminder: <b>${escapeHtml(result.name)}</b>`;
+        if (result.recurrence) {
+          reply += `\nSchedule: <code>${escapeHtml(result.recurrence)}</code> (not on weekends when set to weekdays).`;
+        }
+        await sendMessage(chatId, reply);
+      } else if (result.reason === "ambiguous" && interactive) {
+        await sendMessage(
+          chatId,
+          `Which reminder? I found: ${escapeHtml(result.matches.join(", "))}.`
+        );
+      } else if (result.reason === "not_found" && interactive) {
+        await sendMessage(
+          chatId,
+          "I couldn't find an open reminder in Notion matching that. Check Calendars → Reminders (Post to Telegram)."
+        );
+      }
+    } catch (err) {
+      log("updateReminderFromChat error:", err.message);
+      if (interactive) await sendMessage(chatId, "Sorry, I could not update that reminder.");
     }
     return;
   }
@@ -6391,6 +7070,25 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     return;
   }
 
+  if (
+    interactive &&
+    text &&
+    (c.is_community_meal_offer ||
+      (communityCookOffer.looksLikeCommunityCookOffer(text) && !c.is_book_meal))
+  ) {
+    const offer =
+      communityCookOffer.normalizeMealOffer(c.meal_offer || {}, {
+        text,
+        todayISO: todayISO(),
+        tz: RECAP_TZ,
+      }) ||
+      communityCookOffer.normalizeMealOffer({}, { text, todayISO: todayISO(), tz: RECAP_TZ });
+    if (offer && conf >= minConf) {
+      await beginCommunityCookOfferFlow({ offer, from, chatId, text });
+      return;
+    }
+  }
+
   // Off-site / email guest stays (before events — “booked the cabin” is not a workshop)
   if (c.is_stay || c.action === "create_stay") {
     const ok = await captureAmbientStay({
@@ -6404,7 +7102,12 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   }
 
   // Events & deliveries
-  if (c.is_event && c.event && conf >= (interactive ? minConf : EVENT_MIN_CONFIDENCE)) {
+  if (
+    c.is_event &&
+    c.event &&
+    conf >= (interactive ? minConf : EVENT_MIN_CONFIDENCE) &&
+    !communityCookOffer.looksLikeCommunityCookOffer(text)
+  ) {
     await captureAmbientEvent({ classified: c, text, from, chatId });
     return;
   }
@@ -6610,6 +7313,83 @@ async function routeAddressedMessage(message) {
     if (logged) return;
   }
 
+  if (text && messageRequestsNotionRemoval(text)) {
+    await sendMessage(
+      chatId,
+      "I can’t delete or archive things in Notion — only add or update. Happy to mark something done, cancel an event, or add a note if that helps."
+    );
+    return;
+  }
+
+  if (text) {
+    const weekdayRec = broadcastRemindersLib.inferWeekdaysOnlyRecurrence(text);
+    if (weekdayRec) {
+      const matchTitle = /\bmorning\s+meeting/i.test(text) ? "morning meeting" : "morning";
+      try {
+        const result = await updateReminderFromChat({
+          reminder: { match_title: matchTitle, recurrence: weekdayRec },
+          from,
+          chatId,
+        });
+        if (result.ok) {
+          await sendMessage(
+            chatId,
+            `📅 Updated <b>${escapeHtml(result.name)}</b> — reminder is now <b>Monday–Friday only</b> (<code>${escapeHtml(
+              result.recurrence || weekdayRec
+            )}</code>), not weekends.`
+          );
+          return;
+        }
+        if (result.reason === "ambiguous") {
+          await sendMessage(
+            chatId,
+            `Which reminder should be weekdays only? I found: ${escapeHtml(result.matches.join(", "))}.`
+          );
+          return;
+        }
+        if (result.reason === "not_found" && /\bmorning\s+meeting/i.test(text)) {
+          await sendMessage(
+            chatId,
+            "The daily group recap already skips morning-meeting themes on weekends. I couldn't find a separate <b>Reminders</b> row in Notion to change — if you use a Telegram broadcast for morning meeting, add or name it in Calendars → Reminders (tick Post to Telegram), then tell me again."
+          );
+          return;
+        }
+      } catch (err) {
+        log("weekday reminder tweak error:", err.message);
+      }
+    }
+
+    if (looksLikeEventCancellationRequest(text)) {
+      const bulk =
+        /\b(all|every)\b/i.test(text) ||
+        (/\b(remove|delete)\b/i.test(text) && /\bevents?\b/i.test(text)) ||
+        /\bno more\b/i.test(text);
+      const query = extractEventCancelQuery(text);
+      if (bulk && query) {
+        try {
+          const result = await cancelEventsMatchingFromChat({ query, text, from, chatId });
+          if (result.ok && !result.duplicate && result.names?.length) {
+            const list = result.names.map((n) => `• ${escapeHtml(n)}`).join("\n");
+            await sendMessage(
+              chatId,
+              `🚫 Marked cancelled in Notion (${result.names.length}):\n${list}`
+            );
+            return;
+          }
+          if (result.reason === "not_found") {
+            await sendMessage(
+              chatId,
+              `I couldn't find any upcoming events matching “${escapeHtml(query)}”.`
+            );
+            return;
+          }
+        } catch (err) {
+          log("bulk cancel events error:", err.message);
+        }
+      }
+    }
+  }
+
   if (!(text && openaiLib.isEnabled())) {
     if (text && looksLikeMyDayQuestion(text)) {
       try {
@@ -6633,25 +7413,135 @@ async function routeAddressedMessage(message) {
     }
   }
 
-  let thought = null;
+  let understood = null;
   if (text && openaiLib.isEnabled()) {
     try {
-      thought = await thinkAboutMessage({ text, from, chatId, message });
+      understood = await vavaAgent.understandRequest({
+        transcript: vavaAgent.formatTranscript(
+          memoryFor(chatId, message ? messageThreadId(message) : undefined)
+        ),
+        todayISO: todayISO(),
+        speaker: senderDisplayName(from),
+      });
     } catch (err) {
-      log("VAVA think error:", err.message);
+      log("VAVA understand error:", err.message);
     }
-    if (thought?.mode === "notion") {
-      const done = await deliverAgentNotion(thought, { from, chatId, text, message });
-      if (done) return;
+    if (looksLikeScheduleQuestion(text)) {
+      understood = {
+        kind: "lookup",
+        question: understood?.question || text,
+        databases: ["Internal Events", "External Events"],
+      };
     }
-    if (thought?.mode === "reply") {
-      await sendMessage(
-        chatId,
-        escapeHtml(thought.reply || "Say a bit more and I'll work it out.")
+    if (understood) {
+      log(
+        `VAVA understand: kind=${understood.kind}` +
+          (understood.question ? ` — ${understood.question}` : "")
       );
-      return;
     }
-    if (thought?.resolved_message) text = thought.resolved_message;
+
+    const transcript = vavaAgent.formatTranscript(
+      memoryFor(chatId, message ? messageThreadId(message) : undefined)
+    );
+    const question = understood?.question || text;
+    const onlyGreeting = /^(hey|hi|hello|yo|thanks|thank you|ok|okay|cool|lol)[.!?\s]*$/i.test(
+      text.trim()
+    );
+
+    if (!onlyGreeting) {
+      const wantsSchedule =
+        looksLikeScheduleQuestion(text) ||
+        looksLikeScheduleQuestion(question) ||
+        (understood?.databases || []).some((name) => /events/i.test(name));
+      if (wantsSchedule) {
+        const answered = await handleClassifiedQuestion({
+          text: question,
+          questionKind: "schedule",
+          from,
+          chatId,
+          interactive: true,
+          scheduleRange: guessScheduleRange(`${text} ${question}`),
+          classified: null,
+        });
+        if (answered) return;
+      }
+      if ((understood?.databases || []).includes("Expenses") || looksLikeExpenseQuestion(text)) {
+        await sendExpenseSummary(chatId, { from });
+        return;
+      }
+
+      let decision = null;
+      try {
+        const knowledge = await vavaAgent.loadNotionKnowledge({
+          question,
+          databases: understood?.databases,
+        });
+        decision = await vavaAgent.decideWithKnowledge({
+          transcript,
+          question,
+          knowledge,
+          todayISO: todayISO(),
+          speaker: senderDisplayName(from),
+        });
+      } catch (err) {
+        log("Notion knowledge error:", err.message);
+      }
+      if (decision) log(`VAVA knowledge: mode=${decision.mode}`);
+
+      if (decision?.mode === "answer" && decision.facts) {
+        const spoken =
+          (await vavaAgent.phraseReply({
+            transcript,
+            facts: decision.facts,
+            speaker: senderDisplayName(from),
+            todayISO: todayISO(),
+          })) || decision.facts;
+        await sendMessage(chatId, escapeHtml(spoken));
+        return;
+      }
+      if (decision?.mode === "write") {
+        const done = await deliverAgentNotion(
+          {
+            understanding: question,
+            database: decision.database,
+            notion_request: decision.notion_request || question,
+            notion: decision.notion,
+          },
+          { from, chatId, text, message }
+        );
+        if (done) return;
+        text = question;
+      } else if (decision?.mode === "missing") {
+        const spoken = await vavaAgent.phraseReply({
+          transcript,
+          facts:
+            "Notion, the village knowledge base, does not contain this. Say that briefly, then answer from general knowledge if you can. Do not invent village events, bookings, rotas, or where an object is.",
+          speaker: senderDisplayName(from),
+          todayISO: todayISO(),
+        });
+        if (spoken) {
+          await sendMessage(chatId, escapeHtml(spoken));
+          return;
+        }
+      } else if (decision?.mode === "chat") {
+        const ok = await replyConversationally({
+          text,
+          chatId,
+          situation:
+            "Notion was checked and nothing needs to be saved or looked up. Answer directly. Do not say you are fetching.",
+        });
+        if (ok) return;
+      }
+    } else {
+      const ok = await replyConversationally({
+        text,
+        chatId,
+        situation: "A greeting or thanks. Answer directly. Do not say you are looking something up.",
+      });
+      if (ok) return;
+    }
+
+    if (understood?.kind === "write" && understood.question) text = understood.question;
   }
 
   const classified = text ? await classifyUserMessage(text, chatId, { interactive: true }) : null;
@@ -7075,6 +7965,7 @@ async function handleAsk({ question, from, chatId, logGap = LOG_DOC_GAPS }) {
 
 async function captureAmbientEvent({ classified, text, from, chatId }) {
   if (!classified.is_event || !classified.event?.title) return false;
+  if (communityCookOffer.looksLikeCommunityCookOffer(text)) return false;
   // Prefer AI recurrence; fall back when the message itself clearly states a rule.
   const fromText = normalizeRecurrenceField(text || "");
   const looksRecurring =
@@ -7535,6 +8426,16 @@ async function sendDailyRecapOnce() {
   const sent = await sendMessage(TELEGRAM_CHAT_ID, recap);
   if (!sent) throw new Error("Daily recap send failed");
   log(`Daily recap sent for ${today}`);
+  const mgmtBrief = await buildManagementCampsiteBriefing(today);
+  if (mgmtBrief) {
+    const members = await fetchManagementMembersForDm();
+    for (const member of members) {
+      await sendMessage(member.userId, mgmtBrief);
+    }
+    if (members.length) {
+      log(`Management campsite briefing sent to ${members.length} member(s)`);
+    }
+  }
 }
 
 if (process.argv.includes("--send-recap")) {

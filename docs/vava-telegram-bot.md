@@ -84,7 +84,8 @@ ALSO
 • /help for the full list
 
 MORNING ROUNDUP (~08:00 Lisbon)
-• Group topic: morning meeting theme (Mon general, Tue kids, Wed villagers, Thu commercial, Fri creative), events, campsite, meals, childcare count, kids programme shifts, yesterday’s highlights
+• Group topic: morning meeting theme (Mon general, Tue kids, Wed villagers, Thu commercial, Fri creative), events, meals, childcare count, kids programme shifts, yesterday’s highlights
+• Management (Role / focus = Manager, after `/register`): DM with website check-ins, check-outs, and pitch occupancy — plus other guest stays logged in Notion
 • Personal duties + tasks: DM only (after /register)
 • Child minder roster: DM only for registered Members assigned to the Child minder Job
 • Kids programme leads: DM listing today’s sessions; full list in Parents & Teachers topic

@@ -77,9 +77,15 @@ function partyLabel({ adults, children, party }) {
   return bits.join(", ");
 }
 
+function isPlotLikeUnit(unit) {
+  const u = String(unit || "").trim();
+  if (!u) return false;
+  return /^(plot|pitch)\s*#?\s*\d+$/i.test(u) || /^#\d+$/.test(u);
+}
+
 function formatStayLine(stay) {
   const bits = [stay.guest_name || stay.name || "Guest"];
-  if (stay.unit) bits.push(stay.unit);
+  if (stay.unit && !isPlotLikeUnit(stay.unit)) bits.push(stay.unit);
   const party = partyLabel(stay);
   if (party) bits.push(party);
   if (stay.kind && stay.kind !== "Other") bits.push(stay.kind.toLowerCase());

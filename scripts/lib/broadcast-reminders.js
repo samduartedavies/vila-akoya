@@ -257,6 +257,23 @@ function resolveTopicIdFromField(raw, aliases) {
 }
 
 /** Detect month-day recurrence like 1st–3rd of each month from natural language. */
+/** Mon–Fri only, e.g. morning meeting reminders not on weekends. */
+function inferWeekdaysOnlyRecurrence(text) {
+  const lower = String(text || "").toLowerCase();
+  const mentionsMeeting =
+    /\bmorning\s+meetings?\b/.test(lower) ||
+    /\bmorning\s+meeting\b/.test(lower) ||
+    /\bdaily\s+reminder\b/.test(lower);
+  const wantsWeekdays =
+    /\b(monday|mon)\b.*\b(friday|fri)\b/.test(lower) ||
+    (/\bweekdays?\b/.test(lower) && /\bonly\b/.test(lower)) ||
+    (/\b(weekend|saturday|sunday)\b/.test(lower) &&
+      /\b(never|not|no|skip|without)\b/.test(lower));
+  if (!mentionsMeeting && !/\breminder\b/.test(lower)) return null;
+  if (!wantsWeekdays) return null;
+  return "weekly:Mon,Tue,Wed,Thu,Fri";
+}
+
 function inferMonthDaysRecurrence(text) {
   const lower = String(text || "").toLowerCase();
   if (/\bmonthly:1,2,3\b/.test(lower)) return "monthly:1,2,3";
@@ -456,6 +473,7 @@ module.exports = {
   parseTopicAliases,
   resolveTopicIdFromField,
   inferMonthDaysRecurrence,
+  inferWeekdaysOnlyRecurrence,
   looksLikeCommunityBroadcastReminder,
   enrichBroadcastReminder,
   inferReminderTitleFromText,

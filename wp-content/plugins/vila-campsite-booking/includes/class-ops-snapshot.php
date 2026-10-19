@@ -233,10 +233,10 @@ class Ops_Snapshot {
 			$who  = isset( $b['companions_line'] ) && '' !== (string) $b['companions_line']
 				? (string) $b['companions_line']
 				: (string) ( $b['guest_name'] ?? '' );
+			// Plot assignment is not surfaced in Telegram recaps — guest name + party (+ unit type) only.
 			$bits = array_filter(
 				array(
 					$who,
-					isset( $b['plot_label'] ) ? (string) $b['plot_label'] : '',
 					isset( $b['party_line'] ) ? (string) $b['party_line'] : '',
 					isset( $b['unit_type'] ) ? (string) $b['unit_type'] : '',
 				)
