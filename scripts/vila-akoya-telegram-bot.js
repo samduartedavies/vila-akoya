@@ -82,6 +82,7 @@ const vavaAgent = require("./lib/vava-agent");
 const {
   messageRequestsNotionRemoval,
   looksLikeEventCancellationRequest,
+  inferCancelAllFromText,
 } = require("./lib/notion-guard");
 const {
   CHAT_ACTIVITY_KIND,
@@ -104,6 +105,7 @@ const {
   nameMatchesPerson,
   staggeredWeeklyDueDate,
 } = require("./lib/duty-schedule");
+const regionalMarkets = require("./lib/regional-markets");
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8991030236:AAEbLuvsa5HRn2rMwCDu8468kAKERo9DhxY";
@@ -2614,10 +2616,12 @@ async function fetchCommunityCookOffersForDay(dateISO) {
       if (matchDate !== dateISO) continue;
       const recurrenceText = recurrenceTextFromPage(page);
       if (recurrenceText && parseRecurrence(recurrenceText)) continue;
-      offers.push({
+      const offer = {
         ...parsed,
         dish: parsed.dish || notion.pageTitle(page),
-      });
+      };
+      if (!communityCookOffer.isCompleteCookOffer(offer)) continue;
+      offers.push(offer);
     }
   } catch (err) {
     log("Community cook offers fetch failed:", err.message);
@@ -2724,7 +2728,26 @@ function foldAccents(text) {
 
 function looksLikeMarketQuestion(text) {
   const t = foldAccents(text);
-  return /\b(market|mercado|feira|farmers)\b/.test(t);
+  return /\b(market|mercado|feira|farmers|flea)\b/.test(t) || regionalMarkets.looksLikeMarketLocationQuestion(text);
+}
+
+function isMarketNotionPage(page) {
+  const type = notion.pagePropText(page, "Event type");
+  const title = notion.pageTitle(page);
+  return (
+    /^market\b/i.test(type) ||
+    /^market\s*[—–-]/i.test(title) ||
+    /^(flea|farmers?)\s+market/i.test(title)
+  );
+}
+
+function marketKindFilterFromQuestion(text) {
+  const t = foldAccents(text);
+  const flea = /\b(flea|car\s+boot)\b/.test(t);
+  const farmers = /\b(farmers?|gypsy)\b/.test(t);
+  if (flea && !farmers) return "flea";
+  if (farmers && !flea) return "farmers";
+  return null;
 }
 
 function extractPlaceFromMarketTitle(title) {
@@ -2732,23 +2755,44 @@ function extractPlaceFromMarketTitle(title) {
   return m ? m[1].trim() : String(title || "").replace(/^market\s*/i, "").trim();
 }
 
-function matchMarketPlaceInQuestion(text, catalog) {
+function marketPlaceAliases(place) {
+  const p = foldAccents(place);
+  const aliases = new Set([p]);
+  const noParen = p.replace(/\s*\([^)]*\)/g, "").trim();
+  if (noParen) aliases.add(noParen);
+  const beforeComma = p.split(",")[0].trim();
+  if (beforeComma) aliases.add(beforeComma);
+  const head = beforeComma.split(/\s+/)[0];
+  if (head && head.length >= 4) aliases.add(head);
+  return [...aliases].filter(Boolean);
+}
+
+function filterMarketsByPlaceInQuestion(text, catalog) {
   const q = foldAccents(text).replace(/[^a-z0-9\s]/g, " ");
   if (
     (/\bsao\s+martinho\b/.test(q) || /\bmartinho\b/.test(q)) &&
     /\b(amoreiras|armoreiras)\b/.test(q)
   ) {
-    const hit = catalog.find((m) => foldAccents(m.place).includes("martinho"));
-    if (hit) return hit.place;
+    return catalog.filter((m) => foldAccents(m.place).includes("martinho"));
   }
+  const hits = new Set();
   for (const m of catalog) {
+    let matched = false;
+    for (const alias of marketPlaceAliases(m.place)) {
+      if (alias.length >= 4 && q.includes(alias)) matched = true;
+    }
     const p = foldAccents(m.place);
-    if (!p) continue;
-    if (q.includes(p)) return m.place;
     const words = p.split(/\s+/).filter((w) => w.length > 2);
-    const significant = words.filter((w) => !["das", "de", "do", "da", "sao", "são"].includes(w));
-    if (significant.length >= 2 && significant.every((w) => q.includes(w))) return m.place;
+    const significant = words.filter((w) => !["das", "de", "do", "da", "sao", "são", "city", "town"].includes(w));
+    if (significant.length >= 2 && significant.every((w) => q.includes(w))) matched = true;
+    if (matched) hits.add(m);
   }
+  return [...hits];
+}
+
+function matchMarketPlaceInQuestion(text, catalog) {
+  const matches = filterMarketsByPlaceInQuestion(text, catalog);
+  if (matches.length === 1) return matches[0].place;
   return null;
 }
 
@@ -2760,48 +2804,66 @@ function resolveMarketQueryDate(text) {
 }
 
 async function loadMarketCatalog() {
-  const pages = [];
+  const notionEntries = [];
   try {
     const { pages: external } = await notion.queryDatabase(EXTERNAL_EVENTS_DB_NAME);
-    pages.push(...external);
+    for (const page of external) {
+      if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+      if (!isMarketNotionPage(page)) continue;
+      notionEntries.push(regionalMarkets.notionPageToMarketEntry(page, notion));
+    }
   } catch (err) {
     log(`Market catalog fetch failed (${EXTERNAL_EVENTS_DB_NAME}):`, err.message);
   }
 
-  return pages
-    .filter((page) => {
-      if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) return false;
-      const type = notion.pagePropText(page, "Event type");
-      const title = notion.pageTitle(page);
-      return /^market\b/i.test(type) || /^market\s*[—–-]/i.test(title);
-    })
-    .map((page) => ({
-      title: notion.pageTitle(page),
-      place:
-        notion.pagePropText(page, "Location").trim() || extractPlaceFromMarketTitle(notion.pageTitle(page)),
-      date: notion.pageDateISO(page, "Date"),
-      recurrenceText: recurrenceTextFromPage(page),
-    }));
+  return regionalMarkets.mergeMarketCatalogs(notionEntries);
+}
+
+async function fetchMarketsForDate(dateISO) {
+  const catalog = await loadMarketCatalog();
+  return catalog.filter((m) => eventMatchesDate(m.date, m.recurrenceText, dateISO));
 }
 
 async function answerMarketQuestion(text) {
   const catalog = await loadMarketCatalog();
   const targetDate = resolveMarketQueryDate(text);
-  const place = matchMarketPlaceInQuestion(text, catalog);
+  const placeMatches = filterMarketsByPlaceInQuestion(text, catalog);
+  const place = placeMatches.length === 1 ? placeMatches[0].place : null;
+  const kindFilter = marketKindFilterFromQuestion(text);
+  const locationQuestion = regionalMarkets.looksLikeMarketLocationQuestion(text);
 
   if (!catalog.length) {
     return { answered: false, answer: "" };
   }
 
   let pool = catalog;
-  if (place) {
-    pool = catalog.filter((m) => foldAccents(m.place) === foldAccents(place));
+  if (placeMatches.length) {
+    pool = placeMatches;
+  }
+  if (kindFilter) {
+    pool = pool.filter((m) => m.kind === kindFilter);
   }
 
-  if (place && !pool.length) {
+  if (placeMatches.length && !pool.length) {
     return {
       answered: true,
-      answer: `I don't have a market listed for ${place} in External Events.`,
+      answer: `I don't have a market listed for that place.`,
+    };
+  }
+
+  if (locationQuestion && placeMatches.length && pool.length) {
+    const lines = pool.map((m) => {
+      const rule = parseRecurrence(m.recurrenceText || "");
+      const when = rule ? describeRecurrence(rule) : "";
+      const loc = m.locale ? m.locale : "(venue not listed)";
+      return `• ${m.place}${when ? ` (${when})` : ""}: ${loc}`;
+    });
+    const label =
+      place ||
+      (placeMatches.length === 1 ? placeMatches[0].place : "the area you asked about");
+    return {
+      answered: true,
+      answer: `Market location${lines.length > 1 ? "s" : ""} for ${label}:\n${lines.join("\n")}`,
     };
   }
 
@@ -2813,24 +2875,25 @@ async function answerMarketQuestion(text) {
     const label = rule ? describeRecurrence(rule) : "";
     const dayLabel = targetDate === todayISO() ? "today" : targetDate;
     if (onDate.length) {
+      const loc = m.locale ? ` Location: ${m.locale}.` : "";
       return {
         answered: true,
-        answer: `Yes — ${m.place} market is on ${dayLabel} (${targetDate}).${label ? ` (${label})` : ""}`,
+        answer: `Yes — ${m.place} market is on ${dayLabel} (${targetDate}).${label ? ` (${label})` : ""}${loc}`,
       };
     }
     const next = rule ? nextOccurrence(rule, targetDate, RECAP_TZ) : null;
     let msg = `No — ${m.place} market is not on ${dayLabel}.`;
     if (label) msg += ` It's ${label}.`;
+    if (m.locale) msg += ` Location: ${m.locale}.`;
     if (next && next !== targetDate) msg += ` Next: ${next}.`;
     return { answered: true, answer: msg };
   }
 
   if (onDate.length) {
-    const names = onDate.map((m) => m.place).join(", ");
     const dayLabel = targetDate === todayISO() ? "today" : targetDate;
     return {
       answered: true,
-      answer: `Markets on ${dayLabel} (${targetDate}): ${names}.`,
+      answer: regionalMarkets.formatMarketsListAnswer(onDate, { dayLabel, dateISO: targetDate }),
     };
   }
 
@@ -2843,7 +2906,7 @@ async function answerMarketQuestion(text) {
   }
   return {
     answered: true,
-    answer: `No regional markets listed for ${dayLabel} (${targetDate}) in External Events.`,
+    answer: `No regional markets listed for ${dayLabel} (${targetDate}).`,
   };
 }
 
@@ -3049,6 +3112,33 @@ function mergeCompletionIntent(classified, text, chatId) {
   if (!classified || classified.action === "chat" || !classified.is_complete) {
     log(`Completion intent: mark done → "${completion.target.title}"`);
     return { ...(classified || {}), ...completion };
+  }
+  return classified;
+}
+
+function mergeCancelEventIntent(classified, text) {
+  if (!looksLikeEventCancellationRequest(text)) return classified;
+  const query = extractEventCancelQuery(text);
+  if (!query) return classified;
+  const cancelAll = inferCancelAllFromText(text);
+  const intent = {
+    action: "cancel_event",
+    actionable: true,
+    confidence: 0.9,
+    is_question: false,
+    is_cancel_event: true,
+    target: { title: query.slice(0, 80), cancel_all: cancelAll },
+  };
+  if (!classified || classified.action === "chat" || !classified.is_cancel_event) {
+    log(`Cancel event intent: "${query}" cancel_all=${cancelAll}`);
+    return { ...(classified || {}), ...intent };
+  }
+  if (classified.is_cancel_event && cancelAll && !classified.target?.cancel_all) {
+    return {
+      ...classified,
+      target: { ...(classified.target || {}), title: classified.target?.title || query, cancel_all: true },
+      confidence: Math.max(classified.confidence || 0, 0.9),
+    };
   }
   return classified;
 }
@@ -3475,6 +3565,7 @@ async function fetchEventsForDate(dateISO) {
   const events = [];
   for (const page of allPages) {
     if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+    if (isMarketNotionPage(page)) continue;
     if (notion.pagePropText(page, "Notes").includes(communityCookOffer.MARKER)) continue;
     const itemDate = notion.pageDateISO(page, "Date");
     const recurrenceText = recurrenceTextFromPage(page);
@@ -3503,6 +3594,7 @@ async function fetchEventsBetween(startISO, endISO) {
   const events = [];
   for (const page of allPages) {
     if (notion.isDoneStage(notion.pagePropText(page, "Stage"))) continue;
+    if (isMarketNotionPage(page)) continue;
     const itemDate = notion.pageDateISO(page, "Date");
     const recurrenceText = recurrenceTextFromPage(page);
     const dates = collectEventOccurrences(itemDate, recurrenceText, startISO, endISO);
@@ -4043,6 +4135,19 @@ async function buildDataSnapshot(dateISO, { includeChildcareDetails = false } = 
   } else {
     lines.push("- (none)");
   }
+  const markets = await fetchMarketsForDate(dateISO);
+  if (markets.length) {
+    const { flea, farmers } = regionalMarkets.groupMarketsByKind(markets);
+    lines.push("", "Markets on this date:");
+    if (flea.length) {
+      lines.push(`Flea markets:`);
+      for (const m of flea) lines.push(`- ${regionalMarkets.formatMarketBullet(m)}`);
+    }
+    if (farmers.length) {
+      lines.push(`Farmers & gypsy markets:`);
+      for (const m of farmers) lines.push(`- ${regionalMarkets.formatMarketBullet(m)}`);
+    }
+  }
   lines.push("", formatCampsiteSnapshot(dateISO, activity, meals));
   lines.push("", "Childcare:");
   if (includeChildcareDetails) {
@@ -4063,8 +4168,18 @@ async function answerFromNotionData(question) {
   return openaiLib.answerFromData(question, snapshot);
 }
 
+/** Reject AI rewrite that invented placeholders or cooking when there was none. */
+function recapComposedLooksUnsafe(composed, { hadCookOffers } = {}) {
+  const t = String(composed || "");
+  if (/\[[^\]]+\]/i.test(t)) return true;
+  if (!hadCookOffers && /\bcommunity cooking\b/i.test(t)) return true;
+  if (!hadCookOffers && /\b(cooking today|is making|per portion)\b/i.test(t)) return true;
+  return false;
+}
+
 async function buildDailyRecap(dateISO) {
   const events = await fetchEventsForDate(dateISO);
+  const marketsToday = await fetchMarketsForDate(dateISO);
   const yesterday = yesterdayISO();
   const yesterdayHighlights = await buildYesterdayHighlights(yesterday);
   let meals = null;
@@ -4099,7 +4214,25 @@ async function buildDailyRecap(dateISO) {
     }
   }
 
-  const cookOffers = await fetchCommunityCookOffersForDay(dateISO);
+  if (marketsToday.length) {
+    const { flea, farmers } = regionalMarkets.groupMarketsByKind(marketsToday);
+    if (flea.length) {
+      lines.push("", "<b>Flea markets today</b>");
+      for (const m of flea) {
+        lines.push(`• ${escapeHtml(regionalMarkets.formatMarketBullet(m))}`);
+      }
+    }
+    if (farmers.length) {
+      lines.push("", "<b>Farmers & gypsy markets today</b>");
+      for (const m of farmers) {
+        lines.push(`• ${escapeHtml(regionalMarkets.formatMarketBullet(m))}`);
+      }
+    }
+  }
+
+  const cookOffers = (await fetchCommunityCookOffersForDay(dateISO)).filter(
+    communityCookOffer.isCompleteCookOffer
+  );
   if (cookOffers.length) {
     lines.push("", "<b>Community cooking today</b>");
     for (const offer of cookOffers) {
@@ -4154,8 +4287,16 @@ async function buildDailyRecap(dateISO) {
       "Do not mention campsite check-ins, check-outs, pitch bookings, or who is staying on site — that is management-only.",
       "Meal bookings come from the website.",
       "Village morning meetings are Monday–Friday only — never Saturday or Sunday.",
-      "Keep any 'Community cooking today' lines exactly as written (cook, dish, diet, price, time).",
     ];
+    if (cookOffers.length) {
+      extras.push(
+        "Keep the 'Community cooking today' bullets exactly as written (real cook name, dish, diet, price, time). Do not add other cooking mentions."
+      );
+    } else {
+      extras.push(
+        "The source has no community cooking block — do not mention anyone cooking, shared meals, or placeholder fields like [Name] or [Dish]."
+      );
+    }
     if (meetingTheme) {
       extras.push(`Keep the morning meeting theme (${meetingTheme}) near the top.`);
     } else {
@@ -4172,7 +4313,10 @@ async function buildDailyRecap(dateISO) {
     const friendly = await openaiLib.composeRecap(
       extras.length ? `${plain}\n\n${extras.join(" ")}` : plain
     );
-    recap = friendly.split("\n").map(escapeHtml).join("\n");
+    const composed = friendly.split("\n").map(escapeHtml).join("\n");
+    recap = recapComposedLooksUnsafe(composed, { hadCookOffers: cookOffers.length > 0 })
+      ? template
+      : composed;
   } catch {
     recap = template;
   }
@@ -4973,6 +5117,15 @@ async function markItemDone(pageId) {
     map.Status = dbName === TASKS_DB_NAME ? "Done" : "Done";
   }
 
+  if (dbName === INTERNAL_EVENTS_DB_NAME || dbName === EXTERNAL_EVENTS_DB_NAME) {
+    const isOcc =
+      notion.pagePropText(page, "Is occurrence?") === "true" ||
+      Boolean(notion.pagePropText(page, "Occurrence ID").trim());
+    if (!isOcc && notion.pagePropText(page, "Recurrence").trim()) {
+      map.Recurrence = "";
+    }
+  }
+
   if (Object.keys(map).length) {
     await notion.updatePageProps(dbName, pageId, map);
   }
@@ -4997,12 +5150,36 @@ function titleMatches(query, itemName) {
   return hits.length >= Math.min(2, qWords.length);
 }
 
+function eventSeriesBaseTitle(name) {
+  return String(name || "")
+    .replace(/\s+[—–-]\s+\d{4}-\d{2}-\d{2}\s*$/, "")
+    .trim();
+}
+
+function eventPageMatchesCancelQuery(page, query) {
+  const q = String(query || "").toLowerCase().trim();
+  if (!q) return false;
+  const name = notion.pageTitle(page);
+  if (titleMatches(q, name) || name.toLowerCase().includes(q)) return true;
+  const base = eventSeriesBaseTitle(name);
+  return titleMatches(q, base) || base.toLowerCase().includes(q);
+}
+
 function extractEventCancelQuery(text) {
   const t = String(text || "");
   let m = t.match(
     /\b(?:remove|delete|cancel)\s+(?:all\s+)?(?:the\s+)?events?\s+(?:for|about|called|named)?\s+(.+?)(?:\.|,|$|please)/i
   );
   if (m) return m[1].trim().replace(/\s+events?\s*$/i, "");
+  m = t.match(
+    /\b(?:remove|delete|cancel)\s+(?:the\s+)?(.+?)\s+events?\b(?:\s+(?:repeated|recurring).*)?(?:\.|,|$)/i
+  );
+  if (m) {
+    return m[1]
+      .trim()
+      .replace(/\s+(workshop|class|session|course)s?\s*$/i, "")
+      .trim();
+  }
   m = t.match(/\bno more\s+(.+?)(?:\s+anymore)?(?:\.|,|$)/i);
   if (m) {
     return m[1]
@@ -5012,7 +5189,76 @@ function extractEventCancelQuery(text) {
   }
   m = t.match(/\b(?:stop|discontinu(?:e|ed))\s+(?:the\s+)?(.+?)(?:\.|,|$)/i);
   if (m) return m[1].trim();
+  m = t.match(
+    /\b(?:remove|delete|cancel)\s+(?:the\s+)?(.+?)\s+(?:workshop|class|session|course)\b/i
+  );
+  if (m) return m[1].trim();
   return "";
+}
+
+async function findRecurringSeriesHubsForQuery(query) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+  const hubs = [];
+  const seen = new Set();
+  for (const dbName of [INTERNAL_EVENTS_DB_NAME, EXTERNAL_EVENTS_DB_NAME]) {
+    let pages;
+    try {
+      ({ pages } = await notion.queryDatabase(dbName));
+    } catch {
+      continue;
+    }
+    for (const page of pages) {
+      if (pageIsDone(page)) continue;
+      const recurrence = notion.pagePropText(page, "Recurrence");
+      if (!recurrence || !parseRecurrence(recurrence)) continue;
+      const isOcc =
+        notion.pagePropText(page, "Is occurrence?") === "true" ||
+        Boolean(notion.pagePropText(page, "Occurrence ID").trim());
+      if (isOcc) continue;
+      if (!eventPageMatchesCancelQuery(page, q)) continue;
+      if (seen.has(page.id)) continue;
+      seen.add(page.id);
+      hubs.push({ id: page.id, name: notion.pageTitle(page), boardName: dbName });
+    }
+  }
+  return hubs;
+}
+
+async function sendCancelEventOutcome(chatId, result, { query, interactive }) {
+  if (!interactive) return;
+  if (result.duplicate) {
+    await sendMessage(
+      chatId,
+      "I already marked that cancelled a moment ago — double-check Internal/External Events in Notion."
+    );
+    return;
+  }
+  const cancelledNames =
+    result.names?.length ? result.names : result.name ? [result.name] : [];
+  if (result.ok && cancelledNames.length) {
+    const list = cancelledNames.map((n) => `• ${escapeHtml(n)}`).join("\n");
+    await sendMessage(
+      chatId,
+      cancelledNames.length > 1
+        ? `🚫 Marked cancelled in Notion (${cancelledNames.length}):\n${list}`
+        : `🚫 Cancelled: <b>${escapeHtml(cancelledNames[0])}</b>`
+    );
+    return;
+  }
+  if (result.reason === "ambiguous" && result.matches?.length) {
+    const names = result.matches.map((m) => m.name || m).join(", ");
+    await sendMessage(chatId, `Which event? I found: ${escapeHtml(names)}.`);
+    return;
+  }
+  if (result.reason === "not_found") {
+    await sendMessage(
+      chatId,
+      query
+        ? `I couldn't find any upcoming events matching “${escapeHtml(query)}”.`
+        : "I couldn't find a matching upcoming event in Notion."
+    );
+  }
 }
 
 function reminderPageMatches(page, query) {
@@ -5039,10 +5285,8 @@ async function findEventsBySearchQuery(query) {
     }
     for (const page of pages) {
       if (pageIsDone(page)) continue;
-      const name = notion.pageTitle(page);
-      if (titleMatches(q, name) || name.toLowerCase().includes(q.toLowerCase())) {
-        matches.push({ id: page.id, name, boardName: dbName });
-      }
+      if (!eventPageMatchesCancelQuery(page, q)) continue;
+      matches.push({ id: page.id, name: notion.pageTitle(page), boardName: dbName });
     }
   }
   return matches;
@@ -5052,7 +5296,15 @@ async function cancelEventsMatchingFromChat({ query, text, from, chatId }) {
   const key = ambientDedupeKey(chatId, "cancel-all", query);
   if (wasRecentlyCaptured(key)) return { ok: true, duplicate: true, names: [] };
 
-  const matches = await findEventsBySearchQuery(query);
+  let matches = await findEventsBySearchQuery(query);
+  const hubs = await findRecurringSeriesHubsForQuery(query);
+  const seen = new Set(matches.map((m) => m.id));
+  for (const hub of hubs) {
+    if (!seen.has(hub.id)) {
+      seen.add(hub.id);
+      matches.push(hub);
+    }
+  }
   if (!matches.length) return { ok: false, reason: "not_found" };
 
   const names = [];
@@ -6247,7 +6499,13 @@ async function classifyUserMessage(text, chatId, { interactive = false } = {}) {
         `task=${classified.is_task} tasks=${classified.tasks?.length || 0} question=${classified.is_question} ` +
         `schedule_range=${classified.schedule_range || "-"} conf=${classified.confidence}`
     );
-    return mergeFaqIntent(mergeLocationIntent(mergeCompletionIntent(classified, cleanText, chatId), cleanText), cleanText);
+    return mergeFaqIntent(
+      mergeLocationIntent(
+        mergeCompletionIntent(mergeCancelEventIntent(classified, cleanText), cleanText, chatId),
+        cleanText
+      ),
+      cleanText
+    );
   } catch (err) {
     log("classifyGroupMessage error:", err.message);
     return null;
@@ -6852,13 +7110,14 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   // Cancel event
   if (c.is_cancel_event && c.target && conf >= minConf) {
     try {
+      const bulkQuery =
+        c.target.title || extractEventCancelQuery(text || "") || "";
       const cancelAll =
         c.target.cancel_all ||
+        inferCancelAllFromText(text || "") ||
         (/\b(all|every)\b/i.test(text || "") &&
           /\bevents?\b/i.test(text || "")) ||
         /\bno more\b/i.test(text || "");
-      const bulkQuery =
-        c.target.title || extractEventCancelQuery(text || "") || "";
       if (cancelAll && bulkQuery) {
         const result = await cancelEventsMatchingFromChat({
           query: bulkQuery,
@@ -6866,30 +7125,15 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
           from,
           chatId,
         });
-        if (result.ok && !result.duplicate && result.names?.length) {
-          const list = result.names.map((n) => `• ${escapeHtml(n)}`).join("\n");
-          await sendMessage(
-            chatId,
-            `🚫 Marked cancelled in Notion (${result.names.length}):\n${list}`
-          );
-        } else if (result.reason === "not_found" && interactive) {
-          await sendMessage(
-            chatId,
-            `I couldn't find any upcoming events matching “${escapeHtml(bulkQuery)}”.`
-          );
-        }
+        await sendCancelEventOutcome(chatId, result, { query: bulkQuery, interactive });
         return;
       }
 
       const result = await cancelEventFromChat({ target: c.target, text, from, chatId });
-      if (result.ok && !result.duplicate) {
-        await sendMessage(chatId, `🚫 Cancelled: <b>${escapeHtml(result.name)}</b>`);
-      } else if (result.reason === "ambiguous" && interactive) {
-        const names = result.matches.map((m) => m.name).join(", ");
-        await sendMessage(chatId, `Which event? I found: ${escapeHtml(names)}.`);
-      } else if (result.reason === "not_found" && interactive) {
-        await sendMessage(chatId, "I couldn't find a matching upcoming event in Notion.");
-      }
+      await sendCancelEventOutcome(chatId, result, {
+        query: c.target.title || bulkQuery,
+        interactive,
+      });
     } catch (err) {
       log("cancelEventFromChat error:", err.message);
       if (interactive) await sendMessage(chatId, "Sorry, I could not cancel that event.");
@@ -7360,31 +7604,27 @@ async function routeAddressedMessage(message) {
     }
 
     if (looksLikeEventCancellationRequest(text)) {
-      const bulk =
-        /\b(all|every)\b/i.test(text) ||
-        (/\b(remove|delete)\b/i.test(text) && /\bevents?\b/i.test(text)) ||
-        /\bno more\b/i.test(text);
       const query = extractEventCancelQuery(text);
-      if (bulk && query) {
+      const cancelAll = inferCancelAllFromText(text);
+      if (query) {
         try {
-          const result = await cancelEventsMatchingFromChat({ query, text, from, chatId });
-          if (result.ok && !result.duplicate && result.names?.length) {
-            const list = result.names.map((n) => `• ${escapeHtml(n)}`).join("\n");
-            await sendMessage(
-              chatId,
-              `🚫 Marked cancelled in Notion (${result.names.length}):\n${list}`
-            );
+          if (cancelAll) {
+            const result = await cancelEventsMatchingFromChat({ query, text, from, chatId });
+            await sendCancelEventOutcome(chatId, result, { query, interactive: true });
             return;
           }
-          if (result.reason === "not_found") {
-            await sendMessage(
-              chatId,
-              `I couldn't find any upcoming events matching “${escapeHtml(query)}”.`
-            );
-            return;
-          }
+          const result = await cancelEventFromChat({
+            target: { title: query },
+            text,
+            from,
+            chatId,
+          });
+          await sendCancelEventOutcome(chatId, result, { query, interactive: true });
+          return;
         } catch (err) {
-          log("bulk cancel events error:", err.message);
+          log("cancel events error:", err.message);
+          await sendMessage(chatId, "Sorry, I could not cancel that event.");
+          return;
         }
       }
     }

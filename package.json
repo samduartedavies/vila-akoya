@@ -19,6 +19,7 @@
     "notion:sync-campsite:local": "VILA_OPS_API_BASE=http://localhost:8888 VILA_OPS_API_TOKEN=vila-local-ops-dev-token node scripts/sync-campsite-notion.js",
     "notion:seed-rota": "node scripts/seed-community-chore-rota-notion.js",
     "notion:seed-markets": "node scripts/seed-odemira-markets-notion.js",
+    "notion:seed-algarve-markets": "node scripts/seed-algarve-markets-notion.js",
     "monday:setup": "node scripts/setup-vila-akoya-monday.js",
     "monday:sync-campsite": "node scripts/sync-campsite-monday.js",
     "monday:sync-campsite:local": "VILA_OPS_API_BASE=http://localhost:8888 VILA_OPS_API_TOKEN=vila-local-ops-dev-token node scripts/sync-campsite-monday.js",

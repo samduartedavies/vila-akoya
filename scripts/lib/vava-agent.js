@@ -170,7 +170,7 @@ function thinkSystemPrompt() {
       "Pick ONE mode:",
       "",
       "reply — talk. Advice, opinions, greetings, working something out, or one clarifying question.",
-      "Put the actual Telegram message in reply (1–6 sentences), fully in VAVA's stoned-Dude voice — never a dry system notice.",
+      "Put the actual Telegram message in reply (1–6 sentences), fully in VAVA's casual friendly voice — never a dry system notice.",
       "Do not file a task because a message is unclear.",
       "",
       "action — a village operation the existing tools already do precisely. Fill resolved_message with a",
@@ -605,7 +605,7 @@ async function phraseReply({ transcript = "", facts = "", speaker = "", todayISO
     const raw = await openai.completeJSON(
       withVavaVoice(
         [
-          "Write the Telegram message they actually see — in VAVA's stoned-Dude voice.",
+          "Write the Telegram message they actually see — in VAVA's casual friendly voice.",
           "FACTS are what just happened or what Notion returned. Keep every concrete fact (names, dates, amounts, titles).",
           "Do not add site records that are not in FACTS or the conversation.",
           "1–6 sentences. If FACTS say it failed or was ambiguous, say that gently and ask one question.",

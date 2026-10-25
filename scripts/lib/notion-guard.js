@@ -24,6 +24,9 @@ function looksLikeEventCancellationRequest(text) {
   ) {
     return true;
   }
+  if (/\bnot happening\b/.test(t) && /\b(anymore|any more)\b/.test(t)) {
+    return true;
+  }
   if (/\b(remove|delete|drop)\b/.test(t) && /\bevents?\b/.test(t)) {
     return true;
   }
@@ -40,6 +43,21 @@ function looksLikeReminderScheduleUpdate(text) {
     /\b(update|change|set|only|never|not on|skip|weekdays?|monday|friday|weekend)\b/.test(t) ||
     /\b(monday|mon)\b.*\b(friday|fri)\b/.test(t)
   );
+}
+
+/** Cancel every matching row (recurring series + dated occurrences), not just one date. */
+function inferCancelAllFromText(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\b(all|every)\b/.test(t) && /\bevents?\b/.test(t)) return true;
+  if (/\bno more\b/.test(t)) return true;
+  if (/\b(not happening|discontinued|stopped|ended)\b/.test(t)) return true;
+  if (
+    /\b(repeated|recurring|every week|weekly|every month|monthly)\b/.test(t) &&
+    /\b(workshop|class|event|session|course|gathering)\b/.test(t)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function messageRequestsNotionRemoval(text) {
@@ -81,6 +99,7 @@ function assertSafeNotionOp(op) {
 module.exports = {
   messageRequestsNotionRemoval,
   looksLikeEventCancellationRequest,
+  inferCancelAllFromText,
   looksLikeReminderScheduleUpdate,
   assertSafeNotionProperties,
   assertSafeNotionOp,

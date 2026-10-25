@@ -18,13 +18,12 @@ const { withVavaVoice } = require("./vava-voice");
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "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";
 const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-// gpt-4o-mini: better at paraphrases and messy village chat than nano.
-// Override with OPENAI_CHAT_MODEL if you need cheaper/faster (e.g. gpt-4.1-nano).
-const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
+// gpt-4o: stronger routing and replies for messy village chat (override via OPENAI_CHAT_MODEL).
+const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4o";
 // Natural replies (can match CHAT_MODEL; keep a separate knob if classification stays cheap).
 const CONVERSE_MODEL = process.env.OPENAI_CONVERSE_MODEL || CHAT_MODEL;
 // Vision-capable model for receipt photos / PDFs.
-const VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4o-mini";
+const VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4o";
 const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small";
 const TRANSCRIBE_MODEL =
   process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe";
@@ -184,7 +183,7 @@ async function answerFromDocs(question, contexts) {
 
   const system = withVavaVoice(
     [
-      "Answer using the documentation excerpts provided — rephrase them as if you live on site, in VAVA's stoned-Dude voice.",
+      "Answer using the documentation excerpts provided — rephrase them as if you live on site, in VAVA's casual friendly voice.",
       "Combine related excerpts. If incomplete, answer what you can and say what's missing.",
       "Set answered=false only when excerpts are irrelevant or you'd invent village-specific facts.",
       "Keep answers short (a few sentences).",
@@ -306,11 +305,12 @@ async function answerFromData(question, snapshot) {
   const system = withVavaVoice(
     [
       "Answer using the schedule data provided (chores, events, campsite bookings, meals).",
-      "Short, spacey, stoned-Dude energy — not a database dump. Still include the facts.",
+      "Warm and conversational — not a database dump. Still include the facts.",
       "WEEK CALENDAR: this week = Mon–Sun containing today; next week = the following Mon–Sun.",
       "Only mention items whose dates fall in the range they asked about.",
-      "Market / mercado / feira questions: use the Events section only — ignore chores unless they asked for the rota.",
-      "If they ask whether a named market runs on a date, answer yes or no from Events; if not that day but recurrence is listed, say when it usually runs.",
+      "Market / mercado / feira questions: use the Markets section (flea vs farmers & gypsy lists) and Events — ignore chores unless they asked for the rota.",
+      "If they ask whether a named market runs on a date, answer yes or no from Markets; if not that day but recurrence is listed, say when it usually runs.",
+      "If venue/location is listed for a market, include it when they ask where it is.",
       "Set answered=true when Events data is enough to answer, even when chores are irrelevant.",
       "Check-ins, meals, and headcounts come from website bookings.",
       "If the answer is not in the data, set answered=false and do not guess.",
@@ -335,7 +335,7 @@ async function composeRecap(templateText) {
   if (!isEnabled()) return templateText;
   try {
     const result = await chatJSON(
-      "Rewrite this daily community recap to be warm and concise. Keep all facts that are present. Do not mention missing or zero items — never say there are no meals to prepare, no events, or no childcare; omit those topics instead. Never mention campsite check-ins, check-outs, pitch bookings, or who is staying on site. Meal bookings come from the website. Morning village meetings are Mon–Fri only: if the source has no Morning meeting section, do not mention morning meetings. Keep Community cooking today lines factual (who, dish, diet, price, time). Return JSON: { \"text\": string }.",
+      "Rewrite this daily community recap to be warm and concise. Keep all facts that are present in the source text only — do not add events, markets, workshops, or meals that are not listed. Do not mention missing or zero items. Never mention campsite check-ins, check-outs, pitch bookings, or who is staying on site. Meal bookings come from the website. Morning village meetings are Mon–Fri only: if the source has no Morning meeting section, do not mention morning meetings. If the source has no 'Community cooking today' section, do not mention anyone cooking or community meals at all. Never use placeholder text like [Name] or [Dish]. If 'Community cooking today' is present, keep those bullet facts exactly (cook, dish, diet, price, time). Return JSON: { \"text\": string }.",
       templateText
     );
     return String(result.text || templateText);
@@ -617,7 +617,7 @@ async function converseAsVava({
       "",
       "Do NOT invent village facts unless they appear under FACTS.",
       "Never require slash commands. Do not list bot capabilities or /commands unless they explicitly asked what you can do.",
-      "1–5 sentences in VAVA's stoned-Dude voice — never a dry system notice.",
+      "1–5 sentences in VAVA's casual friendly voice — never a dry system notice.",
       'Return JSON: { "reply": string }',
     ]
       .filter(Boolean)

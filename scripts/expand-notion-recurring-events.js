@@ -109,6 +109,11 @@ async function expandDatabase(dbName, fromISO, toISO) {
   // Series masters: have Recurrence, not marked as occurrence (or no Occurrence ID)
   const series = [];
   for (const page of pages) {
+    const stage = notion.pagePropText(page, "Stage");
+    const status = notion.pagePropText(page, "Status").toLowerCase();
+    if (notion.isDoneStage(stage) || status === "cancelled" || status === "done") {
+      continue;
+    }
     const recurrence = notion.pagePropText(page, "Recurrence");
     const rule = parseRecurrence(recurrence);
     if (!rule) continue;
@@ -125,6 +130,11 @@ async function expandDatabase(dbName, fromISO, toISO) {
   // (Is occurrence? false, has Date), still expand from it.
   if (!series.length) {
     for (const page of pages) {
+      const stage = notion.pagePropText(page, "Stage");
+      const status = notion.pagePropText(page, "Status").toLowerCase();
+      if (notion.isDoneStage(stage) || status === "cancelled" || status === "done") {
+        continue;
+      }
       const recurrence = notion.pagePropText(page, "Recurrence");
       const rule = parseRecurrence(recurrence);
       if (!rule) continue;
@@ -170,6 +180,12 @@ async function expandDatabase(dbName, fromISO, toISO) {
 
       const existing = byOccId.get(oid);
       if (existing) {
+        const est = notion.pagePropText(existing, "Stage");
+        const es = notion.pagePropText(existing, "Status").toLowerCase();
+        if (notion.isDoneStage(est) || es === "cancelled" || es === "done") {
+          skipped++;
+          continue;
+        }
         await notion.updatePageProps(dbName, existing.id, props);
         updated++;
         continue;

@@ -72,6 +72,10 @@ const ORDINAL_ALIASES = {
   fourth: 4,
   quarto: 4,
   quarta: 4,
+  "5": 5,
+  "5th": 5,
+  fifth: 5,
+  quinto: 5,
   last: -1,
   último: -1,
   ultimo: -1,
@@ -173,7 +177,7 @@ function parseRecurrence(raw) {
           .filter((n) => n >= 1 && n <= 31);
         if (days.length) return { freq: "month_days", days };
       }
-      const m = rest.match(/^(1st|2nd|3rd|4th|last|first|second|third|fourth|\d+)\s*[- ]\s*([A-Za-zçÇáàãâéêíóôõúü]+)$/i);
+      const m = rest.match(/^(1st|2nd|3rd|4th|5th|last|first|second|third|fourth|fifth|\d+)\s*[- ]\s*([A-Za-zçÇáàãâéêíóôõúü]+)$/i);
       if (!m) return null;
       const nth = normalizeOrdinal(m[1]);
       const weekday = normalizeWeekday(m[2]);
@@ -190,7 +194,7 @@ function parseRecurrence(raw) {
 
   // monthly: "3rd Sunday of the month", "every first Saturday", "primeiro sábado do mês"
   const monthly = lower.match(
-    /(?:every\s+)?(1st|2nd|3rd|4th|last|first|second|third|fourth|primeiro|primeira|segundo|segunda|terceiro|terceira|quarto|quarta|último|ultimo|última|ultima)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|domingo|segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[aá]bado)(?:\s+(?:of\s+)?(?:the\s+)?month|do\s+m[eê]s)?/
+    /(?:every\s+)?(1st|2nd|3rd|4th|5th|last|first|second|third|fourth|fifth|primeiro|primeira|segundo|segunda|terceiro|terceira|quarto|quarta|quinto|último|ultimo|última|ultima)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|domingo|segunda(?:-feira)?|ter[cç]a(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|s[aá]bado)(?:\s+(?:of\s+)?(?:the\s+)?month|do\s+m[eê]s)?/
   );
   if (monthly) {
     const nth = normalizeOrdinal(monthly[1]);
@@ -235,7 +239,9 @@ function formatRecurrence(rule) {
             ? "2nd"
             : rule.nth === 3
               ? "3rd"
-              : "4th";
+              : rule.nth === 4
+                ? "4th"
+                : "5th";
     return `monthly:${ord}-${rule.weekday}`;
   }
   if (rule.freq === "month_days") {
@@ -263,7 +269,9 @@ function describeRecurrence(rule) {
             ? "2nd"
             : rule.nth === 3
               ? "3rd"
-              : "4th";
+              : rule.nth === 4
+                ? "4th"
+                : "5th";
     return `every ${ord} ${rule.weekday} of the month`;
   }
   if (rule.freq === "month_days") {

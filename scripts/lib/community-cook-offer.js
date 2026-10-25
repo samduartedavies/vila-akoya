@@ -248,6 +248,17 @@ function formatPriceLabel(priceEur) {
   return `€${n.toFixed(2)} per portion`;
 }
 
+function isCompleteCookOffer(offer) {
+  if (!offer || typeof offer !== "object") return false;
+  const cook = String(offer.cook || "").trim();
+  const dish = String(offer.dish || "").trim();
+  if (!cook || !dish) return false;
+  if (/\[|placeholder|tbc|unknown/i.test(cook) || /\[/i.test(dish)) return false;
+  if (!DIETS.includes(String(offer.diet || "").toLowerCase())) return false;
+  if (offer.priceEur == null || Number.isNaN(Number(offer.priceEur))) return false;
+  return true;
+}
+
 function formatRecapLine(offer) {
   const diet =
     offer.diet && offer.diet !== "meat"
@@ -303,4 +314,5 @@ module.exports = {
   pricePromptMessage,
   confirmMessage,
   capitalizeDish,
+  isCompleteCookOffer,
 };
