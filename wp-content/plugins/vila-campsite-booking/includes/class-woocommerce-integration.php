@@ -1214,7 +1214,24 @@ class WooCommerce_Integration {
 			// charged twice. The plugin's own shortcode flow has no theme fields, so it still prices
 			// every guest category into the line.
 			$include_guest_supplements = ! self::theme_itemizes_guest_supplements( $cart_item );
-			$total = self::calculate_line_total( $product, $cin, $cout, $guests, $include_guest_supplements );
+			$vehicle_types = array();
+			if ( ! empty( $cart_item['vila_vehicle_types'] ) && is_array( $cart_item['vila_vehicle_types'] ) ) {
+				$vehicle_types = $cart_item['vila_vehicle_types'];
+			} elseif ( ! empty( $cart_item['vila_vehicle_type'] ) ) {
+				$vehicle_types = array( (string) $cart_item['vila_vehicle_type'] );
+			}
+			$no_electricity = function_exists( 'vila_akoya_cart_no_electricity' ) && vila_akoya_cart_no_electricity( $cart_item );
+			$total = self::calculate_line_total(
+				$product,
+				$cin,
+				$cout,
+				$guests,
+				$include_guest_supplements,
+				array(
+					'vehicle_types'  => $vehicle_types,
+					'no_electricity' => $no_electricity,
+				)
+			);
 			$product->set_price( $total );
 		}
 	}
@@ -1246,7 +1263,7 @@ class WooCommerce_Integration {
 	 * @param bool        $include_guest_supplements When false, price adults only (children/infants/pets billed elsewhere as separate fees).
 	 * @return float
 	 */
-	public static function calculate_line_total( $product, $check_in, $check_out, array $guests, $include_guest_supplements = true ) {
+	public static function calculate_line_total( $product, $check_in, $check_out, array $guests, $include_guest_supplements = true, array $context = array() ) {
 		$nights = Dates::night_count( $check_in, $check_out );
 		$pid    = (int) $product->get_id();
 		if ( $nights < 1 ) {
@@ -1256,24 +1273,22 @@ class WooCommerce_Integration {
 			}
 			return $fallback;
 		}
-		$billable = Campsite_Monthly_Rate::nightly_billable_nights( $nights );
-		$base_raw = (float) $product->get_regular_price();
-		if ( $base_raw <= 0 && function_exists( 'vila_akoya_stay_catalog_nightly_rate' ) ) {
-			$base_raw = (float) vila_akoya_stay_catalog_nightly_rate( $pid, $product );
-		}
-		$base = (float) apply_filters( 'vila_cb_adult_rate_per_night', $base_raw, $pid );
-		$adults = isset( $guests['adults'] ) ? max( 1, (int) $guests['adults'] ) : 1;
-		$ch     = isset( $guests['children'] ) ? max( 0, (int) $guests['children'] ) : 0;
-		$inf    = isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;
-		$pets   = isset( $guests['pets'] ) ? max( 0, (int) $guests['pets'] ) : 0;
+		$vehicle_types = isset( $context['vehicle_types'] ) && is_array( $context['vehicle_types'] ) ? $context['vehicle_types'] : array();
+		$solo          = Campsite_Tier_Pricing::is_solo_tent_stay( $guests, $vehicle_types );
+		$no_electricity = ! empty( $context['no_electricity'] );
+		$ch            = isset( $guests['children'] ) ? max( 0, (int) $guests['children'] ) : 0;
+		$inf           = isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;
+		$pets          = isset( $guests['pets'] ) ? max( 0, (int) $guests['pets'] ) : 0;
 
-		$line = Campsite_Monthly_Rate::flat_portion_total( $nights ) + ( $adults * $base * $billable );
+		$line = Campsite_Tier_Pricing::accommodation_total( $nights, $solo, $no_electricity );
 
-		if ( $include_guest_supplements ) {
+		$charge_guest_extras = $include_guest_supplements
+			&& ! ( function_exists( 'vila_akoya_campsite_extras_are_informational_only' ) && vila_akoya_campsite_extras_are_informational_only() );
+		if ( $charge_guest_extras ) {
 			$rates = Booking_Service::guest_category_rates( $pid );
-			$line += ( $ch * (float) $rates['children'] * $billable )
-				+ ( $inf * (float) $rates['infants'] * $billable )
-				+ ( $pets * (float) $rates['pets'] * $billable );
+			$line += ( $ch * (float) $rates['children'] * $nights )
+				+ ( $inf * (float) $rates['infants'] * $nights )
+				+ ( $pets * (float) $rates['pets'] * $nights );
 		}
 
 		return apply_filters( 'vila_cb_calculated_line_total', (float) $line, $pid, $check_in, $check_out, $guests, $nights, $include_guest_supplements );

@@ -664,6 +664,9 @@ function mergeMarketCatalogs(notionEntries) {
 function formatMarketBullet(entry, { includeRecurrence = false } = {}) {
   const parts = [entry.place];
   if (entry.locale) parts.push(`— ${entry.locale}`);
+  if (entry.ratingAvg != null && entry.ratingCount) {
+    parts.push(`★ ${entry.ratingAvg}/10 (${entry.ratingCount})`);
+  }
   if (entry.hours) parts.push(`(${entry.hours})`);
   if (includeRecurrence && entry.recurrenceText) {
     const info = normalizeRecurrenceField(entry.recurrenceText);
@@ -708,6 +711,43 @@ function looksLikeMarketLocationQuestion(text) {
   );
 }
 
+function marketPlaceAliases(place) {
+  const p = foldAccents(place);
+  const aliases = new Set([p]);
+  const noParen = p.replace(/\s*\([^)]*\)/g, "").trim();
+  if (noParen) aliases.add(noParen);
+  const beforeComma = p.split(",")[0].trim();
+  if (beforeComma) aliases.add(beforeComma);
+  const head = beforeComma.split(/\s+/)[0];
+  if (head && head.length >= 4) aliases.add(head);
+  return [...aliases].filter(Boolean);
+}
+
+function findMarketsMatchingText(text, catalog) {
+  const q = foldAccents(text).replace(/[^a-z0-9\s]/g, " ");
+  if (
+    (/\bsao\s+martinho\b/.test(q) || /\bmartinho\b/.test(q)) &&
+    /\b(amoreiras|armoreiras)\b/.test(q)
+  ) {
+    return catalog.filter((m) => foldAccents(m.place).includes("martinho"));
+  }
+  const hits = new Set();
+  for (const m of catalog) {
+    let matched = false;
+    for (const alias of marketPlaceAliases(m.place)) {
+      if (alias.length >= 4 && q.includes(alias)) matched = true;
+    }
+    const p = foldAccents(m.place);
+    const words = p.split(/\s+/).filter((w) => w.length > 2);
+    const significant = words.filter(
+      (w) => !["das", "de", "do", "da", "sao", "são", "city", "town"].includes(w)
+    );
+    if (significant.length >= 2 && significant.every((w) => q.includes(w))) matched = true;
+    if (matched) hits.add(m);
+  }
+  return [...hits];
+}
+
 module.exports = {
   MARKET_KIND,
   STATIC_REGIONAL_MARKETS,
@@ -723,6 +763,8 @@ module.exports = {
   formatMarketsListAnswer,
   groupMarketsByKind,
   looksLikeMarketLocationQuestion,
+  findMarketsMatchingText,
+  marketPlaceAliases,
   parseKindFromNotionPage,
   foldAccents: foldAccents,
 };

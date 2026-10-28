@@ -233,7 +233,7 @@ function vila_akoya_campsite_apply_mwb_booking_defaults( $post_id, $max_concurre
 	$max_p   = (int) apply_filters( 'vila_akoya_campsite_max_people', 8 );
 	$min_p   = max( 1, $min_p );
 	$max_p   = max( $min_p, $max_p );
-	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '9' );
+	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '27' );
 
 	$meta = array(
 		'mwb_mbfw_max_bookings'                    => (string) $max_concurrent_for_this_product,
@@ -351,7 +351,7 @@ function vila_akoya_ensure_campsite_booking_product() {
 		return;
 	}
 
-	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '9' );
+	$night_price = apply_filters( 'vila_akoya_campsite_default_night_price', '27' );
 	$plot_ids    = array();
 
 	foreach ( $plot_numbers as $i ) {

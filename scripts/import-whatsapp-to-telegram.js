@@ -42,9 +42,10 @@
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
+require("./lib/load-env");
 const { parseChatFile, buildPostPlan } = require("./lib/whatsapp-parser");
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8991030236:AAEbLuvsa5HRn2rMwCDu8468kAKERo9DhxY";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const WHATSAPP_IMPORT_CHAT_ID =
   process.env.WHATSAPP_IMPORT_CHAT_ID ||
   process.env.TELEGRAM_IMPORT_CHAT_ID ||

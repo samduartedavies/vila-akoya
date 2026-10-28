@@ -56,6 +56,13 @@ WHERE THINGS ARE
 @vila_akoya_bot the bathroom keys live on the hook by reception
 Live list: Notion page “Where things are” (Documentation hub)
 
+MEDICAL & EMERGENCY (Baixo Alentejo directory in Notion)
+@vila_akoya_bot nearest hospital? · GP near Ourique? · paediatrician in Beja?
+@vila_akoya_bot SNS 24 number? · where is the Ourique health centre?
+Life-threatening → 112. Advice/triage → SNS 24 (808 24 24 24). SUB units are not full hospitals.
+Rate a clinic/hospital (1–10): <code>Hospital José Joaquim Fernandes: 8</code>
+Setup: <code>npm run notion:setup-medical</code>
+
 CHILDCARE
 Book childcare on the website: /book-childcare/
 Parents can DM or tag VAVA: “Sam won’t attend childcare today”

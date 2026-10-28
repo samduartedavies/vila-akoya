@@ -2022,7 +2022,10 @@
   }
 
   /* Guests + dates: one row on desktop (see booking-ui.js layoutBookingFormSections) */
-  .vila-booking-dates-who,
+  .vila-booking-dates-who {
+    @apply mb-4 flex w-full min-w-0 flex-col gap-5 overflow-visible;
+  }
+
   .vila-booking-plot-who {
     @apply mb-8 flex w-full min-w-0 flex-col gap-5 overflow-visible;
   }
@@ -2385,6 +2388,64 @@
   .vila-wc-booking .vila-meal-grid.vila-airbnb-booking__chip-grid,
   body.single-product .vila-meal-grid.vila-airbnb-booking__chip-grid {
     @apply mx-auto w-full max-w-xl gap-3;
+  }
+
+  /* Campsite — what’s included (inline checklist) + electricity toggle on its own row */
+  .vila-wc-booking .vila-campsite-included-list,
+  body.single-product .vila-campsite-included-list {
+    @apply m-0 flex flex-wrap items-center gap-x-3 gap-y-1.5 list-none p-0;
+  }
+
+  .vila-wc-booking .vila-campsite-included-list__item,
+  body.single-product .vila-campsite-included-list__item {
+    @apply inline-flex items-center gap-1.5 text-sm text-on-surface-variant;
+  }
+
+  .vila-wc-booking .vila-campsite-included-list__icon,
+  body.single-product .vila-campsite-included-list__icon {
+    @apply shrink-0 text-base leading-none text-primary;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+  }
+
+  .vila-wc-booking .vila-campsite-electricity-toggle,
+  body.single-product .vila-campsite-electricity-toggle {
+    @apply mt-2.5 flex w-full max-w-full cursor-pointer items-center gap-3 p-0;
+  }
+
+  .vila-wc-booking .vila-campsite-electricity-toggle__label,
+  body.single-product .vila-campsite-electricity-toggle__label {
+    @apply font-body text-sm font-medium text-on-surface-variant;
+  }
+
+  .vila-wc-booking .vila-campsite-toggle,
+  body.single-product .vila-campsite-toggle {
+    @apply relative inline-flex h-7 w-12 shrink-0 items-center;
+  }
+
+  .vila-wc-booking .vila-campsite-toggle__track,
+  body.single-product .vila-campsite-toggle__track {
+    @apply pointer-events-none absolute inset-0 rounded-full bg-outline-variant/35 transition-colors duration-200;
+  }
+
+  .vila-wc-booking .vila-campsite-toggle__track::after,
+  body.single-product .vila-campsite-toggle__track::after {
+    content: '';
+    @apply absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-surface-bright shadow-sm transition-transform duration-200 ease-out;
+  }
+
+  .vila-wc-booking .vila-campsite-toggle__input:checked + .vila-campsite-toggle__track,
+  body.single-product .vila-campsite-toggle__input:checked + .vila-campsite-toggle__track {
+    @apply bg-primary;
+  }
+
+  .vila-wc-booking .vila-campsite-toggle__input:checked + .vila-campsite-toggle__track::after,
+  body.single-product .vila-campsite-toggle__input:checked + .vila-campsite-toggle__track::after {
+    transform: translateX(1.25rem);
+  }
+
+  .vila-wc-booking .vila-campsite-toggle__input:focus-visible + .vila-campsite-toggle__track,
+  body.single-product .vila-campsite-toggle__input:focus-visible + .vila-campsite-toggle__track {
+    @apply ring-2 ring-primary/35 ring-offset-2 ring-offset-surface;
   }
 
   .vila-wc-booking .vila-airbnb-booking__chip-title,

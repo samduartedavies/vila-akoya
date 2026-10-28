@@ -18,7 +18,7 @@ class Pricing_Settings {
 
 	const PRICING_SCHEMA_VERSION_OPTION = 'vila_cb_pricing_schema_version';
 
-	const PRICING_SCHEMA_VERSION = '2026-05';
+	const PRICING_SCHEMA_VERSION = '2026-11';
 
 	const VEHICLE_FEES_SCHEMA_VERSION_OPTION = 'vila_cb_vehicle_fees_schema_version';
 
@@ -47,7 +47,10 @@ class Pricing_Settings {
 	 */
 	public static function defaults() {
 		return array(
-			'adult_per_night' => 9.0,
+			'adult_per_night' => 27.0,
+			'campsite_tiers'  => class_exists( __NAMESPACE__ . '\\Campsite_Tier_Pricing' )
+				? Campsite_Tier_Pricing::default_tiers()
+				: array(),
 			'guest_rates'     => array(
 				'children' => 6.0,
 				'infants'  => 3.0,
@@ -98,6 +101,7 @@ class Pricing_Settings {
 		}
 
 		$cfg['adult_per_night'] = $defaults['adult_per_night'];
+		$cfg['campsite_tiers']  = $defaults['campsite_tiers'];
 		$cfg['guest_rates']     = $defaults['guest_rates'];
 		$cfg['vehicle_fees']    = array_merge(
 			isset( $cfg['vehicle_fees'] ) && is_array( $cfg['vehicle_fees'] ) ? $cfg['vehicle_fees'] : array(),
@@ -219,6 +223,17 @@ class Pricing_Settings {
 		}
 		$base = self::defaults();
 		$out  = array_merge( $base, $stored );
+		if ( ! empty( $stored['campsite_tiers'] ) && is_array( $stored['campsite_tiers'] ) ) {
+			foreach ( array_keys( $base['campsite_tiers'] ) as $tier_key ) {
+				if ( empty( $stored['campsite_tiers'][ $tier_key ] ) || ! is_array( $stored['campsite_tiers'][ $tier_key ] ) ) {
+					continue;
+				}
+				$out['campsite_tiers'][ $tier_key ] = array_merge(
+					$base['campsite_tiers'][ $tier_key ],
+					$stored['campsite_tiers'][ $tier_key ]
+				);
+			}
+		}
 		if ( ! empty( $stored['guest_rates'] ) && is_array( $stored['guest_rates'] ) ) {
 			$out['guest_rates'] = array_merge( $base['guest_rates'], $stored['guest_rates'] );
 		}

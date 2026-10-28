@@ -818,4 +818,7 @@ module.exports = {
   planNotion,
   phraseReply,
   executeNotionPlan,
+  findPages,
+  summarizePage,
+  loadDatabaseContext,
 };

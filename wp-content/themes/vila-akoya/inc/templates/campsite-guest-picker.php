@@ -2,8 +2,8 @@
 /**
  * Airbnb-style guest breakdown for campsite MWB booking (replaces default people number field).
  *
- * MWB uses `#mwb_mbfw_people_number` for adults only (per-guest nightly rate). Children, infants, and pets
- * are priced via theme fees (see booking-extras.php).
+ * MWB uses `#mwb_mbfw_people_number` for adults. Children, babies, and pets are recorded on the
+ * booking but do not change the price (tier rates cover the stay).
  *
  * @package Vila_Akoya
  */
@@ -24,23 +24,37 @@ if ( $max_people < $min_people ) {
 	$max_people = max( $min_people, 8 );
 }
 
-$rates      = vila_akoya_get_guest_category_nightly_rates( $product_id );
-$adult_rate = 0.0;
-if ( class_exists( '\Vila_CB\Pricing_Settings' ) ) {
-	$pricing_cfg = \Vila_CB\Pricing_Settings::get();
-	$adult_rate  = isset( $pricing_cfg['adult_per_night'] ) ? (float) $pricing_cfg['adult_per_night'] : 0.0;
-}
-if ( $adult_rate <= 0 && function_exists( 'wc_get_product' ) ) {
-	$wc_product = wc_get_product( $product_id );
-	if ( $wc_product ) {
-		$adult_rate = (float) $wc_product->get_regular_price();
-	}
-}
-$adult_rate = (float) apply_filters( 'vila_cb_adult_rate_per_night', $adult_rate, $product_id );
-$def_ad  = max( $min_people, 2 );
-$def_ad  = min( $def_ad, $max_people );
+$def_ad = max( $min_people, 2 );
+$def_ad = min( $def_ad, $max_people );
 
 $uid = 'vila-guest-' . $product_id;
+
+$rows = array(
+	'adults'   => array(
+		'label'    => __( 'Adults', 'vila-akoya' ),
+		'subtitle' => __( 'Ages 13 or above', 'vila-akoya' ),
+		'note'     => __( '1 adult on their own = solo traveller rate', 'vila-akoya' ),
+		'value'    => $def_ad,
+	),
+	'children' => array(
+		'label'    => __( 'Children', 'vila-akoya' ),
+		'subtitle' => __( 'Ages 2 – 12', 'vila-akoya' ),
+		'note'     => '',
+		'value'    => 0,
+	),
+	'infants'  => array(
+		'label'    => __( 'Babies', 'vila-akoya' ),
+		'subtitle' => __( 'Under 2', 'vila-akoya' ),
+		'note'     => '',
+		'value'    => 0,
+	),
+	'pets'     => array(
+		'label'    => __( 'Pets', 'vila-akoya' ),
+		'subtitle' => '',
+		'note'     => '',
+		'value'    => 0,
+	),
+);
 ?>
 <div
 	class="vila-guest-picker vila-airbnb-booking vila-airbnb-booking--who"
@@ -91,67 +105,15 @@ $uid = 'vila-guest-' . $product_id;
 			aria-labelledby="<?php echo esc_attr( $uid ); ?>-trigger"
 			hidden
 		>
-			<?php
-			$rows = array(
-				'adults'   => array(
-					'label'    => __( 'Adults', 'vila-akoya' ),
-					'subtitle' => __( 'Ages 13 or above', 'vila-akoya' ),
-					'min'      => $min_people,
-					'max'      => $max_people,
-					'value'    => $def_ad,
-					'rate'     => $adult_rate,
-				),
-				'children' => array(
-					'label'    => __( 'Children', 'vila-akoya' ),
-					'subtitle' => __( 'Ages 2 – 12', 'vila-akoya' ),
-					'min'      => 0,
-					'max'      => $max_people,
-					'value'    => 0,
-					'rate_key' => 'children',
-				),
-				'infants'  => array(
-					'label'    => __( 'Babies', 'vila-akoya' ),
-					'subtitle' => __( 'Under 2', 'vila-akoya' ),
-					'min'      => 0,
-					'max'      => $max_people,
-					'value'    => 0,
-					'rate_key' => 'infants',
-				),
-				'pets'     => array(
-					'label'    => __( 'Pets', 'vila-akoya' ),
-					'subtitle' => '',
-					'min'      => 0,
-					'max'      => 5,
-					'value'    => 0,
-					'rate_key' => 'pets',
-				),
-			);
-			foreach ( $rows as $slug => $row ) :
-				$rate_note = '';
-				if ( isset( $row['rate'] ) && (float) $row['rate'] > 0 && function_exists( 'wc_price' ) ) {
-					$rate_note = sprintf(
-						/* translators: %s: formatted price per night */
-						__( '+ %s / night', 'vila-akoya' ),
-						wp_strip_all_tags( wc_price( (float) $row['rate'] ) )
-					);
-				} elseif ( ! empty( $row['rate_key'] ) && isset( $rates[ $row['rate_key'] ] ) && (float) $rates[ $row['rate_key'] ] > 0 && function_exists( 'wc_price' ) ) {
-					$rate_note = sprintf(
-						/* translators: %s: formatted price per night */
-						__( '+ %s / night', 'vila-akoya' ),
-						wp_strip_all_tags( wc_price( $rates[ $row['rate_key'] ] ) )
-					);
-				} elseif ( ! empty( $row['rate_key'] ) && isset( $rates[ $row['rate_key'] ] ) && (float) $rates[ $row['rate_key'] ] <= 0 ) {
-					$rate_note = __( 'No nightly fee', 'vila-akoya' );
-				}
-				?>
+			<?php foreach ( $rows as $slug => $row ) : ?>
 				<div class="vila-guest-picker__row flex flex-wrap items-center justify-between gap-4 border-b border-outline-variant/15 px-4 py-4 last:border-b-0" data-vila-row="<?php echo esc_attr( $slug ); ?>">
 					<div class="min-w-0 flex-1">
 						<div class="font-body font-semibold text-on-surface"><?php echo esc_html( $row['label'] ); ?></div>
-						<?php if ( ! empty( $row['subtitle'] ) ) : ?>
-						<div class="text-sm text-on-surface-variant"><?php echo esc_html( $row['subtitle'] ); ?></div>
+						<?php if ( '' !== $row['subtitle'] ) : ?>
+							<div class="text-sm text-on-surface-variant"><?php echo esc_html( $row['subtitle'] ); ?></div>
 						<?php endif; ?>
-						<?php if ( $rate_note ) : ?>
-							<div class="mt-1 text-xs text-on-surface-variant/90"><?php echo wp_kses_post( $rate_note ); ?></div>
+						<?php if ( '' !== $row['note'] ) : ?>
+							<div class="mt-1 text-xs text-on-surface-variant/90"><?php echo esc_html( $row['note'] ); ?></div>
 						<?php endif; ?>
 					</div>
 					<div class="vila-guest-picker__stepper flex shrink-0 items-center gap-3">

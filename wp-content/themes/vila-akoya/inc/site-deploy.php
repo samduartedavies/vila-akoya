@@ -6,6 +6,7 @@
  *   /?vila_akoya_deploy=1
  *   /?vila_akoya_deploy=launch-banner
  *   /?vila_akoya_deploy=booking-page
+ *   /?vila_akoya_flush_cache=1
  *
  * @package Vila_Akoya
  */
@@ -163,6 +164,135 @@ function vila_akoya_run_deploy_task( $task ) {
 }
 
 /**
+ * Flush page / object / LiteSpeed / OPcache (best effort).
+ *
+ * @return array{ok:bool, messages:list<string>}
+ */
+function vila_akoya_flush_all_caches() {
+	$messages = array();
+
+	if ( function_exists( 'wp_cache_flush' ) ) {
+		wp_cache_flush();
+		$messages[] = __( 'WordPress object cache flushed.', 'vila-akoya' );
+	}
+
+	if ( class_exists( 'LiteSpeed_Cache_API' ) && is_callable( array( 'LiteSpeed_Cache_API', 'purge_all' ) ) ) {
+		LiteSpeed_Cache_API::purge_all();
+		$messages[] = __( 'LiteSpeed Cache plugin: purge all.', 'vila-akoya' );
+	} elseif ( defined( 'LSCWP_V' ) ) {
+		do_action( 'litespeed_purge_all' );
+		$messages[] = __( 'LiteSpeed purge action fired.', 'vila-akoya' );
+	}
+
+	if ( function_exists( 'rocket_clean_domain' ) ) {
+		rocket_clean_domain();
+		$messages[] = __( 'WP Rocket: domain cache cleared.', 'vila-akoya' );
+	}
+
+	if ( function_exists( 'w3tc_flush_all' ) ) {
+		w3tc_flush_all();
+		$messages[] = __( 'W3 Total Cache: flush all.', 'vila-akoya' );
+	}
+
+	if ( function_exists( 'wp_cache_clear_cache' ) ) {
+		wp_cache_clear_cache();
+		$messages[] = __( 'WP Super Cache cleared.', 'vila-akoya' );
+	}
+
+	if ( function_exists( 'hostinger_flush_cache' ) ) {
+		hostinger_flush_cache();
+		$messages[] = __( 'Hostinger cache flushed.', 'vila-akoya' );
+	}
+
+	if ( function_exists( 'opcache_reset' ) ) {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( @opcache_reset() ) {
+			$messages[] = __( 'PHP OPcache reset.', 'vila-akoya' );
+		}
+	}
+
+	if ( class_exists( '\Vila_CB\Pricing_Settings' ) && is_callable( array( '\Vila_CB\Pricing_Settings', 'migrate_pricing_rates_2026' ) ) ) {
+		\Vila_CB\Pricing_Settings::migrate_pricing_rates_2026();
+		$messages[] = __( 'Campsite pricing schema migration checked.', 'vila-akoya' );
+	}
+
+	$theme_ver = defined( 'VILA_AKOYA_VERSION' ) ? (string) VILA_AKOYA_VERSION : '';
+	$messages[] = sprintf(
+		/* translators: %s: theme version string */
+		__( 'Theme version on server: %s', 'vila-akoya' ),
+		$theme_ver ? $theme_ver : __( '(unknown)', 'vila-akoya' )
+	);
+
+	$extras = defined( 'VILA_AKOYA_DIR' ) ? VILA_AKOYA_DIR . '/inc/booking-extras.php' : '';
+	if ( $extras && is_readable( $extras ) ) {
+		$messages[] = sprintf(
+			/* translators: 1: file path, 2: UTC modified time */
+			__( 'booking-extras.php on server (mtime UTC): %1$s', 'vila-akoya' ),
+			gmdate( 'Y-m-d H:i:s', (int) filemtime( $extras ) )
+		);
+		$snippet = (string) file_get_contents( $extras ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$messages[] = str_contains( $snippet, 'vila_campsite_electricity_included' )
+			? __( 'Booking form: electricity toggle UI detected.', 'vila-akoya' )
+			: __( 'Booking form: still OLD file (no electricity toggle). Re-upload wp-content/themes/vila-akoya/.', 'vila-akoya' );
+	} else {
+		$messages[] = __( 'booking-extras.php not readable on server.', 'vila-akoya' );
+	}
+
+	$js = defined( 'VILA_AKOYA_DIR' ) ? VILA_AKOYA_DIR . '/assets/js/booking-ui.js' : '';
+	if ( $js && is_readable( $js ) ) {
+		$js_body = (string) file_get_contents( $js ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$messages[] = str_contains( $js_body, 'campsiteTierTotal' )
+			? __( 'booking-ui.js: tier pricing JS detected.', 'vila-akoya' )
+			: __( 'booking-ui.js: still OLD (no tier pricing). Re-upload assets/js/booking-ui.js.', 'vila-akoya' );
+	}
+
+	do_action( 'vila_akoya_after_cache_flush' );
+
+	if ( empty( $messages ) ) {
+		$messages[] = __( 'No cache backends were detected; diagnostics only.', 'vila-akoya' );
+	}
+
+	return array(
+		'ok'       => true,
+		'messages' => $messages,
+	);
+}
+
+/**
+ * Handle /?vila_akoya_flush_cache=1 for logged-in administrators.
+ */
+function vila_akoya_maybe_handle_flush_cache_url() {
+	if ( is_admin() ) {
+		return;
+	}
+
+	$raw = isset( $_GET['vila_akoya_flush_cache'] ) ? wp_unslash( (string) $_GET['vila_akoya_flush_cache'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( '' === $raw ) {
+		return;
+	}
+
+	if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
+		wp_die(
+			esc_html__( 'Log in as a site administrator, then open this link again.', 'vila-akoya' ),
+			esc_html__( 'Vila Akoya cache flush', 'vila-akoya' ),
+			array( 'response' => 403 )
+		);
+	}
+
+	$result  = vila_akoya_flush_all_caches();
+	$title   = __( 'Cache flush complete', 'vila-akoya' );
+	$body    = '<ul>';
+	foreach ( $result['messages'] as $message ) {
+		$body .= '<li>' . esc_html( $message ) . '</li>';
+	}
+	$body .= '</ul>';
+	$body .= '<p><a href="' . esc_url( home_url( '/booking/' ) ) . '">' . esc_html__( 'Open booking page', 'vila-akoya' ) . '</a></p>';
+
+	wp_die( $body, esc_html( $title ), array( 'response' => 200 ) );
+}
+add_action( 'template_redirect', 'vila_akoya_maybe_handle_flush_cache_url', 0 );
+
+/**
  * Handle /?vila_akoya_deploy=… for logged-in administrators.
  */
 function vila_akoya_maybe_handle_deploy_url() {
@@ -206,7 +336,8 @@ function vila_akoya_maybe_handle_deploy_url() {
 		$body .= '</ul>';
 	}
 
-	$body .= '<p>' . esc_html__( 'Purge your site cache (LiteSpeed, etc.) if changes are not visible yet.', 'vila-akoya' ) . '</p>';
+	$flush = esc_url( add_query_arg( 'vila_akoya_flush_cache', '1', home_url( '/' ) ) );
+	$body .= '<p><a href="' . $flush . '">' . esc_html__( 'Flush caches & run diagnostics', 'vila-akoya' ) . '</a></p>';
 	$body .= '<p><a href="' . $home . '">' . esc_html__( 'View homepage', 'vila-akoya' ) . '</a> · ';
 	$body .= '<a href="' . $booking . '">' . esc_html__( 'View booking page', 'vila-akoya' ) . '</a></p>';
 

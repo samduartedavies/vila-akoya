@@ -8,10 +8,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const NOTION_API_KEY =
-  process.env.NOTION_API_KEY ||
-  process.env.NOTION_TOKEN ||
-  "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";
+require("./load-env");
+
+const NOTION_API_KEY = process.env.NOTION_API_KEY || process.env.NOTION_TOKEN || "";
 
 const NOTION_VERSION = process.env.NOTION_VERSION || "2022-06-28";
 const NOTION_API = "https://api.notion.com/v1";
@@ -43,6 +42,9 @@ const DB = {
   EXPENSES: "Expenses",
   LOCATIONS: "Where things are",
   FAQS: "FAQs",
+  MARKET_RATINGS: "Market ratings",
+  MEDICAL_FACILITIES: "Medical facilities",
+  MEDICAL_FACILITY_RATINGS: "Medical facility ratings",
 };
 
 const WATCH_DB_NAMES = [

@@ -20,6 +20,11 @@ wp-content/debug.log
 # Local Netlify folder
 .netlify
 
+# Secrets (API keys, bot token) — see .env.example
+.env
+.env.*
+!.env.example
+
 # Telegram bot local state + docs index
 scripts/.vila-akoya-telegram-state.json
 scripts/.vila-akoya-telegram-state.json.lock

@@ -14,9 +14,10 @@
 
 "use strict";
 
+require("./load-env");
 const { withVavaVoice } = require("./vava-voice");
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "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";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
 // gpt-4o: stronger routing and replies for messy village chat (override via OPENAI_CHAT_MODEL).
 const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-4o";
@@ -27,6 +28,10 @@ const VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4o";
 const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small";
 const TRANSCRIBE_MODEL =
   process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe";
+// Tool-calling agent for tagged messages and DMs (scripts/lib/vava-tool-agent.js).
+const AGENT_MODEL = process.env.OPENAI_AGENT_MODEL || "gpt-6.1-sol";
+const AGENT_API = (process.env.OPENAI_AGENT_API || "responses").toLowerCase();
+const AGENT_REASONING = process.env.OPENAI_AGENT_REASONING ?? "low";
 
 function isEnabled() {
   return Boolean(OPENAI_API_KEY);
@@ -84,6 +89,109 @@ async function chatJSONMessages(system, userContent, { model, temperature } = {}
   } catch {
     return {};
   }
+}
+
+/** One chat turn with function tools. Returns the assistant message and token usage. */
+/**
+ * One model turn with function tools. Takes/returns Chat Completions-shaped messages
+ * ({role, content, tool_calls} / {role:"tool", tool_call_id, content}) whichever API is used.
+ * Default API is /responses (reasoning models only support tools there); the assistant
+ * message carries `_items` (raw output incl. encrypted reasoning) to replay next round.
+ */
+async function chatWithTools({ messages, tools, model } = {}) {
+  const useModel = model || AGENT_MODEL;
+  if (AGENT_API === "chat") {
+    const body = {
+      model: useModel,
+      messages: messages.map(({ _items, ...m }) => m),
+    };
+    if (tools?.length) {
+      body.tools = tools;
+      body.tool_choice = "auto";
+    }
+    const json = await openai("/chat/completions", body);
+    return {
+      message: json.choices?.[0]?.message || { role: "assistant", content: "" },
+      usage: json.usage || null,
+      model: json.model || body.model,
+    };
+  }
+
+  const instructions = messages
+    .filter((m) => m.role === "system")
+    .map((m) => m.content)
+    .join("\n\n");
+  const input = [];
+  for (const m of messages) {
+    if (m.role === "system") continue;
+    if (m.role === "tool") {
+      input.push({ type: "function_call_output", call_id: m.tool_call_id, output: String(m.content ?? "") });
+    } else if (m.role === "assistant" && Array.isArray(m._items)) {
+      input.push(...m._items);
+    } else if (m.role === "assistant") {
+      if (m.content) input.push({ role: "assistant", content: m.content });
+      for (const call of m.tool_calls || []) {
+        input.push({
+          type: "function_call",
+          call_id: call.id,
+          name: call.function?.name,
+          arguments: call.function?.arguments || "{}",
+        });
+      }
+    } else {
+      input.push({ role: m.role, content: String(m.content ?? "") });
+    }
+  }
+
+  const body = {
+    model: useModel,
+    instructions,
+    input,
+    store: false,
+    include: ["reasoning.encrypted_content"],
+  };
+  if (AGENT_REASONING) body.reasoning = { effort: AGENT_REASONING };
+  if (tools?.length) {
+    body.tools = tools.map((t) => ({
+      type: "function",
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters,
+    }));
+    body.tool_choice = "auto";
+  }
+
+  const json = await openai("/responses", body);
+  const output = Array.isArray(json.output) ? json.output : [];
+  const text = output
+    .filter((item) => item.type === "message")
+    .flatMap((item) => item.content || [])
+    .filter((c) => c.type === "output_text")
+    .map((c) => c.text)
+    .join("")
+    .trim();
+  const toolCalls = output
+    .filter((item) => item.type === "function_call")
+    .map((item) => ({
+      id: item.call_id,
+      type: "function",
+      function: { name: item.name, arguments: item.arguments || "{}" },
+    }));
+  const u = json.usage || {};
+  return {
+    message: {
+      role: "assistant",
+      content: text,
+      ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
+      _items: output,
+    },
+    usage: {
+      prompt_tokens: u.input_tokens || 0,
+      completion_tokens: u.output_tokens || 0,
+      prompt_tokens_details: { cached_tokens: u.input_tokens_details?.cached_tokens || 0 },
+    },
+    model: json.model || useModel,
+  };
 }
 
 // ── Smart task intake ────────────────────────────────────────────────────
@@ -314,6 +422,8 @@ async function answerFromData(question, snapshot) {
       "Set answered=true when Events data is enough to answer, even when chores are irrelevant.",
       "Check-ins, meals, and headcounts come from website bookings.",
       "If the answer is not in the data, set answered=false and do not guess.",
+      "If the question is about the bot, being ignored, jokes, or small talk — set answered=false (do not use schedule data).",
+      "Only mention markets when they asked about markets, mercados, feiras, or what is on today/this week in that sense.",
       "Never list bot commands or everything you can do — answer the question only.",
       'Return JSON: { "answered": bool, "answer": string }.',
     ].join("\n")
@@ -690,6 +800,8 @@ module.exports = {
   embed,
   embedOne,
   completeJSON: chatJSONMessages,
+  chatWithTools,
+  AGENT_MODEL,
   classifyTask,
   classifyGroupMessage,
   classifyIntent,

@@ -68,6 +68,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
+require("./lib/load-env");
 const notion = require("./lib/notion");
 const campsiteOps = require("./lib/campsite-ops");
 const openaiLib = require("./lib/openai");
@@ -88,7 +89,13 @@ const {
   CHAT_ACTIVITY_KIND,
   buildWeekCalendarContext,
   resolveScheduleRange,
+  TASK_TYPES,
+  TASK_PRIORITIES,
+  DUTY_FREQUENCIES,
+  EVENT_TYPES,
+  LOCATION_UPDATE_KINDS,
 } = require("./lib/community-actions");
+const vavaToolAgent = require("./lib/vava-tool-agent");
 const {
   parseRecurrence,
   occursOn,
@@ -106,9 +113,15 @@ const {
   staggeredWeeklyDueDate,
 } = require("./lib/duty-schedule");
 const regionalMarkets = require("./lib/regional-markets");
+const marketRatings = require("./lib/market-ratings");
+const medicalFacilities = require("./lib/medical-facilities");
 
 // ── Config ──────────────────────────────────────────────────────────────────
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8991030236:AAEbLuvsa5HRn2rMwCDu8468kAKERo9DhxY";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+if (!TELEGRAM_BOT_TOKEN) {
+  console.error("TELEGRAM_BOT_TOKEN is not set. Add it to .env in the repo root.");
+  process.exit(1);
+}
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1003979087550";
 
 const TASK_GROUP_CHAT_ID =
@@ -2755,45 +2768,140 @@ function extractPlaceFromMarketTitle(title) {
   return m ? m[1].trim() : String(title || "").replace(/^market\s*/i, "").trim();
 }
 
-function marketPlaceAliases(place) {
-  const p = foldAccents(place);
-  const aliases = new Set([p]);
-  const noParen = p.replace(/\s*\([^)]*\)/g, "").trim();
-  if (noParen) aliases.add(noParen);
-  const beforeComma = p.split(",")[0].trim();
-  if (beforeComma) aliases.add(beforeComma);
-  const head = beforeComma.split(/\s+/)[0];
-  if (head && head.length >= 4) aliases.add(head);
-  return [...aliases].filter(Boolean);
-}
-
 function filterMarketsByPlaceInQuestion(text, catalog) {
-  const q = foldAccents(text).replace(/[^a-z0-9\s]/g, " ");
-  if (
-    (/\bsao\s+martinho\b/.test(q) || /\bmartinho\b/.test(q)) &&
-    /\b(amoreiras|armoreiras)\b/.test(q)
-  ) {
-    return catalog.filter((m) => foldAccents(m.place).includes("martinho"));
-  }
-  const hits = new Set();
-  for (const m of catalog) {
-    let matched = false;
-    for (const alias of marketPlaceAliases(m.place)) {
-      if (alias.length >= 4 && q.includes(alias)) matched = true;
-    }
-    const p = foldAccents(m.place);
-    const words = p.split(/\s+/).filter((w) => w.length > 2);
-    const significant = words.filter((w) => !["das", "de", "do", "da", "sao", "são", "city", "town"].includes(w));
-    if (significant.length >= 2 && significant.every((w) => q.includes(w))) matched = true;
-    if (matched) hits.add(m);
-  }
-  return [...hits];
+  return regionalMarkets.findMarketsMatchingText(text, catalog);
 }
 
 function matchMarketPlaceInQuestion(text, catalog) {
   const matches = filterMarketsByPlaceInQuestion(text, catalog);
   if (matches.length === 1) return matches[0].place;
   return null;
+}
+
+function looksLikeBotHealthPing(text) {
+  const t = foldAccents(text);
+  return /\b(are you (alive|there|ok|working|awake)|you alive|bot broken|not responsive|vava doesn)\b/.test(
+    t
+  );
+}
+
+/** Jokes / talk about the bot — not a request for markets, events, or rota. */
+function looksLikeMetaOrSocialBotMessage(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return false;
+  if (looksLikeBotHealthPing(text)) return true;
+  const t = foldAccents(raw);
+  if (
+    /\b(programmed? you|program you|ignore me|ignoring me|did\s+\w+\s+program|why aren.t you|acting weird|talking to me|not responsive)\b/.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (/^(haha|lol|hehe|lmao)\b/i.test(raw) && /\b(bot|vava|you)\b/.test(t)) return true;
+  return false;
+}
+
+/** Only pull schedule/market data when this message itself asks for it (ignore chat context). */
+function userWantsScheduleData(text) {
+  if (!text || looksLikeMetaOrSocialBotMessage(text)) return false;
+  return looksLikeScheduleQuestion(text);
+}
+
+async function shouldPreferMedicalFacilityRating(text) {
+  if (!medicalFacilities.looksLikeMedicalFacilityRatingMessage(text)) return false;
+  if (!marketRatings.looksLikeMarketRatingMessage(text)) return true;
+  const catalog = await medicalFacilities.loadFacilityCatalog();
+  const hints = medicalFacilities.parseMedicalRatingsFromText(text);
+  if (!hints.length) return true;
+  return hints.every((row) => medicalFacilities.ratingHintLooksMedical(row.hint, catalog));
+}
+
+async function handleMedicalFacilityRatings({ text, from, chatId }) {
+  try {
+    const reviewer = senderDisplayName(from);
+    const results = await medicalFacilities.recordMedicalFacilityRatingsFromMessage({
+      text,
+      reviewer,
+    });
+    if (!results.length) {
+      await sendMessage(
+        chatId,
+        "To rate a clinic or hospital (1–10), send e.g. <code>Centro de Saúde de Ourique: 9</code> or <code>Hospital José Joaquim Fernandes: 8</code>."
+      );
+      return true;
+    }
+    const lines = results.map((r) => {
+      let line = `• ${escapeHtml(r.name)}: ${r.score}/10 saved`;
+      if (r.count) line += ` — avg ${r.avg}/10 (${r.count} review${r.count === 1 ? "" : "s"})`;
+      if (r.unknown) line += " (name not in the directory — rating still logged)";
+      return line;
+    });
+    await sendMessage(chatId, `Thanks, ${escapeHtml(reviewer)}!\n${lines.join("\n")}`);
+    return true;
+  } catch (err) {
+    log("handleMedicalFacilityRatings error:", err.message);
+    if (/database|Medical facility|Could not find/i.test(err.message)) {
+      await sendMessage(
+        chatId,
+        "Medical directory isn't wired in Notion yet. Run <code>npm run notion:setup-medical</code>, then try again."
+      );
+      return true;
+    }
+    await sendMessage(chatId, "Sorry, I couldn't save that facility review right now.");
+    return true;
+  }
+}
+
+async function routeFacilityOrMarketRating({ text, from, chatId }) {
+  const med = medicalFacilities.looksLikeMedicalFacilityRatingMessage(text);
+  const mkt = marketRatings.looksLikeMarketRatingMessage(text);
+  if (med && !mkt) return handleMedicalFacilityRatings({ text, from, chatId });
+  if (mkt && !med) return handleMarketRatings({ text, from, chatId });
+  if (med && mkt) {
+    const preferMedical = await shouldPreferMedicalFacilityRating(text);
+    if (preferMedical) return handleMedicalFacilityRatings({ text, from, chatId });
+    return handleMarketRatings({ text, from, chatId });
+  }
+  return false;
+}
+
+async function handleMarketRatings({ text, from, chatId }) {
+  try {
+    const catalog = await loadMarketCatalog();
+    const reviewer = senderDisplayName(from);
+    const results = await marketRatings.recordMarketRatingsFromMessage({
+      text,
+      reviewer,
+      catalog,
+    });
+    if (!results.length) {
+      await sendMessage(
+        chatId,
+        "To rate a market (1–10), send e.g. <code>Barão de S. João: 3</code> or <code>FATACIL: 9</code>. I'll keep the community average in Notion."
+      );
+      return true;
+    }
+    const lines = results.map((r) => {
+      let line = `• ${escapeHtml(r.place)}: ${r.score}/10 saved`;
+      if (r.count) line += ` — avg ${r.avg}/10 (${r.count} rating${r.count === 1 ? "" : "s"})`;
+      if (r.unknownPlace) line += " (name not in the market list — rating still logged)";
+      return line;
+    });
+    await sendMessage(chatId, `Thanks, ${escapeHtml(reviewer)}!\n${lines.join("\n")}`);
+    return true;
+  } catch (err) {
+    log("handleMarketRatings error:", err.message);
+    if (/database|Market ratings|Could not find/i.test(err.message)) {
+      await sendMessage(
+        chatId,
+        "Market ratings aren't wired in Notion yet. Run <code>npm run notion:setup-market-ratings</code> on the server, then try again."
+      );
+      return true;
+    }
+    await sendMessage(chatId, "Sorry, I couldn't save that market rating right now.");
+    return true;
+  }
 }
 
 function resolveMarketQueryDate(text) {
@@ -2816,7 +2924,14 @@ async function loadMarketCatalog() {
     log(`Market catalog fetch failed (${EXTERNAL_EVENTS_DB_NAME}):`, err.message);
   }
 
-  return regionalMarkets.mergeMarketCatalogs(notionEntries);
+  let catalog = regionalMarkets.mergeMarketCatalogs(notionEntries);
+  try {
+    const aggregates = await marketRatings.loadRatingAggregates();
+    catalog = marketRatings.enrichCatalogWithRatings(catalog, aggregates);
+  } catch (err) {
+    log("Market ratings load skipped:", err.message);
+  }
+  return catalog;
 }
 
 async function fetchMarketsForDate(dateISO) {
@@ -2825,6 +2940,10 @@ async function fetchMarketsForDate(dateISO) {
 }
 
 async function answerMarketQuestion(text) {
+  if (marketRatings.looksLikeMarketRatingMessage(text)) {
+    return { answered: false, answer: "" };
+  }
+
   const catalog = await loadMarketCatalog();
   const targetDate = resolveMarketQueryDate(text);
   const placeMatches = filterMarketsByPlaceInQuestion(text, catalog);
@@ -2834,6 +2953,26 @@ async function answerMarketQuestion(text) {
 
   if (!catalog.length) {
     return { answered: false, answer: "" };
+  }
+
+  if (marketRatings.looksLikeMarketRatingQuery(text) && placeMatches.length) {
+    const aggregates = await marketRatings.loadRatingAggregates();
+    const lines = [];
+    const seen = new Set();
+    for (const m of placeMatches) {
+      const key = regionalMarkets.normalizePlaceForDedupe(m.place);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const agg = aggregates.get(key);
+      if (agg?.count) {
+        lines.push(`• ${m.place}: ${marketRatings.formatRatingSummary(agg)}`);
+      } else {
+        lines.push(`• ${m.place}: no ratings yet`);
+      }
+    }
+    if (lines.length) {
+      return { answered: true, answer: `Market ratings:\n${lines.join("\n")}` };
+    }
   }
 
   let pool = catalog;
@@ -2876,9 +3015,13 @@ async function answerMarketQuestion(text) {
     const dayLabel = targetDate === todayISO() ? "today" : targetDate;
     if (onDate.length) {
       const loc = m.locale ? ` Location: ${m.locale}.` : "";
+      const rating =
+        m.ratingAvg != null && m.ratingCount
+          ? ` Rating: ${marketRatings.formatRatingSummary(m)}.`
+          : "";
       return {
         answered: true,
-        answer: `Yes — ${m.place} market is on ${dayLabel} (${targetDate}).${label ? ` (${label})` : ""}${loc}`,
+        answer: `Yes — ${m.place} market is on ${dayLabel} (${targetDate}).${label ? ` (${label})` : ""}${loc}${rating}`,
       };
     }
     const next = rule ? nextOccurrence(rule, targetDate, RECAP_TZ) : null;
@@ -6524,6 +6667,34 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
     if (faqFirst) return true;
   }
 
+  if (medicalFacilities.looksLikeMedicalFacilityQuestion(text)) {
+    try {
+      const result = await medicalFacilities.answerMedicalQuestion(text);
+      if (result.answered && result.answer) {
+        await sendMessage(chatId, result.answer);
+        log(`Medical directory answer: ${text.slice(0, 60)}`);
+        return true;
+      }
+    } catch (err) {
+      log("answerMedicalQuestion error:", err.message);
+      if (interactive) {
+        await sendMessage(
+          chatId,
+          "I couldn't load the medical directory. Run <code>npm run notion:setup-medical</code> if this is a new setup."
+        );
+        return true;
+      }
+    }
+  }
+
+  if (
+    medicalFacilities.looksLikeMedicalFacilityRatingMessage(text) ||
+    marketRatings.looksLikeMarketRatingMessage(text)
+  ) {
+    const routed = await routeFacilityOrMarketRating({ text, from, chatId });
+    if (routed !== false) return routed;
+  }
+
   if (questionKind === "expenses" || looksLikeExpenseQuestion(text)) {
     try {
       await sendExpenseSummary(chatId, { from });
@@ -6550,7 +6721,19 @@ async function handleClassifiedQuestion({ text, questionKind, from, chatId, inte
     }
   }
 
-  if (questionKind === "schedule" && !faqsLib.looksLikeFaqQuestion(text)) {
+  if (
+    questionKind === "schedule" &&
+    !faqsLib.looksLikeFaqQuestion(text) &&
+    (userWantsScheduleData(text) ||
+      marketRatings.looksLikeMarketRatingMessage(text) ||
+      medicalFacilities.looksLikeMedicalFacilityRatingMessage(text))
+  ) {
+    if (
+      marketRatings.looksLikeMarketRatingMessage(text) ||
+      medicalFacilities.looksLikeMedicalFacilityRatingMessage(text)
+    ) {
+      return routeFacilityOrMarketRating({ text, from, chatId });
+    }
     if (looksLikeMarketQuestion(text)) {
       try {
         const marketResult = await answerMarketQuestion(text);
@@ -6945,6 +7128,32 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
   const minConf = actionMinConfidence(interactive);
 
   // Cheap path: personal agenda without waiting on classifier nuance
+  if (interactive && text && looksLikeBotHealthPing(text)) {
+    await sendMessage(
+      chatId,
+      "Yes — I'm here. Ask about markets (with ratings like <code>Loulé: 8</code>), today's schedule, tasks, or /help."
+    );
+    return;
+  }
+
+  if (interactive && text && looksLikeMetaOrSocialBotMessage(text)) {
+    const ok = await replyConversationally({
+      text,
+      chatId,
+      situation:
+        "Joke or question about VAVA/the bot — reply briefly. Do NOT list markets or events.",
+    });
+    if (!ok) {
+      await sendMessage(chatId, "No secret programming — I'm here when you @ me. 🙂");
+    }
+    return;
+  }
+
+  if (interactive && text && (marketRatings.looksLikeMarketRatingMessage(text) || medicalFacilities.looksLikeMedicalFacilityRatingMessage(text))) {
+    await routeFacilityOrMarketRating({ text, from, chatId });
+    return;
+  }
+
   if (interactive && text && looksLikeMyDayQuestion(text)) {
     await sendMyDayBriefing(from, chatId, todayISO());
     return;
@@ -7505,9 +7714,813 @@ async function deliverAgentNotion(plan, { from, chatId, text, message }) {
   return true;
 }
 
-async function routeAddressedMessage(message) {
+// ── VAVA tool agent (tagged messages + DMs) ──────────────────────────────────
+// GPT reads the message and decides: chat, call one of these tools, or hand off.
+// Privacy rules live inside the tools, not in the prompt.
+
+const VAVA_AGENT_MODE = String(process.env.VAVA_AGENT || "tools").trim().toLowerCase();
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function agentDate(value) {
+  const s = String(value || "").trim();
+  return ISO_DATE_RE.test(s) ? s : todayISO();
+}
+
+function agentScheduleWindow({ range, date }) {
+  const today = todayISO();
+  if (ISO_DATE_RE.test(String(date || ""))) return { start: date, end: date, label: date };
+  if (range === "tomorrow") {
+    const d = addDaysISO(today, 1);
+    return { start: d, end: d, label: `Tomorrow (${d})` };
+  }
+  return resolveScheduleRange(range || "today", today, RECAP_TZ);
+}
+
+function marketForAgent(m, today) {
+  const rule = m.recurrenceText ? parseRecurrence(m.recurrenceText) : null;
+  let next = null;
+  if (rule) {
+    try {
+      next = nextOccurrence(rule, today);
+    } catch {
+      next = null;
+    }
+  }
+  return {
+    place: m.place,
+    kind: m.kind === regionalMarkets.MARKET_KIND.FLEA ? "flea market" : "farmers / gypsy market",
+    venue: m.locale || null,
+    hours: m.hours || null,
+    schedule: rule ? describeRecurrence(rule) : m.date || null,
+    next_date: next || null,
+    rating: m.ratingCount ? `${m.ratingAvg}/10 from ${m.ratingCount}` : null,
+  };
+}
+
+function buildAgentTools({ message, text, photoFileId, media }) {
   const chatId = message.chat.id;
   const from = message.from;
+  const isPrivate = isPrivateChat(chatId, from);
+  const today = todayISO();
+  const dateParam = { type: "string", description: "YYYY-MM-DD; omit for today" };
+
+  const dedupe = (type, title) => {
+    const key = ambientDedupeKey(chatId, type, title);
+    return { seen: wasRecentlyCaptured(key), mark: () => markCaptured(key) };
+  };
+
+  return [
+    // ── Read ──
+    {
+      name: "get_schedule",
+      description:
+        "Village calendar: events (internal + external), and for single days also chores rota, community cooking offers and campsite meal counts. Does NOT include markets (use find_markets).",
+      parameters: {
+        type: "object",
+        properties: {
+          range: { type: "string", enum: ["today", "tomorrow", "this_week", "next_week", "two_weeks"] },
+          date: { type: "string", description: "Specific day YYYY-MM-DD (overrides range)" },
+        },
+      },
+      run: async (args) => {
+        const win = agentScheduleWindow(args);
+        const events = (await fetchEventsBetween(win.start, win.end)).map((e) => ({
+          date: e.date,
+          title: e.title,
+          type: e.type || null,
+          recurrence: e.recurrence || null,
+        }));
+        const out = { window: win.label, events };
+        if (win.start === win.end) {
+          const day = win.start;
+          out.morning_meeting_theme = morningMeetingThemeForDate(day) || null;
+          out.chores = (await fetchRotaForDay(day)).map((c) => ({ chore: c.chore, assignee: c.assignee }));
+          out.community_cooking = await fetchCommunityCookOffersForDay(day);
+          const meals = await fetchCampsiteMealsForDay(day);
+          if (meals) {
+            out.campsite_meals = {
+              breakfast_bookings: meals.breakfastCook,
+              dinner_bookings: meals.dinnerCook,
+              weekday_dinner: isWeekdayDinnerDay(day, meals),
+            };
+          }
+        }
+        return out;
+      },
+    },
+    {
+      name: "find_markets",
+      description:
+        "Algarve/Odemira markets: which are on a date, where one is (venue), when one runs, its rating. Flea markets and farmers/gypsy markets are separate kinds — keep them in separate lists when replying.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD to list markets on that day" },
+          place: { type: "string", description: "Town or market name, e.g. Loulé, Barão de São João" },
+          kind: { type: "string", enum: ["flea", "farmers"] },
+        },
+      },
+      run: async ({ date, place, kind }) => {
+        const catalog = await loadMarketCatalog();
+        let pool = place ? regionalMarkets.findMarketsMatchingText(`market at ${place}`, catalog) : catalog;
+        if (kind) pool = pool.filter((m) => m.kind === kind);
+        const day = date && ISO_DATE_RE.test(date) ? date : !place ? today : null;
+        if (day) pool = pool.filter((m) => eventMatchesDate(m.date, m.recurrenceText, day));
+        return {
+          date: day,
+          place_searched: place || null,
+          total: pool.length,
+          markets: pool.slice(0, 40).map((m) => marketForAgent(m, today)),
+        };
+      },
+    },
+    {
+      name: "search_docs",
+      description: "Search village documentation (rules, how-tos, policies, guides) and answer from it.",
+      parameters: {
+        type: "object",
+        properties: { question: { type: "string" } },
+        required: ["question"],
+      },
+      run: async ({ question }) => {
+        const r = await answerQuestion(question);
+        if (!r.available || !r.indexed) return { found: false, reason: "docs search unavailable" };
+        if (!r.answered) return { found: false };
+        return {
+          found: true,
+          answer: r.answer,
+          links: (r.sources || []).slice(0, 3).map((s) => ({ title: s.name, url: s.url })),
+        };
+      },
+    },
+    {
+      name: "faq_lookup",
+      description: "Look up the village FAQs (addresses, wifi, practical answers). list_all=true lists them.",
+      parameters: {
+        type: "object",
+        properties: { question: { type: "string" }, list_all: { type: "boolean" } },
+      },
+      run: async ({ question, list_all }) => {
+        const r = await faqsLib.answerFaqQuestion({ question: question || text, listAll: list_all });
+        if (r.list) return { list: r.snapshot };
+        if (r.ok && r.faq) {
+          return { answer: faqsLib.formatFaqAnswer(r.faq), url: r.faq.url, linkTitle: "FAQ" };
+        }
+        if (r.reason === "ambiguous") return { ambiguous: (r.matches || []).map((m) => m.question) };
+        return { found: false };
+      },
+    },
+    {
+      name: "where_is",
+      description: "Where a shared item/tool/key is kept on site (Where things are). list_all=true lists everything.",
+      parameters: {
+        type: "object",
+        properties: { item: { type: "string" }, area: { type: "string" }, list_all: { type: "boolean" } },
+      },
+      run: async ({ item, area, list_all }) => {
+        const r = await locationsLib.answerLocationQuestion({ item, area, listAll: list_all, question: item || text });
+        if (r.list) return { list: r.snapshot };
+        if (r.ok && r.item) {
+          return { answer: locationsLib.formatLocationAnswer(r.item), url: r.item.url, linkTitle: r.item.name || "Notion" };
+        }
+        if (r.reason === "ambiguous") return { ambiguous: (r.matches || []).map((m) => m.name) };
+        return { found: false };
+      },
+    },
+    {
+      name: "booking_links",
+      description: "Links to book weekday community dinners (Mon–Fri) or childcare. The links are attached to your reply automatically.",
+      parameters: { type: "object", properties: {} },
+      run: async () => ({
+        note: "Links will be attached under your reply.",
+        links: [
+          { title: "Book dinner", url: DINNER_BOOKING_URL },
+          { title: "Book childcare", url: CHILDCARE_BOOKING_URL },
+        ],
+      }),
+    },
+    {
+      name: "childcare",
+      description: "Childcare headcount for a day. The child roster is only returned in a DM with a child minder.",
+      parameters: { type: "object", properties: { date: dateParam } },
+      run: async ({ date }) => {
+        const c = await fetchChildcareForDay(agentDate(date));
+        const canSeeRoster = isPrivate && (await isChildMinder(from));
+        return {
+          summary: formatChildcareLine(c),
+          ...(canSeeRoster
+            ? { roster: c?.roster || "" }
+            : { privacy: "Children's names and details are only shared with child minders in a DM." }),
+        };
+      },
+    },
+    {
+      name: "kids_programme",
+      description: "Kids programme shifts (who is teaching what) for a day.",
+      parameters: { type: "object", properties: { date: dateParam } },
+      run: async ({ date }) => {
+        const shifts = await fetchKidsProgrammeShiftsForDay(agentDate(date));
+        return { shifts: shifts.length ? kidsProgrammeLib.formatKidsProgrammeBlock(shifts) : "No shifts." };
+      },
+    },
+    {
+      name: "campsite_activity",
+      description: "Campsite check-ins, check-outs and pitches occupied. Management only, DM only.",
+      parameters: { type: "object", properties: { date: dateParam } },
+      run: async ({ date }) => {
+        if (!(await isManagementMember(from))) return { error: "Only management can see campsite guests." };
+        if (!isPrivate) return { error: "Guest details are only shared in a DM — ask me privately." };
+        const a = await fetchCampsiteActivityForDay(agentDate(date));
+        return {
+          checking_in: (a.arrivals || []).map((b) => b.line),
+          checking_out: (a.departures || []).map((b) => b.line),
+          on_site: (a.staying || []).map((b) => b.line),
+        };
+      },
+    },
+    {
+      name: "notion_describe_database",
+      description: "Show a Notion database's fields and recent row titles. Use before notion_write if unsure of field names.",
+      parameters: {
+        type: "object",
+        properties: { database: { type: "string" } },
+        required: ["database"],
+      },
+      run: async ({ database }) => {
+        const db = vavaAgent.resolveDatabaseName(database);
+        if (!db) return { error: `Unknown database. Options: ${vavaAgent.WRITE_DATABASES.join(", ")}` };
+        const ctx = await vavaAgent.loadDatabaseContext(db);
+        return { database: db, schema: ctx.schema, recent_titles: ctx.titles };
+      },
+    },
+    {
+      name: "notion_search",
+      description: "Read rows from any village Notion database (projects, partnerships, jobs, members' roles, etc.). Private fields are hidden.",
+      parameters: {
+        type: "object",
+        properties: {
+          database: { type: "string" },
+          query: { type: "string", description: "Words to match in row titles; omit for recent rows" },
+        },
+        required: ["database"],
+      },
+      run: async ({ database, query }) => {
+        const db = vavaAgent.resolveDatabaseName(database);
+        if (!db) return { error: `Unknown database. Options: ${vavaAgent.WRITE_DATABASES.join(", ")}` };
+        const found = await vavaAgent.findPages(db, query || "");
+        const pool = found.matches?.length ? found.matches : query ? [] : found.all;
+        return {
+          database: db,
+          matched: Boolean(found.matches?.length),
+          rows: pool.slice(0, 15).map((p) => vavaAgent.summarizePage(p)),
+        };
+      },
+    },
+
+    // ── Write ──
+    {
+      name: "rate_market",
+      description: "Save someone's 1–10 rating of a market (call once per market). Returns the new average.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          place: { type: "string" },
+          score: { type: "integer", minimum: 1, maximum: 10 },
+          comment: { type: "string" },
+        },
+        required: ["place", "score"],
+      },
+      run: async ({ place, score, comment }) => {
+        const n = Math.round(Number(score));
+        if (!(n >= 1 && n <= 10)) return { error: "Score must be 1–10." };
+        const catalog = await loadMarketCatalog();
+        const target = marketRatings.resolveRatingTarget(String(place || ""), catalog);
+        try {
+          const agg = await marketRatings.recordMarketRating({
+            place: target.place,
+            placeKey: target.placeKey,
+            score: n,
+            reviewer: senderDisplayName(from),
+            comment: comment || "",
+          });
+          return {
+            saved: true,
+            market: target.place,
+            known_market: !target.unknownPlace,
+            average: agg.avg,
+            ratings: agg.count,
+            done: `Rated ${target.place} ${n}/10`,
+          };
+        } catch (err) {
+          return { error: `Couldn't save the rating (${err.message}). The Market ratings database may not be set up yet.` };
+        }
+      },
+    },
+    {
+      name: "create_task",
+      description: "Add a task to the Tasks board.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          type: { type: "string", enum: TASK_TYPES },
+          priority: { type: "string", enum: TASK_PRIORITIES },
+          assignee: { type: "string" },
+          project: { type: "string" },
+        },
+        required: ["title"],
+      },
+      run: async ({ title, type, priority, assignee, project }) => {
+        const d = dedupe("task", title);
+        if (d.seen) return { duplicate: true, note: "Already added a moment ago." };
+        const created = await createTaskFromClassification({
+          classified: { task: { title, type, priority, assignee, project } },
+          text,
+          from,
+          chatId,
+          photoFileId,
+        });
+        d.mark();
+        return {
+          created: true,
+          title,
+          project: created.project?.name || null,
+          url: created.url,
+          linkTitle: title,
+          done: `Added task “${title}”`,
+        };
+      },
+    },
+    {
+      name: "create_recurring_duty",
+      description: "Add (or update) a recurring duty, linked to a Job.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          frequency: { type: "string", enum: DUTY_FREQUENCIES },
+          job: { type: "string" },
+          assignee: { type: "string" },
+        },
+        required: ["title", "frequency"],
+      },
+      run: async ({ title, frequency, job, assignee }) => {
+        const r = await createRecurringDutyFromClassification({
+          classified: { recurring_duty: { title, frequency, job, assignee } },
+          text,
+          from,
+          chatId,
+        });
+        return {
+          ok: true,
+          updated_existing: Boolean(r.updated),
+          job: r.jobName,
+          frequency: r.frequency,
+          assignee: r.assignee,
+          next_due: r.nextDue,
+          url: r.url,
+          linkTitle: title,
+          done: `${r.updated ? "Updated" : "Added"} duty “${title}”`,
+        };
+      },
+    },
+    {
+      name: "complete_task",
+      description: "Mark a task / duty / event as done.",
+      writes: true,
+      parameters: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+      run: async ({ title }) => {
+        const r = await completeTaskFromChat({ target: { title }, text, from, chatId });
+        if (r.reason === "ambiguous") return { ambiguous: r.matches.map((m) => m.name) };
+        if (!r.ok) return { error: "Not found." };
+        return { ok: true, name: r.name, done: `Marked “${r.name || title}” done` };
+      },
+    },
+    {
+      name: "create_event",
+      description: "Add an event to the calendar. Internal = village-only; external = public/outside.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          date: { type: "string", description: "YYYY-MM-DD (first occurrence)" },
+          event_type: { type: "string", enum: EVENT_TYPES },
+          recurrence: { type: "string", description: "e.g. weekly:Sat, monthly:1st-Sun, monthly:last-Fri" },
+          scope: { type: "string", enum: ["internal", "external"] },
+        },
+        required: ["title", "date"],
+      },
+      run: async ({ title, date, event_type, recurrence, scope }) => {
+        if (!ISO_DATE_RE.test(String(date || ""))) return { error: "date must be YYYY-MM-DD" };
+        const d = dedupe("event", `${title}|${date}`);
+        if (d.seen) return { duplicate: true };
+        const r = await createEvent({
+          title,
+          date,
+          eventType: event_type,
+          recurrence,
+          scope,
+          from,
+          chatId,
+          sourceText: text,
+        });
+        d.mark();
+        return {
+          created: true,
+          date: r.date,
+          calendar: r.databaseName,
+          recurrence: r.recurrenceLabel,
+          url: r.url,
+          linkTitle: title,
+          done: `Added “${title}” on ${r.date}`,
+        };
+      },
+    },
+    {
+      name: "cancel_event",
+      description:
+        "Cancel event(s). One match cancels directly. all_matching=true cancels every match but first returns needs_confirmation with the list — confirm with the person, then call again with confirmed=true.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          all_matching: { type: "boolean" },
+          confirmed: { type: "boolean" },
+        },
+        required: ["title"],
+      },
+      run: async ({ title, all_matching, confirmed }) => {
+        if (all_matching) {
+          const matches = await findEventsBySearchQuery(title);
+          if (!matches.length) return { error: "No matching events." };
+          if (!confirmed) {
+            return { needs_confirmation: true, would_cancel: matches.map((m) => m.name) };
+          }
+          const r = await cancelEventsMatchingFromChat({ query: title, text, from, chatId });
+          if (!r.ok) return { error: "Not found." };
+          return { ok: true, cancelled: r.names, done: `Cancelled ${r.names.length} event(s)` };
+        }
+        const r = await cancelEventFromChat({ target: { title }, text, from, chatId });
+        if (r.reason === "ambiguous") {
+          return { ambiguous: r.matches.map((m) => m.name), hint: "Ask which one, or use all_matching." };
+        }
+        if (!r.ok) return { error: "Not found." };
+        return { ok: true, cancelled: r.name, done: `Cancelled “${r.name || title}”` };
+      },
+    },
+    {
+      name: "rsvp_event",
+      description: "RSVP someone (default: the speaker) to an event.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: { event_title: { type: "string" }, name: { type: "string" } },
+        required: ["event_title"],
+      },
+      run: async ({ event_title, name }) => {
+        const r = await rsvpEvent({ title: event_title, displayName: name || senderDisplayName(from), from, chatId });
+        if (!r.ok) return { error: "Event not found." };
+        return { ok: true, event: r.name, already_going: r.already, done: `RSVP’d to ${r.name}` };
+      },
+    },
+    {
+      name: "create_reminder",
+      description:
+        "Create a reminder. post_to_telegram=true makes VAVA post it in this chat on the due date (and on the recurrence if given).",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          due_date: { type: "string", description: "YYYY-MM-DD" },
+          notes: { type: "string" },
+          post_to_telegram: { type: "boolean" },
+          recurrence: { type: "string", description: "e.g. weekly:Mon, monthly:1st-Fri" },
+        },
+        required: ["title"],
+      },
+      run: async ({ title, due_date, notes, post_to_telegram, recurrence }) => {
+        const d = dedupe("reminder", title);
+        if (d.seen) return { duplicate: true };
+        const broadcast = post_to_telegram
+          ? {
+              postToTelegram: true,
+              recurrence: recurrence ? normalizeRecurrenceField(recurrence).canonical || recurrence : undefined,
+              chatId: String(chatId),
+              topicId: messageThreadId(message) || undefined,
+            }
+          : null;
+        const r = await createReminder({
+          title,
+          dueDate: ISO_DATE_RE.test(String(due_date || "")) ? due_date : null,
+          notes,
+          from,
+          chatId,
+          broadcast,
+        });
+        d.mark();
+        return { created: true, will_post: r.broadcast, url: r.url, linkTitle: title, done: `Reminder “${title}” saved` };
+      },
+    },
+    {
+      name: "update_reminder",
+      description: "Change an existing reminder's recurrence or notes.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: { match_title: { type: "string" }, recurrence: { type: "string" }, notes: { type: "string" } },
+        required: ["match_title"],
+      },
+      run: async ({ match_title, recurrence, notes }) => {
+        const r = await updateReminderFromChat({ reminder: { match_title, recurrence, notes }, from, chatId });
+        if (r.reason === "ambiguous") return { ambiguous: r.matches };
+        if (!r.ok) return { error: r.reason || "Not found." };
+        return { ok: true, name: r.name, recurrence: r.recurrence, done: `Updated reminder “${r.name}”` };
+      },
+    },
+    {
+      name: "add_note",
+      description: "Append a note to an existing task, project, job or event page.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: { target_title: { type: "string" }, note: { type: "string" } },
+        required: ["target_title", "note"],
+      },
+      run: async ({ target_title, note }) => {
+        const r = await addNoteToPage({ targetTitle: target_title, noteText: note, from, chatId });
+        if (!r.ok) return { error: "Page not found." };
+        return { ok: true, page: r.name, board: r.dbName, done: `Added a note to “${r.name}”` };
+      },
+    },
+    {
+      name: "set_location",
+      description: "Record where a shared item is now (or usually lives, or that it's missing).",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          item: { type: "string" },
+          location: { type: "string" },
+          usual_place: { type: "string" },
+          update_kind: { type: "string", enum: LOCATION_UPDATE_KINDS },
+          notes: { type: "string" },
+        },
+        required: ["item"],
+      },
+      run: async ({ item, location, usual_place, update_kind, notes }) => {
+        const r = await locationsLib.upsertLocation({
+          item,
+          location,
+          usualPlace: usual_place,
+          updateKind: update_kind,
+          notes,
+          fromName: senderDisplayName(from),
+          todayISO: today,
+          sourceText: text,
+        });
+        if (r.reason === "ambiguous") return { ambiguous: (r.matches || []).map((m) => m.name) };
+        if (!r.ok) return { error: "Couldn't save it." };
+        return {
+          ok: true,
+          name: r.name,
+          created: r.created,
+          current: r.current,
+          usual: r.usual,
+          missing: r.missing,
+          url: r.url,
+          linkTitle: r.name,
+          done: `Saved where ${r.name} is`,
+        };
+      },
+    },
+    {
+      name: "add_faq",
+      description: "Add or update a village FAQ.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: { question: { type: "string" }, answer: { type: "string" }, category: { type: "string" } },
+        required: ["question", "answer"],
+      },
+      run: async ({ question, answer, category }) => {
+        const r = await faqsLib.upsertFaq({
+          question,
+          answer,
+          category,
+          fromName: senderDisplayName(from),
+          sourceText: text,
+        });
+        if (r.reason === "ambiguous") return { ambiguous: (r.matches || []).map((m) => m.question) };
+        if (!r.ok) return { error: "Couldn't save the FAQ." };
+        return { ok: true, name: r.name, created: r.created, url: r.url, linkTitle: "FAQ", done: `Saved FAQ “${r.name}”` };
+      },
+    },
+    {
+      name: "create_doc",
+      description: "Save a piece of documentation (rules, how-to, process) to the Documentation database.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: { content: { type: "string", description: "The full text to document" } },
+        required: ["content"],
+      },
+      run: async ({ content }) => {
+        const r = await createDocumentation({ rawText: content, from, chatId, sourceText: text });
+        const title = r.structured?.title || "Documentation";
+        return { ok: true, title, url: r.doc?.url, linkTitle: title, done: `Saved doc “${title}”` };
+      },
+    },
+    {
+      name: "notion_write",
+      description:
+        "Generic Notion create/update for anything without a specific tool (projects, partnerships, jobs, members' roles…). op=create adds a row; op=update sets fields on the row matching `match`; op=note appends body text. Never deletes. Properties are field name → value strings.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          database: { type: "string" },
+          op: { type: "string", enum: ["create", "update", "note"] },
+          title: { type: "string", description: "Row title for create" },
+          match: { type: "string", description: "Title of the row to update / note" },
+          properties: { type: "object", additionalProperties: { type: "string" } },
+          body: { type: "string", description: "Text to add to the page body" },
+        },
+        required: ["database", "op"],
+      },
+      run: async ({ database, op, title, match, properties, body }) => {
+        const db = vavaAgent.resolveDatabaseName(database);
+        if (!db) return { error: `Unknown database. Options: ${vavaAgent.WRITE_DATABASES.join(", ")}` };
+        const r = await vavaAgent.executeNotionPlan({
+          notion: { op, database: db, title, match, properties: properties || {}, body },
+        });
+        if (!r.ok) return { error: r.reply || r.reason || "Couldn't write to Notion." };
+        return { ok: true, result: r.reply, url: r.url, linkTitle: r.title || db, done: r.reply };
+      },
+    },
+
+    // ── Hand-offs: these send their own reply ──
+    {
+      name: "my_day",
+      description: "Send the speaker their personal briefing (their chores, duties, tasks, events) for today. Replies itself.",
+      parameters: { type: "object", properties: { date: dateParam } },
+      run: async ({ date }) => {
+        await sendMyDayBriefing(from, chatId, agentDate(date));
+        return { handedOff: true };
+      },
+    },
+    {
+      name: "expenses_summary",
+      description: "Send the expenses summary (spend totals, what's owed). Replies itself.",
+      parameters: { type: "object", properties: {} },
+      run: async () => {
+        await sendExpenseSummary(chatId, { from });
+        return { handedOff: true };
+      },
+    },
+    {
+      name: "log_receipt",
+      description: "Log an expense/receipt from the attached photo/PDF or the amount + shop in the message. Replies itself.",
+      parameters: { type: "object", properties: {} },
+      run: async () => {
+        const logged = await handleReceiptSubmission({
+          message,
+          text,
+          from,
+          chatId,
+          force: true,
+          assumeReceipt: Boolean(media),
+        });
+        if (!logged) return { error: "Couldn't read a receipt — ask for a photo, or the amount and shop." };
+        return { handedOff: true };
+      },
+    },
+    {
+      name: "childcare_absence",
+      description: "Mark a child absent from childcare for a day. Replies itself.",
+      parameters: {
+        type: "object",
+        properties: { child_name: { type: "string" }, date: dateParam },
+      },
+      run: async ({ child_name, date }) => {
+        await handleChildcareAbsence({ text, from, chatId, childName: child_name, date: agentDate(date) });
+        return { handedOff: true };
+      },
+    },
+    {
+      name: "use_legacy_router",
+      description:
+        "Hand the message to VAVA's older specialised handlers. Use ONLY for: logging a guest stay / campsite booking, assigning kids programme teachers, or someone offering to cook for the community. Replies itself.",
+      parameters: { type: "object", properties: {} },
+      run: async () => {
+        await routeAddressedMessageLegacy(message);
+        return { handedOff: true };
+      },
+    },
+  ];
+}
+
+function buildAgentContext({ message, text, media }) {
+  const chatId = message.chat.id;
+  const isPrivate = message.chat?.type === "private";
+  const today = todayISO();
+  const dayName = new Intl.DateTimeFormat("en-GB", { timeZone: RECAP_TZ, weekday: "long" }).format(
+    new Date(`${today}T12:00:00`)
+  );
+  const earlier = memoryFor(chatId, messageThreadId(message)).filter(
+    (m) => m.messageId !== message.message_id
+  );
+  const transcript = vavaAgent.formatTranscript(earlier, { limit: 20 });
+  const reply = message.reply_to_message;
+  const replyText = reply ? (reply.text || reply.caption || "").trim() : "";
+
+  return [
+    `SPEAKER: ${senderDisplayName(message.from)} (${senderHandle(message.from)})`,
+    `CHAT: ${isPrivate ? "private DM with you" : `group chat “${message.chat.title || "group"}”`}`,
+    `TODAY: ${today} (${dayName}), ${RECAP_TZ}`,
+    buildWeekCalendarContext(today, RECAP_TZ),
+    media ? `ATTACHMENT: ${media.kind}${media.filename ? ` (${media.filename})` : ""}` : "",
+    replyText
+      ? `THEY ARE REPLYING TO ${reply.from?.is_bot ? "YOU" : senderDisplayName(reply.from)}: ${replyText.slice(0, 600)}`
+      : "",
+    `CONVERSATION SO FAR (oldest first; VAVA is you):\n${transcript || "(nothing earlier)"}`,
+    `LATEST MESSAGE:\n${text || "(no text)"}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function agentLinksHtml(links) {
+  const seen = new Set();
+  const unique = [];
+  for (const l of links || []) {
+    if (!l?.url || seen.has(l.url)) continue;
+    seen.add(l.url);
+    unique.push(l);
+  }
+  return unique
+    .slice(0, 4)
+    .map((l) => `<a href="${escapeHtml(l.url)}">${escapeHtml(l.title || "Notion")}</a>`)
+    .join(" · ");
+}
+
+const AGENT_PRICES_PER_M = {
+  "gpt-6.1-sol": { input: 2, output: 10, cached: 0.1 },
+  "gpt-6-luna": { input: 0.1, output: 0.5, cached: 0.1 },
+};
+
+function approxAgentCostUsd(usage) {
+  const prices = AGENT_PRICES_PER_M[openaiLib.AGENT_MODEL] || AGENT_PRICES_PER_M["gpt-6.1-sol"];
+  const inRate = Number(process.env.VAVA_AGENT_INPUT_PER_M || prices.input);
+  const outRate = Number(process.env.VAVA_AGENT_OUTPUT_PER_M || prices.output);
+  const cachedRate = Number(process.env.VAVA_AGENT_CACHED_PER_M || prices.cached);
+  const fresh = Math.max(0, usage.prompt - usage.cached);
+  return (fresh * inRate + usage.cached * cachedRate + usage.completion * outRate) / 1e6;
+}
+
+/** Returns true if the agent replied (or a hand-off tool did); false → caller uses the legacy router. */
+async function routeViaToolAgent({ message, text, photoFileId, media }) {
+  const chatId = message.chat.id;
+  telegram("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
+  const started = Date.now();
+  const result = await vavaToolAgent.runToolAgent({
+    tools: buildAgentTools({ message, text, photoFileId, media }),
+    context: buildAgentContext({ message, text, media }),
+    databases: vavaAgent.WRITE_DATABASES,
+    log,
+  });
+
+  const tools = result.trace.map((t) => `${t.tool}${t.ok ? "" : "✗"}`).join(",") || "none";
+  log(
+    `VAVA agent: ${result.rounds} round(s), tools=[${tools}], tokens in=${result.usage.prompt} ` +
+      `(cached ${result.usage.cached}) out=${result.usage.completion}, ~$${approxAgentCostUsd(result.usage).toFixed(4)}, ` +
+      `${Date.now() - started}ms${result.error ? `, error: ${result.error}` : ""}`
+  );
+
+  if (result.handedOff) return true;
+
+  const writes = result.trace.filter((t) => t.wrote);
+  let reply = String(result.reply || "").trim();
+  if (!reply && writes.length) {
+    reply = `Done: ${writes.map((t) => t.summary || t.tool).join("; ")}.`;
+  }
+  if (!reply) return false;
+
+  let html = escapeHtml(reply);
+  const links = agentLinksHtml(result.links);
+  if (links) html += `\n${links}`;
+  await sendMessage(chatId, html);
+  return true;
+}
+
+/** Text (incl. voice transcription), photo, and attachment for a message addressed to VAVA. */
+async function resolveAddressedInput(message) {
+  const chatId = message.chat.id;
   const media = getMessageMedia(message);
   const photoFileId =
     message.photo && message.photo.length
@@ -7531,10 +8544,67 @@ async function routeAddressedMessage(message) {
       text = `${text}\n\n${lastVoice.text}`;
     }
   }
+  return { text, media, photoFileId };
+}
+
+async function routeAddressedMessage(message) {
+  if (VAVA_AGENT_MODE !== "legacy" && openaiLib.isEnabled()) {
+    try {
+      const input = await resolveAddressedInput(message);
+      const chatId = message.chat.id;
+      if (input.text && medicalFacilities.looksLikeMedicalFacilityQuestion(input.text)) {
+        const result = await medicalFacilities.answerMedicalQuestion(input.text);
+        if (result.answered && result.answer) {
+          await sendMessage(chatId, result.answer);
+          log(`Medical directory answer (pre-agent): ${input.text.slice(0, 80)}`);
+          return;
+        }
+      }
+      if (input.text || input.media || input.photoFileId) {
+        const handled = await routeViaToolAgent({ message, ...input });
+        if (handled) return;
+      }
+    } catch (err) {
+      log("VAVA agent error — using legacy router:", err.message);
+    }
+  }
+  return routeAddressedMessageLegacy(message);
+}
+
+async function routeAddressedMessageLegacy(message) {
+  const chatId = message.chat.id;
+  const from = message.from;
+  let { text, media, photoFileId } = await resolveAddressedInput(message);
 
   if (!text && !photoFileId && !media) {
     await sendMessage(chatId, "Hey — I’m here. What’s up?");
     return;
+  }
+
+  if (text && looksLikeBotHealthPing(text)) {
+    await sendMessage(
+      chatId,
+      "Yes — I'm here. Ask about markets (rate with <code>Place: 7</code>, 1–10), the schedule, or /help."
+    );
+    return;
+  }
+
+  if (text && (marketRatings.looksLikeMarketRatingMessage(text) || medicalFacilities.looksLikeMedicalFacilityRatingMessage(text))) {
+    await routeFacilityOrMarketRating({ text, from, chatId });
+    return;
+  }
+
+  if (text && medicalFacilities.looksLikeMedicalFacilityQuestion(text)) {
+    try {
+      const result = await medicalFacilities.answerMedicalQuestion(text);
+      if (result.answered && result.answer) {
+        await sendMessage(chatId, result.answer);
+        log(`Medical directory answer: ${text.slice(0, 80)}`);
+        return;
+      }
+    } catch (err) {
+      log("answerMedicalQuestion error:", err.message);
+    }
   }
 
   const isPrivate = message.chat?.type === "private";
@@ -7666,7 +8736,7 @@ async function routeAddressedMessage(message) {
     } catch (err) {
       log("VAVA understand error:", err.message);
     }
-    if (looksLikeScheduleQuestion(text)) {
+    if (userWantsScheduleData(text)) {
       understood = {
         kind: "lookup",
         question: understood?.question || text,
@@ -7688,14 +8758,29 @@ async function routeAddressedMessage(message) {
       text.trim()
     );
 
+    if (looksLikeMetaOrSocialBotMessage(text)) {
+      const ok = await replyConversationally({
+        text,
+        chatId,
+        situation:
+          "They're joking or asking about VAVA/the bot (e.g. being ignored, who programmed you). Reply briefly and warmly in chat — do NOT list markets, events, or the rota unless they clearly asked for that in this message.",
+      });
+      if (ok) return;
+      await sendMessage(
+        chatId,
+        "Ha — no secret programming. I'm here when you @ me. Ask about markets, today's plan, or /help."
+      );
+      return;
+    }
+
     if (!onlyGreeting) {
       const wantsSchedule =
-        looksLikeScheduleQuestion(text) ||
-        looksLikeScheduleQuestion(question) ||
-        (understood?.databases || []).some((name) => /events/i.test(name));
+        userWantsScheduleData(text) ||
+        userWantsScheduleData(question) ||
+        marketRatings.looksLikeMarketRatingMessage(text);
       if (wantsSchedule) {
         const answered = await handleClassifiedQuestion({
-          text: question,
+          text: userWantsScheduleData(question) ? question : text,
           questionKind: "schedule",
           from,
           chatId,
@@ -8580,6 +9665,16 @@ async function main() {
     log("FAQs setup skipped:", err.message);
   }
   try {
+    const med = await medicalFacilities.ensureMedicalFacilitiesDatabase();
+    log(
+      `Medical & emergency: ${med.wasCreated ? "created" : "ready"} (${medicalFacilities.FACILITIES_DB_NAME})` +
+        (med.seeded ? `, added ${med.seeded} row(s)` : "") +
+        (med.updated ? `, updated ${med.updated} row(s)` : "")
+    );
+  } catch (err) {
+    log("Medical directory setup skipped:", err.message);
+  }
+  try {
     const stays = await guestStaysLib.ensureGuestStaysDatabase();
     log(
       `Guest stays: ${stays.wasCreated ? "created" : "ready"} (${guestStaysLib.GUEST_STAYS_DB_NAME})`
@@ -8678,7 +9773,31 @@ async function sendDailyRecapOnce() {
   }
 }
 
-if (process.argv.includes("--send-recap")) {
+if (process.argv.includes("--agent-tools-check")) {
+  const fake = { message_id: 1, chat: { id: -1, type: "supergroup", title: "Test" }, from: { id: 1, first_name: "Test" }, text: "hi" };
+  const tools = buildAgentTools({ message: fake, text: "hi", photoFileId: null, media: null });
+  const names = tools.map((t) => t.name);
+  const problems = [];
+  if (new Set(names).size !== names.length) problems.push("duplicate tool names");
+  for (const t of tools) {
+    if (!/^[a-z_]{1,64}$/.test(t.name)) problems.push(`bad name ${t.name}`);
+    if (typeof t.run !== "function") problems.push(`${t.name}: no run()`);
+    if (t.parameters?.type !== "object") problems.push(`${t.name}: parameters must be an object schema`);
+    for (const [key, prop] of Object.entries(t.parameters?.properties || {})) {
+      if (prop.enum && !prop.enum.length) problems.push(`${t.name}.${key}: empty enum`);
+    }
+    for (const req of t.parameters?.required || []) {
+      if (!t.parameters.properties?.[req]) problems.push(`${t.name}: required ${req} not in properties`);
+    }
+  }
+  console.log(`${tools.length} agent tools: ${names.join(", ")}`);
+  if (problems.length) {
+    console.error(problems.join("\n"));
+    process.exit(1);
+  }
+  console.log("agent tools check OK");
+  process.exit(0);
+} else if (process.argv.includes("--send-recap")) {
   sendDailyRecapOnce()
     .then(() => process.exit(0))
     .catch((err) => {

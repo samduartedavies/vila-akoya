@@ -10,6 +10,9 @@ primary_region = 'ams'
   NODE_ENV = 'production'
   RECAP_TZ = 'Europe/Lisbon'
   PORT = '8080'
+  VAVA_AGENT = 'tools'
+  OPENAI_AGENT_MODEL = 'gpt-6-luna'
+  OPENAI_AGENT_API = 'responses'
 
 # Keep the machine running 24/7 (Fly stops idle machines without an http_service).
 [http_service]
