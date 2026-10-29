@@ -2407,6 +2407,11 @@
     font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
   }
 
+  .vila-wc-booking .vila-campsite-solo-tent-row:not([hidden]),
+  body.single-product .vila-campsite-solo-tent-row:not([hidden]) {
+    @apply mt-2.5 block w-full;
+  }
+
   .vila-wc-booking .vila-campsite-electricity-toggle,
   body.single-product .vila-campsite-electricity-toggle {
     @apply mt-2.5 flex w-full max-w-full cursor-pointer items-center gap-3 p-0;

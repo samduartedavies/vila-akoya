@@ -104,6 +104,21 @@
     });
     updateButtons(root, s, minA, maxP, maxPet, maxInf);
     updateStayEstimate(root.closest("form"));
+    notifyGuestCountChange(root);
+  }
+
+  function notifyGuestCountChange(root) {
+    [
+      "#mwb_mbfw_people_number, [name=\"stay-adults\"]",
+      "#vila_guest_children, [name=\"stay-children\"]",
+      "#vila_guest_infants, [name=\"stay-infants\"]",
+      "#vila_guest_pets, [name=\"stay-pets\"]",
+    ].forEach(function (sel) {
+      var el = field(root, sel);
+      if (!el) return;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    });
   }
 
   function updateButtons(root, s, minA, maxP, maxPet, maxInf) {

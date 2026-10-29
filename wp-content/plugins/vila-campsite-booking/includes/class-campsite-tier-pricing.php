@@ -128,18 +128,25 @@ class Campsite_Tier_Pricing {
 	}
 
 	/**
-	 * Solo traveller rate: one adult with no children or babies (pets allowed).
+	 * Solo tent rate: one adult, no children or babies, and guest opted in to tent-only.
 	 *
-	 * @param array<string, int> $guests        adults, children, infants, pets.
-	 * @param string[]           $vehicle_slugs Unused (legacy).
+	 * @param array<string, int> $guests           adults, children, infants, pets (optional solo_tent_only key ignored here).
+	 * @param string[]           $vehicle_slugs    Unused (legacy).
+	 * @param bool|null          $solo_tent_opt_in Explicit opt-in; when null, returns false.
 	 * @return bool
 	 */
-	public static function is_solo_tent_stay( array $guests, array $vehicle_slugs = array() ) {
+	public static function is_solo_tent_stay( array $guests, array $vehicle_slugs = array(), $solo_tent_opt_in = null ) {
 		unset( $vehicle_slugs );
 		$adults   = isset( $guests['adults'] ) ? max( 0, (int) $guests['adults'] ) : 0;
 		$children = isset( $guests['children'] ) ? max( 0, (int) $guests['children'] ) : 0;
 		$infants  = isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;
-		return 1 === $adults && 0 === $children && 0 === $infants;
+		if ( 1 !== $adults || 0 !== $children || 0 !== $infants ) {
+			return false;
+		}
+		if ( null === $solo_tent_opt_in ) {
+			return false;
+		}
+		return (bool) $solo_tent_opt_in;
 	}
 
 	/**

@@ -411,11 +411,35 @@
       : t.standard || { night: 27, week: 165, fourWeeks: 555 };
   }
 
-  function isSoloTentFromForm() {
+  function isSoloTravellerEligible() {
     var adults = Math.max(1, parseInt($('#mwb_mbfw_people_number').val(), 10) || 1);
     var children = Math.max(0, parseInt($('#vila_guest_children').val(), 10) || 0);
     var infants = Math.max(0, parseInt($('#vila_guest_infants').val(), 10) || 0);
     return adults === 1 && children === 0 && infants === 0;
+  }
+
+  function isSoloTentFromForm() {
+    if (!isSoloTravellerEligible()) {
+      return false;
+    }
+    var $solo = $('#vila_campsite_solo_tent_only');
+    return $solo.length && $solo.is(':checked') && !$solo.prop('disabled');
+  }
+
+  function syncSoloTentRowVisibility() {
+    var $row = $('#vila_campsite_solo_tent_row');
+    if (!$row.length) {
+      return;
+    }
+    var ok = isSoloTravellerEligible();
+    $row.prop('hidden', !ok);
+    var $cb = $('#vila_campsite_solo_tent_only');
+    var $form = $row.find('[name="vila_campsite_solo_tent_form"]');
+    if (!ok) {
+      $cb.prop('checked', false);
+    }
+    $cb.prop('disabled', !ok);
+    $form.prop('disabled', !ok);
   }
 
   function campsiteTierTotal(nights, P, solo, noElec) {
@@ -479,7 +503,7 @@
     var prefix = solo
       ? noElec
         ? S.soloNoElectricity || 'Solo (no pitch electricity)'
-        : S.soloTentStay || 'Solo traveller'
+        : S.soloTentStay || 'Solo tent only'
       : noElec
         ? S.standardNoElectricity || 'Standard (no pitch electricity)'
         : S.standardCamping || 'Standard camping';
@@ -1354,6 +1378,7 @@
     });
     updateGuestStepperUi($root, s, minA, maxP, maxPet);
     updateVehicleHint();
+    syncSoloTentRowVisibility();
     renderLiveBill();
   }
 
@@ -1774,8 +1799,9 @@
     // input changes (dates, guests, extras). No AJAX, no races, no flicker.
     $(document).on(
       'change input',
-      '#vila_campsite_electricity_included, #vila_campsite_no_electricity, input[name="vila_meal_options[]"], #mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time, #mwb_mbfw_people_number, #vila_guest_children, #vila_guest_infants, #vila_guest_pets',
+      '#vila_campsite_electricity_included, #vila_campsite_solo_tent_only, #vila_campsite_no_electricity, input[name="vila_meal_options[]"], #mwb-mbfw-booking-from-time, #mwb-mbfw-booking-to-time, #mwb_mbfw_people_number, #vila_guest_children, #vila_guest_infants, #vila_guest_pets',
       function () {
+        syncSoloTentRowVisibility();
         renderLiveBill();
       }
     );
@@ -1862,6 +1888,7 @@
 
     setTimeout(scheduleStayRangeAvailabilityCheck, 600);
     setTimeout(function () {
+      syncSoloTentRowVisibility();
       syncBookingTotalsAndCtaState();
       renderLiveBill();
     }, 150);

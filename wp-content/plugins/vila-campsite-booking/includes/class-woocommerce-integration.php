@@ -1221,6 +1221,7 @@ class WooCommerce_Integration {
 				$vehicle_types = array( (string) $cart_item['vila_vehicle_type'] );
 			}
 			$no_electricity = function_exists( 'vila_akoya_cart_no_electricity' ) && vila_akoya_cart_no_electricity( $cart_item );
+			$solo_tent_only = function_exists( 'vila_akoya_cart_solo_tent_only' ) && vila_akoya_cart_solo_tent_only( $cart_item );
 			$total = self::calculate_line_total(
 				$product,
 				$cin,
@@ -1228,8 +1229,9 @@ class WooCommerce_Integration {
 				$guests,
 				$include_guest_supplements,
 				array(
-					'vehicle_types'  => $vehicle_types,
-					'no_electricity' => $no_electricity,
+					'vehicle_types'   => $vehicle_types,
+					'no_electricity'  => $no_electricity,
+					'solo_tent_only'  => $solo_tent_only,
 				)
 			);
 			$product->set_price( $total );
@@ -1274,7 +1276,8 @@ class WooCommerce_Integration {
 			return $fallback;
 		}
 		$vehicle_types = isset( $context['vehicle_types'] ) && is_array( $context['vehicle_types'] ) ? $context['vehicle_types'] : array();
-		$solo          = Campsite_Tier_Pricing::is_solo_tent_stay( $guests, $vehicle_types );
+		$solo_opt_in   = ! empty( $context['solo_tent_only'] );
+		$solo          = Campsite_Tier_Pricing::is_solo_tent_stay( $guests, $vehicle_types, $solo_opt_in );
 		$no_electricity = ! empty( $context['no_electricity'] );
 		$ch            = isset( $guests['children'] ) ? max( 0, (int) $guests['children'] ) : 0;
 		$inf           = isset( $guests['infants'] ) ? max( 0, (int) $guests['infants'] ) : 0;

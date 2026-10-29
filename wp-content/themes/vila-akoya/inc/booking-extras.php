@@ -853,7 +853,11 @@ function vila_akoya_cart_is_solo_tent_stay( array $cart_item ) {
 		'infants'  => isset( $cart_item['vila_guest_infants'] ) ? max( 0, (int) $cart_item['vila_guest_infants'] ) : 0,
 		'pets'     => isset( $cart_item['vila_guest_pets'] ) ? max( 0, (int) $cart_item['vila_guest_pets'] ) : 0,
 	);
-	return \Vila_CB\Campsite_Tier_Pricing::is_solo_tent_stay( $guests, vila_akoya_cart_vehicle_types( $cart_item ) );
+	return \Vila_CB\Campsite_Tier_Pricing::is_solo_tent_stay(
+		$guests,
+		vila_akoya_cart_vehicle_types( $cart_item ),
+		vila_akoya_cart_solo_tent_only( $cart_item )
+	);
 }
 
 /**
@@ -975,6 +979,46 @@ function vila_akoya_campsite_price_includes_items() {
  */
 function vila_akoya_cart_no_electricity( array $cart_item ) {
 	return ! empty( $cart_item['vila_campsite_no_electricity'] );
+}
+
+/**
+ * Whether the guest counts allow the solo-tent opt-in (1 adult, no children or babies).
+ *
+ * @param int $adults   Adults.
+ * @param int $children Children.
+ * @param int $infants  Infants.
+ * @return bool
+ */
+function vila_akoya_campsite_solo_tent_eligible( $adults, $children = 0, $infants = 0 ) {
+	return 1 === max( 0, (int) $adults ) && 0 === max( 0, (int) $children ) && 0 === max( 0, (int) $infants );
+}
+
+/**
+ * @return bool
+ */
+function vila_akoya_request_solo_tent_only() {
+	if ( empty( $_POST['vila_campsite_solo_tent_form'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		return false;
+	}
+	if ( empty( $_POST['vila_campsite_solo_tent_only'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		return false;
+	}
+	$adults = isset( $_POST['mwb_mbfw_people_number'] ) ? (int) wp_unslash( vila_akoya_scalar_request_string( $_POST['mwb_mbfw_people_number'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+	$ch     = isset( $_POST['vila_guest_children'] ) ? (int) wp_unslash( vila_akoya_scalar_request_string( $_POST['vila_guest_children'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+	$inf    = isset( $_POST['vila_guest_infants'] ) ? (int) wp_unslash( vila_akoya_scalar_request_string( $_POST['vila_guest_infants'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+	if ( ! vila_akoya_campsite_solo_tent_eligible( $adults, $ch, $inf ) ) {
+		return false;
+	}
+	$raw = wp_unslash( vila_akoya_scalar_request_string( $_POST['vila_campsite_solo_tent_only'] ) );
+	return in_array( strtolower( (string) $raw ), array( '1', 'yes', 'on', 'true' ), true );
+}
+
+/**
+ * @param array<string, mixed> $cart_item Cart line.
+ * @return bool
+ */
+function vila_akoya_cart_solo_tent_only( array $cart_item ) {
+	return ! empty( $cart_item['vila_campsite_solo_tent_only'] );
 }
 
 /**
@@ -1269,6 +1313,26 @@ function vila_akoya_add_no_electricity_cart_item_data( $cart_item_data, $product
 }
 add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_no_electricity_cart_item_data', 28, 3 );
 
+/**
+ * Persist solo-tent-only rate opt-in.
+ *
+ * @param array<string, mixed> $cart_item_data Cart line data.
+ * @param int                  $product_id     Product ID.
+ * @param int                  $variation_id   Variation ID.
+ * @return array<string, mixed>
+ */
+function vila_akoya_add_solo_tent_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
+	unset( $variation_id );
+	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
+		return $cart_item_data;
+	}
+	if ( vila_akoya_request_solo_tent_only() ) {
+		$cart_item_data['vila_campsite_solo_tent_only'] = '1';
+	}
+	return $cart_item_data;
+}
+add_filter( 'woocommerce_add_cart_item_data', 'vila_akoya_add_solo_tent_cart_item_data', 29, 3 );
+
 function vila_akoya_add_vehicle_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
 	unset( $variation_id );
 	if ( ! vila_akoya_is_campsite_product_id( (int) $product_id ) ) {
@@ -1503,7 +1567,7 @@ add_filter( 'woocommerce_add_to_cart_validation', 'vila_akoya_validate_guest_bre
  */
 function vila_akoya_get_cart_item_from_session_vehicle( $cart_item, $values, $cart_item_key ) {
 	unset( $cart_item_key );
-	foreach ( array( 'vila_vehicle_types', 'vila_vehicle_type', 'vila_booking_nights', 'vila_guest_children', 'vila_guest_infants', 'vila_guest_pets', 'vila_campsite_no_electricity', 'vila_cb_booking_notes', 'vila_cb_check_in', 'vila_cb_check_out', 'vila_meal_options', 'vila_meal_weekday_nights' ) as $key ) {
+	foreach ( array( 'vila_vehicle_types', 'vila_vehicle_type', 'vila_booking_nights', 'vila_guest_children', 'vila_guest_infants', 'vila_guest_pets', 'vila_campsite_no_electricity', 'vila_campsite_solo_tent_only', 'vila_cb_booking_notes', 'vila_cb_check_in', 'vila_cb_check_out', 'vila_meal_options', 'vila_meal_weekday_nights' ) as $key ) {
 		if ( isset( $values[ $key ] ) ) {
 			$cart_item[ $key ] = $values[ $key ];
 		}
@@ -1953,6 +2017,12 @@ function vila_akoya_get_item_data_guest_breakdown( $item_data, $cart_item ) {
 		'name'    => __( 'Guests', 'vila-akoya' ),
 		'display' => esc_html( vila_akoya_guest_picker_summary_string( $adults, $ch, $inf, $pet ) ),
 	);
+	if ( vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) && vila_akoya_cart_solo_tent_only( $cart_item ) ) {
+		$item_data[] = array(
+			'name'    => __( 'Pitch', 'vila-akoya' ),
+			'display' => esc_html__( 'Solo tent rate', 'vila-akoya' ),
+		);
+	}
 	if ( vila_akoya_is_campsite_product_id( (int) $cart_item['product_id'] ) && vila_akoya_cart_no_electricity( $cart_item ) ) {
 		$item_data[] = array(
 			'name'    => __( 'Electricity', 'vila-akoya' ),
@@ -2104,6 +2174,10 @@ function vila_akoya_checkout_save_guest_breakdown_meta( $item, $cart_key, $value
 	}
 	$pid = (int) $item->get_product_id();
 	$adults = ! empty( $values['mwb_mbfw_booking_values']['people_number'] ) ? (int) $values['mwb_mbfw_booking_values']['people_number'] : 0;
+	if ( $pid && vila_akoya_is_campsite_product_id( $pid ) && ! empty( $values['vila_campsite_solo_tent_only'] ) ) {
+		$item->add_meta_data( '_vila_campsite_solo_tent_only', '1', true );
+		$item->add_meta_data( __( 'Pitch', 'vila-akoya' ), __( 'Solo tent rate', 'vila-akoya' ), true );
+	}
 	if ( $pid && vila_akoya_is_campsite_product_id( $pid ) && ! empty( $values['vila_campsite_no_electricity'] ) ) {
 		$item->add_meta_data( '_vila_campsite_no_electricity', '1', true );
 		$item->add_meta_data( __( 'Electricity', 'vila-akoya' ), __( 'Not required — reduced rate', 'vila-akoya' ), true );
@@ -2362,6 +2436,23 @@ function vila_akoya_render_vehicle_selector( $product_id ) {
 					<span class="vila-campsite-toggle__track"></span>
 				</span>
 			</label>
+			<div class="vila-campsite-solo-tent-row" id="vila_campsite_solo_tent_row" hidden>
+				<input type="hidden" name="vila_campsite_solo_tent_form" value="1" disabled="disabled" />
+				<label class="vila-campsite-electricity-toggle vila-campsite-solo-tent-toggle" for="vila_campsite_solo_tent_only">
+					<span class="vila-campsite-electricity-toggle__label"><?php esc_html_e( 'I only have a tent', 'vila-akoya' ); ?></span>
+					<span class="vila-campsite-toggle" aria-hidden="true">
+						<input
+							type="checkbox"
+							class="vila-campsite-toggle__input sr-only"
+							name="vila_campsite_solo_tent_only"
+							id="vila_campsite_solo_tent_only"
+							value="1"
+							disabled="disabled"
+						/>
+						<span class="vila-campsite-toggle__track"></span>
+					</span>
+				</label>
+			</div>
 		</fieldset>
 	</div>
 	<?php
@@ -2456,15 +2547,7 @@ function vila_akoya_mbfw_expand_booking_charge_breakdown( $charges, $product_id 
 	$adults      = isset( $_POST['mwb_mbfw_people_number'] ) ? (int) wp_unslash( vila_akoya_scalar_request_string( $_POST['mwb_mbfw_people_number'] ) ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 	$adults      = max( 1, $adults );
 	$no_electricity = vila_akoya_request_no_electricity();
-	$solo_tent      = class_exists( '\Vila_CB\Campsite_Tier_Pricing' )
-		? \Vila_CB\Campsite_Tier_Pricing::is_solo_tent_stay(
-			array(
-				'adults'   => $adults,
-				'children' => isset( $_POST['vila_guest_children'] ) ? (int) wp_unslash( vila_akoya_scalar_request_string( $_POST['vila_guest_children'] ) ) : 0, // phpcs:ignore WordPress.Security.NonceVerification.Missing
-				'infants'  => isset( $_POST['vila_guest_infants'] ) ? (int) wp_unslash( vila_akoya_scalar_request_string( $_POST['vila_guest_infants'] ) ) : 0, // phpcs:ignore WordPress.Security.NonceVerification.Missing
-			)
-		)
-		: false;
+	$solo_tent      = vila_akoya_request_solo_tent_only();
 
 	$pitch_value = class_exists( '\Vila_CB\Campsite_Tier_Pricing' )
 		? \Vila_CB\Campsite_Tier_Pricing::accommodation_total( $nights, $solo_tent, $no_electricity )
@@ -2860,8 +2943,8 @@ function vila_akoya_enqueue_booking_ui_script() {
 				'upsellFourWeeks'    => __( 'Add %1$d more %2$s to reach %3$d nights (%4$d weeks) — %5$s.', 'vila-akoya' ),
 				'standardCamping'       => __( 'Standard camping', 'vila-akoya' ),
 				'standardNoElectricity' => __( 'Standard (no pitch electricity)', 'vila-akoya' ),
-				'soloTentStay'          => __( 'Solo traveller', 'vila-akoya' ),
-				'soloNoElectricity'     => __( 'Solo (no pitch electricity)', 'vila-akoya' ),
+				'soloTentStay'          => __( 'Solo tent only', 'vila-akoya' ),
+				'soloNoElectricity'     => __( 'Solo tent (no pitch electricity)', 'vila-akoya' ),
 				'tierFourWeeks'      => __( '%1$d × 4 weeks — %2$s', 'vila-akoya' ),
 				'tierWeek'           => __( '%1$d × 1 week — %2$s', 'vila-akoya' ),
 				'tierNights'         => __( '%1$d × %2$s/night', 'vila-akoya' ),

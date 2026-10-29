@@ -33,7 +33,7 @@ $rows = array(
 	'adults'   => array(
 		'label'    => __( 'Adults', 'vila-akoya' ),
 		'subtitle' => __( 'Ages 13 or above', 'vila-akoya' ),
-		'note'     => __( '1 adult on their own = solo traveller rate', 'vila-akoya' ),
+		'note'     => '',
 		'value'    => $def_ad,
 	),
 	'children' => array(
