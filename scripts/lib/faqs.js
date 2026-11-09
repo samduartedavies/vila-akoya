@@ -48,6 +48,7 @@ const FAQS_PROPERTIES = {
   Category: selectProp(FAQ_CATEGORIES),
   "Also asked as": { rich_text: {} },
   Status: selectProp(STATUS_OPTIONS),
+  "Guest friendly": { checkbox: {} },
   "Last updated by": { rich_text: {} },
 };
 
@@ -150,8 +151,17 @@ function pageToFaq(page) {
     category: notion.pagePropText(page, "Category") || "Other",
     aliases: notion.pagePropText(page, "Also asked as"),
     status: notion.pagePropText(page, "Status") || "Active",
+    guestFriendly: notion.pagePropText(page, "Guest friendly") === "true",
     updatedBy: notion.pagePropText(page, "Last updated by"),
   };
+}
+
+/** Active FAQs ticked "Guest friendly" — the only ones VAVA shares in the Guests group. */
+async function loadGuestFaqs() {
+  const pages = await loadFaqPages();
+  return pages
+    .map(pageToFaq)
+    .filter((faq) => faq.guestFriendly && faq.answer && !isPlaceholderFaqAnswer(faq.answer));
 }
 
 async function loadFaqPages() {
@@ -233,6 +243,20 @@ async function answerFaqQuestion({ question, listAll, category }) {
   const query = normalizeFaqQuery(String(question || "").trim());
   if (!query) return { ok: false, reason: "no_question" };
   const matches = await findFaqMatches(query);
+  if (!matches.length) return { ok: false, reason: "not_found", question: query };
+  const chosen = pickBestFaqMatch(matches, query);
+  if (chosen) return { ok: true, faq: chosen };
+  return { ok: false, reason: "ambiguous", matches, question: query };
+}
+
+/** Like answerFaqQuestion but only **Guest friendly** rows (Guests Telegram group). */
+async function answerGuestFaqQuestion({ question }) {
+  const query = normalizeFaqQuery(String(question || "").trim());
+  if (!query) return { ok: false, reason: "no_question" };
+  const guestFaqs = await loadGuestFaqs();
+  if (!guestFaqs.length) return { ok: false, reason: "not_found", question: query };
+  const guestIds = new Set(guestFaqs.map((g) => g.id));
+  const matches = (await findFaqMatches(query)).filter((m) => guestIds.has(m.id));
   if (!matches.length) return { ok: false, reason: "not_found", question: query };
   const chosen = pickBestFaqMatch(matches, query);
   if (chosen) return { ok: true, faq: chosen };
@@ -423,6 +447,15 @@ async function upsertFaq({
   };
 }
 
+async function setGuestFriendly(pageId, guestFriendly) {
+  const id = String(pageId || "").trim();
+  if (!id) return { ok: false, reason: "no_id" };
+  await notion.updatePageProps(FAQS_DB_NAME, id, {
+    "Guest friendly": Boolean(guestFriendly),
+  });
+  return { ok: true, guestFriendly: Boolean(guestFriendly) };
+}
+
 function hubBlocks() {
   return [
     {
@@ -549,8 +582,11 @@ module.exports = {
   looksLikeFaqQuestion,
   extractFaqUpsert,
   findFaqMatches,
+  loadGuestFaqs,
   answerFaqQuestion,
+  answerGuestFaqQuestion,
   upsertFaq,
+  setGuestFriendly,
   formatFaqAnswer,
   listFaqsSnapshot,
   ensureFaqsDatabase,

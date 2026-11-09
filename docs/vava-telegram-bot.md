@@ -56,6 +56,10 @@ WHERE THINGS ARE
 @vila_akoya_bot the bathroom keys live on the hook by reception
 Live list: Notion page “Where things are” (Documentation hub)
 
+BINS FULL
+@vila_akoya_bot the bins are full / as papeleiras estão cheias
+VAVA asks which bins (paper, plastic, glass, general — or all), confirms, then emails the Câmara de Ourique to come and empty them (max once per 48h per bin).
+
 MEDICAL & EMERGENCY (Baixo Alentejo directory in Notion)
 @vila_akoya_bot nearest hospital? · GP near Ourique? · paediatrician in Beja?
 @vila_akoya_bot SNS 24 number? · where is the Ourique health centre?
@@ -91,8 +95,25 @@ ALSO
 • /help for the full list
 
 MORNING ROUNDUP (~08:00 Lisbon)
-• Group topic: morning meeting theme (Mon general, Tue kids, Wed villagers, Thu commercial, Fri creative), events, meals, childcare count, kids programme shifts, yesterday’s highlights
-• Management (Role / focus = Manager, after `/register`): DM with website check-ins, check-outs, and pitch occupancy — plus other guest stays logged in Notion
+• Main community group: morning meeting theme (Mon–Fri), events, meals, childcare count, kids programme shifts, yesterday’s highlights — **no** campsite check-ins/outs
+• **Vila Akoya Volunteers** group (optional): recap of what was said yesterday in that group
+• **Vila Akoya Management** group (optional): today’s website check-ins, check-outs, pitch occupancy + other guest stays; problems reported in the last 24h (Guests + main group); recap of yesterday on Volunteers + Management groups
+• **Vila Akoya Guests** group (optional, `GUESTS_GROUP_CHAT_ID`): what’s on today (events + nearby markets — birthdays, deliveries and work parties are left out)
+• If `MANAGEMENT_GROUP_CHAT_ID` is unset, managers still get campsite info and problem alerts by DM (Role / focus = Manager)
+
+NOTION BOARD UPDATES
+• “🆕 New item”, completed, assigned and status-change posts go to the Management group only (the main group only gets them if no Management group is set)
+• VAVA still confirms in the chat where you asked — e.g. tag it in the main group with a task and it replies there
+
+PROBLEM ALERTS (instant, to Management)
+• VAVA reads the main group and the Guests group; when someone reports something broken, missing, unsafe, or a complaint, Management gets an alert straight away with a link to the message
+• The same issue isn’t re-alerted within 24h. Turn off with `PROBLEM_ALERTS=false`
+
+GUESTS GROUP
+• VAVA reads questions without a tag. If a **Guest friendly** FAQ answers it, VAVA replies in the group
+• If it can’t answer, it stays silent in the guest chat and forwards the question to Management (no “I don’t know” message)
+• When someone adds or updates an FAQ (any group), VAVA asks in that same chat: “Should guests be able to see this FAQ?” — reply **yes** / **yeah** / **no** / **não** and it ticks the box in Notion
+• Bot privacy mode must be off (@BotFather → /setprivacy → Disable) or the bot must be an admin, so it can see untagged messages
 • Personal duties + tasks: DM only (after /register)
 • Child minder roster: DM only for registered Members assigned to the Child minder Job
 • Kids programme leads: DM listing today’s sessions; full list in Parents & Teachers topic

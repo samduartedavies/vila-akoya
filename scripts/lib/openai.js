@@ -763,11 +763,12 @@ async function converseAsVava({
   }
 }
 
-async function summarizeImportantChat(messages, dateISO) {
+async function summarizeImportantChat(messages, dateISO, options = {}) {
   if (!isEnabled() || !messages?.length) return [];
 
+  const groupLabel = options.groupLabel || "village group chat";
   const system = [
-    "You summarise yesterday's village group chat for a morning recap.",
+    `You summarise yesterday's ${groupLabel} for a morning recap.`,
     "Include ONLY messages that matter for running the community or campsite:",
     "- events or gatherings proposed or discussed",
     "- repairs, broken things, leaks, or things not working",
@@ -795,8 +796,109 @@ async function summarizeImportantChat(messages, dateISO) {
   }
 }
 
+/**
+ * Decide whether one group message reports a problem management should hear about now.
+ * Returns { is_problem, summary, category, urgency, already_reported } or null on failure.
+ */
+async function detectProblemReport(text, options = {}) {
+  if (!isEnabled() || !String(text || "").trim()) return null;
+
+  const groupLabel = options.groupLabel || "village group chat";
+  const system = [
+    `You watch the ${groupLabel} at Vila Akoya (an eco-village and campsite in Portugal).`,
+    "Decide if the NEW message reports a problem the management team should know about right away:",
+    "- something broken, leaking, blocked, not working, or dirty (toilets, showers, water, power, wifi)",
+    "- something missing or run out (toilet paper, gas, soap, supplies)",
+    "- safety or medical concerns, fire risk, injuries, animals, strangers",
+    "- complaints about noise, neighbours, pitches, bookings, or cleanliness",
+    "NOT problems: greetings, questions, event chat, offers, thanks, jokes, small talk,",
+    "or a problem the message itself says is already fixed.",
+    "Use the recent messages only as context; judge the NEW message.",
+    "If the same issue appears in the 'already reported' list, set already_reported to true.",
+    "Messages may be in English or Portuguese. Write the summary in English.",
+    'Return JSON: { "is_problem": boolean, "summary": string (one short sentence, e.g. "No hot water in the campsite showers"),',
+    '"urgency": "high" | "normal", "already_reported": boolean }.',
+    "Use urgency high only for safety, medical, fire, flooding, or no water/power.",
+  ].join("\n");
+
+  const context = (options.recent || [])
+    .map((m) => `- ${m.name || "Someone"}: ${String(m.text || "").slice(0, 200)}`)
+    .join("\n");
+  const reported = (options.alreadyReported || []).map((s) => `- ${s}`).join("\n");
+  const user = [
+    context ? `Recent messages:\n${context}` : "Recent messages: (none)",
+    reported ? `Already reported in the last 24h:\n${reported}` : "Already reported: (none)",
+    `NEW message from ${options.from || "someone"}:\n${String(text).slice(0, 1500)}`,
+  ].join("\n\n");
+
+  try {
+    const result = await chatJSON(system, user);
+    return {
+      is_problem: result.is_problem === true,
+      summary: String(result.summary || "").trim(),
+      urgency: result.urgency === "high" ? "high" : "normal",
+      already_reported: result.already_reported === true,
+    };
+  } catch (err) {
+    console.error("detectProblemReport failed:", err.message);
+    return null;
+  }
+}
+
+/**
+ * Pick the FAQ that answers a question, or none. `faqs` is [{ question, answer, aliases }].
+ * Returns { is_question, index } (index -1 when no FAQ fits) or null on failure.
+ */
+async function matchFaqForQuestion(text, faqs) {
+  if (!isEnabled() || !String(text || "").trim()) return null;
+
+  const faqList = Array.isArray(faqs) ? faqs : [];
+  const list = faqList
+    .map(
+      (f, i) =>
+        `[${i}] Q: ${f.question}` +
+        (f.aliases ? ` (also asked as: ${f.aliases})` : "") +
+        `\n    A: ${String(f.answer || "").slice(0, 300)}`
+    )
+    .join("\n");
+
+  const system = faqList.length
+    ? [
+        "You help guests at Vila Akoya (an eco-village and campsite in Portugal).",
+        "First decide if the message asks a question or asks for information.",
+        "Then pick the ONE FAQ below whose answer fully answers it.",
+        "Only pick an FAQ if it clearly answers what was asked; otherwise use index -1.",
+        "Messages may be in English or Portuguese.",
+        'Return JSON: { "is_question": boolean, "index": number }.',
+      ].join("\n")
+    : [
+        "You help guests at Vila Akoya (an eco-village and campsite in Portugal).",
+        "Decide if the message asks a question or asks for information (not a statement, greeting, or problem report).",
+        "Messages may be in English or Portuguese.",
+        'Return JSON: { "is_question": boolean, "index": -1 }.',
+      ].join("\n");
+
+  const user = faqList.length
+    ? `FAQs:\n${list}\n\nMessage:\n${String(text).slice(0, 1000)}`
+    : `Message:\n${String(text).slice(0, 1000)}`;
+
+  try {
+    const result = await chatJSON(system, user);
+    const index = Number.isInteger(result.index) ? result.index : -1;
+    return {
+      is_question: result.is_question === true,
+      index: index >= 0 && index < faqList.length ? index : -1,
+    };
+  } catch (err) {
+    console.error("matchFaqForQuestion failed:", err.message);
+    return null;
+  }
+}
+
 module.exports = {
   isEnabled,
+  detectProblemReport,
+  matchFaqForQuestion,
   embed,
   embedOne,
   completeJSON: chatJSONMessages,

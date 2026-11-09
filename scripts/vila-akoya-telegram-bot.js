@@ -22,7 +22,8 @@
  *   - Daily recap (~08:00 Europe/Lisbon): community recap in the group (morning
  *     meeting theme, events, meals, childcare, kids programme, highlights); personal
  *     duties + tasks go by DM to registered members; campsite check-ins/outs and pitch
- *     occupancy go by DM to management (Role / focus = Manager by default).
+ *     occupancy go to MANAGEMENT_GROUP_CHAT_ID when set, else DM to managers (Role / focus = Manager).
+ *   - Volunteers / management groups: VAVA logs chat for daily summaries; tag-to-activate works there too.
  *   - /ask, /task, /receipt, /receipts, /register, /questionnaire, /mytasks, /done, /help as before.
  *   - After /register, a short questionnaire (DM only): role + skillsets on
  *     the Members (Community) board; /questionnaire updates it later. Answers
@@ -33,7 +34,7 @@
  * with `node scripts/index-vila-akoya-docs.js`.
  * Voice notes use OPENAI_TRANSCRIBE_MODEL (default gpt-4o-mini-transcribe).
  *
- * Notion -> Telegram (posted to one group chat)
+ * Notion -> Telegram (posted to MANAGEMENT_GROUP_CHAT_ID, else TELEGRAM_CHAT_ID)
  *   - New pages, completions, status changes on watched databases.
  *
  * ── Setup ─────────────────────────────────────────────────────────────────
@@ -52,6 +53,12 @@
  *   RECAP_TZ                default "Europe/Lisbon"
  *   REMINDER_TIME           default send time for Notion broadcast reminders (default RECAP_TIME)
  *   TELEGRAM_CHAT_ALIASES   JSON map of group name → chat id, e.g. {"Parents & Teachers":"-100..."}
+ *   VOLUNTEERS_GROUP_CHAT_ID   Volunteers group — chat log + daily recap of yesterday's chat
+ *   MANAGEMENT_GROUP_CHAT_ID   Management group — daily recap (check-ins/outs, problems, volunteers + management chat)
+ *                              + instant alerts when a problem is mentioned in the main or Guests group
+ *   GUESTS_GROUP_CHAT_ID       Guests group — VAVA listens quietly: daily "what's on" post, answers from
+ *                              FAQs ticked "Guest friendly", passes problems to Management
+ *   PROBLEM_ALERTS             "false" to turn off instant problem alerts to Management
  *   TELEGRAM_TOPIC_ALIASES  JSON map of topic name → message_thread_id, e.g. {"Parents & Teachers":123}
  *   EVENT_CAPTURE_GROUP     Notion Stage for new events (default "Upcoming")
  *   EVENT_RECURRING_GROUP   Notion Stage for repeating events (default "Recurring")
@@ -115,6 +122,7 @@ const {
 const regionalMarkets = require("./lib/regional-markets");
 const marketRatings = require("./lib/market-ratings");
 const medicalFacilities = require("./lib/medical-facilities");
+const councilBins = require("./lib/council-bins");
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -123,6 +131,118 @@ if (!TELEGRAM_BOT_TOKEN) {
   process.exit(1);
 }
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1003979087550";
+
+function parseTelegramChatAliases() {
+  const raw = process.env.TELEGRAM_CHAT_ALIASES || "";
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function resolveOptionalGroupChatId(envKey, aliasNames = []) {
+  const direct = String(process.env[envKey] || "").trim();
+  if (direct) return direct;
+  const aliases = parseTelegramChatAliases();
+  for (const name of aliasNames) {
+    if (aliases[name]) return String(aliases[name]);
+    const lower = String(name).toLowerCase();
+    for (const [key, id] of Object.entries(aliases)) {
+      if (key.toLowerCase() === lower) return String(id);
+    }
+  }
+  return null;
+}
+
+const VOLUNTEERS_GROUP_CHAT_ID = resolveOptionalGroupChatId(
+  "VOLUNTEERS_GROUP_CHAT_ID",
+  ["Vila Akoya Volunteers", "Volunteers"]
+);
+const MANAGEMENT_GROUP_CHAT_ID = resolveOptionalGroupChatId(
+  "MANAGEMENT_GROUP_CHAT_ID",
+  ["Vila Akoya Management", "Management"]
+);
+const GUESTS_GROUP_CHAT_ID = resolveOptionalGroupChatId(
+  "GUESTS_GROUP_CHAT_ID",
+  ["Vila Akoya Guests", "Guests"]
+);
+/** Pre-supergroup ids (comma-separated) — Telegram replaces these when a group upgrades. */
+function parseExtraChatIds(envKey) {
+  return String(process.env[envKey] || "")
+    .split(/[,;\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+const GUESTS_GROUP_CHAT_LEGACY_IDS = parseExtraChatIds("GUESTS_GROUP_CHAT_LEGACY_IDS");
+const KNOWN_GUESTS_GROUP_LEGACY_IDS = ["-5424683831"];
+
+function guestsGroupChatIdSet() {
+  const ids = new Set();
+  if (GUESTS_GROUP_CHAT_ID) ids.add(String(GUESTS_GROUP_CHAT_ID));
+  for (const id of GUESTS_GROUP_CHAT_LEGACY_IDS) ids.add(String(id));
+  for (const id of KNOWN_GUESTS_GROUP_LEGACY_IDS) ids.add(String(id));
+  if (state.guestsGroupChatIdMigrated) ids.add(String(state.guestsGroupChatIdMigrated));
+  return ids;
+}
+
+/** Chat id to post recaps/alerts to (prefers migrated supergroup saved in state). */
+function guestsGroupOutboundChatId() {
+  return state.guestsGroupChatIdMigrated || GUESTS_GROUP_CHAT_ID || null;
+}
+
+function rememberGuestsGroupMigration(fromChatId, toChatId) {
+  if (!toChatId) return;
+  const from = String(fromChatId);
+  const to = String(toChatId);
+  const known = guestsGroupChatIdSet();
+  if (!known.has(from) && !known.has(to)) return;
+  state.guestsGroupChatIdMigrated = to;
+  saveState();
+  log(
+    `Guests group chat id migrated ${from} → ${to}. ` +
+      `Set GUESTS_GROUP_CHAT_ID=${to} in Fly/env when you can.`
+  );
+}
+/** Notion board announcements (new items, completions, assignments) go to Management, not the main group. */
+const ANNOUNCE_CHAT_ID = MANAGEMENT_GROUP_CHAT_ID || TELEGRAM_CHAT_ID;
+const PROBLEM_ALERTS = process.env.PROBLEM_ALERTS !== "false";
+const PROBLEM_MIN_TEXT_LEN = 8;
+/** Event types that are village-internal and never shown in the Guests group recap. */
+const GUEST_HIDDEN_EVENT_TYPES = new Set(["Birthday", "Delivery / order", "Work party"]);
+const GUEST_HIDDEN_EVENT_TITLE = /\bmorning meeting\b/i;
+
+/** Strip materialised instance dates from Notion titles, e.g. "Morning Meeting — 2026-11-05". */
+function normalizeGuestEventTitle(title) {
+  return String(title || "")
+    .replace(/\s*[—–-]\s*\d{4}-\d{2}-\d{2}\s*$/i, "")
+    .replace(/\s*\(\d{4}-\d{2}-\d{2}\)\s*$/i, "")
+    .trim();
+}
+
+function isGuestVisibleEvent(event) {
+  if (GUEST_HIDDEN_EVENT_TYPES.has(event.type)) return false;
+  const base = normalizeGuestEventTitle(event.title);
+  if (!base) return false;
+  if (GUEST_HIDDEN_EVENT_TITLE.test(base)) return false;
+  return true;
+}
+
+/** One line per series — avoids 30× "Morning Meeting — YYYY-MM-DD" for daily Notion rows. */
+function dedupeGuestEventsForDay(events) {
+  const byKey = new Map();
+  for (const e of events) {
+    if (!isGuestVisibleEvent(e)) continue;
+    const title = normalizeGuestEventTitle(e.title) || e.title;
+    const key = `${title.toLowerCase()}|${e.recurrence || ""}|${e.type || ""}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, { ...e, title });
+    }
+  }
+  return [...byKey.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
 
 const TASK_GROUP_CHAT_ID =
   process.env.TASK_GROUP_CHAT_ID || TELEGRAM_CHAT_ID;
@@ -329,13 +449,46 @@ function chatIdsMatch(a, b) {
   return sa.replace(/^-/, "") === sb.replace(/^-/, "");
 }
 
-/** Task intake only runs in the Jobs group (+ private DMs). Archive groups are ignored. */
+function isVolunteersGroupChatId(chatId) {
+  return Boolean(
+    VOLUNTEERS_GROUP_CHAT_ID && chatIdsMatch(chatId, VOLUNTEERS_GROUP_CHAT_ID)
+  );
+}
+
+function isManagementGroupChatId(chatId) {
+  return Boolean(
+    MANAGEMENT_GROUP_CHAT_ID && chatIdsMatch(chatId, MANAGEMENT_GROUP_CHAT_ID)
+  );
+}
+
+function isGuestsGroupChatId(chatId) {
+  for (const id of guestsGroupChatIdSet()) {
+    if (chatIdsMatch(chatId, id)) return true;
+  }
+  return false;
+}
+
+/** Groups where chat is logged for daily recaps (main community + ops groups + guests). */
+function isGroupChatLoggedForRecap(message) {
+  const chat = message?.chat;
+  if (!chat || (chat.type !== "group" && chat.type !== "supergroup")) return false;
+  const id = chat.id;
+  if (isTaskGroupChatId(id)) return true;
+  if (isVolunteersGroupChatId(id)) return true;
+  if (isManagementGroupChatId(id)) return true;
+  if (isGuestsGroupChatId(id)) return true;
+  return false;
+}
+
+/** Task intake: main community group, volunteers, management (+ private DMs). */
 function shouldHandleIntake(message) {
   const chat = message.chat;
   if (!chat) return false;
   if (chat.type === "private") return ALLOW_DM_INTAKE;
   if (chat.type === "group" || chat.type === "supergroup") {
-    return chatIdsMatch(chat.id, TASK_GROUP_CHAT_ID);
+    if (chatIdsMatch(chat.id, TASK_GROUP_CHAT_ID)) return true;
+    if (isVolunteersGroupChatId(chat.id)) return true;
+    if (isManagementGroupChatId(chat.id)) return true;
   }
   return false;
 }
@@ -947,7 +1100,7 @@ function markCaptured(key) {
 }
 
 function recordGroupMessage(message, textOverride) {
-  if (!isTaskGroupMessage(message)) return;
+  if (!isGroupChatLoggedForRecap(message)) return;
   const from = message.from;
   if (from?.is_bot) return;
   const text = String(textOverride ?? (message.text || message.caption || "")).trim();
@@ -1058,6 +1211,444 @@ function chatLogForDay(dayISO) {
   );
 }
 
+function chatLogForDayAndChat(dayISO, chatId) {
+  return (state.chatLog || []).filter(
+    (m) => m.dayISO === dayISO && chatIdsMatch(m.chatId, chatId)
+  );
+}
+
+async function buildGroupChatRecapSection(dayISO, chatId, heading, groupLabel) {
+  const logMessages = chatLogForDayAndChat(dayISO, chatId);
+  if (!logMessages.length) return null;
+
+  let bullets = [];
+  if (openaiLib.isEnabled()) {
+    const highlights = await openaiLib.summarizeImportantChat(logMessages, dayISO, {
+      groupLabel: groupLabel || heading,
+    });
+    if (highlights !== null) bullets = highlights;
+  }
+  if (!bullets.length) {
+    bullets = logMessages
+      .slice(-8)
+      .map((m) => `${m.proposer}: ${m.text.slice(0, 160)}`.trim())
+      .filter(Boolean);
+  }
+  if (!bullets.length) return null;
+
+  const lines = [`<b>${escapeHtml(heading)}</b>`];
+  for (const b of bullets) lines.push(`• ${escapeHtml(b)}`);
+  return lines.join("\n");
+}
+
+async function buildVolunteersGroupDailyRecap(todayISO) {
+  if (!VOLUNTEERS_GROUP_CHAT_ID) return null;
+  const yesterday = yesterdayISO();
+  const section = await buildGroupChatRecapSection(
+    yesterday,
+    VOLUNTEERS_GROUP_CHAT_ID,
+    `Yesterday (${formatFriendlyDate(yesterday)})`,
+    "Vila Akoya Volunteers group chat"
+  );
+  if (!section) return null;
+  return [`Good morning! ${escapeHtml(formatFriendlyDate(todayISO))}`, "", section].join(
+    "\n"
+  );
+}
+
+async function buildManagementGroupDailyRecap(todayISO) {
+  if (!MANAGEMENT_GROUP_CHAT_ID) return null;
+  const yesterday = yesterdayISO();
+  const lines = [
+    `Good morning — ${escapeHtml(formatFriendlyDate(todayISO))}`,
+    "",
+  ];
+
+  const campsite = await buildManagementCampsiteBriefing(todayISO);
+  if (campsite) {
+    lines.push(campsite, "");
+  }
+
+  const problems = buildProblemReportsSection();
+  if (problems) {
+    lines.push(problems, "");
+  }
+
+  if (VOLUNTEERS_GROUP_CHAT_ID) {
+    const volSection = await buildGroupChatRecapSection(
+      yesterday,
+      VOLUNTEERS_GROUP_CHAT_ID,
+      `Volunteers — ${formatFriendlyDate(yesterday)}`,
+      "Vila Akoya Volunteers group chat"
+    );
+    if (volSection) lines.push(volSection, "");
+  }
+
+  const mgmtSection = await buildGroupChatRecapSection(
+    yesterday,
+    MANAGEMENT_GROUP_CHAT_ID,
+    `Management — ${formatFriendlyDate(yesterday)}`,
+    "Vila Akoya Management group chat"
+  );
+  if (mgmtSection) lines.push(mgmtSection);
+
+  const text = lines.join("\n").trim();
+  const headerOnly = `Good morning — ${escapeHtml(formatFriendlyDate(todayISO))}`;
+  if (text === headerOnly || text === `${headerOnly}\n`) return null;
+  return text;
+}
+
+// ── Problem reports (Guests + main group → Management) ──────────────────────
+function problemSourceLabel(chatId) {
+  if (isGuestsGroupChatId(chatId)) return "Guests group";
+  if (isTaskGroupChatId(chatId)) return "Vila Akoya group";
+  return "Telegram";
+}
+
+/** t.me link to a message; only supergroups (-100…) have shareable message links. */
+function telegramMessageLink(message) {
+  const id = String(message?.chat?.id || "");
+  if (!id.startsWith("-100") || !message.message_id) return null;
+  return `https://t.me/c/${id.slice(4)}/${message.message_id}`;
+}
+
+function recentProblemReports(hours = 24) {
+  const cutoff = Date.now() - hours * 60 * 60 * 1000;
+  return (state.problemReports || []).filter((p) => p.ts >= cutoff);
+}
+
+function recordProblemReport(entry) {
+  if (!state.problemReports) state.problemReports = [];
+  state.problemReports.push(entry);
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  state.problemReports = state.problemReports.filter((p) => p.ts >= cutoff).slice(-200);
+  saveState();
+}
+
+function formatClockTime(ts) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: RECAP_TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+}
+
+function buildProblemReportsSection() {
+  const problems = recentProblemReports(24);
+  if (!problems.length) return null;
+  const lines = ["<b>Problems reported (last 24 hours)</b>"];
+  for (const p of problems) {
+    const flag = p.urgency === "high" ? "🚨 " : "";
+    const link = p.link ? ` — <a href="${p.link}">message</a>` : "";
+    lines.push(
+      `• ${flag}${escapeHtml(p.summary)} — ${escapeHtml(p.proposer)}, ` +
+        `${escapeHtml(p.source)}, ${formatClockTime(p.ts)}${link}`
+    );
+  }
+  return lines.join("\n");
+}
+
+/** Post to the Management group, or DM managers when no Management group is configured. */
+async function sendToManagement(text) {
+  if (MANAGEMENT_GROUP_CHAT_ID) {
+    return sendMessage(MANAGEMENT_GROUP_CHAT_ID, text, { message_thread_id: undefined });
+  }
+  const members = await fetchManagementMembersForDm();
+  let sent = 0;
+  for (const member of members) {
+    if (await sendMessage(member.userId, text)) sent += 1;
+  }
+  return sent > 0;
+}
+
+let problemWatchChain = Promise.resolve();
+
+/** Checks run one at a time so "already reported" sees alerts from messages seconds apart. */
+function watchForProblems(message, text) {
+  const run = problemWatchChain.then(() => watchForProblemsInner(message, text));
+  problemWatchChain = run.catch(() => {});
+  return run;
+}
+
+/** Checks one Guests / main group message and alerts Management right away if it reports a problem. */
+async function watchForProblemsInner(message, text) {
+  if (!PROBLEM_ALERTS || !openaiLib.isEnabled()) return null;
+  if (message.from?.is_bot) return null;
+  const clean = String(text || "").trim();
+  if (clean.length < PROBLEM_MIN_TEXT_LEN || clean.startsWith("/")) return null;
+
+  const chatId = message.chat.id;
+  const source = problemSourceLabel(chatId);
+  const recent = memoryFor(chatId, messageThreadId(message))
+    .filter((m) => m.messageId !== message.message_id)
+    .slice(-6);
+  const result = await openaiLib.detectProblemReport(clean, {
+    groupLabel:
+      source === "Guests group"
+        ? "Vila Akoya Guests Telegram group (campsite guests)"
+        : "Vila Akoya community Telegram group",
+    from: senderDisplayName(message.from),
+    recent,
+    alreadyReported: recentProblemReports(24).map((p) => p.summary),
+  });
+  if (!result?.is_problem || !result.summary) return null;
+  if (result.already_reported) {
+    log(`Problem already reported, no alert: ${result.summary}`);
+    return null;
+  }
+
+  const entry = {
+    dayISO: todayISO(),
+    chatId: String(chatId),
+    source,
+    proposer: senderDisplayName(message.from),
+    summary: result.summary.slice(0, 200),
+    urgency: result.urgency,
+    text: clean.slice(0, 500),
+    link: telegramMessageLink(message),
+    ts: Date.now(),
+  };
+  recordProblemReport(entry);
+
+  const heading =
+    entry.urgency === "high" ? "🚨 <b>Urgent problem reported" : "⚠️ <b>Problem reported";
+  const lines = [
+    `${heading} — ${escapeHtml(source)}</b>`,
+    `<b>${escapeHtml(entry.summary)}</b>`,
+    `${escapeHtml(entry.proposer)}: “${escapeHtml(clean.slice(0, 400))}”`,
+  ];
+  if (entry.link) lines.push(`<a href="${entry.link}">Open message</a>`);
+  const sent = await sendToManagement(lines.join("\n"));
+  log(`Problem alert (${source}) ${sent ? "sent" : "NOT sent"}: ${entry.summary}`);
+  return entry;
+}
+
+function looksLikeGuestQuestion(text) {
+  const t = String(text || "").toLowerCase().trim();
+  if (!t) return false;
+  if (t.includes("?")) return true;
+  if (looksLikeGuestScheduleQuestion(t)) return true;
+  return /^(where|what|when|how|is there|are there|can i|can we|do you|does anyone|anyone know|is it|onde|quando|como|qual|o que|há|tem|alguém sabe)\b/.test(
+    t
+  );
+}
+
+/** “What’s on today”, events, markets, programme — answered from the Notion calendar, not FAQs. */
+function looksLikeGuestScheduleQuestion(text) {
+  const t = String(text || "").toLowerCase().replace(/[’']/g, "'");
+  if (!t) return false;
+  if (/\b(events?|happening|going on|schedule|programme|program|agenda|markets?|flea market|farmers market)\b/.test(t)) {
+    return true;
+  }
+  if (/\b(what's on|whats on|what is on|what's happening|whats happening|anything on)\b/.test(t)) {
+    return true;
+  }
+  if (/\b(today|tonight|tomorrow|this evening|hoje|amanhã|amanha|esta noite)\b/.test(t) && /\b(on|do|events?|happening)\b/.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+function guestScheduleDateFromQuestion(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\btomorrow\b|\bamanhã\b|\bamanha\b/.test(t)) return addDaysISO(todayISO(), 1);
+  return todayISO();
+}
+
+async function fetchGuestWhatsOnForDay(dateISO) {
+  const raw = await fetchEventsForDate(dateISO);
+  const events = dedupeGuestEventsForDay(raw);
+  let markets = [];
+  try {
+    markets = await fetchMarketsForDate(dateISO);
+  } catch (err) {
+    log("Markets fetch for guest schedule failed:", err.message);
+  }
+  return { events, markets };
+}
+
+function formatGuestWhatsOnDayLabel(dateISO) {
+  if (dateISO === todayISO()) return "today";
+  if (dateISO === addDaysISO(todayISO(), 1)) return "tomorrow";
+  return formatFriendlyDate(dateISO);
+}
+
+async function buildGuestWhatsOnReply(dateISO) {
+  const { events, markets } = await fetchGuestWhatsOnForDay(dateISO);
+  const dayLabel = formatGuestWhatsOnDayLabel(dateISO);
+  const lines = [`<b>What’s on ${escapeHtml(dayLabel)}</b>`];
+
+  if (events.length) {
+    lines.push("", "<b>At Vila Akoya</b>");
+    for (const e of events) {
+      const recur = e.recurrence ? ` — ${escapeHtml(e.recurrence)}` : "";
+      lines.push(
+        `• ${escapeHtml(e.title)}${e.type && e.type !== "Other" ? ` (${escapeHtml(e.type)})` : ""}${recur}`
+      );
+    }
+  }
+  if (markets.length) {
+    lines.push("", "<b>Markets nearby</b>");
+    for (const m of markets) {
+      lines.push(`• ${escapeHtml(regionalMarkets.formatMarketBullet(m))}`);
+    }
+  }
+  if (!events.length && !markets.length) {
+    return (
+      `<b>What’s on ${escapeHtml(dayLabel)}</b>\n\n` +
+      `Nothing is listed on the calendar for ${escapeHtml(dayLabel)}.`
+    );
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Guests group: answer from guest-friendly FAQs when it can (no tag needed).
+ * Unanswered questions go to Management only — no “I don’t know” in the guest chat.
+ */
+async function passGuestQuestionToManagement(message, question) {
+  const q = String(question || "").trim();
+  if (!q) return;
+  const chatId = message.chat.id;
+  const key = ambientDedupeKey(chatId, "guest-question", q.slice(0, 80));
+  if (wasRecentlyCaptured(key)) return;
+  markCaptured(key);
+
+  const link = telegramMessageLink(message);
+  await sendToManagement(
+    [
+      "❓ <b>Guest question — Guests group</b>",
+      `${escapeHtml(senderDisplayName(message.from))}: “${escapeHtml(q.slice(0, 400))}”`,
+      link ? `<a href="${link}">Open message</a>` : "",
+      "<i>Tip: add it to FAQs in Notion and tick “Guest friendly” so I can answer in the group next time.</i>",
+    ]
+      .filter(Boolean)
+      .join("\n")
+  );
+  log(`Guest question passed to management: ${q.slice(0, 80)}`);
+}
+
+async function handleGuestsGroupMessage(message) {
+  if (message.from?.is_bot) return;
+  if (await handlePendingFaqGuestFriendly(message)) return;
+  let text = (message.text || message.caption || "").trim();
+  if (!text && getVoiceFileId(message)) {
+    text = (await transcribeMessageVoice(message, { interactive: false })) || "";
+  }
+  if (!text || text.startsWith("/")) return;
+
+  const addressed = isAddressedToBot(message, botMe) || textAddressesBot(text);
+  const replyExtra = {
+    message_thread_id: sendExtraForMessage(message).message_thread_id,
+    reply_parameters: { message_id: message.message_id, allow_sending_without_reply: true },
+  };
+  const chatId = message.chat.id;
+
+  const problem = await watchForProblems(message, text);
+  if (problem) {
+    if (addressed) {
+      await sendMessage(chatId, "Thanks — I’ve let the team know.", replyExtra);
+    }
+    return;
+  }
+
+  const question = stripBotAddressing(text, botMe);
+
+  if (looksLikeGuestScheduleQuestion(question)) {
+    try {
+      const dateISO = guestScheduleDateFromQuestion(question);
+      const reply = await buildGuestWhatsOnReply(dateISO);
+      await sendMessage(chatId, reply, replyExtra);
+      log(`Guest schedule answer (${dateISO})`);
+      return;
+    } catch (err) {
+      log("Guest schedule answer error:", err.message);
+    }
+  }
+
+  const heuristicQuestion = looksLikeGuestQuestion(question);
+  if (!heuristicQuestion && !addressed) return;
+
+  try {
+    const faqHit = await faqsLib.answerGuestFaqQuestion({ question });
+    if (faqHit.ok && faqHit.faq) {
+      await sendMessage(chatId, `❓ ${faqsLib.formatFaqAnswer(faqHit.faq)}`, replyExtra);
+      log(`Guest FAQ answered: ${faqHit.faq.question}`);
+      return;
+    }
+  } catch (err) {
+    log("Guest FAQ lookup error:", err.message);
+  }
+
+  if (openaiLib.isEnabled()) {
+    let faqs = [];
+    try {
+      faqs = await faqsLib.loadGuestFaqs();
+    } catch (err) {
+      log("Guest FAQs load failed:", err.message);
+    }
+    const match = await openaiLib.matchFaqForQuestion(question, faqs);
+    const isQuestion =
+      heuristicQuestion || match?.is_question === true || (addressed && question.length >= 8);
+    if (!isQuestion) return;
+    if (match && match.index >= 0 && faqs[match.index]) {
+      await sendMessage(chatId, `❓ ${faqsLib.formatFaqAnswer(faqs[match.index])}`, replyExtra);
+      log(`Guest FAQ answered (AI match): ${faqs[match.index].question}`);
+      return;
+    }
+    if (isQuestion) {
+      await passGuestQuestionToManagement(message, question);
+    }
+    return;
+  }
+
+  if (heuristicQuestion || addressed) {
+    await passGuestQuestionToManagement(message, question);
+  }
+}
+
+async function buildGuestsGroupDailyRecap(dateISO) {
+  const { events, markets } = await fetchGuestWhatsOnForDay(dateISO);
+  if (!events.length && !markets.length) return null;
+
+  const lines = [`Good morning! Here’s what’s on today, ${escapeHtml(formatFriendlyDate(dateISO))}:`];
+  if (events.length) {
+    lines.push("", "<b>At Vila Akoya</b>");
+    for (const e of events) {
+      const recur = e.recurrence ? ` — ${escapeHtml(e.recurrence)}` : "";
+      lines.push(`• ${escapeHtml(e.title)}${e.type && e.type !== "Other" ? ` (${escapeHtml(e.type)})` : ""}${recur}`);
+    }
+  }
+  if (markets.length) {
+    lines.push("", "<b>Markets nearby</b>");
+    for (const m of markets) {
+      lines.push(`• ${escapeHtml(regionalMarkets.formatMarketBullet(m))}`);
+    }
+  }
+  lines.push("", `<i>Questions? Just ask here — if I know the answer I’ll reply.</i>`);
+  return lines.join("\n");
+}
+
+async function maybeSendGuestsGroupDailyRecap(dateISO) {
+  const outbound = guestsGroupOutboundChatId();
+  if (!DAILY_RECAP || !outbound || !telegramPollActive) return;
+  if (state.lastGuestsGroupRecapDate === dateISO) return;
+  if (currentHHMM() < RECAP_TIME) return;
+  if (state.lastRecapDate !== dateISO) return;
+
+  const text = await buildGuestsGroupDailyRecap(dateISO);
+  if (!text) {
+    state.lastGuestsGroupRecapDate = dateISO;
+    saveState();
+    return;
+  }
+  if (await sendMessage(outbound, text, { message_thread_id: undefined })) {
+    state.lastGuestsGroupRecapDate = dateISO;
+    saveState();
+    log(`Guests group daily recap sent for ${dateISO}`);
+  }
+}
+
 async function buildYesterdayHighlights(dayISO) {
   const logMessages = chatLogForDay(dayISO);
 
@@ -1078,6 +1669,7 @@ function loadState() {
     if (!s.chatLog) s.chatLog = [];
     if (!s.items) s.items = {};
     if (!s.pendingClarify) s.pendingClarify = {};
+    if (!s.pendingFaqGuestFriendly) s.pendingFaqGuestFriendly = {};
     if (!s.pendingExpenseEntity) s.pendingExpenseEntity = {};
     if (!s.pendingQuestionnaire) s.pendingQuestionnaire = {};
     else s.pendingQuestionnaire = normalizePendingQuestionnaires(s.pendingQuestionnaire);
@@ -1087,8 +1679,15 @@ function loadState() {
     }
     if (s.lastChildcareRecapDate === undefined) s.lastChildcareRecapDate = null;
     if (s.lastKidsProgrammeRecapDate === undefined) s.lastKidsProgrammeRecapDate = null;
+    if (s.lastVolunteersGroupRecapDate === undefined) s.lastVolunteersGroupRecapDate = null;
+    if (s.lastManagementGroupRecapDate === undefined) s.lastManagementGroupRecapDate = null;
+    if (s.lastGuestsGroupRecapDate === undefined) s.lastGuestsGroupRecapDate = null;
+    if (s.guestsGroupChatIdMigrated === undefined) s.guestsGroupChatIdMigrated = null;
+    if (!s.problemReports) s.problemReports = [];
     if (!s.telegramTopicAliases) s.telegramTopicAliases = {};
     if (!s.broadcastRemindersSent) s.broadcastRemindersSent = {};
+    if (!s.councilBinRequests) s.councilBinRequests = {};
+    if (!s.pendingCouncilBin) s.pendingCouncilBin = {};
     if (s.seededNotion === undefined) {
       if (s.seededMonday !== undefined) s.items = {};
       s.seededNotion = false;
@@ -1103,13 +1702,21 @@ function loadState() {
       lastManagementCampsiteBriefingDate: null,
       lastChildcareRecapDate: null,
       lastKidsProgrammeRecapDate: null,
+      lastVolunteersGroupRecapDate: null,
+      lastManagementGroupRecapDate: null,
+      lastGuestsGroupRecapDate: null,
+      guestsGroupChatIdMigrated: null,
+      problemReports: [],
       telegramTopicAliases: {},
       broadcastRemindersSent: {},
+      councilBinRequests: {},
+      pendingCouncilBin: {},
       ambientKeys: {},
       chatActivity: [],
       chatLog: [],
       items: {},
       pendingClarify: {},
+      pendingFaqGuestFriendly: {},
       pendingExpenseEntity: {},
       pendingQuestionnaire: {},
     };
@@ -1321,13 +1928,17 @@ let replyThreadExtra = {};
 
 function withReplyThread(message, fn) {
   const prev = replyThreadExtra;
-  replyThreadExtra =
-    message?.is_topic_message && message.message_thread_id
-      ? { message_thread_id: message.message_thread_id }
-      : {};
+  replyThreadExtra = sendExtraForMessage(message);
   return Promise.resolve(fn()).finally(() => {
     replyThreadExtra = prev;
   });
+}
+
+function sendExtraForMessage(message) {
+  if (message?.is_topic_message && message.message_thread_id) {
+    return { message_thread_id: message.message_thread_id };
+  }
+  return {};
 }
 
 async function sendMessage(chatId, text, extra = {}) {
@@ -1352,7 +1963,11 @@ async function sendMessage(chatId, text, extra = {}) {
     rememberBotReply(chatId, text);
     return true;
   } catch (err) {
-    log("sendMessage error:", err.message);
+    log(
+      "sendMessage error:",
+      err.message,
+      `(chat_id=${chatId}${payload.message_thread_id ? ` thread=${payload.message_thread_id}` : ""})`
+    );
     return false;
   }
 }
@@ -4474,6 +5089,9 @@ async function maybeSendMorningFollowUps(dateISO) {
   if (state.lastRecapDate !== dateISO) return;
   await maybeSendPersonalMorningBriefings(dateISO);
   await maybeSendManagementCampsiteBriefings(dateISO);
+  await maybeSendVolunteersGroupDailyRecap(dateISO);
+  await maybeSendManagementGroupDailyRecap(dateISO);
+  await maybeSendGuestsGroupDailyRecap(dateISO);
 }
 
 async function maybeSendDailyRecap() {
@@ -4501,6 +5119,9 @@ async function maybeSendDailyRecap() {
     log(`Daily recap sent for ${today}`);
     await maybeSendPersonalMorningBriefings(today);
     await maybeSendManagementCampsiteBriefings(today);
+    await maybeSendVolunteersGroupDailyRecap(today);
+    await maybeSendManagementGroupDailyRecap(today);
+    await maybeSendGuestsGroupDailyRecap(today);
   } catch (err) {
     state.lastRecapDate = previous;
     saveState();
@@ -5026,8 +5647,49 @@ async function handleChildcareAbsence({ text, from, chatId, childName, date }) {
   return true;
 }
 
+async function maybeSendVolunteersGroupDailyRecap(dateISO) {
+  if (!DAILY_RECAP || !VOLUNTEERS_GROUP_CHAT_ID || !telegramPollActive) return;
+  refreshRecapDatesFromDisk();
+  if (state.lastVolunteersGroupRecapDate === dateISO) return;
+  if (currentHHMM() < RECAP_TIME) return;
+  if (state.lastRecapDate !== dateISO) return;
+
+  const text = await buildVolunteersGroupDailyRecap(dateISO);
+  if (!text) {
+    state.lastVolunteersGroupRecapDate = dateISO;
+    saveState();
+    return;
+  }
+  if (await sendMessage(VOLUNTEERS_GROUP_CHAT_ID, text)) {
+    state.lastVolunteersGroupRecapDate = dateISO;
+    saveState();
+    log(`Volunteers group daily recap sent for ${dateISO}`);
+  }
+}
+
+async function maybeSendManagementGroupDailyRecap(dateISO) {
+  if (!DAILY_RECAP || !MANAGEMENT_GROUP_CHAT_ID || !telegramPollActive) return;
+  refreshRecapDatesFromDisk();
+  if (state.lastManagementGroupRecapDate === dateISO) return;
+  if (currentHHMM() < RECAP_TIME) return;
+  if (state.lastRecapDate !== dateISO) return;
+
+  const text = await buildManagementGroupDailyRecap(dateISO);
+  if (!text) {
+    state.lastManagementGroupRecapDate = dateISO;
+    saveState();
+    return;
+  }
+  if (await sendMessage(MANAGEMENT_GROUP_CHAT_ID, text)) {
+    state.lastManagementGroupRecapDate = dateISO;
+    saveState();
+    log(`Management group daily recap sent for ${dateISO}`);
+  }
+}
+
 async function maybeSendManagementCampsiteBriefings(dateISO) {
   if (!DAILY_RECAP) return;
+  if (MANAGEMENT_GROUP_CHAT_ID) return;
   if (!telegramPollActive) return;
   refreshRecapDatesFromDisk();
   if (currentHHMM() < RECAP_TIME) return;
@@ -5887,6 +6549,7 @@ async function handleFaqCreate({ text, from, chatId, classified }) {
       : `❓ Updated FAQ: <b>${escapeHtml(result.name)}</b>`;
     if (result.url) reply += ` — <a href="${result.url}">Notion</a>`;
     await sendMessage(chatId, reply);
+    await afterFaqSaved({ chatId, pageId: result.id, name: result.name });
     return true;
   } catch (err) {
     log("handleFaqCreate error:", err.message);
@@ -6469,6 +7132,256 @@ async function handlePendingQuestionnaire(message) {
   return true;
 }
 
+// ── Pending council bin collection (follow-up without @mention) ───────────────
+const COUNCIL_BIN_PENDING_MS = 15 * 60 * 1000;
+
+function councilBinPendingKey(message) {
+  return `${message.chat.id}:${message.from?.id}`;
+}
+
+function clearPendingCouncilBin(key) {
+  if (state.pendingCouncilBin?.[key]) {
+    delete state.pendingCouncilBin[key];
+    saveState();
+  }
+}
+
+function markPendingCouncilBin(key, patch) {
+  if (!state.pendingCouncilBin) state.pendingCouncilBin = {};
+  state.pendingCouncilBin[key] = { ...patch, ts: Date.now() };
+  saveState();
+}
+
+async function handlePendingCouncilBin(message) {
+  const chatId = message.chat.id;
+  const from = message.from;
+  const key = councilBinPendingKey(message);
+  const pending = state.pendingCouncilBin?.[key];
+  if (!pending) return false;
+  if (Date.now() - pending.ts > COUNCIL_BIN_PENDING_MS) {
+    clearPendingCouncilBin(key);
+    return false;
+  }
+
+  const text = (message.text || message.caption || "").trim();
+  if (!text || text.startsWith("/")) return false;
+
+  if (/^(never mind|nevermind|forget it|cancel|stop|no thanks)\b/i.test(text)) {
+    clearPendingCouncilBin(key);
+    await sendMessage(chatId, "Okay — I won’t email the council.");
+    return true;
+  }
+
+  if (!councilBins.isEnabled()) {
+    clearPendingCouncilBin(key);
+    await sendMessage(chatId, "Council email isn’t set up on the bot yet.");
+    return true;
+  }
+
+  if (pending.step === "pick_bins") {
+    const parsed = councilBins.parseBinsFromUserText(text);
+    if (!parsed.length) {
+      await sendMessage(
+        chatId,
+        "Which bins are full? Reply with e.g. <b>paper</b>, <b>general waste</b>, <b>plastic and glass</b>, or <b>all</b>."
+      );
+      return true;
+    }
+    const result = await councilBins.processRequest({
+      bins: parsed,
+      confirmed: false,
+      lastSent: state.councilBinRequests,
+    });
+    if (result.error) {
+      clearPendingCouncilBin(key);
+      await sendMessage(chatId, escapeHtml(result.error));
+      return true;
+    }
+    if (result.already_requested && !result.needs_confirmation) {
+      clearPendingCouncilBin(key);
+      await sendMessage(
+        chatId,
+        `The council was already asked about ${result.bins.map((b) => escapeHtml(b)).join(", ")} in the last ${councilBins.COOLDOWN_HOURS}h — no new email sent.`
+      );
+      return true;
+    }
+    if (result.needs_confirmation) {
+      markPendingCouncilBin(key, { step: "confirm", due_bins: result.due_bins });
+      const names = result.bins.map((b) => escapeHtml(b)).join(", ");
+      await sendMessage(
+        chatId,
+        `Shall I email the council (${escapeHtml(result.would_email)}) to empty the ${names} bins? Reply <b>yes</b> to send.`
+      );
+      return true;
+    }
+    return false;
+  }
+
+  if (pending.step === "confirm") {
+    const yes = /^(yes|y|yeah|yep|sure|ok|okay|sim|confirm|go ahead|do it|send)\b/i.test(text);
+    const no = /^(no|n|nope|don't|dont|cancel)\b/i.test(text);
+    if (!yes && !no) {
+      await sendMessage(chatId, "Reply <b>yes</b> to email the council, or <b>no</b> to cancel.");
+      return true;
+    }
+    if (no) {
+      clearPendingCouncilBin(key);
+      await sendMessage(chatId, "Cancelled — no email sent.");
+      return true;
+    }
+    try {
+      const result = await councilBins.processRequest({
+        bins: pending.due_bins || [],
+        confirmed: true,
+        lastSent: state.councilBinRequests,
+      });
+      clearPendingCouncilBin(key);
+      if (result.error) {
+        await sendMessage(chatId, escapeHtml(result.error));
+        return true;
+      }
+      if (result.ok && result.sentKeys) {
+        Object.assign(state.councilBinRequests, result.sentKeys);
+        saveState();
+        log(`council bins email sent (${(pending.due_bins || []).join(", ")}) requested by ${senderDisplayName(from)}`);
+      }
+      const names = (result.bins || []).map((b) => escapeHtml(b)).join(", ");
+      await sendMessage(
+        chatId,
+        result.ok
+          ? `Done — emailed the council to empty the ${names} bins. You should get a copy at ${escapeHtml(councilBins.COUNCIL_EMAIL_CC || councilBins.COUNCIL_EMAIL_REPLY_TO)}.`
+          : `The council was already asked in the last ${councilBins.COOLDOWN_HOURS}h — no new email sent.`
+      );
+    } catch (err) {
+      log("council bin email error:", err.message);
+      await sendMessage(chatId, `Couldn’t send the email: ${escapeHtml(err.message)}`);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// ── FAQ “Guest friendly?” follow-up after save ───────────────────────────────
+const FAQ_GUEST_PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
+
+function faqGuestFriendlyPendingKey(chatId) {
+  return String(chatId);
+}
+
+function queueFaqGuestFriendlyPrompt(chatId, { pageId, name, deferPrompt = false }) {
+  if (!pageId || !chatId) return;
+  if (!state.pendingFaqGuestFriendly) state.pendingFaqGuestFriendly = {};
+  state.pendingFaqGuestFriendly[faqGuestFriendlyPendingKey(chatId)] = {
+    pageId,
+    name: String(name || "FAQ").slice(0, 120),
+    ts: Date.now(),
+    deferPrompt: Boolean(deferPrompt),
+  };
+  saveState();
+}
+
+async function sendFaqGuestFriendlyPrompt(chatId, pending) {
+  if (!pending?.pageId) return;
+  await sendMessage(
+    chatId,
+    `Should guests be able to see this FAQ?\n` +
+      `<i>“${escapeHtml(pending.name)}”</i>\n\nReply <b>yes</b> or <b>no</b>.`
+  );
+}
+
+async function flushDeferredFaqGuestFriendlyPrompt(chatId) {
+  const key = faqGuestFriendlyPendingKey(chatId);
+  const pending = state.pendingFaqGuestFriendly?.[key];
+  if (!pending?.deferPrompt) return;
+  pending.deferPrompt = false;
+  pending.ts = Date.now();
+  saveState();
+  await sendFaqGuestFriendlyPrompt(chatId, pending);
+}
+
+function parseAffirmativeNegative(text) {
+  const raw = stripBotAddressing(String(text || "").trim(), botMe);
+  const t = raw.toLowerCase().replace(/[’']/g, "'");
+  if (!t || t.startsWith("/")) return null;
+  if (t.length > 80) return null;
+
+  if (/^(yes|yeah|yep|yup|yess|sure|ok|okay|correct|affirmative|sim|si|claro|isso)\b/i.test(t)) {
+    return true;
+  }
+  if (/^(no|nope|nah|negative|não|nao|dont|don't)\b/i.test(t)) {
+    return false;
+  }
+  if (t.length <= 40) {
+    if (/\b(yes|yeah|yep|yup|sure|sim|claro)\b/i.test(t) && !/\b(no|not|n't|não|nao|dont|don't)\b/i.test(t)) {
+      return true;
+    }
+    if (/\b(no|nope|nah|not|n't|não|nao|dont|don't)\b/i.test(t)) {
+      return false;
+    }
+  }
+  return null;
+}
+
+async function handlePendingFaqGuestFriendly(message) {
+  const chatId = message.chat?.id;
+  if (!chatId || message.from?.is_bot) return false;
+
+  const key = faqGuestFriendlyPendingKey(chatId);
+  const pending = state.pendingFaqGuestFriendly?.[key];
+  if (!pending || pending.deferPrompt) return false;
+  if (Date.now() - pending.ts > FAQ_GUEST_PROMPT_TIMEOUT_MS) {
+    delete state.pendingFaqGuestFriendly[key];
+    saveState();
+    return false;
+  }
+
+  const text = (message.text || message.caption || "").trim();
+  if (!text || text.startsWith("/")) return false;
+
+  const choice = parseAffirmativeNegative(text);
+  if (choice === null) {
+    if (isAddressedToBot(message, botMe)) {
+      await sendMessage(chatId, "Reply <b>yes</b> or <b>no</b> — should guests see this FAQ?");
+      return true;
+    }
+    return false;
+  }
+
+  try {
+    await faqsLib.setGuestFriendly(pending.pageId, choice);
+    delete state.pendingFaqGuestFriendly[key];
+    saveState();
+    await sendMessage(
+      chatId,
+      choice
+        ? `Got it — guests <b>can</b> see “${escapeHtml(pending.name)}” when they ask VAVA.`
+        : `Got it — this FAQ stays <b>off</b> the guest list (team / main group only).`
+    );
+    return true;
+  } catch (err) {
+    log("setGuestFriendly error:", err.message);
+    await sendMessage(chatId, "Sorry, I couldn't update that in Notion. Try again with yes or no.");
+    return true;
+  }
+}
+
+async function afterFaqSaved({ chatId, pageId, name, deferPrompt = false }) {
+  if (!pageId || !chatId) return;
+  markPageSeen(pageId, { stage: "", status: "Active", doer: "", done: false });
+  queueFaqGuestFriendlyPrompt(chatId, { pageId, name, deferPrompt });
+  if (!deferPrompt) {
+    const key = faqGuestFriendlyPendingKey(chatId);
+    const pending = state.pendingFaqGuestFriendly[key];
+    if (pending) {
+      pending.deferPrompt = false;
+      pending.ts = Date.now();
+      saveState();
+      await sendFaqGuestFriendlyPrompt(chatId, pending);
+    }
+  }
+}
+
 // ── Pending clarification for incomplete tasks ─────────────────────────────────
 const CLARIFY_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -6595,6 +7508,9 @@ const HELP_TEXT = [
   "Voice note or text a stay booked by email or phone and I’ll put it on Guest Stays in Notion (management get a daily DM with arrivals and occupancy).",
   "• “the Martins booked the cabin 20–24 Sept, 2 adults 1 child, via email”",
   "• “email booking: João arriving Friday leaving Monday, pitch 4”",
+  "",
+  "<b>Bins full</b>",
+  "• “the bins are full” / “as papeleiras estão cheias” — I'll ask which ones (paper, plastic, glass, general, or all), check with you, then email the Câmara de Ourique to come and empty them.",
   "",
   "<b>Where things are</b>",
   "• “where are the bathroom keys?” / “where is the drill?”",
@@ -8300,6 +9216,47 @@ function buildAgentTools({ message, text, photoFileId, media }) {
       },
     },
     {
+      name: "request_bin_collection",
+      description:
+        "The village bins / recycling containers (papeleiras, contentores, ecopontos) are full → email the council (Câmara de Ourique) asking them to come and empty them. " +
+        "If the person didn't say which bins, call with no bins: you'll get the options — ask which are full (several or all is fine). " +
+        "With bins but without confirmed you get needs_confirmation — ask 'Shall I email the council to empty the <bins>?' and call again with confirmed=true once they say yes.",
+      writes: true,
+      parameters: {
+        type: "object",
+        properties: {
+          bins: {
+            type: "array",
+            items: { type: "string", enum: [...Object.keys(councilBins.BIN_TYPES), "all"] },
+            description: "paper = paper/cardboard (blue), plastic = packaging (yellow), glass (green), general = general waste",
+          },
+          confirmed: { type: "boolean" },
+        },
+      },
+      run: async ({ bins, confirmed }) => {
+        const key = `${chatId}:${from.id}`;
+        const result = await councilBins.processRequest({
+          bins: bins || [],
+          confirmed: Boolean(confirmed),
+          lastSent: state.councilBinRequests,
+        });
+        if (result.needs_bin_types) {
+          markPendingCouncilBin(key, { step: "pick_bins" });
+        } else if (result.needs_confirmation) {
+          markPendingCouncilBin(key, { step: "confirm", due_bins: result.due_bins });
+        } else if (result.ok && result.sentKeys) {
+          Object.assign(state.councilBinRequests, result.sentKeys);
+          saveState();
+          clearPendingCouncilBin(key);
+          log(`council bins email sent (${(result.due_bins || []).join(", ")}) requested by ${senderDisplayName(from)}`);
+        } else {
+          clearPendingCouncilBin(key);
+        }
+        const { sentKeys, due_bins, ...forAgent } = result;
+        return forAgent;
+      },
+    },
+    {
       name: "add_faq",
       description: "Add or update a village FAQ.",
       writes: true,
@@ -8318,6 +9275,7 @@ function buildAgentTools({ message, text, photoFileId, media }) {
         });
         if (r.reason === "ambiguous") return { ambiguous: (r.matches || []).map((m) => m.question) };
         if (!r.ok) return { error: "Couldn't save the FAQ." };
+        await afterFaqSaved({ chatId, pageId: r.id, name: r.name, deferPrompt: true });
         return { ok: true, name: r.name, created: r.created, url: r.url, linkTitle: "FAQ", done: `Saved FAQ “${r.name}”` };
       },
     },
@@ -8515,6 +9473,7 @@ async function routeViaToolAgent({ message, text, photoFileId, media }) {
   const links = agentLinksHtml(result.links);
   if (links) html += `\n${links}`;
   await sendMessage(chatId, html);
+  await flushDeferredFaqGuestFriendlyPrompt(chatId);
   return true;
 }
 
@@ -8944,14 +9903,35 @@ async function handleMessageInner(message) {
     rememberForumTopicFromMessage(message, message.forum_topic_created.name);
   }
 
+  if (message.migrate_to_chat_id) {
+    rememberGuestsGroupMigration(message.chat?.id, message.migrate_to_chat_id);
+  }
+  if (message.migrate_from_chat_id && message.chat?.id) {
+    rememberGuestsGroupMigration(message.migrate_from_chat_id, message.chat.id);
+  }
+
+  if (isGuestsGroupChatId(chatId)) {
+    try {
+      await handleGuestsGroupMessage(message);
+    } catch (err) {
+      log("Guests group handler error:", err.message);
+    }
+    return;
+  }
+
+  if (isTaskGroupMessage(message) && text) {
+    watchForProblems(message, text).catch((err) => log("Problem watch error:", err.message));
+  }
+
   if (!shouldHandleIntake(message)) {
     if (
       (message.chat?.type === "group" || message.chat?.type === "supergroup") &&
       isAddressedToBot(message, botMe)
     ) {
       log(
-        `Ignoring @mention — chat ${chatId} is not TASK_GROUP_CHAT_ID (${TASK_GROUP_CHAT_ID}). ` +
-          `Restart with TELEGRAM_CHAT_ID="${chatId}"`
+        `Ignoring @mention — chat ${chatId} is not an intake group (main ${TASK_GROUP_CHAT_ID}` +
+          `${VOLUNTEERS_GROUP_CHAT_ID ? `, volunteers ${VOLUNTEERS_GROUP_CHAT_ID}` : ""}` +
+          `${MANAGEMENT_GROUP_CHAT_ID ? `, management ${MANAGEMENT_GROUP_CHAT_ID}` : ""}).`
       );
     }
     return;
@@ -8962,6 +9942,14 @@ async function handleMessageInner(message) {
   }
 
   if (text && !text.startsWith("/") && (await handlePendingQuestionnaire(message))) {
+    return;
+  }
+
+  if (text && !text.startsWith("/") && (await handlePendingFaqGuestFriendly(message))) {
+    return;
+  }
+
+  if (text && !text.startsWith("/") && (await handlePendingCouncilBin(message))) {
     return;
   }
 
@@ -9201,6 +10189,11 @@ async function handleMessageInner(message) {
     voiceText = await transcribeMessageVoice(message, {
       interactive: isAddressedToBot(message, botMe),
     });
+    if (voiceText && !text && isTaskGroupMessage(message)) {
+      watchForProblems(message, voiceText).catch((err) =>
+        log("Problem watch error:", err.message)
+      );
+    }
   }
 
   const addressedToBot =
@@ -9568,7 +10561,7 @@ async function scanBoardsForChanges({ announce }) {
           )
         ) {
           await sendMessage(
-            TELEGRAM_CHAT_ID,
+            ANNOUNCE_CHAT_ID,
             `🆕 New item on <b>${escapeHtml(dbName)}</b>: ` +
               `${escapeHtml(name)}${link}`
           );
@@ -9576,12 +10569,12 @@ async function scanBoardsForChanges({ announce }) {
       } else if (announce) {
         if (!prev.done && done) {
           await sendMessage(
-            TELEGRAM_CHAT_ID,
+            ANNOUNCE_CHAT_ID,
             `✅ Completed: <b>${escapeHtml(name)}</b> (${escapeHtml(dbName)})${link}`
           );
         } else if (doer && doer !== prev.doer) {
           await sendMessage(
-            TELEGRAM_CHAT_ID,
+            ANNOUNCE_CHAT_ID,
             `👤 <b>${escapeHtml(name)}</b> assigned to ${escapeHtml(doer)} (${escapeHtml(dbName)})${link}`
           );
         } else if (
@@ -9591,7 +10584,7 @@ async function scanBoardsForChanges({ announce }) {
         ) {
           const label = status || stage;
           await sendMessage(
-            TELEGRAM_CHAT_ID,
+            ANNOUNCE_CHAT_ID,
             `🔧 <b>${escapeHtml(name)}</b> → ${escapeHtml(label)} (${escapeHtml(dbName)})${link}`
           );
         }
@@ -9632,10 +10625,23 @@ async function main() {
   log(
     `Task intake: group ${TASK_GROUP_CHAT_ID}${ALLOW_DM_INTAKE ? " + private DMs" : ""}`
   );
+  log(
+    `Ops groups: volunteers ${VOLUNTEERS_GROUP_CHAT_ID || "(off)"}, management ${
+      MANAGEMENT_GROUP_CHAT_ID || "(off)"
+    }, guests ${guestsGroupOutboundChatId() || "(off)"}` +
+      (state.guestsGroupChatIdMigrated
+        ? ` (also listening on legacy ids)`
+        : "")
+  );
+  log(
+    `Problem alerts → management: ${
+      PROBLEM_ALERTS && openaiLib.isEnabled() ? "ON" : "OFF"
+    } (watching main group${GUESTS_GROUP_CHAT_ID ? " + guests" : ""})`
+  );
   log(`Group mode: tag-to-activate (ambient capture ${AMBIENT_CAPTURE ? "ON" : "OFF"}); DMs always on`);
   log(`Events: Internal → ${INTERNAL_EVENTS_DB_NAME}, External → ${EXTERNAL_EVENTS_DB_NAME}`);
   log(`Daily recap: ${DAILY_RECAP ? `ON at ${RECAP_TIME} ${RECAP_TZ}` : "OFF"}`);
-  log(`Notion announcements → chat ${TELEGRAM_CHAT_ID || "(off)"}`);
+  log(`Notion announcements → chat ${ANNOUNCE_CHAT_ID || "(off)"}`);
 
   await ensureMembersQuestionnaireSchema();
   try {
@@ -9725,7 +10731,7 @@ async function main() {
 
     const now = Date.now();
     if (
-      TELEGRAM_CHAT_ID &&
+      ANNOUNCE_CHAT_ID &&
       telegramPollActive &&
       now - lastNotionPoll >= NOTION_POLL_SECONDS * 1000
     ) {
