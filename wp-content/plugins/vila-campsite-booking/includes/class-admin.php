@@ -147,6 +147,10 @@ class Admin {
 				'label' => __( 'Calendar', 'vila-campsite-booking' ),
 			),
 			array(
+				'page'  => Admin_Insights::PAGE,
+				'label' => __( 'Insights', 'vila-campsite-booking' ),
+			),
+			array(
 				'page'  => Admin_Stays::PAGE,
 				'label' => __( 'Village stays', 'vila-campsite-booking' ),
 			),
@@ -500,6 +504,13 @@ class Admin {
 		);
 
 		$order_edit = $order ? $order->get_edit_order_url() : '';
+		$booking_payment_redirect = add_query_arg(
+			array(
+				'page'       => self::PAGE_BOOKING,
+				'booking_id' => $booking_id,
+			),
+			admin_url( 'admin.php' )
+		);
 
 		$guest_reg     = ( new Guest_Registration_Repository() )->get_by_booking_id( $booking_id );
 		$guest_reg_id  = $guest_reg ? (int) $guest_reg['id'] : 0;
@@ -564,6 +575,35 @@ class Admin {
 				echo '</pre><p class="description">' . esc_html__( 'Disable with: add_filter( \'vila_cb_booking_edit_extras_debug\', \'__return_false\' );', 'vila-campsite-booking' ) . '</p></details>';
 			}
 			?>
+
+			<div class="vila-cb-ui-panel vila-cb-payment-panel">
+				<h2 class="vila-cb-ui-section-title"><?php esc_html_e( 'Payment', 'vila-campsite-booking' ); ?></h2>
+				<?php if ( $order instanceof \WC_Order ) : ?>
+					<div class="vila-cb-payment-summary">
+						<div>
+							<?php echo Order_Payment_Status::badge_html( $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+							<?php echo Order_Payment_Status::paid_attribution_html( $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+							<p class="description">
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: 1: order number, 2: payment gateway title */
+										__( 'Order #%1$s · %2$s', 'vila-campsite-booking' ),
+										$order->get_order_number(),
+										$order->get_payment_method_title() ? $order->get_payment_method_title() : __( 'No payment method', 'vila-campsite-booking' )
+									)
+								);
+								?>
+							</p>
+						</div>
+						<strong class="vila-cb-payment-summary__amount"><?php echo wp_kses_post( wc_price( $order->get_total() ) ); ?></strong>
+					</div>
+					<?php echo Order_Payment_Status::render_mark_paid_controls( $order, $booking_payment_redirect ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+				<?php else : ?>
+					<?php echo Order_Payment_Status::badge_html( null ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<p class="description"><?php esc_html_e( 'This booking is not linked to a WooCommerce order.', 'vila-campsite-booking' ); ?></p>
+				<?php endif; ?>
+			</div>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="vila-cb-booking-edit">
 				<input type="hidden" name="action" value="vila_cb_save_booking" />
@@ -868,6 +908,21 @@ class Admin {
 
 		$repo = new Booking_Repository();
 		$rows = $repo->get_activity_for_day( $ymd );
+		$payment_filter = isset( $_GET[ Order_Payment_Status::FILTER ] )
+			? sanitize_key( wp_unslash( Request_String::scalar( $_GET[ Order_Payment_Status::FILTER ] ) ) )
+			: '';
+		$arrivals_unpaid_count = 0;
+		$arrivals_unpaid_total = 0.0;
+		foreach ( $rows as $b ) {
+			if ( 'confirmed' !== (string) $b['status'] || (string) $b['check_in'] !== $ymd ) {
+				continue;
+			}
+			$order = ! empty( $b['order_id'] ) ? wc_get_order( (int) $b['order_id'] ) : null;
+			if ( $order instanceof \WC_Order && Order_Payment_Status::STATE_UNPAID === Order_Payment_Status::get_state( $order ) ) {
+				++$arrivals_unpaid_count;
+				$arrivals_unpaid_total += (float) $order->get_total();
+			}
+		}
 
 		$guest_reg_by_booking = ( new Guest_Registration_Repository() )->get_registration_ids_by_booking_ids(
 			array_map(
@@ -928,6 +983,9 @@ class Admin {
 				</div>
 				<form method="get" class="vila-cb-daynav vila-cb-ui-nav">
 					<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_OVERVIEW ); ?>" />
+					<?php if ( '' !== $payment_filter ) : ?>
+						<input type="hidden" name="<?php echo esc_attr( Order_Payment_Status::FILTER ); ?>" value="<?php echo esc_attr( $payment_filter ); ?>" />
+					<?php endif; ?>
 					<button type="submit" class="button vila-cb-ui-nav-btn" name="vila_cb_day" value="<?php echo esc_attr( $prev ); ?>" aria-label="<?php esc_attr_e( 'Previous day', 'vila-campsite-booking' ); ?>">
 						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">‹</span>
 						<span><?php esc_html_e( 'Prev', 'vila-campsite-booking' ); ?></span>
@@ -940,6 +998,12 @@ class Admin {
 						<span><?php esc_html_e( 'Next', 'vila-campsite-booking' ); ?></span>
 						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">›</span>
 					</button>
+				</form>
+				<form method="get" class="vila-cb-payment-filter">
+					<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_OVERVIEW ); ?>" />
+					<input type="hidden" name="vila_cb_day" value="<?php echo esc_attr( $ymd ); ?>" />
+					<?php echo Order_Payment_Status::filter_select_html( $payment_filter, Order_Payment_Status::FILTER, __( 'Filter by payment status', 'vila-campsite-booking' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<button type="submit" class="button"><?php esc_html_e( 'Filter', 'vila-campsite-booking' ); ?></button>
 				</form>
 			</div>
 
@@ -959,6 +1023,11 @@ class Admin {
 				<div class="vila-cb-kpi vila-cb-kpi--book">
 					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Orders with activity today', 'vila-campsite-booking' ); ?></span>
 					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) (int) $stats['activity_orders'] ); ?></strong>
+				</div>
+				<div class="vila-cb-kpi vila-cb-kpi--pay">
+					<span class="vila-cb-kpi__label"><?php esc_html_e( 'Arriving today, still to pay', 'vila-campsite-booking' ); ?></span>
+					<strong class="vila-cb-kpi__val"><?php echo esc_html( (string) $arrivals_unpaid_count ); ?></strong>
+					<span class="vila-cb-kpi__sub"><?php echo wp_kses_post( wc_price( $arrivals_unpaid_total ) ); ?></span>
 				</div>
 			</div>
 
@@ -980,6 +1049,7 @@ class Admin {
 						echo '<tr><td colspan="4">' . esc_html__( 'No bookings with activity on this day.', 'vila-campsite-booking' ) . '</td></tr>';
 					}
 					$plot_repo = new Plot_Repository();
+					$visible_rows = 0;
 					foreach ( $rows as $b ) {
 						if ( 'confirmed' !== $b['status'] ) {
 							continue;
@@ -989,6 +1059,10 @@ class Admin {
 						$nights = Dates::night_count( $cin, $cout );
 						$order_id = (int) $b['order_id'];
 						$order    = $order_id ? wc_get_order( $order_id ) : null;
+						if ( ! Order_Payment_Status::matches_filter( $order, $payment_filter ) ) {
+							continue;
+						}
+						++$visible_rows;
 						$name = $order ? trim( (string) $order->get_formatted_billing_full_name() ) : '';
 						if ( '' === $name ) {
 							$name = $order ? '#' . $order->get_order_number() : '#' . (int) $b['id'];
@@ -1001,6 +1075,14 @@ class Admin {
 							array(
 								'page'       => self::PAGE_BOOKING,
 								'booking_id' => (int) $b['id'],
+							),
+							admin_url( 'admin.php' )
+						);
+						$payment_redirect = add_query_arg(
+							array(
+								'page'                         => self::PAGE_OVERVIEW,
+								'vila_cb_day'                  => $ymd,
+								Order_Payment_Status::FILTER   => $payment_filter,
 							),
 							admin_url( 'admin.php' )
 						);
@@ -1029,8 +1111,9 @@ class Admin {
 							<td>
 								<?php if ( $order ) : ?>
 									<a href="<?php echo esc_url( $edit ); ?>"><?php echo wp_kses_post( wc_price( $total ) ); ?></a>
+									<br /><?php echo Order_Payment_Status::badge_html( $order, 'compact' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 								<?php else : ?>
-									—
+									<?php echo Order_Payment_Status::badge_html( null, 'compact' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 								<?php endif; ?>
 							</td>
 							<td>
@@ -1038,9 +1121,13 @@ class Admin {
 								<?php if ( $edit ) : ?>
 									<a class="button button-small" href="<?php echo esc_url( $edit ); ?>"><?php esc_html_e( 'Order', 'vila-campsite-booking' ); ?></a>
 								<?php endif; ?>
+								<?php echo Order_Payment_Status::render_mark_paid_controls( $order, $payment_redirect, 'compact' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 							</td>
 						</tr>
 						<?php
+					}
+					if ( ! empty( $rows ) && 0 === $visible_rows ) {
+						echo '<tr><td colspan="4">' . esc_html__( 'No bookings match this payment filter.', 'vila-campsite-booking' ) . '</td></tr>';
 					}
 					?>
 						</tbody>
@@ -1242,6 +1329,11 @@ class Admin {
 			echo '<div class="vila-cb-meal-party__main">';
 			echo '<strong class="vila-cb-meal-party__name">' . esc_html( (string) $p['name'] ) . '</strong>';
 			echo '<span class="vila-cb-meal-party__meta">' . esc_html( (string) $p['plot'] ) . ' · ' . esc_html( $breakdown ) . '</span>';
+			$order_id = isset( $p['order_id'] ) ? (int) $p['order_id'] : 0;
+			$order    = $order_id > 0 ? wc_get_order( $order_id ) : null;
+			if ( $order instanceof \WC_Order ) {
+				echo '<span class="vila-cb-meal-party__meta vila-cb-meal-party__payment">' . Order_Payment_Status::badge_html( $order, 'compact' ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			}
 			echo '</div>';
 			echo '<div class="vila-cb-meal-party__side">';
 			echo '<span class="vila-cb-meal-party__cook">' . esc_html(
@@ -1363,6 +1455,11 @@ class Admin {
 		$prev = ( clone $base )->modify( '-14 days' )->format( 'Y-m-d' );
 		$next = ( clone $base )->modify( '+14 days' )->format( 'Y-m-d' );
 		$today_ymd = ( new \DateTime( 'now', $tz ) )->format( 'Y-m-d' );
+		$payment_highlight = isset( $_GET[ Order_Payment_Status::FILTER ] )
+			? sanitize_key( wp_unslash( Request_String::scalar( $_GET[ Order_Payment_Status::FILTER ] ) ) )
+			: '';
+		$calendar_classes  = 'vila-cb-ui-table-wrap vila-cb-cal__table-wrap';
+		$calendar_classes .= '' !== $payment_highlight ? ' vila-cb-pay-highlight vila-cb-pay-highlight--' . $payment_highlight : '';
 
 		?>
 		<div class="wrap vila-cb-admin vila-cb-cal">
@@ -1379,6 +1476,9 @@ class Admin {
 				</div>
 				<form method="get" class="vila-cb-daynav vila-cb-ui-nav">
 					<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_CAL ); ?>" />
+					<?php if ( '' !== $payment_highlight ) : ?>
+						<input type="hidden" name="<?php echo esc_attr( Order_Payment_Status::FILTER ); ?>" value="<?php echo esc_attr( $payment_highlight ); ?>" />
+					<?php endif; ?>
 					<button type="submit" class="button vila-cb-ui-nav-btn" name="vila_cb_cal" value="<?php echo esc_attr( $prev ); ?>" aria-label="<?php esc_attr_e( 'Previous 14 days', 'vila-campsite-booking' ); ?>">
 						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">‹</span>
 						<span><?php esc_html_e( 'Prev', 'vila-campsite-booking' ); ?></span>
@@ -1392,9 +1492,15 @@ class Admin {
 						<span class="vila-cb-ui-nav-arrow" aria-hidden="true">›</span>
 					</button>
 				</form>
+				<form method="get" class="vila-cb-payment-filter">
+					<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_CAL ); ?>" />
+					<input type="hidden" name="vila_cb_cal" value="<?php echo esc_attr( $base->format( 'Y-m-d' ) ); ?>" />
+					<?php echo Order_Payment_Status::filter_select_html( $payment_highlight, Order_Payment_Status::FILTER, __( 'Highlight payment status', 'vila-campsite-booking' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+					<button type="submit" class="button"><?php esc_html_e( 'Highlight', 'vila-campsite-booking' ); ?></button>
+				</form>
 			</div>
 
-			<div class="vila-cb-ui-table-wrap vila-cb-cal__table-wrap">
+			<div class="<?php echo esc_attr( $calendar_classes ); ?>">
 				<table class="vila-cb-grid">
 					<thead>
 						<tr>
@@ -1463,7 +1569,7 @@ class Admin {
 							</tr>
 							<?php
 						endif;
-						Admin_Stays::render_calendar_rows( $days, $today_ymd );
+						Admin_Stays::render_calendar_rows( $days, $today_ymd, $payment_highlight );
 						if ( ! empty( $plots ) ) {
 							echo '<tr class="vila-cb-grid__row-section"><th class="vila-cb-grid__section-label" scope="colgroup" colspan="' . (int) ( $day_count + 1 ) . '">' . esc_html__( 'Pitches', 'vila-campsite-booking' ) . '</th></tr>';
 						}
@@ -1558,7 +1664,7 @@ class Admin {
 											$range_includes_today ? 'vila-cb-grid__cell--today' : '',
 										)
 									);
-									echo '<td class="' . esc_attr( implode( ' ', $cell_classes ) ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $payload['cell_title'] ) . '">';
+									echo '<td class="' . esc_attr( implode( ' ', $cell_classes ) ) . '" data-pay="' . esc_attr( $payload['pay_state'] ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $payload['cell_title'] ) . '">';
 									echo $payload['cell_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built in render_calendar_busy_cell_markup().
 									echo '</td>';
 									$j += $span;
@@ -1711,12 +1817,14 @@ class Admin {
 		$date_range = self::calendar_booking_stay_date_range_label( (string) $seg['check_in'], (string) $seg['check_out'] );
 		$reg_id     = isset( $guest_reg_by_booking[ $bid ] ) ? (int) $guest_reg_by_booking[ $bid ] : 0;
 		$submitted  = $reg_id > 0;
+		$pay_info   = Order_Payment_Status::describe( $order );
 
 		$tip_bits = array();
 		if ( '' !== $date_range ) {
 			$tip_bits[] = $date_range;
 		}
 		$tip_bits[] = $guest_name;
+		$tip_bits[] = $pay_info['label'];
 		$tip_bits[] = $submitted
 			? __( 'Guest details received', 'vila-campsite-booking' )
 			: __( 'Guest details pending', 'vila-campsite-booking' );
@@ -1728,7 +1836,8 @@ class Admin {
 
 		return array(
 			'cell_title' => implode( ' — ', $tip_bits ),
-			'cell_html'  => self::render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range, $submitted, $reg_id ),
+			'cell_html'  => self::render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range, $submitted, $reg_id, true, $pay_info['state'], $pay_info['label'] ),
+			'pay_state'  => $pay_info['state'],
 		);
 	}
 
@@ -1743,18 +1852,25 @@ class Admin {
 	 * @param bool   $submitted   Whether guest registration exists.
 	 * @param int    $reg_id      Registration ID when submitted.
 	 * @param bool   $show_checkin_badge Whether to show the legal guest-registration badge.
+	 * @param string $pay_state   Payment state.
+	 * @param string $pay_label   Payment label.
 	 * @return string Safe HTML.
 	 */
-	public static function render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range = '', $submitted = false, $reg_id = 0, $show_checkin_badge = true ) {
+	public static function render_calendar_busy_cell_markup( $guest_name, $detail_line, $unit_type, $url, $date_range = '', $submitted = false, $reg_id = 0, $show_checkin_badge = true, $pay_state = '', $pay_label = '' ) {
 		$guest_name  = (string) $guest_name;
 		$detail_line = (string) $detail_line;
 		$unit_type   = (string) $unit_type;
 		$url         = (string) $url;
 		$date_range  = (string) $date_range;
+		$pay_state   = sanitize_key( (string) $pay_state );
+		$pay_label   = (string) $pay_label;
 
 		$inner  = '';
 		if ( '' !== $date_range ) {
 			$inner .= '<span class="vila-cb-grid__cell-dates">' . esc_html( $date_range ) . '</span>';
+		}
+		if ( '' !== $pay_state ) {
+			$inner .= '<span class="vila-cb-pay-dot vila-cb-pay-dot--' . esc_attr( $pay_state ) . '" title="' . esc_attr( $pay_label ) . '"><span class="screen-reader-text">' . esc_html( $pay_label ) . '</span></span>';
 		}
 		$inner .= '<span class="vila-cb-grid__cell-name">' . esc_html( $guest_name ) . '</span>';
 		if ( $show_checkin_badge ) {

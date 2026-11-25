@@ -53,6 +53,43 @@ function vila_akoya_format_price_plain( $amount ) {
 }
 
 /**
+ * Strikethrough list price + tier price for stay-length upsell copy (HTML).
+ *
+ * @param float $list_price Undiscounted total (e.g. target nights × nightly rate).
+ * @param float $sale_price Tier / discounted total.
+ * @return string Safe HTML fragment.
+ */
+function vila_akoya_format_upsell_price_pair( $list_price, $sale_price ) {
+	$list_price = (float) $list_price;
+	$sale_price = (float) $sale_price;
+	$sale_fmt   = vila_akoya_format_price_plain( $sale_price );
+	if ( $list_price <= $sale_price + 0.009 ) {
+		return esc_html( $sale_fmt );
+	}
+	$list_fmt = vila_akoya_format_price_plain( $list_price );
+	return sprintf(
+		'<span class="vila-upsell-price"><s class="vila-upsell-price__was" aria-hidden="true">%1$s</s> <span class="vila-upsell-price__now">%2$s</span></span>',
+		esc_html( $list_fmt ),
+		esc_html( $sale_fmt )
+	);
+}
+
+/**
+ * @return array<string, string> Allowed tags for upsell price HTML.
+ */
+function vila_akoya_upsell_message_kses_allowed() {
+	return array(
+		'span' => array(
+			'class' => true,
+		),
+		's'    => array(
+			'class'       => true,
+			'aria-hidden' => true,
+		),
+	);
+}
+
+/**
  * Nightly supplement (EUR) by unit slug. Filter to change amounts.
  *
  * @return array<string, array{ label: string, fee: float }>
@@ -1218,12 +1255,16 @@ function vila_akoya_stay_discount_upsell_message( array $info, $nightly_rate ) {
 	$more = (int) $info['more_nights'];
 	if ( ! empty( $next['kind'] ) && in_array( $next['kind'], array( 'week', 'four_weeks' ), true ) ) {
 		$price      = isset( $next['total'] ) ? (float) $next['total'] : 0.0;
-		$price_fmt  = function_exists( 'vila_akoya_format_price_plain' ) ? vila_akoya_format_price_plain( $price ) : ( '€' . (string) (int) round( $price ) );
+		$list       = isset( $next['list_total'] ) ? (float) $next['list_total'] : 0.0;
+		if ( $list <= 0 && isset( $next['stay'] ) ) {
+			$list = (float) (int) $next['stay'] * (float) $nightly_rate;
+		}
+		$price_fmt  = vila_akoya_format_upsell_price_pair( $list, $price );
 		$night_word = ( 1 === $more ) ? __( 'night', 'vila-akoya' ) : __( 'nights', 'vila-akoya' );
 		unset( $nightly_rate );
 		if ( 'week' === $next['kind'] ) {
 			return sprintf(
-				/* translators: 1: extra nights, 2: night/nights, 3: formatted 7-night total */
+				/* translators: 1: extra nights, 2: night/nights, 3: price HTML (was / now) */
 				__( 'Add %1$d more %2$s to reach 7 nights — %3$s for the week.', 'vila-akoya' ),
 				$more,
 				$night_word,
@@ -1233,7 +1274,7 @@ function vila_akoya_stay_discount_upsell_message( array $info, $nightly_rate ) {
 		$target_stay = isset( $next['stay'] ) ? max( 28, (int) $next['stay'] ) : 28;
 		$weeks       = (int) round( $target_stay / 7 );
 		return sprintf(
-			/* translators: 1: extra nights, 2: night/nights, 3: target stay nights, 4: weeks at target, 5: formatted total */
+			/* translators: 1: extra nights, 2: night/nights, 3: target stay nights, 4: weeks at target, 5: price HTML (was / now) */
 			__( 'Add %1$d more %2$s to reach %3$d nights (%4$d weeks) — %5$s.', 'vila-akoya' ),
 			$more,
 			$night_word,
@@ -2098,7 +2139,7 @@ function vila_akoya_render_stay_discount_cart_notice() {
 			continue;
 		}
 		echo '<div class="vila-stay-discount-notice" role="status">';
-		echo '<p class="vila-stay-discount-notice__text">' . esc_html( $message ) . '</p>';
+		echo '<p class="vila-stay-discount-notice__text">' . wp_kses( $message, vila_akoya_upsell_message_kses_allowed() ) . '</p>';
 		echo '</div>';
 		return;
 	}

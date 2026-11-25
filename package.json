@@ -31,6 +31,7 @@
     "whatsapp:import": "node scripts/import-whatsapp-to-telegram.js",
     "telegram:chats": "node scripts/telegram-list-chats.js",
     "docs:index": "node scripts/index-vila-akoya-docs.js",
+    "notion:import-water-system": "node scripts/import-water-system-notion.js",
     "build:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --minify",
     "watch:css": "tailwindcss -i ./wp-content/themes/vila-akoya/assets/css/input.css -o ./wp-content/themes/vila-akoya/assets/css/theme.css --watch",
     "wp-env": "bash scripts/wp-envl.sh",

@@ -1352,3 +1352,251 @@
 .vila-cb-childcare-absent-form {
 	margin: 0;
 }
+
+/* -------------------------------------------------------------------------
+ * Orders: payment status badge
+ * ------------------------------------------------------------------------- */
+
+.column-vila_payment {
+	width: 11ch;
+}
+
+mark.vila-cb-pay {
+	display: inline-flex;
+	line-height: 2.5em;
+	padding: 0 1em;
+	border-radius: 4px;
+	background: #e5e5e5;
+	color: #454545;
+	white-space: nowrap;
+	cursor: inherit;
+}
+
+mark.vila-cb-pay--paid_online,
+mark.vila-cb-pay--paid_on_site {
+	background: #c6e1c6;
+	color: #2c4700;
+}
+
+mark.vila-cb-pay--unpaid {
+	background: #f8dda7;
+	color: #94660c;
+}
+
+mark.vila-cb-pay--refunded,
+mark.vila-cb-pay--not_booked,
+mark.vila-cb-pay--offsite {
+	background: #e5e5e5;
+	color: #50575e;
+}
+
+mark.vila-cb-pay--compact {
+	line-height: 1.7;
+	padding: 0 0.55em;
+	font-size: 11px;
+	border-radius: 999px;
+}
+
+.vila-cb-pay__detail {
+	display: block;
+	margin-top: 2px;
+	color: #646970;
+}
+
+.vila-cb-pay-box .vila-cb-pay__detail {
+	display: inline;
+	margin-left: 6px;
+}
+
+.vila-cb-pay__marked {
+	display: block;
+	margin-top: 6px;
+	color: #646970;
+}
+
+.vila-cb-payment-filter {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 10px 0 0;
+}
+
+.vila-cb-payment-filter--panel {
+	margin-bottom: 14px;
+}
+
+.vila-cb-payment-panel {
+	margin-top: 16px;
+}
+
+.vila-cb-payment-summary {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	align-items: flex-start;
+}
+
+.vila-cb-payment-summary__amount {
+	font-size: 22px;
+	white-space: nowrap;
+}
+
+.vila-cb-pay-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.vila-cb-pay-actions form {
+	margin: 0;
+}
+
+.vila-cb-pay-actions--compact {
+	margin-top: 8px;
+	gap: 4px;
+}
+
+.vila-cb-pay-actions--compact .button {
+	min-height: 24px;
+	line-height: 22px;
+	padding: 0 7px;
+	font-size: 11px;
+}
+
+.vila-cb-kpi--pay {
+	border-color: #f3c46b;
+	background: linear-gradient(180deg, #fff8e8 0%, #fff 70%);
+}
+
+.vila-cb-kpi__sub {
+	display: block;
+	margin-top: 4px;
+	color: #646970;
+	font-size: 13px;
+}
+
+.vila-cb-pay-dot {
+	display: inline-flex;
+	width: 8px;
+	height: 8px;
+	border-radius: 999px;
+	background: #8c8f94;
+	margin-right: 4px;
+	vertical-align: middle;
+	box-shadow: 0 0 0 1px rgba(255,255,255,0.75);
+}
+
+.vila-cb-pay-dot--paid_online,
+.vila-cb-pay-dot--paid_on_site {
+	background: #46b450;
+}
+
+.vila-cb-pay-dot--unpaid {
+	background: #dba617;
+}
+
+.vila-cb-pay-dot--offsite {
+	background: #8c8f94;
+}
+
+.vila-cb-pay-highlight--unpaid [data-pay]:not([data-pay="unpaid"]),
+.vila-cb-pay-highlight--paid [data-pay]:not([data-pay="paid_online"]):not([data-pay="paid_on_site"]),
+.vila-cb-pay-highlight--paid_online [data-pay]:not([data-pay="paid_online"]),
+.vila-cb-pay-highlight--paid_on_site [data-pay]:not([data-pay="paid_on_site"]) {
+	opacity: 0.35;
+}
+
+.vila-cb-meal-party__payment {
+	margin-top: 4px;
+}
+
+/* -------------------------------------------------------------------------
+ * Insights dashboard
+ * ------------------------------------------------------------------------- */
+
+.vila-cb-insights-filter {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 10px;
+	align-items: end;
+	margin: 14px 0 0;
+}
+
+.vila-cb-insights-filter label {
+	display: grid;
+	gap: 4px;
+	font-weight: 600;
+}
+
+.vila-cb-insights-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 16px;
+	margin-top: 16px;
+}
+
+.vila-cb-insights-chart {
+	min-height: 280px;
+}
+
+.vila-cb-insights-chart__canvas {
+	position: relative;
+	height: 240px;
+}
+
+.vila-cb-insights-status {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 16px;
+}
+
+.vila-cb-insights-status .spinner {
+	float: none;
+	margin: 0;
+}
+
+.vila-cb-insights-status__timer {
+	color: #646970;
+	font-variant-numeric: tabular-nums;
+}
+
+.vila-cb-insights-status.is-done {
+	color: #2c4700;
+	background: #f0f8ee;
+}
+
+.vila-cb-insights-status.is-error {
+	color: #8a2424;
+	background: #fcf0f1;
+	border-color: #d63638;
+	word-break: break-word;
+}
+
+.vila-cb-insights-filter__check span {
+	font-weight: 400;
+}
+
+.vila-cb-insights-empty {
+	margin: 60px 0 0;
+	text-align: center;
+}
+
+.vila-cb-insights-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.vila-cb-insights-table th,
+.vila-cb-insights-table td {
+	padding: 8px 10px;
+	border-bottom: 1px solid #dcdcde;
+	text-align: left;
+	vertical-align: top;
+}
+
+.vila-cb-insights-table th:last-child,
+.vila-cb-insights-table td:last-child {
+	text-align: right;
+}

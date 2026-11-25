@@ -302,6 +302,60 @@ function appendNote(existing, stamp) {
   return next.slice(-1800);
 }
 
+const TG_PHOTO_FILE_ID_RE = /tg_photo_file_id:([A-Za-z0-9_-]+)/;
+
+function telegramPhotoFileIdFromNotes(notes) {
+  const m = String(notes || "").match(TG_PHOTO_FILE_ID_RE);
+  return m ? m[1] : null;
+}
+
+function notesWithTelegramPhoto(notes, fileId) {
+  if (!fileId) return notes || "";
+  const stripped = String(notes || "")
+    .replace(TG_PHOTO_FILE_ID_RE, "")
+    .trim();
+  const tag = `tg_photo_file_id:${fileId}`;
+  return appendNote(stripped, tag);
+}
+
+async function attachPhotoToLocationPage(pageId, buf, filename) {
+  if (!pageId || !buf?.length) return;
+  const name = filename || "location.jpg";
+  const upload = await notion.uploadFile(buf, name, notion.guessContentType(name));
+  await notion.attachFileToPage(pageId, {
+    uploadId: upload.id,
+    filename: name,
+    propertyName: null,
+    kind: "image",
+  });
+}
+
+async function finalizeLocationPage({ page, notes, photoFileId, photoBuf, photoFilename, extras = {} }) {
+  const pageId = page.id;
+  let noteText = notes || "";
+  if (photoFileId) {
+    noteText = notesWithTelegramPhoto(noteText, photoFileId);
+    if (noteText !== notes) {
+      await notion.updatePageProps(LOCATIONS_DB_NAME, pageId, { Notes: noteText });
+    }
+  }
+  if (photoBuf?.length) {
+    try {
+      await attachPhotoToLocationPage(pageId, photoBuf, photoFilename);
+    } catch (err) {
+      console.warn(`attachPhotoToLocationPage: ${err.message}`);
+    }
+  }
+  return {
+    ok: true,
+    ...extras,
+    name: extras.name,
+    url: page.url,
+    pageId,
+    telegramPhotoFileId: photoFileId || telegramPhotoFileIdFromNotes(noteText),
+  };
+}
+
 async function upsertLocation({
   item,
   location,
@@ -314,6 +368,9 @@ async function upsertLocation({
   fromName,
   todayISO,
   sourceText,
+  photoFileId,
+  photoBuf,
+  photoFilename,
 }) {
   const name = String(item || "").trim().slice(0, 80);
   if (!name) return { ok: false, reason: "no_item" };
@@ -342,6 +399,7 @@ async function upsertLocation({
     if (kind === "missing" && !location) {
       const current = "";
       const usual = usualPlace || "";
+      const initialNotes = notes || `Marked missing from Telegram (${fromName}, ${todayISO})`;
       const page = await notion.createPage({
         databaseName: LOCATIONS_DB_NAME,
         title: name,
@@ -354,23 +412,23 @@ async function upsertLocation({
           Status: "Missing",
           "Last seen": todayISO,
           "Last updated by": fromName,
-          Notes: notes || `Marked missing from Telegram (${fromName}, ${todayISO})`,
+          Notes: initialNotes,
         },
       });
-      return {
-        ok: true,
-        created: true,
-        missing: true,
-        name,
-        url: page.url,
-        current,
-        usual,
-      };
+      return finalizeLocationPage({
+        page,
+        notes: initialNotes,
+        photoFileId,
+        photoBuf,
+        photoFilename,
+        extras: { created: true, missing: true, name, current, usual },
+      });
     }
 
     const current = kind === "usual" ? usualPlace || location || "" : location || "";
     const usual =
       kind === "current" ? usualPlace || current : usualPlace || location || current;
+    const initialNotes = notes || `Added from Telegram (${fromName}, ${todayISO})`;
     const page = await notion.createPage({
       databaseName: LOCATIONS_DB_NAME,
       title: name,
@@ -383,17 +441,17 @@ async function upsertLocation({
         Status: "Active",
         "Last seen": todayISO,
         "Last updated by": fromName,
-        Notes: notes || `Added from Telegram (${fromName}, ${todayISO})`,
+        Notes: initialNotes,
       },
     });
-    return {
-      ok: true,
-      created: true,
-      name,
-      url: page.url,
-      current,
-      usual,
-    };
+    return finalizeLocationPage({
+      page,
+      notes: initialNotes,
+      photoFileId,
+      photoBuf,
+      photoFilename,
+      extras: { created: true, name, current, usual },
+    });
   }
 
   let current = chosen.current;
@@ -425,7 +483,8 @@ async function upsertLocation({
         ? `usual place → ${usual}`
         : `last seen → ${current}`
   }`;
-  const noteText = appendNote(chosen.notes, notes ? `${stamp}. ${notes}` : stamp);
+  let noteText = appendNote(chosen.notes, notes ? `${stamp}. ${notes}` : stamp);
+  if (photoFileId) noteText = notesWithTelegramPhoto(noteText, photoFileId);
 
   await notion.updatePageProps(LOCATIONS_DB_NAME, chosen.id, {
     "Current location": current,
@@ -439,17 +498,22 @@ async function upsertLocation({
     ...(LOCATION_AREAS.includes(area) && chosen.area === "Other" ? { Area: area } : {}),
   });
 
-  return {
-    ok: true,
-    created: false,
-    missing: kind === "missing",
-    name: chosen.name,
-    url: chosen.url,
-    current,
-    usual,
-    previousCurrent: chosen.current,
-    previousUsual: chosen.usual,
-  };
+  return finalizeLocationPage({
+    page: { id: chosen.id, url: chosen.url },
+    notes: noteText,
+    photoFileId,
+    photoBuf,
+    photoFilename,
+    extras: {
+      created: false,
+      missing: kind === "missing",
+      name: chosen.name,
+      current,
+      usual,
+      previousCurrent: chosen.current,
+      previousUsual: chosen.usual,
+    },
+  });
 }
 
 function formatItemLine(item) {
@@ -692,4 +756,5 @@ module.exports = {
   formatItemLine,
   ensureLocationsDatabase,
   guessItemKind,
+  telegramPhotoFileIdFromNotes,
 };

@@ -398,24 +398,85 @@
 }
 
 .vila-cb-gr__stay-type {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin: 0 0 14px;
   padding: 0;
   border: 0;
 }
 
 .vila-cb-gr__stay-type legend {
-  flex: 0 0 100%;
-  margin: 0 0 8px;
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
   padding: 0;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #625b48;
+}
+
+.vila-cb-gr__stay-type .vila-cb-gr__check {
+  position: relative;
+  justify-content: center;
+  min-height: 3.25rem;
+  margin: 0;
+  padding: 12px 18px;
+  border: 2px solid var(--vila-cb-border);
+  border-radius: 12px;
+  background: rgb(var(--vila-rgb-surface-bright, 255 255 255) / 0.72);
+  cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(51, 46, 30, 0.04);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.vila-cb-gr__stay-type .vila-cb-gr__check:hover {
+  border-color: rgba(126, 118, 98, 0.45);
+  background: #fff;
+}
+
+.vila-cb-gr__stay-type .vila-cb-gr__check:has(input:checked) {
+  border-color: var(--vila-cb-accent);
+  background: rgba(154, 63, 33, 0.08);
+  box-shadow:
+    inset 0 0 0 1px rgba(154, 63, 33, 0.2),
+    0 0 0 3px rgba(154, 63, 33, 0.1);
+}
+
+.vila-cb-gr__stay-type .vila-cb-gr__check:has(input:focus-visible) {
+  outline: none;
+  border-color: var(--vila-cb-accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(154, 63, 33, 0.2),
+    0 0 0 3px rgba(154, 63, 33, 0.18);
+}
+
+.vila-cb-gr__stay-type .vila-cb-gr__check input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vila-cb-gr__stay-type .vila-cb-gr__check span {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #332e1e;
+  pointer-events: none;
+}
+
+.vila-cb-gr__stay-type .vila-cb-gr__check:has(input:checked) span {
+  color: var(--vila-cb-accent);
 }
 
 .vila-cb-gr__manual {
@@ -543,18 +604,46 @@
 .vila-cb-gr__check {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-.vila-cb-gr__check input {
-  width: auto;
+.vila-cb-gr__check input[type='checkbox'],
+.vila-cb-gr__check input[type='radio'] {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
   min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(126, 118, 98, 0.55);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: none;
+  accent-color: var(--vila-cb-accent);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vila-cb-gr__check input[type='radio'] {
+  border-radius: 50%;
+}
+
+.vila-cb-gr__check input[type='checkbox']:focus-visible,
+.vila-cb-gr__check input[type='radio']:focus-visible {
+  outline: none;
+  border-color: var(--vila-cb-accent);
+  box-shadow: 0 0 0 3px rgba(154, 63, 33, 0.14);
 }
 
 .vila-cb-gr__check span {
+  display: inline;
   margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
   text-transform: none;
   letter-spacing: 0;
+  color: #332e1e;
 }
 
 .vila-cb-gr__actions {

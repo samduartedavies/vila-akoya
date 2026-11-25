@@ -191,6 +191,15 @@ async function writeBrief(parentId, catalog) {
       },
       {
         object: "block",
+        type: "bulleted_list_item",
+        bulleted_list_item: {
+          rich_text: notion.richText(
+            "Day Managers — who is on management duty each day (calendar on Date). VAVA reads it for the morning recap and accepts updates in Telegram."
+          ),
+        },
+      },
+      {
+        object: "block",
         type: "heading_2",
         heading_2: { rich_text: notion.richText("Work") },
       },
@@ -379,6 +388,22 @@ async function main() {
   );
   await ensureDatabase(
     calendars.id,
+    "Day Managers",
+    {
+      Name: title(),
+      Date: date(),
+      Manager: rich(),
+      Backup: rich(),
+      Status: selectProp(["Confirmed", "TBC", "Cancelled"]),
+      Notes: rich(),
+      "Post to Telegram": check(),
+      Source: selectProp(["Telegram", "Manual", "Import"]),
+    },
+    catalog
+  );
+
+  await ensureDatabase(
+    calendars.id,
     "Kids Programme Shifts",
     {
       Name: title(),
@@ -438,6 +463,7 @@ async function main() {
     "External Events",
     "Reminders",
     "Kids Programme Shifts",
+    "Day Managers",
     "Campsite Bookings",
     "Campsite Meals",
   ]) {

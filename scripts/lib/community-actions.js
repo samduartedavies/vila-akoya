@@ -49,7 +49,9 @@ const ACTIONS = [
   "offer_community_meal",
   "childcare_absent",
   "assign_kids_programme",
+  "assign_day_manager",
   "create_stay",
+  "update_stay",
   "create_expense",
   "question_expenses",
   "question_location",
@@ -119,6 +121,7 @@ const CHAT_ACTIVITY_KIND = {
   create_task: "task_logged",
   create_recurring_duty: "duty_logged",
   assign_kids_programme: "announcement",
+  assign_day_manager: "announcement",
   guest_issue: "guest_logged",
   create_decision: "decision_logged",
   create_documentation: "doc_logged",
@@ -128,6 +131,7 @@ const CHAT_ACTIVITY_KIND = {
   cancel_event: "event_cancelled",
   rsvp_event: "rsvp",
   create_stay: "stay_logged",
+  update_stay: "stay_updated",
   create_reminder: "reminder_logged",
   update_reminder: "reminder_logged",
   add_note: "note_added",
@@ -151,6 +155,7 @@ const NOTION_DATABASES = [
   "Where things are",
   "FAQs",
   "Guest Stays",
+  "Day Managers",
 ];
 
 const SCHEDULE_RANGES = ["today", "this_week", "next_week", "two_weeks"];
@@ -343,6 +348,7 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "    Pick the range that matches what the speaker asked (use WEEK CALENDAR above).",
     "    Guest arrival/departure, breakfast/dinner cook counts, and childcare allergy/phone/roster questions → question_schedule (NOT guest_issue).",
     "    Kids programme / teacher schedule / “who is on Early Readers Thursday?” → question_schedule.",
+    "    Day manager for today or a date / “who's managing Tuesday?” → question_schedule.",
     "    Whole-group “what’s happening / who’s on rota” → question_schedule (not question_my_day).",
     "",
     "── Notion actions (create or update databases) ──",
@@ -437,6 +443,15 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "    If they list several stays in one message, return ALL in stays[] and set stay to the first.",
     "    NOT create_event (that is yoga/BBQ/workshops). NOT book_meal. NOT guest_issue.",
     "    Looking up who is already checking in → question_schedule, not create_stay.",
+    "- update_stay: manager or day manager updates an EXISTING Guest Stays row in Notion (plot, payment, check-in details).",
+    "    Does NOT create a new stay. Does not need to change the website — ops records only.",
+    "    Non-managers must not use this action.",
+    '    EN: "put the Martins on plot 12", "João on pitch 4", "mark Silva family as paid", "Martins haven\'t paid"',
+    '    PT: "coloca os Martins na parcela 12", "família Silva pagou", "ainda não pagou"',
+    "    Populate stay_update.guest_name and at least one of: stay_update.plot, stay_update.payment",
+    "    (Unpaid | Paid | Deposit | Waived), stay_update.check_in_details (Pending | Received) for guest",
+    "    registration / check-in form on file. stay_update.check_in optional when disambiguating.",
+    "    NOT create_stay when they are correcting an existing booking record.",
     "- childcare_absent: parent says their child/kid will not attend childcare today.",
     '    EN: "Sam won\'t attend childcare today", "my kid Maya is sick", "Luna won\'t come today"',
     '    PT: "o meu filho Sam não vai hoje", "a Maya está doente"',
@@ -448,6 +463,13 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '    EN: "put Amber on Early Readers Friday", "Moon covering Arete tomorrow", "Tamara support on HSH Monday",',
     '         "Coddiwomplers TBC on the 10th", "cancel parent activity today"',
     '    PT: "coloca a Amber nos Early Readers na sexta"',
+    "- assign_day_manager: who is the village/management day manager on a specific date (Day Managers in Notion).",
+    "    NOT question_schedule. Set schedule_lookup=false.",
+    '    day_manager: { "date", "manager", "backup", "status", "notes", "clear", "self_assign" }',
+    '    EN: "I am the day manager today", "I\'ll be day manager next Tuesday", "Hans is day manager on Friday",',
+    '         "next week: Mon Hans, Tue Moon, Wed Amber" (use day_managers[] with one entry per day),',
+    '         "clear day manager tomorrow"',
+    '    PT: "sou o gestor do dia hoje", "serei gestor de dia na terça"',
     "- rsvp_event: speaker says they are coming to an event, RSVP, or \"I'm in\" for a known event.",
     '    Examples: "I\'m coming to the BBQ", "count me in for yoga", "eu vou ao almoço"',
     "    Populate rsvp.title with the event name to match.",
@@ -521,8 +543,11 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     '  "expense": { "title", "amount", "currency", "date", "merchant", "category", "purpose", "notes" } | null,',
     '  "childcare_absence": { "child_name", "date" } | null,',
     '  "kids_programme_shift": { "programme", "date", "lead", "support", "status", "notes", "assign_as", "clear" } | null,',
+    '  "day_manager": { "date", "manager", "backup", "status", "notes", "clear", "self_assign" } | null,',
+    '  "day_managers": [ { "date", "manager", "backup", "status", "notes", "clear" } ] | null,',
     '  "stay": { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } | null,',
     '  "stays": [ { "guest_name", "check_in", "check_out", "nights", "kind", "unit", "adults", "children", "party", "source", "notes" } ] | null,',
+    '  "stay_update": { "guest_name", "check_in", "plot", "payment", "check_in_details", "unit", "notes" } | null,',
     '  "location": { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases", "notes", "list_all" } | null,',
     '  "locations": [ { "item", "location", "usual_place", "update_kind", "item_kind", "area", "aliases" } ] | null,',
     '  "faq": { "question", "answer", "category", "aliases", "list_all" } | null }',
@@ -543,7 +568,35 @@ function buildClassifierPrompt({ todayISO, areas, eventTypes, priorities }) {
     "When logging more than one task, tasks[] is required (every job) and task should equal tasks[0].",
     "For create_stay always provide stay.guest_name and stay.check_in; stay.check_out is the leaving date.",
     "When logging more than one stay, stays[] is required and stay = stays[0].",
+    "For update_stay populate stay_update.guest_name plus at least one of plot, payment, or check_in_details.",
   ].join("\n");
+}
+
+const guestStaysLib = require("./guest-stays");
+
+function normalizeStayUpdateFields(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const guest = String(raw.guest_name || raw.name || raw.title || "").trim().slice(0, 80);
+  const checkIn = String(raw.check_in || raw.date || "").slice(0, 10);
+  const plot = guestStaysLib.parsePlotNumber(raw.plot ?? raw.pitch ?? raw.unit_number);
+  const payment = guestStaysLib.parsePaymentStatus(raw.payment ?? raw.paid, "");
+  const checkInDetails = guestStaysLib.parseCheckInDetailsStatus(
+    raw.check_in_details ?? raw.registration ?? raw.guest_registration,
+    raw.notes || ""
+  );
+  const unit = raw.unit ? String(raw.unit).slice(0, 80) : "";
+  const notes = raw.notes ? String(raw.notes).slice(0, 500) : "";
+  if (!guest) return null;
+  if (plot == null && !payment && !unit && !checkInDetails) return null;
+  return {
+    guest_name: guest,
+    check_in: /^\d{4}-\d{2}-\d{2}$/.test(checkIn) ? checkIn : null,
+    plot,
+    payment,
+    check_in_details: checkInDetails,
+    unit,
+    notes,
+  };
 }
 
 function normalizeTaskFields(raw) {
@@ -566,6 +619,34 @@ function normalizeDutyFrequency(raw) {
   if (f === "seasonal") return "Seasonal";
   if (DUTY_FREQUENCIES.includes(raw)) return raw;
   return "Daily";
+}
+
+function normalizeDayManagerFields(raw, { allowSelfOnly = false } = {}) {
+  if (!raw || typeof raw !== "object") return null;
+  const date = raw.date ? String(raw.date).trim().slice(0, 32) : "";
+  const manager = raw.manager
+    ? String(raw.manager).trim().slice(0, 120)
+    : raw.lead
+      ? String(raw.lead).trim().slice(0, 120)
+      : "";
+  const backup = raw.backup ? String(raw.backup).trim().slice(0, 120) : "";
+  const status = raw.status ? String(raw.status).trim().slice(0, 32) : "";
+  const notes = raw.notes ? String(raw.notes).trim().slice(0, 500) : "";
+  const clear = raw.clear === true || raw.cancelled === true;
+  const selfAssign =
+    raw.self_assign === true || raw.self === true || /^(self|me)$/i.test(manager);
+  if (!manager && !backup && !clear && !/tbc/i.test(status) && !selfAssign && !allowSelfOnly) {
+    if (!date) return null;
+  }
+  return {
+    date: date || "today",
+    manager: selfAssign ? "" : manager,
+    backup,
+    status,
+    notes,
+    clear,
+    self_assign: selfAssign,
+  };
 }
 
 function normalizeKidsProgrammeShiftFields(raw) {
@@ -732,10 +813,17 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     kids_programme: "assign_kids_programme",
     kids_programme_shift: "assign_kids_programme",
     assign_kids_shift: "assign_kids_programme",
+    day_manager: "assign_day_manager",
+    assign_day_manager: "assign_day_manager",
+    set_day_manager: "assign_day_manager",
     stay: "create_stay",
     booking: "create_stay",
     create_booking: "create_stay",
     guest_stay: "create_stay",
+    update_stay: "update_stay",
+    stay_update: "update_stay",
+    mark_paid: "update_stay",
+    assign_plot: "update_stay",
     where_is: "question_location",
     location: "update_location",
     inventory: "update_location",
@@ -756,7 +844,8 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     action !== "book_meal" &&
     action !== "question_location" &&
     action !== "question_faq" &&
-    action !== "assign_kids_programme"
+    action !== "assign_kids_programme" &&
+    action !== "assign_day_manager"
   ) {
     action = "question_schedule";
   }
@@ -772,6 +861,9 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
   }
   if (rawAction === "update_location") {
     action = "update_location";
+  }
+  if (rawAction === "update_stay") {
+    action = "update_stay";
   }
   if (rawAction === "create_faq") {
     action = "create_faq";
@@ -835,6 +927,36 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
       action = "chat";
     }
   }
+
+  let dayManagerItems = [];
+  if (action === "assign_day_manager") {
+    const fromArray = Array.isArray(result.day_managers)
+      ? result.day_managers.map((row) => normalizeDayManagerFields(row)).filter(Boolean)
+      : [];
+    const single = normalizeDayManagerFields(
+      result.day_manager || result.day_manager_shift,
+      { allowSelfOnly: true }
+    );
+    if (fromArray.length) {
+      dayManagerItems = fromArray;
+      if (
+        single &&
+        !dayManagerItems.some(
+          (d) =>
+            String(d.date).toLowerCase() === String(single.date).toLowerCase() &&
+            String(d.manager).toLowerCase() === String(single.manager).toLowerCase()
+        )
+      ) {
+        dayManagerItems.unshift(single);
+      }
+    } else if (single) {
+      dayManagerItems = [single];
+    }
+    if (!dayManagerItems.length) {
+      action = "chat";
+    }
+  }
+  const dayManager = dayManagerItems[0] || null;
 
   const eventRaw = result.event || (action === "create_event" ? result.proposal : null);
   let event = null;
@@ -993,6 +1115,11 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
   }
   const stay = stayItems[0] || null;
 
+  const stayUpdate =
+    action === "update_stay"
+      ? normalizeStayUpdateFields(result.stay_update || result.stay || {})
+      : null;
+
   let locationItems = [];
   if (action === "update_location") {
     const fromArray = Array.isArray(result.locations)
@@ -1059,7 +1186,10 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     is_childcare_absence: action === "childcare_absent",
     is_kids_programme_assign:
       action === "assign_kids_programme" && Boolean(kidsProgrammeShift?.programme),
+    is_day_manager_assign:
+      action === "assign_day_manager" && dayManagerItems.length > 0,
     is_stay: action === "create_stay" && stayItems.length > 0,
+    is_stay_update: action === "update_stay" && Boolean(stayUpdate),
     is_expense: action === "create_expense",
     is_location_update: action === "update_location" && locationItems.length > 0,
     is_location_question: action === "question_location",
@@ -1096,8 +1226,11 @@ function parseClassification(result, { areas, eventTypes, priorities }) {
     expense,
     childcare_absence: childcareAbsence,
     kids_programme_shift: kidsProgrammeShift,
+    day_manager: dayManager,
+    day_managers: dayManagerItems,
     stay,
     stays: stayItems,
+    stay_update: stayUpdate,
     location,
     locations: locationItems,
     faq,

@@ -204,6 +204,7 @@ class Childcare_Admin {
 						<?php $order = wc_get_order( $order_id ); ?>
 						<?php if ( $order instanceof \WC_Order ) : ?>
 							<br /><a href="<?php echo esc_url( $order->get_edit_order_url() ); ?>"><?php echo esc_html( sprintf( __( 'Order #%s', 'vila-campsite-booking' ), $order->get_order_number() ) ); ?></a>
+							<br /><?php echo Order_Payment_Status::badge_html( $order, 'compact' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 						<?php endif; ?>
 					<?php endif; ?>
 				</span>

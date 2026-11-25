@@ -30,6 +30,7 @@ const DB = {
   MEALS: "Campsite Meals",
   CHILDCARE: "Childcare",
   KIDS_PROGRAMME_SHIFTS: "Kids Programme Shifts",
+  DAY_MANAGERS: "Day Managers",
   PROJECTS: "Projects",
   DOCS: "Documentation",
   MEMBERS: "Members",

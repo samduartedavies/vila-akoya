@@ -19,7 +19,7 @@ const VILA_AKOYA_CAMPSITE_PLOT_SKU_PREFIX = 'vila-akoya-plot-';
 /**
  * Bump this when default MWB booking meta (people, capacity, etc.) should be re-applied to the seeded product.
  */
-const VILA_AKOYA_CAMPSITE_MWB_META_VER = 3;
+const VILA_AKOYA_CAMPSITE_MWB_META_VER = 4;
 
 /**
  * Option key: list of product IDs (one mwb_booking product per plot).
@@ -188,16 +188,27 @@ add_action( 'admin_init', 'vila_akoya_ensure_wc_core_pages', 1 );
 /**
  * Build space-separated Y-m-d dates for MWB “Set days availability” (matches plugin admin).
  *
- * @param int $days Number of consecutive bookable days from today.
+ * @param int      $future_days Days from today forward (inclusive of today).
+ * @param int|null $past_days   Days before today to include (filterable); null uses default.
  * @return array{ dates: string, until: string }
  */
-function vila_akoya_mwb_availability_dates( $days = 548 ) {
+function vila_akoya_mwb_availability_dates( $future_days = 548, $past_days = null ) {
+	$future_days = max( 1, (int) $future_days );
+	if ( null === $past_days ) {
+		$past_days = (int) apply_filters( 'vila_akoya_mwb_availability_past_days', 730 );
+	}
+	$past_days = max( 0, (int) $past_days );
+
 	$tz    = wp_timezone();
 	$start = new DateTime( 'now', $tz );
 	$start->setTime( 0, 0, 0 );
+	if ( $past_days > 0 ) {
+		$start->modify( '-' . $past_days . ' days' );
+	}
 	$list  = array();
-	for ( $i = 0; $i < $days; $i++ ) {
-		$d     = clone $start;
+	$total = $past_days + $future_days;
+	for ( $i = 0; $i < $total; $i++ ) {
+		$d      = clone $start;
 		$d->modify( '+' . $i . ' days' );
 		$list[] = $d->format( 'Y-m-d' );
 	}
@@ -206,6 +217,19 @@ function vila_akoya_mwb_availability_dates( $days = 548 ) {
 		'dates' => implode( ' ', $list ),
 		'until' => $until ? $until : '',
 	);
+}
+
+/**
+ * Push extended MWB availability (including past days) onto booking products.
+ */
+function vila_akoya_mwb_sync_booking_product_availability( $product_id ) {
+	$product_id = (int) $product_id;
+	if ( $product_id < 1 ) {
+		return;
+	}
+	$avail = vila_akoya_mwb_availability_dates( 548 );
+	update_post_meta( $product_id, 'wps_mbfw_set_availability', $avail['dates'] );
+	update_post_meta( $product_id, 'wps_mbfw_set_availability_upto', $avail['until'] );
 }
 
 /**
@@ -266,7 +290,9 @@ function vila_akoya_campsite_maybe_upgrade_mwb_booking_meta() {
 	$plots = vila_akoya_get_campsite_plot_product_ids();
 	if ( ! empty( $plots ) ) {
 		foreach ( $plots as $plot_pid ) {
-			vila_akoya_campsite_apply_mwb_booking_defaults( (int) $plot_pid, 1 );
+			$plot_pid = (int) $plot_pid;
+			vila_akoya_campsite_apply_mwb_booking_defaults( $plot_pid, 1 );
+			vila_akoya_mwb_sync_booking_product_availability( $plot_pid );
 		}
 	} else {
 		$pid = (int) get_option( 'vila_akoya_campsite_product_id' );
@@ -275,12 +301,20 @@ function vila_akoya_campsite_maybe_upgrade_mwb_booking_meta() {
 		}
 		if ( $pid ) {
 			vila_akoya_campsite_apply_mwb_booking_defaults( $pid );
+			vila_akoya_mwb_sync_booking_product_availability( $pid );
 		}
 	}
 	if ( function_exists( 'wc_get_product_id_by_sku' ) ) {
 		$legacy = wc_get_product_id_by_sku( VILA_AKOYA_CAMPSITE_SKU );
 		if ( $legacy ) {
-			vila_akoya_campsite_apply_mwb_booking_defaults( (int) $legacy );
+			$legacy = (int) $legacy;
+			vila_akoya_campsite_apply_mwb_booking_defaults( $legacy );
+			vila_akoya_mwb_sync_booking_product_availability( $legacy );
+		}
+	}
+	if ( function_exists( 'vila_akoya_get_stay_product_ids' ) ) {
+		foreach ( vila_akoya_get_stay_product_ids() as $stay_pid ) {
+			vila_akoya_mwb_sync_booking_product_availability( (int) $stay_pid );
 		}
 	}
 	update_option( 'vila_akoya_campsite_mwb_meta_ver', VILA_AKOYA_CAMPSITE_MWB_META_VER );

@@ -660,7 +660,6 @@ function vila_akoya_format_event_schedule( $post_id_or_data ) {
 	if ( 'recurring' === $type ) {
 		$freq     = $data['recurrence_freq'];
 		$interval = max( 1, (int) $data['recurrence_interval'] );
-		$next     = $data['next_occurrence'] ? $data['next_occurrence'] : vila_akoya_compute_event_next_occurrence( $data );
 
 		if ( 'monthly' === $freq ) {
 			$summary = 1 === $interval
@@ -703,13 +702,6 @@ function vila_akoya_format_event_schedule( $post_id_or_data ) {
 			}
 		}
 
-		if ( $next ) {
-			$summary .= ' · ' . sprintf(
-				/* translators: %s: next date */
-				__( 'next %s', 'vila-akoya' ),
-				vila_akoya_format_event_date( $next, 'j M Y' )
-			);
-		}
 		return $summary . $time_bit;
 	}
 

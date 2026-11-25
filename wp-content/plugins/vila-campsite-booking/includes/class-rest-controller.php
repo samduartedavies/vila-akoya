@@ -293,7 +293,11 @@ class Rest_Controller {
 			$cin      = $request->get_param( 'check_in' );
 			$cout     = $request->get_param( 'check_out' );
 			if ( $cin && $cout && Dates::parse_ymd( (string) $cin ) && Dates::parse_ymd( (string) $cout ) ) {
-				$bookable = $svc->is_plot_available_for_range( $plot_id, (string) $cin, (string) $cout );
+				if ( Dates::stay_ended_on_or_before_today( (string) $cout ) ) {
+					$bookable = true;
+				} else {
+					$bookable = $svc->is_plot_available_for_range( $plot_id, (string) $cin, (string) $cout );
+				}
 			}
 
 			return rest_ensure_response(
@@ -311,9 +315,14 @@ class Rest_Controller {
 		$cin             = $request->get_param( 'check_in' );
 		$cout            = $request->get_param( 'check_out' );
 		if ( $cin && $cout && Dates::parse_ymd( (string) $cin ) && Dates::parse_ymd( (string) $cout ) ) {
-			$found    = $svc->find_available_plot( (string) $cin, (string) $cout );
-			$bookable = null !== $found;
-			$assigned_plot = $found;
+			if ( Dates::stay_ended_on_or_before_today( (string) $cout ) ) {
+				$bookable      = true;
+				$assigned_plot = $svc->find_available_plot( (string) $cin, (string) $cout );
+			} else {
+				$found         = $svc->find_available_plot( (string) $cin, (string) $cout );
+				$bookable      = null !== $found;
+				$assigned_plot = $found;
+			}
 		}
 
 		return rest_ensure_response(

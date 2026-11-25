@@ -267,6 +267,22 @@
     return String(c.symbol || '€') + vilaFormatNumber(amount);
   }
 
+  function vilaFormatUpsellPricePair(listPrice, salePrice) {
+    var sale = vilaFormatPricePlain(salePrice || 0);
+    var list = Number(listPrice) || 0;
+    var saleNum = Number(salePrice) || 0;
+    if (list <= saleNum + 0.009) {
+      return vilaEscapeHtml(sale);
+    }
+    return (
+      '<span class="vila-upsell-price"><s class="vila-upsell-price__was" aria-hidden="true">' +
+      vilaEscapeHtml(vilaFormatPricePlain(list)) +
+      '</s> <span class="vila-upsell-price__now">' +
+      vilaEscapeHtml(sale) +
+      '</span></span>'
+    );
+  }
+
   // HTML price for the value column — symbol before amount, smart decimals.
   function vilaFormatPriceHtml(amount) {
     var c = vilaBookingData().currency;
@@ -475,10 +491,13 @@
     var moreNights = Math.max(0, target - stay);
     var next = null;
     if (moreNights > 0 && target > stay) {
+      var card = campsiteTierCard(P, solo, noElec);
+      var nightRate = parseFloat(card.night) || 0;
       next = {
         kind: target === 7 ? 'week' : 'four_weeks',
         stay: target,
         total: campsiteTierTotal(target, P, solo, noElec),
+        listTotal: target * nightRate,
       };
     }
     return {
@@ -585,13 +604,13 @@
     S = S || {};
     var moreWord = disc.moreNights === 1 ? S.nightSingular || 'night' : S.nightPlural || 'nights';
     if (disc.next.kind === 'week' || disc.next.kind === 'four_weeks') {
-      var tierPrice = vilaFormatPricePlain(disc.next.total || 0);
+      var tierPriceHtml = vilaFormatUpsellPricePair(disc.next.listTotal, disc.next.total || 0);
       if (disc.next.kind === 'week') {
         return vilaSprintf(
           S.upsellWeek || 'Add %1$d more %2$s to reach 7 nights — %3$s for the week.',
           disc.moreNights,
           moreWord,
-          tierPrice
+          tierPriceHtml
         );
       }
       var targetStay = disc.next.stay || 28;
@@ -602,7 +621,7 @@
         moreWord,
         targetStay,
         targetWeeks,
-        tierPrice
+        tierPriceHtml
       );
     }
     if (nightlyAccom <= 0) {
@@ -639,7 +658,7 @@
     }
     var message = stayDiscountUpsellMessage(disc, nightlyAccom, S);
     if (message) {
-      $row.text(message).removeAttr('hidden');
+      $row.html(message).removeAttr('hidden');
     } else {
       $row.attr('hidden', 'hidden').empty();
     }
@@ -970,6 +989,19 @@
     $('.vila-airbnb-booking--dates').addClass('vila-date-input-error');
   }
 
+  function stayEndedOnOrBeforeToday(stay) {
+    if (!stay || !stay.check_out) {
+      return false;
+    }
+    var cout = new Date(stay.check_out + 'T00:00:00');
+    if (isNaN(cout.getTime())) {
+      return false;
+    }
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return cout <= today;
+  }
+
   function stayRangeHasUnavailableNight(stay) {
     var list = window.vilaMwbUnavailableList || [];
     if (!stay || !stay.check_in || !stay.check_out || !list.length) {
@@ -993,6 +1025,10 @@
   function runStayRangeAvailabilityCheck() {
     var stay = getStayYmdFromMwbInputs();
     if (!stay) {
+      clearAvailabilityWarning();
+      return;
+    }
+    if (stayEndedOnOrBeforeToday(stay)) {
       clearAvailabilityWarning();
       return;
     }
@@ -1621,11 +1657,16 @@
     var mq = window.matchMedia('(min-width: 640px)');
     var showMo = mq.matches ? 2 : 1;
 
+    var minDateOpt = null;
+    if (typeof vilaAkoyaBooking !== 'undefined' && vilaAkoyaBooking.minBookingDate) {
+      minDateOpt = vilaAkoyaBooking.minBookingDate;
+    }
+
     flatpickr('#vila-akoya-booking-range', {
       mode: 'range',
       showMonths: showMo,
       dateFormat: 'd-m-Y',
-      minDate: mwb_mbfw_public_obj.today_date || 'today',
+      minDate: minDateOpt,
       locale: locale,
       disable: [
         function (date) {

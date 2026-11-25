@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Vila Campsite Booking
  * Description: Multi-plot campsite inventory with WooCommerce checkout, Airbnb-style booking UI, and operations dashboard.
- * Version: 1.6.2
+ * Version: 1.6.20
  * Author: Vila Akoya
  * Text Domain: vila-campsite-booking
  * Requires at least: 6.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VILA_CB_VERSION', '1.6.2' );
+define( 'VILA_CB_VERSION', '1.6.20' );
 define( 'VILA_CB_FILE', __FILE__ );
 define( 'VILA_CB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VILA_CB_URL', plugin_dir_url( __FILE__ ) );
@@ -54,12 +54,15 @@ require_once VILA_CB_DIR . 'includes/class-stay-discount.php';
 require_once VILA_CB_DIR . 'includes/class-campsite-tier-pricing.php';
 require_once VILA_CB_DIR . 'includes/class-campsite-monthly-rate.php';
 require_once VILA_CB_DIR . 'includes/class-woocommerce-integration.php';
+require_once VILA_CB_DIR . 'includes/class-order-payment-status.php';
 require_once VILA_CB_DIR . 'includes/class-stay-hold-repository.php';
 require_once VILA_CB_DIR . 'includes/class-stay-hold-service.php';
 require_once VILA_CB_DIR . 'includes/class-ops-snapshot.php';
+require_once VILA_CB_DIR . 'includes/class-insights-service.php';
 require_once VILA_CB_DIR . 'includes/class-notion-sync.php';
 require_once VILA_CB_DIR . 'includes/class-rest-controller.php';
 require_once VILA_CB_DIR . 'includes/class-admin.php';
+require_once VILA_CB_DIR . 'includes/class-admin-insights.php';
 require_once VILA_CB_DIR . 'includes/class-childcare-admin.php';
 require_once VILA_CB_DIR . 'includes/class-admin-guest-registrations.php';
 require_once VILA_CB_DIR . 'includes/class-admin-stays.php';
@@ -102,9 +105,12 @@ function vila_cb_bootstrap() {
 	Vila_CB\Meal_Booking::init();
 	Vila_CB\Childcare_Booking::init();
 	Vila_CB\WooCommerce_Integration::init();
+	Vila_CB\Order_Payment_Status::init();
+	Vila_CB\Insights_Service::init();
 	Vila_CB\Notion_Sync::init();
 	Vila_CB\Rest_Controller::init();
 	Vila_CB\Admin::init();
+	Vila_CB\Admin_Insights::init();
 	Vila_CB\Childcare_Admin::init();
 	Vila_CB\Admin_Guest_Registrations::init();
 	Vila_CB\Admin_Stays::init();

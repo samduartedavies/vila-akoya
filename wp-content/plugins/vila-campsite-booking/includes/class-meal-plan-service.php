@@ -250,6 +250,7 @@ class Meal_Plan_Service {
 					'cook'       => $cook,
 					'edit_url'   => $row['edit_url'],
 					'order_url'  => $row['order'] ? $row['order']->get_edit_order_url() : '',
+					'order_id'   => isset( $row['booking']['order_id'] ) ? (int) $row['booking']['order_id'] : 0,
 				);
 
 				$has_explicit_b = ! empty( $row['meal_dates']['breakfast'] );
@@ -295,6 +296,7 @@ class Meal_Plan_Service {
 					'cook'       => $cook,
 					'edit_url'   => (string) $sp['edit_url'],
 					'order_url'  => (string) $sp['edit_url'],
+					'order_id'   => isset( $sp['order_id'] ) ? (int) $sp['order_id'] : 0,
 				);
 				if ( in_array( $ymd, (array) $sp['breakfast_dates'], true ) ) {
 					$breakfast['adults']   += $adults;

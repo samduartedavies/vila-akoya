@@ -44,6 +44,12 @@ Voice note or text a stay booked by email or phone — it goes on Guest Stays in
 @vila_akoya_bot the Martins booked the cabin 20–24 Sept, 2 adults 1 child, via email
 @vila_akoya_bot email booking: João arriving Friday leaving Monday, pitch 4
 
+UPDATE STAY (managers & day managers — Guest Stays in Notion: plot, payment, check-in details received/pending; need Manager or Day manager via /register or /questionnaire)
+@vila_akoya_bot put the Martins on plot 12
+@vila_akoya_bot mark Silva family as paid
+@vila_akoya_bot Martins submitted check-in details
+@vila_akoya_bot Silva hasn't done guest registration yet
+
 ASK
 @vila_akoya_bot how does the water system work?
 @vila_akoya_bot what’s happening next week?
@@ -73,6 +79,15 @@ Parents can DM or tag VAVA: “Sam won’t attend childcare today”
 Child minders can DM VAVA: “what are today’s allergies?” or “what is Sam’s parent’s phone number?”
 Private child details are only shared in DMs with people assigned to the Child minder Job in Notion.
 
+DAY MANAGERS (village / management duty)
+Who is on day-manager duty is in Notion → Calendars → Day Managers (calendar view on Date).
+@vila_akoya_bot I am the day manager today
+@vila_akoya_bot I will be day manager next Tuesday
+@vila_akoya_bot Hans is day manager Friday — or paste next week's list in one message
+/daymanager — same as above (e.g. /daymanager · next Tuesday after /register)
+Ask: “who is day manager tomorrow?”
+Each morning recap in the main group includes today's day manager when set.
+
 KIDS PROGRAMME (teachers / caregivers)
 Shifts live in Notion → Kids Programme Shifts (Coddiwomplers, Early Readers, Arete, HSH, parent activities).
 Each morning: roundup in Parents & Teachers (topic) + DMs to registered leads for that day.
@@ -80,7 +95,7 @@ Assign: “put Amber on Early Readers Friday” or /kids Amber · Early Readers 
 Ask: “who’s on Early Readers tomorrow?” · See docs/kids-programme-schedule.md
 
 COMMUNITY PROFILE
-/register Your Name — join Members + short questionnaire (skills, areas, bio)
+/register Your Name — join Members + short questionnaire (role, skills, birthday)
 /questionnaire — update your Community profile anytime
 Skillsets & help areas: reply with numbers (e.g. 1 3 5) or other: your skill
 
@@ -95,7 +110,7 @@ ALSO
 • /help for the full list
 
 MORNING ROUNDUP (~08:00 Lisbon)
-• Main community group: morning meeting theme (Mon–Fri), events, meals, childcare count, kids programme shifts, yesterday’s highlights — **no** campsite check-ins/outs
+• Main community group: weather, community birthdays (today & tomorrow), morning meeting theme (Mon–Fri), **day manager**, events, meals, childcare count, kids programme shifts, yesterday’s highlights — **no** campsite check-ins/outs
 • **Vila Akoya Volunteers** group (optional): recap of what was said yesterday in that group
 • **Vila Akoya Management** group (optional): today’s website check-ins, check-outs, pitch occupancy + other guest stays; problems reported in the last 24h (Guests + main group); recap of yesterday on Volunteers + Management groups
 • **Vila Akoya Guests** group (optional, `GUESTS_GROUP_CHAT_ID`): what’s on today (events + nearby markets — birthdays, deliveries and work parties are left out)

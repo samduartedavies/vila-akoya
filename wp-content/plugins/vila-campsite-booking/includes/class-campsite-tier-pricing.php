@@ -188,6 +188,7 @@ class Campsite_Tier_Pricing {
 				'kind'        => $target === self::WEEK_NIGHTS ? 'week' : 'four_weeks',
 				'stay'        => $target,
 				'total'       => $at_target,
+				'list_total'  => (float) $target * $night_rate,
 				'save_amount' => max( 0.0, $current + ( ( $target - $stay ) * $night_rate ) - $at_target ),
 			);
 		}

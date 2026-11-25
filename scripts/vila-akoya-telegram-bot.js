@@ -25,7 +25,7 @@
  *     occupancy go to MANAGEMENT_GROUP_CHAT_ID when set, else DM to managers (Role / focus = Manager).
  *   - Volunteers / management groups: VAVA logs chat for daily summaries; tag-to-activate works there too.
  *   - /ask, /task, /receipt, /receipts, /register, /questionnaire, /mytasks, /done, /help as before.
- *   - After /register, a short questionnaire (DM only): role + skillsets on
+ *   - After /register, a short questionnaire (DM only): role, skillsets, birthday on
  *     the Members (Community) board; /questionnaire updates it later. Answers
  *     like "1" are accepted even days later; /start resumes a pending form.
  *   - Schedule and partnership/discount questions answered from Notion.
@@ -86,6 +86,8 @@ const broadcastRemindersLib = require("./lib/broadcast-reminders");
 const guestStaysLib = require("./lib/guest-stays");
 const communityCookOffer = require("./lib/community-cook-offer");
 const kidsProgrammeLib = require("./lib/kids-programme-shifts");
+const dayManagersLib = require("./lib/day-managers");
+const weatherLib = require("./lib/weather");
 const vavaAgent = require("./lib/vava-agent");
 const {
   messageRequestsNotionRemoval,
@@ -123,6 +125,7 @@ const regionalMarkets = require("./lib/regional-markets");
 const marketRatings = require("./lib/market-ratings");
 const medicalFacilities = require("./lib/medical-facilities");
 const councilBins = require("./lib/council-bins");
+const receiptAmounts = require("./lib/receipt-amounts");
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -206,8 +209,47 @@ function rememberGuestsGroupMigration(fromChatId, toChatId) {
       `Set GUESTS_GROUP_CHAT_ID=${to} in Fly/env when you can.`
   );
 }
+
+const MANAGEMENT_GROUP_CHAT_LEGACY_IDS = parseExtraChatIds(
+  "MANAGEMENT_GROUP_CHAT_LEGACY_IDS"
+);
+const KNOWN_MANAGEMENT_GROUP_LEGACY_IDS = ["-5494307814"];
+
+function managementGroupChatIdSet() {
+  const ids = new Set();
+  if (MANAGEMENT_GROUP_CHAT_ID) ids.add(String(MANAGEMENT_GROUP_CHAT_ID));
+  for (const id of MANAGEMENT_GROUP_CHAT_LEGACY_IDS) ids.add(String(id));
+  for (const id of KNOWN_MANAGEMENT_GROUP_LEGACY_IDS) ids.add(String(id));
+  if (state.managementGroupChatIdMigrated) {
+    ids.add(String(state.managementGroupChatIdMigrated));
+  }
+  return ids;
+}
+
+/** Chat id for outbound management posts (recaps, Notion updates, problem alerts). */
+function managementGroupOutboundChatId() {
+  return state.managementGroupChatIdMigrated || MANAGEMENT_GROUP_CHAT_ID || null;
+}
+
+function rememberManagementGroupMigration(fromChatId, toChatId) {
+  if (!toChatId) return;
+  const from = String(fromChatId);
+  const to = String(toChatId);
+  const known = managementGroupChatIdSet();
+  if (!known.has(from) && !known.has(to)) return;
+  state.managementGroupChatIdMigrated = to;
+  saveState();
+  log(
+    `Management group chat id migrated ${from} → ${to}. ` +
+      `Set MANAGEMENT_GROUP_CHAT_ID=${to} in Fly/env when you can.`
+  );
+}
+
+function managementAnnounceChatId() {
+  return managementGroupOutboundChatId() || TELEGRAM_CHAT_ID;
+}
+
 /** Notion board announcements (new items, completions, assignments) go to Management, not the main group. */
-const ANNOUNCE_CHAT_ID = MANAGEMENT_GROUP_CHAT_ID || TELEGRAM_CHAT_ID;
 const PROBLEM_ALERTS = process.env.PROBLEM_ALERTS !== "false";
 const PROBLEM_MIN_TEXT_LEN = 8;
 /** Event types that are village-internal and never shown in the Guests group recap. */
@@ -270,6 +312,8 @@ const CAMPSITE_MEALS_DB_NAME = process.env.CAMPSITE_MEALS_DB || notion.DB.MEALS;
 const CHILDCARE_DB_NAME = process.env.CHILDCARE_DB || notion.DB.CHILDCARE;
 const KIDS_PROGRAMME_DB_NAME =
   process.env.KIDS_PROGRAMME_DB || kidsProgrammeLib.DB_NAME;
+const DAY_MANAGERS_DB_NAME =
+  process.env.DAY_MANAGERS_DB || dayManagersLib.DB_NAME;
 const LOCATIONS_DB_NAME = process.env.LOCATIONS_DB_NAME || notion.DB.LOCATIONS;
 const FAQS_DB_NAME = process.env.FAQS_DB_NAME || notion.DB.FAQS;
 
@@ -456,9 +500,10 @@ function isVolunteersGroupChatId(chatId) {
 }
 
 function isManagementGroupChatId(chatId) {
-  return Boolean(
-    MANAGEMENT_GROUP_CHAT_ID && chatIdsMatch(chatId, MANAGEMENT_GROUP_CHAT_ID)
-  );
+  for (const id of managementGroupChatIdSet()) {
+    if (chatIdsMatch(chatId, id)) return true;
+  }
+  return false;
 }
 
 function isGuestsGroupChatId(chatId) {
@@ -712,6 +757,7 @@ function expenseEntityPrompt(preview) {
       head += ` · ${escapeHtml(formatMoney(preview.amount, preview.currency))}`;
     }
     if (preview.merchant) head += `\n${escapeHtml(preview.merchant)}`;
+    head += expenseAmountWarning(preview);
     lines.unshift(head, "");
   }
   return lines.join("\n");
@@ -750,7 +796,14 @@ function expensePreviewFromExtracted(extracted) {
     amount: extracted?.amount,
     currency: extracted?.currency || "EUR",
     merchant: extracted?.merchant || "",
+    amountUncertain: Boolean(extracted?.amount_uncertain),
   };
+}
+
+function expenseAmountWarning(preview) {
+  return preview?.amountUncertain
+    ? "\n⚠️ <i>The totals on this receipt didn't agree. If the amount is wrong, reply with the right one (e.g. 113,94).</i>"
+    : "";
 }
 
 function expensePurposePrompt(preview, entity) {
@@ -769,6 +822,7 @@ function expensePurposePrompt(preview, entity) {
       head += ` · ${escapeHtml(formatMoney(preview.amount, preview.currency))}`;
     }
     if (preview.merchant) head += `\n${escapeHtml(preview.merchant)}`;
+    head += expenseAmountWarning(preview);
     lines.unshift(head, "");
   }
   if (entity?.legalName) {
@@ -1217,6 +1271,14 @@ function chatLogForDayAndChat(dayISO, chatId) {
   );
 }
 
+function chatLogForDayAndAnyChat(dayISO, chatIds) {
+  const ids = Array.isArray(chatIds) ? chatIds : [chatIds];
+  return (state.chatLog || []).filter(
+    (m) =>
+      m.dayISO === dayISO && ids.some((id) => chatIdsMatch(m.chatId, id))
+  );
+}
+
 async function buildGroupChatRecapSection(dayISO, chatId, heading, groupLabel) {
   const logMessages = chatLogForDayAndChat(dayISO, chatId);
   if (!logMessages.length) return null;
@@ -1257,7 +1319,7 @@ async function buildVolunteersGroupDailyRecap(todayISO) {
 }
 
 async function buildManagementGroupDailyRecap(todayISO) {
-  if (!MANAGEMENT_GROUP_CHAT_ID) return null;
+  if (!managementGroupOutboundChatId()) return null;
   const yesterday = yesterdayISO();
   const lines = [
     `Good morning — ${escapeHtml(formatFriendlyDate(todayISO))}`,
@@ -1284,12 +1346,33 @@ async function buildManagementGroupDailyRecap(todayISO) {
     if (volSection) lines.push(volSection, "");
   }
 
-  const mgmtSection = await buildGroupChatRecapSection(
-    yesterday,
-    MANAGEMENT_GROUP_CHAT_ID,
-    `Management — ${formatFriendlyDate(yesterday)}`,
-    "Vila Akoya Management group chat"
-  );
+  const mgmtLog = chatLogForDayAndAnyChat(yesterday, [
+    ...managementGroupChatIdSet(),
+  ]);
+  let mgmtSection = null;
+  if (mgmtLog.length) {
+    if (openaiLib.isEnabled()) {
+      const highlights = await openaiLib.summarizeImportantChat(mgmtLog, yesterday, {
+        groupLabel: "Vila Akoya Management group chat",
+      });
+      if (highlights?.length) {
+        const sect = [`<b>Management — ${escapeHtml(formatFriendlyDate(yesterday))}</b>`];
+        for (const b of highlights) sect.push(`• ${escapeHtml(b)}`);
+        mgmtSection = sect.join("\n");
+      }
+    }
+    if (!mgmtSection) {
+      const bullets = mgmtLog
+        .slice(-8)
+        .map((m) => `${m.proposer}: ${m.text.slice(0, 160)}`.trim())
+        .filter(Boolean);
+      if (bullets.length) {
+        const sect = [`<b>Management — ${escapeHtml(formatFriendlyDate(yesterday))}</b>`];
+        for (const b of bullets) sect.push(`• ${escapeHtml(b)}`);
+        mgmtSection = sect.join("\n");
+      }
+    }
+  }
   if (mgmtSection) lines.push(mgmtSection);
 
   const text = lines.join("\n").trim();
@@ -1350,8 +1433,9 @@ function buildProblemReportsSection() {
 
 /** Post to the Management group, or DM managers when no Management group is configured. */
 async function sendToManagement(text) {
-  if (MANAGEMENT_GROUP_CHAT_ID) {
-    return sendMessage(MANAGEMENT_GROUP_CHAT_ID, text, { message_thread_id: undefined });
+  const mgmtChat = managementGroupOutboundChatId();
+  if (mgmtChat) {
+    return sendMessage(mgmtChat, text, { message_thread_id: undefined });
   }
   const members = await fetchManagementMembersForDm();
   let sent = 0;
@@ -1683,6 +1767,7 @@ function loadState() {
     if (s.lastManagementGroupRecapDate === undefined) s.lastManagementGroupRecapDate = null;
     if (s.lastGuestsGroupRecapDate === undefined) s.lastGuestsGroupRecapDate = null;
     if (s.guestsGroupChatIdMigrated === undefined) s.guestsGroupChatIdMigrated = null;
+    if (s.managementGroupChatIdMigrated === undefined) s.managementGroupChatIdMigrated = null;
     if (!s.problemReports) s.problemReports = [];
     if (!s.telegramTopicAliases) s.telegramTopicAliases = {};
     if (!s.broadcastRemindersSent) s.broadcastRemindersSent = {};
@@ -1706,6 +1791,7 @@ function loadState() {
       lastManagementGroupRecapDate: null,
       lastGuestsGroupRecapDate: null,
       guestsGroupChatIdMigrated: null,
+      managementGroupChatIdMigrated: null,
       problemReports: [],
       telegramTopicAliases: {},
       broadcastRemindersSent: {},
@@ -1942,10 +2028,35 @@ function sendExtraForMessage(message) {
 }
 
 async function sendMessage(chatId, text, extra = {}) {
-  if (!chatId) return false;
+  return Boolean(await sendMessageResult(chatId, text, extra));
+}
+
+async function sendPhoto(chatId, fileId, caption, extra = {}) {
+  if (!chatId || !fileId) return false;
+  const isPrivate = Number(chatId) > 0;
+  const payload = {
+    chat_id: chatId,
+    photo: fileId,
+    ...(caption ? { caption: String(caption).slice(0, 1024), parse_mode: "HTML" } : {}),
+    ...(isPrivate ? {} : replyThreadExtra),
+    ...extra,
+  };
+  if (isPrivate) delete payload.message_thread_id;
+  try {
+    await telegram("sendPhoto", payload);
+    return true;
+  } catch (err) {
+    log("sendPhoto error:", err.message, `(chat_id=${chatId})`);
+    return false;
+  }
+}
+
+/** Like sendMessage, but resolves to the sent Telegram message (or null). */
+async function sendMessageResult(chatId, text, extra = {}) {
+  if (!chatId) return null;
   if (text == null || String(text).trim() === "") {
     log("sendMessage error: empty text");
-    return false;
+    return null;
   }
   const isPrivate = Number(chatId) > 0;
   const payload = {
@@ -1959,16 +2070,33 @@ async function sendMessage(chatId, text, extra = {}) {
   // Forum thread ids are invalid in private chats and make DMs fail silently.
   if (isPrivate) delete payload.message_thread_id;
   try {
-    await telegram("sendMessage", payload);
+    const sent = await telegram("sendMessage", payload);
     rememberBotReply(chatId, text);
-    return true;
+    return sent || {};
   } catch (err) {
+    const migrateMatch = String(err.message || "").match(
+      /"migrate_to_chat_id"\s*:\s*(-?\d+)/
+    );
+    if (migrateMatch) {
+      const newId = migrateMatch[1];
+      rememberManagementGroupMigration(chatId, newId);
+      rememberGuestsGroupMigration(chatId, newId);
+      log(`sendMessage: retrying after chat migration ${chatId} → ${newId}`);
+      try {
+        const sent = await telegram("sendMessage", { ...payload, chat_id: newId });
+        rememberBotReply(newId, text);
+        return sent || {};
+      } catch (retryErr) {
+        log("sendMessage retry error:", retryErr.message, `(chat_id=${newId})`);
+        return null;
+      }
+    }
     log(
       "sendMessage error:",
       err.message,
       `(chat_id=${chatId}${payload.message_thread_id ? ` thread=${payload.message_thread_id}` : ""})`
     );
-    return false;
+    return null;
   }
 }
 
@@ -2310,8 +2438,123 @@ async function finalizeAndLogExpense({
   }
   reply += `\nSubmitted by <b>${escapeHtml(result.submitter)}</b>`;
   if (result.url) reply += `\n<a href="${result.url}">Open in Notion</a>`;
-  await sendMessage(chatId, reply);
+  if (extracted?.amount_uncertain) {
+    reply += `\n\n⚠️ <i>The totals on this receipt didn't agree — please check the amount.</i>`;
+  }
+  reply += `\n<i>Wrong amount? Reply to this message with the right one.</i>`;
+  const sent = await sendMessageResult(chatId, reply);
+  rememberLoggedExpense({ chatId, from, messageId: sent?.message_id, result });
   return result;
+}
+
+const EXPENSE_CORRECTION_WINDOW_MS = 24 * 60 * 60 * 1000;
+const RECENT_EXPENSES_KEEP_MS = 14 * 24 * 60 * 60 * 1000;
+
+function rememberLoggedExpense({ chatId, from, messageId, result }) {
+  if (!result?.id) return;
+  const now = Date.now();
+  state.recentExpenses = (state.recentExpenses || [])
+    .filter((e) => now - e.ts < RECENT_EXPENSES_KEEP_MS)
+    .slice(-99);
+  state.recentExpenses.push({
+    ts: now,
+    chatId: String(chatId),
+    fromId: from?.id ?? null,
+    messageId: messageId ?? null,
+    pageId: result.id,
+    url: result.url || "",
+    title: result.title || "",
+    amount: result.amount ?? null,
+    currency: result.currency || "EUR",
+  });
+  saveState();
+}
+
+/** The logged expense a correction refers to: the replied-to confirmation, else this person's latest. */
+function findExpenseForCorrection(message, { allowLatest }) {
+  const list = state.recentExpenses || [];
+  const chatId = String(message.chat.id);
+  const replyId = message.reply_to_message?.message_id;
+  if (replyId != null) {
+    const hit = list.find((e) => e.chatId === chatId && e.messageId === replyId);
+    if (hit) return hit;
+  }
+  if (!allowLatest) return null;
+  const now = Date.now();
+  for (let i = list.length - 1; i >= 0; i--) {
+    const e = list[i];
+    if (
+      e.chatId === chatId &&
+      e.fromId === message.from?.id &&
+      now - e.ts < EXPENSE_CORRECTION_WINDOW_MS
+    ) {
+      return e;
+    }
+  }
+  return null;
+}
+
+async function applyExpenseAmountCorrection({ chatId, expense, amount, from }) {
+  const previous = expense.amount;
+  const who = await expenseSubmitterName(from);
+  await notion.updatePageProps(EXPENSES_DB_NAME, expense.pageId, { Amount: amount });
+  try {
+    await notion.appendBlocks(expense.pageId, [
+      {
+        object: "block",
+        type: "paragraph",
+        paragraph: {
+          rich_text: notion.richText(
+            `Amount corrected from ${formatMoney(previous, expense.currency)} to ${formatMoney(amount, expense.currency)} by ${who} via Telegram (${todayISO()}).`
+          ),
+        },
+      },
+    ]);
+  } catch (err) {
+    log("expense correction note error:", err.message);
+  }
+  expense.amount = amount;
+  saveState();
+  let reply =
+    `✅ Updated <b>${escapeHtml(expense.title || "expense")}</b>: ` +
+    `${escapeHtml(formatMoney(previous, expense.currency))} → <b>${escapeHtml(formatMoney(amount, expense.currency))}</b>`;
+  if (expense.url) reply += `\n<a href="${expense.url}">Open in Notion</a>`;
+  await sendMessage(chatId, reply);
+}
+
+/**
+ * "The amount is wrong, it should be 113,94" — fix a logged expense instead of treating
+ * the message as a new receipt. Handles replies to the confirmation message, and (in DMs)
+ * clear correction messages about the person's most recent expense.
+ */
+async function handleExpenseCorrection(message, text) {
+  if (!text || message.photo?.length || message.document) return false;
+  const repliedToExpense = findExpenseForCorrection(message, { allowLatest: false });
+  const isPrivate = message.chat?.type === "private";
+  const expense =
+    repliedToExpense ||
+    (isPrivate && receiptAmounts.looksLikeAmountCorrection(text)
+      ? findExpenseForCorrection(message, { allowLatest: true })
+      : null);
+  if (!expense) return false;
+
+  const amount = receiptAmounts.parseCorrectedAmount(text);
+  if (amount == null) {
+    if (!repliedToExpense) return false;
+    if (!/\b(amount|total|wrong|valor|errad|fix|correct)/i.test(text)) return false;
+    await sendMessage(
+      message.chat.id,
+      "What should the amount be? Reply to the expense message with the right total, e.g. <code>113,94</code>."
+    );
+    return true;
+  }
+  try {
+    await applyExpenseAmountCorrection({ chatId: message.chat.id, expense, amount, from: message.from });
+  } catch (err) {
+    log("expense correction error:", err.message);
+    await sendMessage(message.chat.id, "Sorry, I couldn't update that expense in Notion.");
+  }
+  return true;
 }
 
 function pendingExpenseKey(chatId, fromId) {
@@ -2441,6 +2684,20 @@ async function handlePendingExpenseEntity(message) {
 
   const step = pending.step || "entity";
 
+  if (receiptAmounts.looksLikeAmountCorrection(text)) {
+    const amount = receiptAmounts.parseCorrectedAmount(text);
+    pending.extracted = { ...pending.extracted, amount, amount_uncertain: false };
+    pending.ts = Date.now();
+    saveState();
+    const preview = expensePreviewFromExtracted(pending.extracted);
+    await sendMessage(
+      chatId,
+      `✅ Amount set to <b>${escapeHtml(formatMoney(amount, preview.currency))}</b>.\n\n` +
+        (step === "purpose" ? expensePurposePrompt(preview, pending.entity) : expenseEntityPrompt(preview))
+    );
+    return true;
+  }
+
   if (step === "entity") {
     const entity = parseExpenseEntityChoice(text);
     if (!entity) {
@@ -2507,6 +2764,18 @@ function managementMemberRoleNames() {
     .filter(Boolean);
 }
 
+/** Roles allowed to update Guest Stays (plot, payment, check-in records) in Notion via VAVA. */
+function guestStayOpsRoleNames() {
+  const raw =
+    process.env.GUEST_STAY_OPS_ROLES ||
+    process.env.MANAGEMENT_MEMBER_ROLES ||
+    "Manager,Day manager";
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 async function isManagementMember(from) {
   if (!from?.id) return false;
   const roles = managementMemberRoleNames();
@@ -2515,6 +2784,38 @@ async function isManagementMember(from) {
   if (!page) return false;
   const role = notion.pagePropText(page, "Role / focus").trim().toLowerCase();
   return roles.includes(role);
+}
+
+async function memberGuestStayOpsAccess(from) {
+  if (!from?.id) return { allowed: false, reason: "no_user" };
+  const { page } = await findMemberByTelegram(senderHandle(from), from.id);
+  if (!page) return { allowed: false, reason: "not_registered" };
+  const role = notion.pagePropText(page, "Role / focus").trim().toLowerCase();
+  const roles = guestStayOpsRoleNames();
+  if (roles.length && roles.includes(role)) {
+    return { allowed: true, page, role };
+  }
+  return { allowed: false, reason: "wrong_role", page, role };
+}
+
+async function ensureGuestStayOpsAccess(from, chatId) {
+  const access = await memberGuestStayOpsAccess(from);
+  if (access.allowed) return true;
+
+  if (access.reason === "not_registered") {
+    await sendMessage(
+      chatId,
+      "Only <b>managers</b> and <b>day managers</b> can update guest stays in Notion (plot, payment, check-in details).\n\n" +
+        "Run <code>/register Your Name</code> — I’ll DM the Community questionnaire so you can choose <b>Manager</b> or <b>Day manager</b> as your role."
+    );
+  } else {
+    await sendMessage(
+      chatId,
+      "Only <b>managers</b> and <b>day managers</b> can update guest stays in Notion (plot, payment, check-in details).\n\n" +
+        "If that’s your role, run <code>/questionnaire</code> and set <b>Role / focus</b> to Manager or Day manager (or <code>/register Your Name</code> if you’re not on the Members board yet)."
+    );
+  }
+  return false;
 }
 
 async function sendExpenseSummary(chatId, { from } = {}) {
@@ -4710,6 +5011,138 @@ async function fetchKidsProgrammeShiftsForDay(dateISO) {
   }
 }
 
+const DAY_MANAGER_HELP =
+  "<b>Day manager</b>\n" +
+  "• <code>/daymanager Hans · today</code>\n" +
+  "• <code>/daymanager · next Tuesday</code> (you, after /register)\n" +
+  '• Or say: “I am the day manager today”, “I will be day manager next Tuesday”, or list next week in one message.';
+
+async function assignDayManagerRow(row, { from, chatId, speakerName } = {}) {
+  const payload = { ...row };
+  if ((payload.self_assign || !payload.manager) && speakerName) {
+    payload.manager = speakerName;
+    payload.self_assign = false;
+  }
+  const result = await dayManagersLib.upsertDayManager(payload, {
+    dbName: DAY_MANAGERS_DB_NAME,
+    todayISO: todayISO(),
+    tz: RECAP_TZ,
+  });
+  recordChatActivity({
+    kind: "announcement",
+    from,
+    chatId,
+    title: `Day manager ${result.dateISO}`,
+    text: result.manager || result.backup || result.status,
+  });
+  return result;
+}
+
+function formatDayManagerAssignReply(result) {
+  if (result.status === dayManagersLib.STATUS_CANCELLED) {
+    return `📅 Cleared <b>day manager</b> on ${escapeHtml(result.dateISO)}.`;
+  }
+  const people = [result.manager, result.backup].filter(Boolean).join(" + ");
+  const tbc =
+    result.status === dayManagersLib.STATUS_TBC ? " (TBC)" : "";
+  let msg =
+    `📅 ${result.updated ? "Updated" : "Set"} <b>day manager</b> ` +
+    `on ${escapeHtml(result.dateISO)} — ${escapeHtml(people || "TBC")}${tbc}`;
+  if (result.url) msg += ` — <a href="${result.url}">Notion</a>`;
+  return msg;
+}
+
+async function handleDayManagerSlashCommand(args, { from, chatId }) {
+  const raw = String(args || "").trim();
+  if (!raw || /^help$/i.test(raw)) {
+    await sendMessage(chatId, DAY_MANAGER_HELP);
+    return true;
+  }
+
+  let row = null;
+  const parts = raw.split(/·|\|/).map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    row = {
+      manager: parts[0] || "",
+      date: parts[1] || "today",
+      self_assign: !parts[0],
+    };
+  } else if (parts.length === 1) {
+    row = { manager: "", date: parts[0], self_assign: true };
+  } else {
+    const selfMatch = raw.match(
+      /^(?:i am|i'm|im|sou)\s+(?:the\s+)?day\s+manager(?:\s+(?:on\s+)?(.+))?$/i
+    );
+    if (selfMatch) {
+      row = { date: selfMatch[1] || "today", self_assign: true };
+    }
+    const namedMatch = raw.match(
+      /^(.+?)\s+(?:is|will be|'ll be)\s+(?:the\s+)?day\s+manager(?:\s+(?:on\s+)?(.+))?$/i
+    );
+    if (!row && namedMatch) {
+      row = { manager: namedMatch[1].trim(), date: namedMatch[2] || "today" };
+    }
+    const clearMatch = raw.match(
+      /^(?:clear|cancel)\s+day\s+manager(?:\s+(.+))?$/i
+    );
+    if (!row && clearMatch) {
+      row = { date: clearMatch[1] || "today", clear: true };
+    }
+  }
+
+  if (!row) {
+    await sendMessage(chatId, `Could not parse that.\n\n${DAY_MANAGER_HELP}`);
+    return true;
+  }
+
+  try {
+    const result = await assignDayManagerRow(row, {
+      from,
+      chatId,
+      speakerName: senderDisplayName(from),
+    });
+    await sendMessage(chatId, formatDayManagerAssignReply(result));
+  } catch (err) {
+    log("day manager /daymanager error:", err.message);
+    await sendMessage(chatId, `Sorry — ${escapeHtml(err.message)}`);
+  }
+  return true;
+}
+
+async function captureAssignDayManager({ classified, from, chatId }) {
+  const list =
+    Array.isArray(classified?.day_managers) && classified.day_managers.length
+      ? classified.day_managers
+      : classified?.day_manager
+        ? [classified.day_manager]
+        : [];
+  if (!list.length) return false;
+  const speaker = senderDisplayName(from);
+  const replies = [];
+  try {
+    for (const row of list) {
+      const result = await assignDayManagerRow(row, { from, chatId, speakerName: speaker });
+      replies.push(formatDayManagerAssignReply(result));
+    }
+    await sendMessage(chatId, replies.join("\n"));
+    return true;
+  } catch (err) {
+    log("assign day manager error:", err.message);
+    return false;
+  }
+}
+
+async function fetchDayManagerForDay(dateISO) {
+  try {
+    return await dayManagersLib.fetchManagerForDay(dateISO, {
+      dbName: DAY_MANAGERS_DB_NAME,
+    });
+  } catch (err) {
+    log("Day manager Notion fetch failed:", err.message);
+    return null;
+  }
+}
+
 function formatKidsProgrammeHtmlLines(shifts) {
   const { formatLeadLine } = kidsProgrammeLib;
   const lines = [];
@@ -4809,6 +5242,23 @@ async function buildScheduleSnapshot(question, { scheduleRange, includeChildcare
     }
     if (!anyChores) lines.push("- (none on rota in this period)");
 
+    lines.push("", "Day managers:");
+    try {
+      const managers = await dayManagersLib.fetchManagersBetween(start, end, {
+        dbName: DAY_MANAGERS_DB_NAME,
+      });
+      if (managers.length) {
+        for (const row of managers) {
+          const people = [row.manager, row.backup].filter(Boolean).join(" + ") || "TBC";
+          lines.push(`- ${row.date}: ${people}`);
+        }
+      } else {
+        lines.push("- (none set in this period)");
+      }
+    } catch {
+      lines.push("- (database not available)");
+    }
+
     lines.push("", "Campsite check-ins / meals / childcare:");
     day = start;
     let anyCampsite = false;
@@ -4856,6 +5306,11 @@ async function buildScheduleSnapshot(question, { scheduleRange, includeChildcare
             .filter(Boolean)) {
             lines.push(`  kids: ${line.replace(/^•\s*/, "")}`);
           }
+        }
+        const dmDay = await fetchDayManagerForDay(day);
+        if (dmDay) {
+          const people = [dmDay.manager, dmDay.backup].filter(Boolean).join(" + ") || "TBC";
+          lines.push(`  day manager: ${people}`);
         }
       }
       day = addDaysISO(day, 1);
@@ -4913,6 +5368,13 @@ async function buildDataSnapshot(dateISO, { includeChildcareDetails = false } = 
   } else {
     lines.push(formatChildcareLine(childcare));
   }
+  const dayManager = await fetchDayManagerForDay(dateISO);
+  if (dayManager) {
+    const dm = dayManagersLib.formatManagerLine(dayManager);
+    if (dm) {
+      lines.push("", dm.replace(/^•\s*/, "Day manager: "));
+    }
+  }
   const kidsShifts = await fetchKidsProgrammeShiftsForDay(dateISO);
   if (kidsShifts.length) {
     lines.push("", "Kids programme shifts:");
@@ -4924,6 +5386,71 @@ async function buildDataSnapshot(dateISO, { includeChildcareDetails = false } = 
 async function answerFromNotionData(question) {
   const snapshot = await buildScheduleSnapshot(question);
   return openaiLib.answerFromData(question, snapshot);
+}
+
+function memberPageIsActiveForCommunity(page) {
+  if (notion.pagePropText(page, "Active?") === "false") return false;
+  const stage = notion.pagePropText(page, "Stage");
+  const status = notion.pagePropText(page, "Member status");
+  if (stage === "Left / inactive" || status === "Inactive") return false;
+  return true;
+}
+
+function monthDayFromBirthdayIso(birthdayIso) {
+  const m = String(birthdayIso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return { month: Number(m[2]), day: Number(m[3]) };
+}
+
+function monthDayForCalendarDate(dateISO, tz = RECAP_TZ) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(new Date(`${dateISO}T12:00:00`));
+  return {
+    month: Number(parts.find((p) => p.type === "month")?.value),
+    day: Number(parts.find((p) => p.type === "day")?.value),
+  };
+}
+
+async function fetchCommunityBirthdayNamesForDay(dateISO) {
+  let pages;
+  try {
+    ({ pages } = await notion.queryDatabase(MEMBERS_DB_NAME));
+  } catch (err) {
+    log("Members fetch for birthdays failed:", err.message);
+    return [];
+  }
+  const target = monthDayForCalendarDate(dateISO);
+  const names = [];
+  for (const page of pages) {
+    if (!memberPageIsActiveForCommunity(page)) continue;
+    const bday = notion.pageDateISO(page, "Birthday");
+    if (!bday) continue;
+    const md = monthDayFromBirthdayIso(bday);
+    if (!md || md.month !== target.month || md.day !== target.day) continue;
+    const name =
+      notion.pagePropText(page, "Display name") || notion.pageTitle(page);
+    if (name) names.push(String(name).trim());
+  }
+  return names.sort((a, b) => a.localeCompare(b));
+}
+
+async function buildBirthdayRecapBlock(dateISO) {
+  const todayNames = await fetchCommunityBirthdayNamesForDay(dateISO);
+  const tomorrowNames = await fetchCommunityBirthdayNamesForDay(
+    addDaysISO(dateISO, 1)
+  );
+  if (!todayNames.length && !tomorrowNames.length) return null;
+  const lines = ["<b>Birthdays</b>"];
+  if (todayNames.length) {
+    lines.push(`• Today 🎂: ${todayNames.map(escapeHtml).join(", ")}`);
+  }
+  if (tomorrowNames.length) {
+    lines.push(`• Tomorrow: ${tomorrowNames.map(escapeHtml).join(", ")}`);
+  }
+  return lines.join("\n");
 }
 
 /** Reject AI rewrite that invented placeholders or cooking when there was none. */
@@ -4958,11 +5485,36 @@ async function buildDailyRecap(dateISO) {
   }).format(new Date(dateISO + "T12:00:00"));
 
   const lines = [`Good morning! Here's ${dayName}:`, ""];
+  try {
+    const weatherLine = await weatherLib.forecastLineForDate(dateISO, {
+      tz: RECAP_TZ,
+    });
+    if (weatherLine) {
+      lines.push("<b>Weather</b>");
+      lines.push(`• ${escapeHtml(weatherLine)}`);
+      lines.push("");
+    }
+  } catch (err) {
+    log("Weather for recap failed:", err.message);
+  }
+  const birthdayBlock = await buildBirthdayRecapBlock(dateISO);
+  if (birthdayBlock) {
+    lines.push(birthdayBlock);
+    lines.push("");
+  }
   const meetingTheme = morningMeetingThemeForDate(dateISO);
   if (meetingTheme) {
     lines.push("<b>Morning meeting</b>");
     lines.push(`• Theme: ${escapeHtml(meetingTheme)}`);
     lines.push("");
+  }
+  const dayManager = await fetchDayManagerForDay(dateISO);
+  if (dayManager) {
+    const dmLine = dayManagersLib.formatManagerLine(dayManager, { html: true });
+    if (dmLine) {
+      lines.push(dmLine);
+      lines.push("");
+    }
   }
   if (events.length) {
     lines.push("<b>Events today</b>");
@@ -5045,6 +5597,8 @@ async function buildDailyRecap(dateISO) {
       "Do not mention campsite check-ins, check-outs, pitch bookings, or who is staying on site — that is management-only.",
       "Meal bookings come from the website.",
       "Village morning meetings are Monday–Friday only — never Saturday or Sunday.",
+      "Keep the Weather bullet exactly as written (real forecast).",
+      "Keep the Birthdays block exactly as written when present — do not drop or rename people.",
     ];
     if (cookOffers.length) {
       extras.push(
@@ -5053,6 +5607,11 @@ async function buildDailyRecap(dateISO) {
     } else {
       extras.push(
         "The source has no community cooking block — do not mention anyone cooking, shared meals, or placeholder fields like [Name] or [Dish]."
+      );
+    }
+    if (dayManager) {
+      extras.push(
+        "Keep the Day manager bullet exactly as written (real name(s)); do not drop it."
       );
     }
     if (meetingTheme) {
@@ -5668,7 +6227,7 @@ async function maybeSendVolunteersGroupDailyRecap(dateISO) {
 }
 
 async function maybeSendManagementGroupDailyRecap(dateISO) {
-  if (!DAILY_RECAP || !MANAGEMENT_GROUP_CHAT_ID || !telegramPollActive) return;
+  if (!DAILY_RECAP || !managementGroupOutboundChatId() || !telegramPollActive) return;
   refreshRecapDatesFromDisk();
   if (state.lastManagementGroupRecapDate === dateISO) return;
   if (currentHHMM() < RECAP_TIME) return;
@@ -5680,7 +6239,7 @@ async function maybeSendManagementGroupDailyRecap(dateISO) {
     saveState();
     return;
   }
-  if (await sendMessage(MANAGEMENT_GROUP_CHAT_ID, text)) {
+  if (await sendMessage(managementGroupOutboundChatId(), text)) {
     state.lastManagementGroupRecapDate = dateISO;
     saveState();
     log(`Management group daily recap sent for ${dateISO}`);
@@ -5689,7 +6248,7 @@ async function maybeSendManagementGroupDailyRecap(dateISO) {
 
 async function maybeSendManagementCampsiteBriefings(dateISO) {
   if (!DAILY_RECAP) return;
-  if (MANAGEMENT_GROUP_CHAT_ID) return;
+  if (managementGroupOutboundChatId()) return;
   if (!telegramPollActive) return;
   refreshRecapDatesFromDisk();
   if (currentHHMM() < RECAP_TIME) return;
@@ -6367,7 +6926,12 @@ async function handleLocationQuestion({ text, classified, chatId }) {
     if (result.ok && result.item) {
       let reply = `📍 ${escapeHtml(locationsLib.formatLocationAnswer(result.item))}`;
       if (result.item.url) reply += `\n<a href="${result.item.url}">Notion</a>`;
-      await sendMessage(chatId, reply);
+      const photoId = locationsLib.telegramPhotoFileIdFromNotes(result.item.notes);
+      if (photoId) {
+        await sendPhoto(chatId, photoId, reply);
+      } else {
+        await sendMessage(chatId, reply);
+      }
       return true;
     }
     if (result.reason === "ambiguous") {
@@ -6382,7 +6946,7 @@ async function handleLocationQuestion({ text, classified, chatId }) {
   }
 }
 
-async function handleLocationUpdate({ text, from, chatId, classified }) {
+async function handleLocationUpdate({ text, from, chatId, classified, photoFileId }) {
   const items =
     Array.isArray(classified?.locations) && classified.locations.length
       ? classified.locations.filter((row) => row?.item)
@@ -6401,12 +6965,28 @@ async function handleLocationUpdate({ text, from, chatId, classified }) {
     return false;
   }
 
+  let photoBuf = null;
+  let photoFilename = null;
+  if (photoFileId) {
+    try {
+      const dl = await downloadTelegramPhoto(photoFileId);
+      photoBuf = dl.buf;
+      photoFilename = dl.filename;
+    } catch (err) {
+      log("handleLocationUpdate photo download:", err.message);
+    }
+  }
+
   const fromName = senderDisplayName(from);
   const lines = [];
-  for (const loc of items) {
+  for (let i = 0; i < items.length; i += 1) {
+    const loc = items[i];
     const key = ambientDedupeKey(chatId, "location", loc.item);
     if (wasRecentlyCaptured(key)) continue;
     try {
+      const attachPhoto = i === 0 ? photoFileId : null;
+      const attachBuf = i === 0 ? photoBuf : null;
+      const attachName = i === 0 ? photoFilename : null;
       const result = await locationsLib.upsertLocation({
         item: loc.item,
         location: loc.location,
@@ -6419,6 +6999,9 @@ async function handleLocationUpdate({ text, from, chatId, classified }) {
         fromName,
         todayISO: todayISO(),
         sourceText: text,
+        photoFileId: attachPhoto,
+        photoBuf: attachBuf,
+        photoFilename: attachName,
       });
       if (result.reason === "ambiguous") {
         const names = (result.matches || []).map((m) => m.name).join(", ");
@@ -6456,6 +7039,108 @@ async function handleLocationUpdate({ text, from, chatId, classified }) {
   }
   await sendMessage(chatId, lines.join("\n"));
   return true;
+}
+
+async function handleGuestStayUpdate({ text, from, chatId, classified, interactive }) {
+  if (!(await ensureGuestStayOpsAccess(from, chatId))) {
+    return false;
+  }
+
+  let fields =
+    classified?.stay_update && typeof classified.stay_update === "object"
+      ? { ...classified.stay_update }
+      : null;
+  if (!fields) {
+    const extracted = guestStaysLib.extractStayUpdate(text);
+    if (extracted) fields = extracted;
+  }
+  if (!fields?.guest_name) {
+    if (interactive) {
+      await sendMessage(
+        chatId,
+        "Which guest stay should I update? E.g. “put the Martins on plot 12”, “mark Silva as paid”, or “Martins submitted check-in details”."
+      );
+    }
+    return false;
+  }
+
+  const key = ambientDedupeKey(
+    chatId,
+    "stay_update",
+    `${fields.guest_name}:${fields.plot || ""}:${fields.payment || ""}`
+  );
+  if (wasRecentlyCaptured(key)) return true;
+
+  const fromName = `${senderDisplayName(from)} (${senderHandle(from)})`;
+  try {
+    const result = await guestStaysLib.updateStayRecord(fields, {
+      updatedBy: fromName,
+      sourceText: text,
+      todayISO: todayISO(),
+    });
+
+    if (result.reason === "ambiguous") {
+      const lines = (result.matches || []).map((s) => {
+        const when =
+          s.check_in && s.check_out
+            ? `${s.check_in} → ${s.check_out}`
+            : s.check_in || "dates?";
+        return `• <b>${escapeHtml(s.name)}</b> (${escapeHtml(when)})`;
+      });
+      await sendMessage(
+        chatId,
+        `Which stay?\n${lines.join("\n")}\n\nAdd the check-in date, e.g. “${escapeHtml(fields.guest_name)} check-in 2026-03-15 plot 4”.`
+      );
+      return false;
+    }
+
+    if (result.reason === "not_found") {
+      if (interactive) {
+        await sendMessage(
+          chatId,
+          `No guest stay in Notion matching <b>${escapeHtml(result.guest || fields.guest_name)}</b>. Log the booking first, or double-check the name.`
+        );
+      }
+      return false;
+    }
+
+    if (!result.ok) {
+      if (interactive) {
+        await sendMessage(
+          chatId,
+          "I need a plot, payment status, and/or check-in details (received / pending) to update."
+        );
+      }
+      return false;
+    }
+
+    markCaptured(key);
+    recordChatActivity({
+      kind: "stay_updated",
+      from,
+      chatId,
+      title: result.name,
+      text,
+    });
+
+    const bits = result.changed?.length ? [...result.changed] : [];
+    if (!bits.length && result.stay?.plot) {
+      bits.push(guestStaysLib.plotDisplay(result.stay.plot));
+    }
+    if (!bits.length && result.stay?.payment) {
+      bits.push(`Payment: ${result.stay.payment}`);
+    }
+
+    let reply = `🏕️ Updated <b>${escapeHtml(result.name)}</b>`;
+    if (bits.length) reply += ` — ${escapeHtml(bits.join(" · "))}`;
+    if (result.url) reply += ` — <a href="${result.url}">Notion</a>`;
+    await sendMessage(chatId, reply);
+    return true;
+  } catch (err) {
+    log("updateStayRecord error:", err.message);
+    if (interactive) await sendMessage(chatId, "Sorry, I could not update that stay in Notion.");
+    return false;
+  }
 }
 
 async function handleFaqQuestion({ text, classified, chatId }) {
@@ -6584,7 +7269,14 @@ async function answerFromPartnerships(question) {
 
 // ── Member questionnaire (Community board, DM-only, no expiry) ───────────────
 
-const ROLE_OPTIONS = ["Villager", "Volunteer", "Worker", "Guest", "Manager"];
+const ROLE_OPTIONS = [
+  "Villager",
+  "Volunteer",
+  "Worker",
+  "Guest",
+  "Manager",
+  "Day manager",
+];
 
 const SKILLSET_OPTIONS = [
   "Building / carpentry",
@@ -6645,6 +7337,7 @@ async function ensureMembersQuestionnaireSchema() {
     if (!existing["Questionnaire done?"]) {
       toAdd["Questionnaire done?"] = { checkbox: {} };
     }
+    if (!existing.Birthday) toAdd.Birthday = { date: {} };
     if (!existing.Skillsets) {
       toAdd.Skillsets = {
         multi_select: { options: multiSelectOpts(SKILLSET_OPTIONS) },
@@ -6809,10 +7502,119 @@ function questionnairePrompt(stepId) {
       `Or <i>skip</i> / <i>done</i>.`
     );
   }
+  if (stepId === "birthday") {
+    return (
+      `<b>Community questionnaire</b> (${progress})\n` +
+      `When’s your <b>birthday</b>? (day + month — we celebrate in the morning roundup.)\n` +
+      `Examples: <code>15 March</code>, <code>15/03</code>, or <code>1990-05-15</code> if you want the year saved too.\n` +
+      `Or <i>skip</i>.`
+    );
+  }
   return "Unknown questionnaire step.";
 }
 
-const QUESTIONNAIRE_STEP_ORDER = ["role", "skills"];
+const QUESTIONNAIRE_STEP_ORDER = ["role", "skills", "birthday"];
+
+const BIRTHDAY_MONTHS = {
+  jan: 1,
+  january: 1,
+  fev: 2,
+  fevereiro: 2,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  março: 3,
+  marco: 3,
+  march: 3,
+  abr: 4,
+  abril: 4,
+  apr: 4,
+  april: 4,
+  mai: 5,
+  maio: 5,
+  may: 5,
+  jun: 6,
+  junho: 6,
+  june: 6,
+  jul: 7,
+  julho: 7,
+  july: 7,
+  ago: 8,
+  agosto: 8,
+  aug: 8,
+  august: 8,
+  set: 9,
+  setembro: 9,
+  sept: 9,
+  sep: 9,
+  september: 9,
+  out: 10,
+  outubro: 10,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  novembro: 11,
+  november: 11,
+  dez: 12,
+  dezembro: 12,
+  dec: 12,
+  december: 12,
+};
+
+function parseBirthdayInput(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  if (/^(skip|none|-|done)$/i.test(raw)) return { skip: true };
+
+  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    return { iso: `${m[1]}-${m[2]}-${m[3]}` };
+  }
+
+  m = raw.match(/^(\d{1,2})[./\-](\d{1,2})(?:[./\-](\d{2,4}))?$/);
+  if (m) {
+    let day = Number(m[1]);
+    let month = Number(m[2]);
+    if (day > 12 && month <= 12) {
+      // day / month
+    } else if (month > 12 && day <= 12) {
+      const tmp = day;
+      day = month;
+      month = tmp;
+    } else if (day <= 12 && month <= 12) {
+      // Europe/Lisbon default: DD/MM
+    }
+    let year = m[3] ? Number(m[3]) : 2000;
+    if (year < 100) year += 1900;
+    if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+    return {
+      iso: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    };
+  }
+
+  const lower = raw.toLowerCase().replace(/[.,]/g, " ").replace(/\s+/g, " ").trim();
+  const monthMatch = lower.match(
+    /\b(jan(?:uary)?|fev(?:ereiro)?|feb(?:ruary)?|mar(?:ço|co|ch)?|abr(?:il)?|apr(?:il)?|mai(?:o)?|may|jun(?:ho|e)?|jul(?:ho|y)?|ago(?:sto)?|aug(?:ust)?|set(?:embro)?|sep(?:t(?:ember)?)?|out(?:ubro)?|oct(?:ober)?|nov(?:embro|ember)?|dez(?:embro)?|dec(?:ember)?)\b/
+  );
+  if (monthMatch) {
+    const monthKey = monthMatch[1].replace(/[ç]/g, "c");
+    const month = BIRTHDAY_MONTHS[monthKey] || BIRTHDAY_MONTHS[monthMatch[1]];
+    if (!month) return null;
+    const nums = lower.match(/\b(\d{1,2})\b/g) || [];
+    const yearTok = lower.match(/\b(19\d{2}|20\d{2})\b/);
+    let day = nums.length ? Number(nums[0]) : null;
+    if (nums.length > 1 && yearTok && nums[0] === yearTok[1]) {
+      day = Number(nums[1]);
+    }
+    if (!day || day < 1 || day > 31) return null;
+    const year = yearTok ? Number(yearTok[1]) : 2000;
+    return {
+      iso: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    };
+  }
+
+  return null;
+}
 
 function normalizePendingQuestionnaires(bag) {
   const next = {};
@@ -6987,6 +7789,7 @@ async function saveQuestionnaireAnswers({ pageId, displayName, answers }) {
   }
   if (answers.bio) properties.Bio = answers.bio;
   if (answers.contact) properties["Phone / contact"] = answers.contact;
+  if (answers.birthday) properties.Birthday = answers.birthday;
 
   await notion.updatePageProps(MEMBERS_DB_NAME, pageId, properties);
 }
@@ -7074,6 +7877,16 @@ async function handlePendingQuestionnaire(message) {
       answers.skillsets = parsed.values;
       if (parsed.other) answers.skillsOther = parsed.other;
     }
+  } else if (step === "birthday") {
+    const parsed = parseBirthdayInput(text);
+    if (!parsed) {
+      await sendMessage(
+        chatId,
+        "Please send your birthday like <code>15 March</code> or <code>15/03</code>, or <i>skip</i>. Say <i>cancel</i> to exit."
+      );
+      return true;
+    }
+    if (!parsed.skip) answers.birthday = parsed.iso;
   } else if (step === "areas") {
     const parsed = parseMultiChoice(text, AREA_OPTIONS);
     if (!parsed) {
@@ -7508,6 +8321,9 @@ const HELP_TEXT = [
   "Voice note or text a stay booked by email or phone and I’ll put it on Guest Stays in Notion (management get a daily DM with arrivals and occupancy).",
   "• “the Martins booked the cabin 20–24 Sept, 2 adults 1 child, via email”",
   "• “email booking: João arriving Friday leaving Monday, pitch 4”",
+  "<b>Update a stay</b> (managers & day managers, Guest Stays in Notion):",
+  "• “put the Martins on plot 12” · “mark Silva family as paid” · “João submitted check-in details”",
+  "• “Martins check-in details pending” / “Silva hasn't submitted registration yet”",
   "",
   "<b>Bins full</b>",
   "• “the bins are full” / “as papeleiras estão cheias” — I'll ask which ones (paper, plastic, glass, general, or all), check with you, then email the Câmara de Ourique to come and empty them.",
@@ -7536,6 +8352,7 @@ const HELP_TEXT = [
   "/questionnaire — fill or update your Community profile (sent privately)",
   "/mytasks — duties due today + open tasks assigned to you",
   "/kids — assign a teacher/caregiver to a kids programme slot (or say “put Amber on Early Readers Friday”)",
+  "/daymanager — set who is day manager (or say “I am the day manager today”)",
   "/kids-topic — run once inside the Parents &amp; Teachers forum topic so daily roundups post there",
   "/done &lt;item id&gt; — mark a duty/task done (duties reschedule: daily +1 day, weekly +7 days, monthly +1 month)",
   "/whoami — show your Telegram details",
@@ -8435,7 +9252,7 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
     (c.is_location_update || c.action === "update_location") &&
     conf >= minConf
   ) {
-    await handleLocationUpdate({ text, from, chatId, classified: c });
+    await handleLocationUpdate({ text, from, chatId, classified: c, photoFileId });
     return;
   }
 
@@ -8456,6 +9273,22 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
       await beginCommunityCookOfferFlow({ offer, from, chatId, text });
       return;
     }
+  }
+
+  // Guest stay records — plot / payment (managers only)
+  const stayUpdateHint = guestStaysLib.extractStayUpdate(text);
+  if (
+    (c.is_stay_update || c.action === "update_stay" || stayUpdateHint) &&
+    (conf >= minConf || stayUpdateHint)
+  ) {
+    const ok = await handleGuestStayUpdate({
+      text,
+      from,
+      chatId,
+      classified: c.stay_update ? c : stayUpdateHint ? { stay_update: stayUpdateHint } : c,
+      interactive,
+    });
+    if (ok || interactive) return;
   }
 
   // Off-site / email guest stays (before events — “booked the cabin” is not a workshop)
@@ -8496,6 +9329,17 @@ async function routeByAiClassification({ classified, text, from, chatId, photoFi
       await sendMessage(
         chatId,
         "Sorry, I could not update that kids programme slot. Try /kids or check the programme name."
+      );
+    }
+    return;
+  }
+
+  if (c.is_day_manager_assign && conf >= minConf) {
+    const ok = await captureAssignDayManager({ classified: c, from, chatId });
+    if (!ok && interactive) {
+      await sendMessage(
+        chatId,
+        "Sorry, I could not update the day manager. Try /daymanager or name the date."
       );
     }
     return;
@@ -9190,6 +10034,17 @@ function buildAgentTools({ message, text, photoFileId, media }) {
         required: ["item"],
       },
       run: async ({ item, location, usual_place, update_kind, notes }) => {
+        let photoBuf = null;
+        let photoFilename = null;
+        if (photoFileId) {
+          try {
+            const dl = await downloadTelegramPhoto(photoFileId);
+            photoBuf = dl.buf;
+            photoFilename = dl.filename;
+          } catch (err) {
+            log("set_location photo:", err.message);
+          }
+        }
         const r = await locationsLib.upsertLocation({
           item,
           location,
@@ -9199,6 +10054,9 @@ function buildAgentTools({ message, text, photoFileId, media }) {
           fromName: senderDisplayName(from),
           todayISO: today,
           sourceText: text,
+          photoFileId: photoFileId || null,
+          photoBuf,
+          photoFilename,
         });
         if (r.reason === "ambiguous") return { ambiguous: (r.matches || []).map((m) => m.name) };
         if (!r.ok) return { error: "Couldn't save it." };
@@ -9343,7 +10201,8 @@ function buildAgentTools({ message, text, photoFileId, media }) {
     },
     {
       name: "log_receipt",
-      description: "Log an expense/receipt from the attached photo/PDF or the amount + shop in the message. Replies itself.",
+      description:
+        "Log a NEW expense/receipt from the attached photo/PDF or the amount + shop in the message. Not for fixing an expense already logged — use correct_expense_amount. Replies itself.",
       parameters: { type: "object", properties: {} },
       run: async () => {
         const logged = await handleReceiptSubmission({
@@ -9355,6 +10214,26 @@ function buildAgentTools({ message, text, photoFileId, media }) {
           assumeReceipt: Boolean(media),
         });
         if (!logged) return { error: "Couldn't read a receipt — ask for a photo, or the amount and shop." };
+        return { handedOff: true };
+      },
+    },
+    {
+      name: "correct_expense_amount",
+      description:
+        "Fix the amount of an expense the bot already logged (the one replied to, else the sender's latest in the last 24h). Replies itself.",
+      parameters: {
+        type: "object",
+        properties: { amount: { type: "number", description: "Correct total, dot decimal (113.94)" } },
+        required: ["amount"],
+      },
+      run: async ({ amount }) => {
+        const value = Number(amount);
+        if (!Number.isFinite(value) || value <= 0) return { error: "Need a positive amount." };
+        const expense = findExpenseForCorrection(message, { allowLatest: true });
+        if (!expense) {
+          return { error: "No recently logged expense found — ask them to reply to the 'Logged expense' message." };
+        }
+        await applyExpenseAmountCorrection({ chatId, expense, amount: Math.round(value * 100) / 100, from });
         return { handedOff: true };
       },
     },
@@ -9373,7 +10252,7 @@ function buildAgentTools({ message, text, photoFileId, media }) {
     {
       name: "use_legacy_router",
       description:
-        "Hand the message to VAVA's older specialised handlers. Use ONLY for: logging a guest stay / campsite booking, assigning kids programme teachers, or someone offering to cook for the community. Replies itself.",
+        "Hand the message to VAVA's older specialised handlers. Use ONLY for: logging or updating a guest stay (plot/payment in Notion), assigning kids programme teachers, or someone offering to cook for the community. Replies itself.",
       parameters: { type: "object", properties: {} },
       run: async () => {
         await routeAddressedMessageLegacy(message);
@@ -9905,9 +10784,11 @@ async function handleMessageInner(message) {
 
   if (message.migrate_to_chat_id) {
     rememberGuestsGroupMigration(message.chat?.id, message.migrate_to_chat_id);
+    rememberManagementGroupMigration(message.chat?.id, message.migrate_to_chat_id);
   }
   if (message.migrate_from_chat_id && message.chat?.id) {
     rememberGuestsGroupMigration(message.migrate_from_chat_id, message.chat.id);
+    rememberManagementGroupMigration(message.migrate_from_chat_id, message.chat.id);
   }
 
   if (isGuestsGroupChatId(chatId)) {
@@ -9938,6 +10819,10 @@ async function handleMessageInner(message) {
   }
 
   if (text && !text.startsWith("/") && (await handlePendingExpenseEntity(message))) {
+    return;
+  }
+
+  if (text && !text.startsWith("/") && (await handleExpenseCorrection(message, text))) {
     return;
   }
 
@@ -9987,6 +10872,11 @@ async function handleMessageInner(message) {
         `Your user id: <code>${from.id}</code>\n` +
         `This chat id: <code>${chatId}</code>`
     );
+    return;
+  }
+
+  if (isCommand && cmd === "/daymanager") {
+    await handleDayManagerSlashCommand(args, { from, chatId });
     return;
   }
 
@@ -10561,7 +11451,7 @@ async function scanBoardsForChanges({ announce }) {
           )
         ) {
           await sendMessage(
-            ANNOUNCE_CHAT_ID,
+            managementAnnounceChatId(),
             `🆕 New item on <b>${escapeHtml(dbName)}</b>: ` +
               `${escapeHtml(name)}${link}`
           );
@@ -10569,12 +11459,12 @@ async function scanBoardsForChanges({ announce }) {
       } else if (announce) {
         if (!prev.done && done) {
           await sendMessage(
-            ANNOUNCE_CHAT_ID,
+            managementAnnounceChatId(),
             `✅ Completed: <b>${escapeHtml(name)}</b> (${escapeHtml(dbName)})${link}`
           );
         } else if (doer && doer !== prev.doer) {
           await sendMessage(
-            ANNOUNCE_CHAT_ID,
+            managementAnnounceChatId(),
             `👤 <b>${escapeHtml(name)}</b> assigned to ${escapeHtml(doer)} (${escapeHtml(dbName)})${link}`
           );
         } else if (
@@ -10584,7 +11474,7 @@ async function scanBoardsForChanges({ announce }) {
         ) {
           const label = status || stage;
           await sendMessage(
-            ANNOUNCE_CHAT_ID,
+            managementAnnounceChatId(),
             `🔧 <b>${escapeHtml(name)}</b> → ${escapeHtml(label)} (${escapeHtml(dbName)})${link}`
           );
         }
@@ -10627,7 +11517,7 @@ async function main() {
   );
   log(
     `Ops groups: volunteers ${VOLUNTEERS_GROUP_CHAT_ID || "(off)"}, management ${
-      MANAGEMENT_GROUP_CHAT_ID || "(off)"
+      managementGroupOutboundChatId() || "(off)"
     }, guests ${guestsGroupOutboundChatId() || "(off)"}` +
       (state.guestsGroupChatIdMigrated
         ? ` (also listening on legacy ids)`
@@ -10641,7 +11531,7 @@ async function main() {
   log(`Group mode: tag-to-activate (ambient capture ${AMBIENT_CAPTURE ? "ON" : "OFF"}); DMs always on`);
   log(`Events: Internal → ${INTERNAL_EVENTS_DB_NAME}, External → ${EXTERNAL_EVENTS_DB_NAME}`);
   log(`Daily recap: ${DAILY_RECAP ? `ON at ${RECAP_TIME} ${RECAP_TZ}` : "OFF"}`);
-  log(`Notion announcements → chat ${ANNOUNCE_CHAT_ID || "(off)"}`);
+  log(`Notion announcements → chat ${managementAnnounceChatId() || "(off)"}`);
 
   await ensureMembersQuestionnaireSchema();
   try {
@@ -10688,6 +11578,14 @@ async function main() {
   } catch (err) {
     log("Guest stays setup skipped:", err.message);
   }
+  try {
+    const dm = await dayManagersLib.ensureDayManagersDatabase();
+    log(
+      `Day managers: ${dm.wasCreated ? "created" : "ready"} (${DAY_MANAGERS_DB_NAME})`
+    );
+  } catch (err) {
+    log("Day managers setup skipped:", err.message);
+  }
 
   if (openaiLib.isEnabled()) {
     const idx = getDocsIndex();
@@ -10731,7 +11629,7 @@ async function main() {
 
     const now = Date.now();
     if (
-      ANNOUNCE_CHAT_ID &&
+      managementAnnounceChatId() &&
       telegramPollActive &&
       now - lastNotionPoll >= NOTION_POLL_SECONDS * 1000
     ) {

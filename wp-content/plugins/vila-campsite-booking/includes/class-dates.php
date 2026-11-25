@@ -91,6 +91,24 @@ class Dates {
 	}
 
 	/**
+	 * Whether the stay has already ended (checkout is today or earlier; checkout is exclusive).
+	 *
+	 * Used to allow paying online for a stay that is already over without re-reserving inventory.
+	 *
+	 * @param string $check_out Y-m-d exclusive end.
+	 * @return bool
+	 */
+	public static function stay_ended_on_or_before_today( $check_out ) {
+		$end = self::parse_ymd( $check_out );
+		if ( ! $end ) {
+			return false;
+		}
+		$today = new \DateTimeImmutable( 'today', wp_timezone() );
+		$ended = $end <= $today;
+		return (bool) apply_filters( 'vila_cb_stay_ended_on_or_before_today', $ended, $check_out );
+	}
+
+	/**
 	 * Enumerate Y-m-d from start to end (inclusive) for calendar APIs.
 	 *
 	 * @param string $from_ymd Y-m-d.

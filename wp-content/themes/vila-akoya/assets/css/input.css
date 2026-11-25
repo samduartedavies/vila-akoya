@@ -2075,6 +2075,18 @@
     display: none;
   }
 
+  .vila-stay-discount-upsell-row .vila-upsell-price__was,
+  .vila-stay-discount-notice__text .vila-upsell-price__was {
+    margin-right: 0.2em;
+    opacity: 0.62;
+    text-decoration: line-through;
+  }
+
+  .vila-stay-discount-upsell-row .vila-upsell-price__now,
+  .vila-stay-discount-notice__text .vila-upsell-price__now {
+    font-weight: 600;
+  }
+
   .vila-booking-notes-wrap {
     @apply mb-8 w-full min-w-0;
   }

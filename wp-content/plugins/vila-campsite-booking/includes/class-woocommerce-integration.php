@@ -77,6 +77,7 @@ class WooCommerce_Integration {
 	 */
 	public static function init() {
 		add_action( 'wp_loaded', array( __CLASS__, 'maybe_autoconfigure_product' ), 25 );
+		add_filter( 'get_post_metadata', array( __CLASS__, 'unflag_mwb_global_calendar_product' ), 10, 4 );
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'enforce_single_campsite_cart_rules' ), 5, 3 );
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'add_to_cart_validation' ), 10, 3 );
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'add_to_cart_validation_stay' ), 12, 3 );
@@ -279,6 +280,27 @@ class WooCommerce_Integration {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * MWB 3.13+ rejects add-to-cart (and strips cart lines) for any product flagged as its private
+	 * "Booking Calendar" product. Vila booking products must never carry that flag.
+	 *
+	 * @param mixed  $value     Short-circuit value (null = no override).
+	 * @param int    $object_id Post ID.
+	 * @param string $meta_key  Meta key.
+	 * @param bool   $single    Single value requested.
+	 * @return mixed
+	 */
+	public static function unflag_mwb_global_calendar_product( $value, $object_id, $meta_key, $single ) {
+		if ( '_is_calendar_booking_product' !== $meta_key ) {
+			return $value;
+		}
+		$object_id = (int) $object_id;
+		if ( self::is_vila_booking_product( $object_id ) || Childcare_Booking::is_childcare_product( $object_id ) ) {
+			return $single ? array( 'no' ) : array();
+		}
+		return $value;
 	}
 
 	/**
@@ -549,7 +571,10 @@ class WooCommerce_Integration {
 		}
 
 		$svc = new Stay_Hold_Service();
-		if ( ! $svc->is_available( $stay_id, $range['check_in'], $range['check_out'] ) ) {
+		if (
+			! Dates::stay_ended_on_or_before_today( $range['check_out'] )
+			&& ! $svc->is_available( $stay_id, $range['check_in'], $range['check_out'] )
+		) {
 			wc_add_notice( __( 'Those dates are not available for this stay. Please choose different dates.', 'vila-campsite-booking' ), 'error' );
 			return false;
 		}
@@ -589,7 +614,10 @@ class WooCommerce_Integration {
 			if ( $stay_id < 1 || ! $range ) {
 				continue;
 			}
-			if ( ! $svc->is_available( $stay_id, $range['check_in'], $range['check_out'] ) ) {
+			if (
+				! Dates::stay_ended_on_or_before_today( $range['check_out'] )
+				&& ! $svc->is_available( $stay_id, $range['check_in'], $range['check_out'] )
+			) {
 				return __( 'Those dates are not available for this stay. Please choose different dates.', 'vila-campsite-booking' );
 			}
 		}

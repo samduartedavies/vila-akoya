@@ -91,6 +91,13 @@ class Booking_Service {
 	 * @return int|null Plot ID or null.
 	 */
 	public function find_available_plot( $check_in, $check_out ) {
+		if ( Dates::stay_ended_on_or_before_today( $check_out ) ) {
+			$plots = $this->plots->get_bookable();
+			if ( ! empty( $plots ) ) {
+				return (int) $plots[0]['id'];
+			}
+			return null;
+		}
 		foreach ( $this->plots->get_bookable() as $p ) {
 			$pid = (int) $p['id'];
 			if ( $this->is_plot_blocked_for_range( $pid, $check_in, $check_out ) ) {
@@ -361,6 +368,7 @@ class Booking_Service {
 		$order_id      = (int) $order_id;
 		$line_item_id  = (int) $line_item_id;
 		$now           = current_time( 'mysql' );
+		$retrospective = Dates::stay_ended_on_or_before_today( $check_out );
 
 		$wpdb->query( 'START TRANSACTION' );
 
@@ -400,6 +408,25 @@ class Booking_Service {
 
 			if ( ! $booking_id ) {
 				throw new \RuntimeException( 'insert_booking' );
+			}
+
+			if ( $retrospective ) {
+				$assigned_plot = $preferred_plot_id > 0 ? $preferred_plot_id : ( ! empty( $plot_rows ) ? (int) $plot_rows[0]['id'] : 0 );
+				$this->bookings->update(
+					$booking_id,
+					array(
+						'plot_id'    => $assigned_plot,
+						'status'     => 'confirmed',
+						'updated_at' => $now,
+					)
+				);
+				$wpdb->query( 'COMMIT' );
+				do_action( 'vila_cb_booking_confirmed', $booking_id, $order_id );
+				return array(
+					'success'    => true,
+					'booking_id' => $booking_id,
+					'plot_id'    => $assigned_plot,
+				);
 			}
 
 			$nt = Database::booking_nights_table();

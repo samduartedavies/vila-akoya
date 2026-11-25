@@ -16,6 +16,7 @@
 
 require("./load-env");
 const { withVavaVoice } = require("./vava-voice");
+const receiptAmounts = require("./receipt-amounts");
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
@@ -568,6 +569,13 @@ async function extractReceipt({
     `category must be one of: ${RECEIPT_CATEGORIES.join(", ")}.`,
     "currency: EUR unless the receipt clearly uses another (GBP, USD). Default EUR for Portugal.",
     "amount is the TOTAL to pay (gross), as a number. Use a dot decimal (12.40 not 12,40).",
+    "Read every digit of the total carefully — a currency prefix often touches the number",
+    "(\"Eur113,94\" is 113.94, not 13.94). Before answering, check the total against the other",
+    "totals on the receipt (card / Multibanco charge, IVA base + IVA, sum of items) and re-read it if they disagree.",
+    "paid_amount is the amount charged on the card / Multibanco slip (COMPRA, VALOR, TOTAL PAGO), else null.",
+    "vat_base is the net amount before IVA (Ilíquido / Base / Incidência), else null.",
+    "line_item_amounts: the price of each purchased line as numbers, in order (one entry per line, even if repeated), else [].",
+    "item_count: the printed number of articles (e.g. \"6 Art.\"), else null.",
     "vat is IVA / VAT amount if printed, else null.",
     "date is YYYY-MM-DD from the receipt; if missing, use today.",
     "merchant is the shop / supplier name.",
@@ -579,6 +587,8 @@ async function extractReceipt({
     '{ "is_receipt": bool, "confidence": 0.0-1.0, "title": string, "merchant": string,',
     '  "amount": number | null, "currency": "EUR"|"GBP"|"USD"|"Other",',
     '  "date": "YYYY-MM-DD", "category": string, "vat": number | null,',
+    '  "paid_amount": number | null, "vat_base": number | null,',
+    '  "line_item_amounts": number[], "item_count": number | null,',
     '  "notes": string, "line_items": string[], "receipt_text": string }',
   ]
     .filter(Boolean)
@@ -600,7 +610,7 @@ async function extractReceipt({
       : "image/jpeg";
     userParts.push({
       type: "image_url",
-      image_url: { url: `data:${mime};base64,${imageBase64}` },
+      image_url: { url: `data:${mime};base64,${imageBase64}`, detail: "high" },
     });
   }
   if (hasPdf) {
@@ -620,10 +630,28 @@ async function extractReceipt({
     const result = await chatJSONMessages(system, userContent, {
       model: hasImage || hasPdf ? VISION_MODEL : CHAT_MODEL,
     });
-    const amount = Number(result.amount);
     const vat = Number(result.vat);
     const currency = String(result.currency || "EUR").toUpperCase();
+    const numOrNull = (v) => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+    const check = receiptAmounts.reconcileReceiptAmount({
+      amount: numOrNull(result.amount),
+      paidAmount: numOrNull(result.paid_amount),
+      vatBase: numOrNull(result.vat_base),
+      vat: numOrNull(result.vat),
+      lineItemAmounts: Array.isArray(result.line_item_amounts)
+        ? result.line_item_amounts.map(numOrNull).filter((n) => n != null)
+        : [],
+      itemCount: numOrNull(result.item_count),
+    });
+    const amount = check.amount;
+    const checkNote = check.changed
+      ? `Total corrected from ${numOrNull(result.amount)} to ${amount} — it disagreed with the other totals on the receipt.`
+      : check.uncertain
+        ? `Totals on the receipt disagree (${check.candidates.map((c) => `${c.source} ${c.amount}`).join(", ")}) — please check the amount.`
+        : "";
+    if (checkNote) console.warn(`extractReceipt: ${checkNote}`);
     return {
+      amount_uncertain: check.uncertain,
       is_receipt: result.is_receipt !== false,
       confidence: Number(result.confidence) || 0,
       title: String(result.title || result.merchant || "Receipt").slice(0, 80),
@@ -639,7 +667,7 @@ async function extractReceipt({
         ? result.category
         : "Other",
       vat: Number.isFinite(vat) ? vat : null,
-      notes: String(result.notes || "").slice(0, 500),
+      notes: [String(result.notes || ""), checkNote].filter(Boolean).join("\n").slice(0, 500),
       line_items: Array.isArray(result.line_items)
         ? result.line_items.map((x) => String(x).slice(0, 120)).filter(Boolean).slice(0, 20)
         : [],

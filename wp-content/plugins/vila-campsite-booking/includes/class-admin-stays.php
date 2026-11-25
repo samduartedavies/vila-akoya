@@ -120,6 +120,9 @@ class Admin_Stays {
 		);
 		$df     = get_option( 'date_format' );
 		$df     = is_string( $df ) && '' !== $df ? $df : 'Y-m-d';
+		$payment_filter = isset( $_GET[ Order_Payment_Status::FILTER ] )
+			? sanitize_key( wp_unslash( Request_String::scalar( $_GET[ Order_Payment_Status::FILTER ] ) ) )
+			: '';
 		$labels = array();
 		foreach ( $stays as $stay ) {
 			$labels[ (int) $stay->ID ] = get_the_title( $stay );
@@ -192,6 +195,12 @@ class Admin_Stays {
 			</div>
 		<?php endif; ?>
 
+		<form method="get" class="vila-cb-payment-filter vila-cb-payment-filter--panel">
+			<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE ); ?>" />
+			<?php echo Order_Payment_Status::filter_select_html( $payment_filter, Order_Payment_Status::FILTER, __( 'Filter by payment status', 'vila-campsite-booking' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+			<button type="submit" class="button"><?php esc_html_e( 'Filter', 'vila-campsite-booking' ); ?></button>
+		</form>
+
 		<form method="post">
 			<?php wp_nonce_field( 'vila_cb_stays', 'vila_cb_stays_nonce' ); ?>
 			<input type="hidden" name="vila_cb_stays_action" value="cancel" />
@@ -209,11 +218,13 @@ class Admin_Stays {
 									<th scope="col"><?php esc_html_e( 'Type', 'vila-campsite-booking' ); ?></th>
 									<th scope="col"><?php esc_html_e( 'Guests', 'vila-campsite-booking' ); ?></th>
 									<th scope="col"><?php esc_html_e( 'Guest / note', 'vila-campsite-booking' ); ?></th>
+									<th scope="col"><?php esc_html_e( 'Payment', 'vila-campsite-booking' ); ?></th>
 									<th scope="col"><?php esc_html_e( 'Source', 'vila-campsite-booking' ); ?></th>
 									<th scope="col"><?php esc_html_e( 'Remove', 'vila-campsite-booking' ); ?></th>
 								</tr>
 							</thead>
 							<tbody>
+								<?php $visible_holds = 0; ?>
 								<?php foreach ( $holds as $hold ) : ?>
 									<?php
 									$sid   = (int) $hold['stay_id'];
@@ -238,9 +249,14 @@ class Admin_Stays {
 									}
 									$order_id = isset( $hold['order_id'] ) ? (int) $hold['order_id'] : 0;
 									$line_id  = isset( $hold['line_item_id'] ) ? (int) $hold['line_item_id'] : 0;
+									$order    = $order_id ? wc_get_order( $order_id ) : null;
+									$is_block = Stay_Hold_Repository::KIND_BLOCK === (string) $hold['kind'];
+									if ( ! $is_block && ! Order_Payment_Status::matches_filter( $order, $payment_filter ) ) {
+										continue;
+									}
+									++$visible_holds;
 									$party    = '';
-									if ( Stay_Hold_Repository::KIND_BLOCK !== (string) $hold['kind'] ) {
-										$order = $order_id ? wc_get_order( $order_id ) : null;
+									if ( ! $is_block ) {
 										$party = WooCommerce_Integration::format_guest_counts_calendar_line(
 											WooCommerce_Integration::resolve_guest_counts_for_booking( '', $order, $line_id )
 										);
@@ -257,6 +273,7 @@ class Admin_Stays {
 												<br /><a href="<?php echo esc_url( admin_url( 'post.php?post=' . $order_id . '&action=edit' ) ); ?>"><?php echo esc_html( sprintf( __( 'Order #%d', 'vila-campsite-booking' ), $order_id ) ); ?></a>
 											<?php endif; ?>
 										</td>
+										<td><?php echo $is_block ? esc_html__( '—', 'vila-campsite-booking' ) : Order_Payment_Status::badge_html( $order, 'compact' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?></td>
 										<td><?php echo esc_html( $source_label ); ?></td>
 										<td>
 											<label class="vila-cb-ui-check">
@@ -266,6 +283,9 @@ class Admin_Stays {
 										</td>
 									</tr>
 								<?php endforeach; ?>
+								<?php if ( 0 === $visible_holds ) : ?>
+									<tr><td colspan="8"><?php esc_html_e( 'No stays match this payment filter.', 'vila-campsite-booking' ); ?></td></tr>
+								<?php endif; ?>
 							</tbody>
 						</table>
 					</div>
@@ -282,9 +302,10 @@ class Admin_Stays {
 	 *
 	 * @param array<int, array{ymd: string, dow: string, day: string, mon: string}> $days      Columns.
 	 * @param string                                                                 $today_ymd Today.
+	 * @param string                                                                 $payment_highlight Payment highlight filter.
 	 * @return void
 	 */
-	public static function render_calendar_rows( array $days, $today_ymd ) {
+	public static function render_calendar_rows( array $days, $today_ymd, $payment_highlight = '' ) {
 		$stays = Stay_Hold_Service::published_stays();
 		if ( empty( $stays ) || empty( $days ) ) {
 			return;
@@ -360,7 +381,8 @@ class Admin_Stays {
 					$class .= ' vila-cb-grid__cell--today';
 				}
 				$payload = self::calendar_hold_cell_payload( $seg, $edit_base );
-				echo '<td class="' . esc_attr( $class ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $payload['cell_title'] ) . '">';
+				$data_pay = $is_block ? '' : $payload['pay_state'];
+				echo '<td class="' . esc_attr( $class ) . '" data-pay="' . esc_attr( $data_pay ) . '" colspan="' . (int) $span . '" title="' . esc_attr( $payload['cell_title'] ) . '">';
 				echo $payload['cell_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built in Admin::render_calendar_busy_cell_markup().
 				echo '</td>';
 				$j += $span;
@@ -374,7 +396,7 @@ class Admin_Stays {
 	 *
 	 * @param array<string, mixed> $seg      Hold row.
 	 * @param string               $edit_base Village stays admin URL.
-	 * @return array{cell_title: string, cell_html: string}
+	 * @return array{cell_title: string, cell_html: string, pay_state: string}
 	 */
 	private static function calendar_hold_cell_payload( array $seg, $edit_base ) {
 		$hid      = isset( $seg['id'] ) ? (int) $seg['id'] : 0;
@@ -422,11 +444,13 @@ class Admin_Stays {
 		if ( '' === $meals_line && '' !== trim( (string) $seg['note'] ) && $is_block ) {
 			$meals_line = (string) $seg['note'];
 		}
+		$pay_info = $is_block ? array( 'state' => '', 'label' => '' ) : Order_Payment_Status::describe( $order );
 
 		$tip_bits = array_filter(
 			array(
 				$date_range,
 				$guest_name,
+				$pay_info['label'],
 				$detail_line,
 				$meals_line,
 			)
@@ -442,8 +466,11 @@ class Admin_Stays {
 				$date_range,
 				false,
 				0,
-				false
+				false,
+				$pay_info['state'],
+				$pay_info['label']
 			),
+			'pay_state'  => $pay_info['state'],
 		);
 	}
 

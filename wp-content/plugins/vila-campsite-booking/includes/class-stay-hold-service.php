@@ -143,7 +143,8 @@ class Stay_Hold_Service {
 				'error'   => __( 'Choose a stay and a valid date range.', 'vila-campsite-booking' ),
 			);
 		}
-		if ( ! $this->is_available( $stay_id, $check_in, $check_out ) ) {
+		$retrospective = Dates::stay_ended_on_or_before_today( $check_out );
+		if ( ! $retrospective && ! $this->is_available( $stay_id, $check_in, $check_out ) ) {
 			return array(
 				'success' => false,
 				'error'   => __( 'Those dates are already booked or blocked for this stay.', 'vila-campsite-booking' ),
@@ -169,14 +170,24 @@ class Stay_Hold_Service {
 				'updated_at'   => $now,
 			)
 		);
-		if ( $hold_id < 1 || ! $this->repo->replace_nights( $hold_id, $stay_id, $nights ) ) {
+		if ( $hold_id < 1 ) {
 			$wpdb->query( 'ROLLBACK' );
 			return array(
 				'success' => false,
 				'error'   => __( 'Could not save those dates. They may overlap another booking.', 'vila-campsite-booking' ),
 			);
 		}
-		$wpdb->query( 'COMMIT' );
+		if ( $retrospective ) {
+			$wpdb->query( 'COMMIT' );
+		} elseif ( ! $this->repo->replace_nights( $hold_id, $stay_id, $nights ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return array(
+				'success' => false,
+				'error'   => __( 'Could not save those dates. They may overlap another booking.', 'vila-campsite-booking' ),
+			);
+		} else {
+			$wpdb->query( 'COMMIT' );
+		}
 		$this->invalidate_product_cache( $product_id );
 		return array(
 			'success' => true,
